@@ -14,6 +14,10 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
 ## Installation Instructions ##
 
+**Note**:   Symbolic names are used below to refer to some file location on the WeeWX system. These symbolic names allow a common name to be used to refer to a directory that may be different from system to system. The following symbolic names are used below:
+
+-   *$BIN_ROOT*. The path to the directory where WeeWX executables are located. This directory varies depending on WeeWX installation method. Refer to [where to find things](http://weewx.com/docs/usersguide.htm#Where_to_find_things) in the WeeWX User's Guide for further information.
+
 ### Installation as a WeeWX driver ###
 
 1.  If installing on a fresh WeeWX installation install WeeWX and configure it to use the *simulator*. Refer to [Installing WeeWX](http://weewx.com/docs/usersguide.htm#installing).
@@ -32,7 +36,17 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
 3.  If installing manually:
 
-    -   put this file in *$BIN_ROOT/user*.
+    -   download the GW1000 driver extension package:
+
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0/weewx-gw1000-0.1.0.tar.gz
+
+    -   extract gw1000.py from the GW1000 driver extension package:
+    
+            $ tar -xzf /var/tmp/weewx-gw1000.0.1.0.tar.gz
+     
+    -   copy the file *gw1000.py* to the *$BIN_ROOT/user* directory:
+    
+            $ cp gw1000.py $BIN_ROOT/user
 
     -   add the following stanza to *weewx.conf*:
 
