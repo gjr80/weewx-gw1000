@@ -2,7 +2,17 @@
 """
 gw1000.py
 
-A WeeWX driver for the Ecowitt GW1000 Wi-Fi Gateway.
+A WeeWX driver for the Ecowitt GW1000 Wi-Fi Gateway API.
+
+The WeeWX GW1000 driver utilise the GW1000 API thus using a pull methodology for
+obtaining data from the GW1000 rather than the push methodology used by current
+drivers. This has the advantage of giving the user more control over when the
+data is obtained from the GW1000 plus also giving access to a greater range of
+metrics.
+
+The GW1000 driver can be operated as a traditional WeeWX driver where it is the
+source of loop data or it can be operated as a WeeWX service where it is used
+to augment loop data produced by another driver.
 
 Copyright (C) 2020 Gary Roderick                    gjroderick<at>gmail.com
 
@@ -18,17 +28,17 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0                                    Date: 24 April 2020
+Version: 0.1.0                                    Date: 19 July 2020
 
 Revision History
-    24 April 2020       v0.1.0
+    19 July 2020       v0.1.0
         - initial release
 
 
 Before running WeeWX with the GW1000 driver you may wish to run the driver from
-the command line to ensure correct operation. To run the driver from the command
-line enter one of the the following commands depending on your WeeWX
-installation type:
+the command line to ensure correct operation/assist in configuration. To run the
+driver from the command line enter one of the the following commands depending
+on your WeeWX installation type:
 
     for a setup.py install:
 
@@ -38,7 +48,7 @@ installation type:
 
         $ python -m user.gw1000 --help
 
-Note the nature of the GW1000 API and the GW1000 driver mean that the GW1000
+Note. The nature of the GW1000 API and the GW1000 driver mean that the GW1000
 driver can be run from the command line while the GW1000 continues to serve
 data to any existing services. This makes it possible to configure and test the
 GW1000 driver without taking the GW1000 off-line.
@@ -49,25 +59,26 @@ useful for configuring the driver IP address and port config options in
 weewx.conf.
 
 The --live-data command line option is useful for seeing what data is available
-from the GW1000. Note the fields avaialble will depend on the sensors connected
+from the GW1000. Note the fields available will depend on the sensors connected
 to the GW1000. As the field names returned by --live-data used are GW1000 field
-names before mapping to WeeWX fields names the --live-data output is useful for
+names before mapping to WeeWX fields names, the --live-data output is useful for
 configuring the field map to be used by the GW1000 driver.
 
-Once you believe the GW1000 driver is configured the --test-driver command line
-option can be used to confirm correct operation of the GW1000 driver.
+Once you believe the GW1000 driver is configured the --test-driver or
+--test-service command line options can be used to confirm correct operation of
+the GW1000 driver as a driver or as a service respectively.
 
-To use this driver:
+To use the GW1000 driver as a WeeWX driver:
 
 1.  If installing on a fresh WeeWX installation install WeeWX and configure it
 to use the 'simulator'. Refer to http://weewx.com/docs/usersguide.htm#installing
 
-2.  If installing the driver using the wee_extension utility (recommended
+2.  If installing the driver using the wee_extension utility (the recommended
 method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp ?
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0/weewx-gw1000-0.1.0.tar.gz
 
     -   install the GW1000 driver extension:
 
@@ -92,7 +103,6 @@ method):
     Note: If an [Accumulator] stanza already exists in weewx.conf just add the
           child settings.
 
-[Accumulator]
 [Accumulator]
     [[lightning_strike_count]]
         extractor = sum
@@ -124,18 +134,13 @@ weewx.conf altering/removing/adding field maps entries as required:
        outTemp = outtemp
        ...
 
-    The available GW1000 fields will depend on what sensors are connected to
-    the GW1000. The available fields and current observation values for a given
-    GW1000 can be viewed by running the GW1000 driver directly with the
-    --live-data command line option:
+    Details of all supported GW1000 fields can be viewed by running the GW1000
+    driver with the --default-map to display the default field map.
 
-    for a setup.py install:
-
-        $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --live-data
-
-    or for package installs use:
-
-        $ python -m user.gw1000 --live-data
+    However, the available GW1000 fields will depend on what sensors are
+    connected to the GW1000. The available fields and current observation
+    values for a given GW1000 can be viewed by running the GW1000 driver
+    directly with the --live-data command line option.
 
 5.  The default field map can also be modified without needing to specify the
 entire field map by adding a [[field_map_extensions]] stanza to the [GW1000]
@@ -149,13 +154,78 @@ whilst keeping all other field mappings as is:
     [[field_map_extensions]]
         inHumidity = humid5
 
-6.  Configure the driver:
+6.  Test the now configured GW1000 driver using the --test-driver command line
+option. You should observe loop packets being emitted on a regular basis using
+the WeeWX field names from the default or modified field map.
+
+7.  Configure the driver:
 
     $ sudo wee_config --reconfigure --driver=user.gw1000 --no-prompt
 
-6.  If WeeWX is running restart WeeWX otherwise start WeeWX:
+6.  You may chose to run WeeWX directly to observe the loop packets and archive
+records being generated by WeeWX. Refer to
+http://weewx.com/docs/usersguide.htm#Running_directly.
 
-    $ sudo /etc/init.d/weewx restart
+6.  Once satisfied that the GW1000 driver is operating correctly you can start
+the WeeWX daemon:
+
+    $ sudo /etc/init.d/weewx start
+
+    or
+
+    $ sudo service weewx start
+
+    or
+
+    $ sudo systemctl start weewx
+
+To use the GW1000 driver as a WeeWX service:
+
+1.  Install WeeWX and configure it to use either the 'simulator' or another
+driver of your choice. Refer to http://weewx.com/docs/usersguide.htm#installing.
+
+2.  Install the GW1000 driver using the wee_extension utility as per 'To use the
+GW1000 driver as a WeeWX driver' step 3 above or copy this file to
+$BIN_ROOT/user.
+
+3.  Modify weewx.conf as per 'To use the GW1000 driver as a WeeWX driver' step 3
+above.
+
+4.  Under the [Engine] [[Services]] stanza in weewx.conf and add an entry
+'user.gw1000.Gw1000Service' to the data_services option. It should look
+something like:
+
+[Engine]
+
+    [[Services]]
+        ....
+        data_services = user.gw1000.Gw1000Service
+
+5.  If required, modify the default field map to suit as per 'To use the GW1000
+driver as a WeeWX driver' steps 4 and 5.
+
+6.  Test the now configured GW1000 service using the --test-service command line
+option. You should observe loop packets being emitted on a regular basis that
+include GW1000 data. Note that not all loop packets will include GW1000 data.
+
+7.  You may chose to run WeeWX directly to observe the loop packets and archive
+records being generated by WeeWX. Refer to
+http://weewx.com/docs/usersguide.htm#Running_directly. Note that depending on
+the frequency of the loop packets emitted by the in-use driver and the polling
+interval of the GW1000 service not all loop packets may include GW1000 data.
+
+8.  Once satisfied that the GW1000 service is operating correctly you can start
+the WeeWX daemon:
+
+    $ sudo /etc/init.d/weewx start
+
+    or
+
+    $ sudo service weewx start
+
+    or
+
+    $ sudo systemctl start weewx
 """
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
@@ -173,7 +243,6 @@ whilst keeping all other field mappings as is:
 # TODO. Confirm WH40 battery status
 # TODO. Fix main() for v3 logging
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. Check service/driver config logging is complete
 
 # TODO. Verify field map/field map extensions work correctly
 # TODO. Verify 3.9.2 operation
@@ -1576,62 +1645,62 @@ class Gw1000Collector(Collector):
             b'\x27': ('decode_humid', 1, 'humid6'),
             b'\x28': ('decode_humid', 1, 'humid7'),
             b'\x29': ('decode_humid', 1, 'humid8'),
-            b'\x2A': ('decode_aq', 2, 'pm251'),  # PM2.5 1 (ug/m3), size in bytes:2
-            b'\x2B': ('decode_temp', 2, 'soiltemp1'),  # Soil Temperature_1 (C), size in bytes:2
-            b'\x2C': ('decode_moist', 1, 'soilmoist1'),  # Soil Moisture_1 (%), size in bytes:1
-            b'\x2D': ('decode_temp', 2, 'soiltemp2'),  # Soil Temperature_2 (C), size in bytes:2
-            b'\x2E': ('decode_moist', 1, 'soilmoist2'),  # Soil Moisture_2 (%), size in bytes:1
-            b'\x2F': ('decode_temp', 2, 'soiltemp3'),  # Soil Temperature_3 (C), size in bytes:2
-            b'\x30': ('decode_moist', 1, 'soilmoist3'),  # Soil Moisture_3 (%), size in bytes:1
-            b'\x31': ('decode_temp', 2, 'soiltemp4'),  # Soil Temperature_4 (C), size in bytes:2
-            b'\x32': ('decode_moist', 1, 'soilmoist4'),  # Soil Moisture_4 (%), size in bytes:1
-            b'\x33': ('decode_temp', 2, 'soiltemp5'),  # Soil Temperature_5 (C), size in bytes:2
-            b'\x34': ('decode_moist', 1, 'soilmoist5'),  # Soil Moisture_5 (%), size in bytes:1
-            b'\x35': ('decode_temp', 2, 'soiltemp6'),  # Soil Temperature_6 (C), size in bytes:2
-            b'\x36': ('decode_moist', 1, 'soilmoist6'),  # Soil Moisture_6 (%), size in bytes:1
-            b'\x37': ('decode_temp', 2, 'soiltemp7'),  # Soil Temperature_7 (C), size in bytes:2
-            b'\x38': ('decode_moist', 1, 'soilmoist7'),  # Soil Moisture_7 (%), size in bytes:1
-            b'\x39': ('decode_temp', 2, 'soiltemp8'),  # Soil Temperature_8 (C), size in bytes:2
-            b'\x3A': ('decode_moist', 1, 'soilmoist8'),  # Soil Moisture_8 (%), size in bytes:1
-            b'\x3B': ('decode_temp', 2, 'soiltemp9'),  # Soil Temperature_9 (C), size in bytes:2
-            b'\x3C': ('decode_moist', 1, 'soilmoist9'),  # Soil Moisture_9 (%), size in bytes:1
-            b'\x3D': ('decode_temp', 2, 'soiltemp10'), # Soil Temperature_10 (C), size in bytes:2
-            b'\x3E': ('decode_moist', 1, 'soilmoist10'), # Soil Moisture_10 (%), size in bytes:1
-            b'\x3F': ('decode_temp', 2, 'soiltemp11'), # Soil Temperature_11 (C), size in bytes:2
-            b'\x40': ('decode_moist', 1, 'soilmoist11'), # Soil Moisture_11 (%), size in bytes:1
-            b'\x41': ('decode_temp', 2, 'soiltemp12'), # Soil Temperature_12 (C), size in bytes:2
-            b'\x42': ('decode_moist', 1, 'soilmoist12'), # Soil Moisture_12 (%), size in bytes:1
-            b'\x43': ('decode_temp', 2, 'soiltemp13'), # Soil Temperature_13 (C), size in bytes:2
-            b'\x44': ('decode_moist', 1, 'soilmoist13'), # Soil Moisture_13 (%), size in bytes:1
-            b'\x45': ('decode_temp', 2, 'soiltemp14'), # Soil Temperature_14 (C), size in bytes:2
-            b'\x46': ('decode_moist', 1, 'soilmoist14'), # Soil Moisture_14 (%), size in bytes:1
-            b'\x47': ('decode_temp', 2, 'soiltemp15'), # Soil Temperature_15 (C), size in bytes:2
-            b'\x48': ('decode_moist', 1, 'soilmoist15'), # Soil Moisture_15 (%), size in bytes:1
-            b'\x49': ('decode_temp', 2, 'soiltemp16'), # Soil Temperature_16 (C), size in bytes:2
-            b'\x4A': ('decode_moist', 1, 'soilmoist16'), # Soil Moisture_16 (%), size in bytes:1
-            b'\x4C': ('decode_batt', 16, 'lowbatt'),  # All_sensor lowbatt, size in bytes:16
+            b'\x2A': ('decode_aq', 2, 'pm251'),
+            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+            b'\x2C': ('decode_moist', 1, 'soilmoist1'),
+            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+            b'\x2E': ('decode_moist', 1, 'soilmoist2'),
+            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+            b'\x30': ('decode_moist', 1, 'soilmoist3'),
+            b'\x31': ('decode_temp', 2, 'soiltemp4'),
+            b'\x32': ('decode_moist', 1, 'soilmoist4'),
+            b'\x33': ('decode_temp', 2, 'soiltemp5'),
+            b'\x34': ('decode_moist', 1, 'soilmoist5'),
+            b'\x35': ('decode_temp', 2, 'soiltemp6'),
+            b'\x36': ('decode_moist', 1, 'soilmoist6'),
+            b'\x37': ('decode_temp', 2, 'soiltemp7'),
+            b'\x38': ('decode_moist', 1, 'soilmoist7'),
+            b'\x39': ('decode_temp', 2, 'soiltemp8'),
+            b'\x3A': ('decode_moist', 1, 'soilmoist8'),
+            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+            b'\x3C': ('decode_moist', 1, 'soilmoist9'),
+            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+            b'\x3E': ('decode_moist', 1, 'soilmoist10'),
+            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+            b'\x40': ('decode_moist', 1, 'soilmoist11'),
+            b'\x41': ('decode_temp', 2, 'soiltemp12'),
+            b'\x42': ('decode_moist', 1, 'soilmoist12'),
+            b'\x43': ('decode_temp', 2, 'soiltemp13'),
+            b'\x44': ('decode_moist', 1, 'soilmoist13'),
+            b'\x45': ('decode_temp', 2, 'soiltemp14'),
+            b'\x46': ('decode_moist', 1, 'soilmoist14'),
+            b'\x47': ('decode_temp', 2, 'soiltemp15'),
+            b'\x48': ('decode_moist', 1, 'soilmoist15'),
+            b'\x49': ('decode_temp', 2, 'soiltemp16'),
+            b'\x4A': ('decode_moist', 1, 'soilmoist16'),
+            b'\x4C': ('decode_batt', 16, 'lowbatt'),
             b'\x4D': ('decode_aq', 2, '24havpm251'),
-            b'\x4E': ('decode_aq', 2, '24havpm252'), # 24h_avg pm25_ch2 (ug/m3), size in bytes:2
-            b'\x4F': ('decode_aq', 2, '24havpm253'), # 24h_avg pm25_ch3 (ug/m3), size in bytes:2
-            b'\x50': ('decode_aq', 2, '24havpm254'), # 24h_avg pm25_ch4 (ug/m3), size in bytes:2
-            b'\x51': ('decode_aq', 2, 'pm252'),  # PM2.5 2 (ug/m3), size in bytes:2
-            b'\x52': ('decode_aq', 2, 'pm253'),  # PM2.5 3 (ug/m3), size in bytes:2
-            b'\x53': ('decode_aq', 2, 'pm254'),  # PM2.5 4 (ug/m3), size in bytes:2
-            b'\x58': ('decode_leak', 1, 'leak1'),  # Leak ch1 , size in bytes:1
-            b'\x59': ('decode_leak', 1, 'leak2'),  # Leak ch2 , size in bytes:1
-            b'\x5A': ('decode_leak', 1, 'leak3'),  # Leak ch3 , size in bytes:1
-            b'\x5B': ('decode_leak', 1, 'leak4'),  # Leak ch4 , size in bytes:1
+            b'\x4E': ('decode_aq', 2, '24havpm252'),
+            b'\x4F': ('decode_aq', 2, '24havpm253'),
+            b'\x50': ('decode_aq', 2, '24havpm254'),
+            b'\x51': ('decode_aq', 2, 'pm252'),
+            b'\x52': ('decode_aq', 2, 'pm253'),
+            b'\x53': ('decode_aq', 2, 'pm254'),
+            b'\x58': ('decode_leak', 1, 'leak1'),
+            b'\x59': ('decode_leak', 1, 'leak2'),
+            b'\x5A': ('decode_leak', 1, 'leak3'),
+            b'\x5B': ('decode_leak', 1, 'leak4'),
             b'\x60': ('decode_distance', 1, 'lightningdist'),
             b'\x61': ('decode_utc', 4, 'lightningdettime'),
             b'\x62': ('decode_count', 4, 'lightningcount'),
-            b'\x63': ('decode_temp_batt', 3, 'usertemp1'), # User temperature 1 (C), size in bytes:3
-            b'\x64': ('decode_temp_batt', 3, 'usertemp2'), # User temperature 2 (C), size in bytes:3
-            b'\x65': ('decode_temp_batt', 3, 'usertemp3'), # User temperature 3 (C), size in bytes:3
-            b'\x66': ('decode_temp_batt', 3, 'usertemp4'), # User temperature 4 (C), size in bytes:3
-            b'\x67': ('decode_temp_batt', 3, 'usertemp5'), # User temperature 5 (C), size in bytes:3
-            b'\x68': ('decode_temp_batt', 3, 'usertemp6'), # User temperature 6 (C), size in bytes:3
-            b'\x69': ('decode_temp_batt', 3, 'usertemp7'), # User temperature 7 (C), size in bytes:3
-            b'\x6A': ('decode_temp_batt', 3, 'usertemp8'), # User temperature 8 (C), size in bytes:3
+            b'\x63': ('decode_temp_batt', 3, 'usertemp1'),
+            b'\x64': ('decode_temp_batt', 3, 'usertemp2'),
+            b'\x65': ('decode_temp_batt', 3, 'usertemp3'),
+            b'\x66': ('decode_temp_batt', 3, 'usertemp4'),
+            b'\x67': ('decode_temp_batt', 3, 'usertemp5'),
+            b'\x68': ('decode_temp_batt', 3, 'usertemp6'),
+            b'\x69': ('decode_temp_batt', 3, 'usertemp7'),
+            b'\x6A': ('decode_temp_batt', 3, 'usertemp8'),
         }
 
         multi_batt = {'wh24': {'mask': 1 << 7},
@@ -2119,7 +2188,8 @@ if __name__ == '__main__':
         print()
         # create a list of keys in the default field map dict
         keys_list = list(Gw1000.default_field_map.keys())
-        # sort them naturally so that xxxxx16 appears in the correct order
+        # sort them naturally so that, for example, xxxxx16 appears in the
+        # correct order
         keys_list.sort(key=natural_keys)
         # iterate over the sorted keys and print the key and item
         for key in keys_list:
@@ -2168,7 +2238,7 @@ if __name__ == '__main__':
         # Create a dummy config so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Include the GW1000 service
         # and StdPrint, StdPrint will take care of printing our loop packets
-        # (no StdArchive so loop pckets only, no archive records)
+        # (no StdArchive so loop packets only, no archive records)
         config = {
             'Station': {
                 'station_type': 'Simulator',
