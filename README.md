@@ -40,7 +40,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
             $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0/weewx-gw1000-0.1.0.tar.gz
 
-    -   extract gw1000.py from the GW1000 driver extension package:
+    -   extract *gw1000.py* from the GW1000 driver extension package:
     
             $ tar -xzf /var/tmp/weewx-gw1000.0.1.0.tar.gz
      
@@ -90,6 +90,8 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
     Details of all supported GW1000 fields can be viewed by running the GW1000 driver with the *--default-map* command line option to display the default field map.
 
     However, the available GW1000 fields will depend on what sensors are connected to the GW1000. The available fields and current observation values for a given GW1000 can be viewed by running the GW1000 driver directly with the *--live-data* command line option.
+
+    **Note:** Only WeeWX loop packet fields that exist in the in-use database schema will be saved to archive. WeeWX field names that are not ncluded in the in-use database schema are availaable as *$current* tags only in WeeWX generated reports. 
 
 5.  The default field map can also be modified without needing to specify the entire field map by adding a *[[field_map_extensions]]* stanza to the *[GW1000]* stanza in *weewx.conf*. The field mappings under *[[field_map_extensions]]* are used to modify the default field map, for example, the following could be used to map the humidity reading from WH31 channel 5 to the WeeWX *inHumidity* field whilst keeping all other field mappings as is:
 
