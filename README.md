@@ -20,7 +20,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
 ### Installation as a WeeWX driver ###
 
-1.  If installing on a fresh WeeWX installation install WeeWX and configure it to use the *simulator*. Refer to [Installing WeeWX](http://weewx.com/docs/usersguide.htm#installing).
+1.  If installing on a fresh WeeWX installation [install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure it to use the *simulator*.
 
 2.  If installing the driver using the *wee_extension* utility (the recommended method):
 
@@ -122,7 +122,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
 ### Installation as a WeeWX service ###
 
-1.  Install WeeWX and configure it to use either the *simulator* or another driver of your choice. Refer to [Installing WeeWX](http://weewx.com/docs/usersguide.htm#installing).
+1.  [Install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure it to use either the *simulator* or another driver of your choice.
 
 2.  Install the GW1000 driver using the *wee_extension* utility as per *Installation as a WeeWX driver* step 2 above or copy this file to *$BIN_ROOT/user*.
 
