@@ -91,7 +91,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
     However, the available GW1000 fields will depend on what sensors are connected to the GW1000. The available fields and current observation values for a given GW1000 can be viewed by running the GW1000 driver directly with the *--live-data* command line option.
 
-    **Note:** Only WeeWX loop packet fields that exist in the in-use database schema will be saved to archive. WeeWX field names that are not ncluded in the in-use database schema are availaable as *$current* tags only in WeeWX generated reports. 
+    **Note:** Only WeeWX loop packet fields that exist in the in-use database schema will be saved to archive. WeeWX field names that are not included in the in-use database schema are available as *$current* tags only in WeeWX generated reports. 
 
 5.  The default field map can also be modified without needing to specify the entire field map by adding a *[[field_map_extensions]]* stanza to the *[GW1000]* stanza in *weewx.conf*. The field mappings under *[[field_map_extensions]]* are used to modify the default field map, for example, the following could be used to map the humidity reading from WH31 channel 5 to the WeeWX *inHumidity* field whilst keeping all other field mappings as is:
 
@@ -124,11 +124,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
 1.  Install WeeWX and configure it to use either the *simulator* or another driver of your choice. Refer to [Installing WeeWX](http://weewx.com/docs/usersguide.htm#installing).
 
-2.  Install the GW1000 driver using the *wee_extension* utility as per *Installation as a WeeWX driver* step 3 above or copy this file to *$BIN_ROOT/user*.
+2.  Install the GW1000 driver using the *wee_extension* utility as per *Installation as a WeeWX driver* step 2 above or copy this file to *$BIN_ROOT/user*.
 
-3.  Modify *weewx.conf* as per 'To install the GW1000 driver as a WeeWX driver' step 3 above.
+3.  Modify *weewx.conf* as per *Installation as a WeeWX driver* step 3 above.
 
-4.  Under the *[Engine] [[Services]]* stanza in *weewx.conf* and add an entry *user.gw1000.Gw1000Service* to the *data_services* option. It should look something like:
+4.  Under the *[Engine] [[Services]]* stanza in *weewx.conf* add an entry *user.gw1000.Gw1000Service* to the *data_services* option. It should look something like:
 
         [Engine]
         
