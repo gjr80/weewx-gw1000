@@ -241,6 +241,7 @@ the WeeWX daemon:
 # TODO. Confirm WH24 battery status
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
+# TODO. --sensors battery data does not agree with --live-data battery states (at least for WH57)
 # TODO. Fix main() for v3 logging
 # TODO. Need to know date-time data format for decode date_time()
 
@@ -252,10 +253,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import re
 import socket
 import struct
 import threading
 import time
+from operator import itemgetter
 
 # python 2/3 compatibility shim
 import six
@@ -331,7 +334,7 @@ default_broadcast_address = '255.255.255.255'
 # default network broadcast port - the port that network broadcasts are sent to
 default_broadcast_port = 46000
 # default socket timeout
-default_socket_timeout = 1
+default_socket_timeout = 2
 # When run as a service the default age in seconds after which GW1000 API data
 # is considered stale and will not be used to augment loop packets
 default_max_age = 60
@@ -519,7 +522,13 @@ class Gw1000(object):
         self.rain_total_field = None
         # finally log any config that is not being pushed any further down
         # sensor map to be used
-        loginf('field map is %s' % self.field_map)
+        # Dict output will be in unsorted key order. It is easier to read if
+        # sorted alphanumerically but we have keys such as xxxxx16 that do not
+        # sort well. Use a custom natural sort of the keys in a manually
+        # produced formatted dict representation.
+        sorted_dict_fields = ["'%s': '%s'" % (k, self.field_map[k]) for k in natural_sort_dict(self.field_map)]
+        sorted_dict_str = "{%s}" % ", ".join(sorted_dict_fields)
+        loginf('field map is %s' % sorted_dict_str)
 
     def map_data(self, data):
         """Map parsed GW1000 data to a WeeWX loop packet.
@@ -1154,9 +1163,7 @@ class Gw1000Collector(Collector):
         """Obtain the MAC address of the GW1000."""
 
         station_mac_b = self.station.get_mac_address()
-        mac_format = "B" * len(station_mac_b)
-        station_mac_t = struct.unpack(mac_format, station_mac_b)
-        return self.bytes_to_hex(station_mac_t[4:10], separator=":")
+        return self.bytes_to_hex(station_mac_b[4:10], separator=":")
 
     @property
     def firmware_version(self):
@@ -1233,7 +1240,7 @@ class Gw1000Collector(Collector):
         format_str = "{:02X}" if caps else "{:02x}"
         try:
             return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-        except (ValueError, TypeError):
+        except (TypeError, ValueError):
             # ValueError - cannot format c as {:02X}
             # TypeError - 'iterable' is not iterable
             # either way we can't represent as a string of hex bytes
@@ -2009,6 +2016,38 @@ class Gw1000Collector(Collector):
         def battery_voltage(data):
             return 0.02 * data
 
+
+# ============================================================================
+#                             Utility functions
+# ============================================================================
+
+def natural_sort_dict(source_dict):
+    """Return a naturally sorted list of keys for a dict."""
+
+    def atoi(text):
+        return int(text) if text.isdigit() else text
+
+    def natural_keys(text):
+        """Natural key sort.
+
+        Allows use of key=natural_keys to sort a list in human order, eg:
+            alist.sort(key=natural_keys)
+
+        http://nedbatchelder.com/blog/200712/human_sorting.html (See
+        Toothy's implementation in the comments)
+        """
+
+        return [atoi(c) for c in re.split(r'(\d+)', text)]
+
+    # create a list of keys in the dict
+    keys_list = list(source_dict.keys())
+    # naturally sort the list of keys where, for example, xxxxx16 appears in the
+    # correct order
+    keys_list.sort(key=natural_keys)
+    # return the sorted list
+    return keys_list
+
+
 # To use this driver in standalone mode for testing or development, use one of
 # the following commands (depending on your WeeWX install). For setup.py
 # installs use:
@@ -2143,9 +2182,11 @@ if __name__ == '__main__':
         else:
             if len(ip_port_list) > 0:
                 # we have at least one result
+                # first sort our list by IP address
+                sorted_list = sorted(ip_port_list, key=itemgetter(0))
                 found = False
                 gw1000_found = 0
-                for (ip, port) in ip_port_list:
+                for (ip, port) in sorted_list:
                     if ip is not None and port is not None:
                         print("GW1000 discovered at IP address %s and port %d" % (ip, port))
                         found = True
@@ -2165,32 +2206,13 @@ if __name__ == '__main__':
     def field_map():
         """Display the default field map."""
 
-        import re
-
-        def atoi(text):
-            return int(text) if text.isdigit() else text
-
-        def natural_keys(text):
-            """Natural key sort.
-
-            Allows use of key=natural_keys to sort a list in human order, eg:
-                alist.sort(key=natural_keys)
-
-            http://nedbatchelder.com/blog/200712/human_sorting.html (See
-            Toothy's implementation in the comments)
-            """
-
-            return [atoi(c) for c in re.split(r'(\d+)', text)]
-
         print()
         print("GW1000 driver/service default field map:")
         print("(format is WeeWX field name: GW1000 field name)")
         print()
-        # create a list of keys in the default field map dict
-        keys_list = list(Gw1000.default_field_map.keys())
-        # sort them naturally so that, for example, xxxxx16 appears in the
-        # correct order
-        keys_list.sort(key=natural_keys)
+        # obtain a list of naturally sorted dict keys so that, for example,
+        # xxxxx16 appears in the correct order
+        keys_list = natural_sort_dict(Gw1000.default_field_map.keys())
         # iterate over the sorted keys and print the key and item
         for key in keys_list:
             print("    %s: %s" % (key, Gw1000.default_field_map[key]))
