@@ -242,11 +242,9 @@ the WeeWX daemon:
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
 # TODO. --sensors battery data does not agree with --live-data battery states (at least for WH57)
-# TODO. Fix main() for v3 logging
 # TODO. Need to know date-time data format for decode date_time()
 
 # TODO. Verify field map/field map extensions work correctly
-# TODO. Verify 3.9.2 operation
 
 # Python imports
 from __future__ import absolute_import
@@ -302,7 +300,7 @@ except ImportError:
     from weeutil.weeutil import log_traceback
 
     def logmsg(level, msg):
-        syslog.syslog(level, 'GW1000: %s' % msg)
+        syslog.syslog(level, 'gw1000: %s' % msg)
 
     def logdbg(msg):
         logmsg(syslog.LOG_DEBUG, msg)
@@ -2415,13 +2413,14 @@ if __name__ == '__main__':
 
     # Now we can set up the user customized logging but we need to handle both
     # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
-    # raise our log level based on weewx.debug
+    # set up syslog and raise our log level based on weewx.debug
     try:
         # assume v 4 logging
         weeutil.logger.setup('weewx', config_dict)
     except AttributeError:
-        # must be v3 logging, we are already correctly setup but do we need to
-        # raise the log level
+        # must be v3 logging, so first set the defaults for the system logger
+        syslog.openlog('weewx', syslog.LOG_PID | syslog.LOG_CONS)
+        # now raise the log level if required
         if weewx.debug > 0:
             syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
 
