@@ -28,10 +28,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0                                    Date: 19 July 2020
+Version: 0.1.0b1                                  Date: 19 July 2020
 
 Revision History
-    19 July 2020       v0.1.0
+    19 July 2020       v0.1.0b1
         - initial release
 
 
@@ -321,7 +321,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0'
+DRIVER_VERSION = '0.1.0b1'
 
 # various defaults used throughout
 # default port used by GW1000
