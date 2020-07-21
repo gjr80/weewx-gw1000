@@ -28,10 +28,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b1                                  Date: 19 July 2020
+Version: 0.1.0b2                                  Date: 22 July 2020
 
 Revision History
-    19 July 2020       v0.1.0b1
+    ?? ????? 2020      v0.1.0
         - initial release
 
 
@@ -321,7 +321,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b1'
+DRIVER_VERSION = '0.1.0b2'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -492,7 +492,7 @@ class Gw1000(object):
         self.ip_address = gw1000_config.get('ip_address')
         if self.ip_address is not None and self.ip_address.lower() == 'auto':
             self.ip_address = None
-        self.port = gw1000_config.get('port')
+        self.port = gw1000_config.get('port', default_port)
         if self.port is not None and self.port.lower() == 'auto':
             self.port = None
         # how many times to poll the API before giving up, default is 3
@@ -2210,7 +2210,7 @@ if __name__ == '__main__':
         print()
         # obtain a list of naturally sorted dict keys so that, for example,
         # xxxxx16 appears in the correct order
-        keys_list = natural_sort_dict(Gw1000.default_field_map.keys())
+        keys_list = natural_sort_dict(Gw1000.default_field_map)
         # iterate over the sorted keys and print the key and item
         for key in keys_list:
             print("    %s: %s" % (key, Gw1000.default_field_map[key]))
