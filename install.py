@@ -10,7 +10,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.1.0b2                                      Date: 22 July 2020
+Version: 0.1.0b3                                      Date: 22 July 2020
 
 Revision History
     ?? ????? 2020       v0.1.0
@@ -23,7 +23,7 @@ from distutils.version import StrictVersion
 from setup import ExtensionInstaller
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.1.0b2"
+GW1000_VERSION = "0.1.0b3"
 
 
 def loader():

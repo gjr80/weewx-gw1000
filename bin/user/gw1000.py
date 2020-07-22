@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b2                                  Date: 22 July 2020
+Version: 0.1.0b3                                  Date: 22 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -321,7 +321,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b2'
+DRIVER_VERSION = '0.1.0b3'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -1346,7 +1346,11 @@ class Gw1000Collector(Collector):
                     disc_port = ip_port_list[0][1]
                     # log the fact as well as what we found
                     gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
-                    loginf("Multiple GW1000 were found at %s" % (gw1000_str,))
+                    if len(ip_port_list) == 1:
+                        stem = "GW1000 was"
+                    else:
+                        stem = "Multiple GW1000 were"
+                    loginf("%s found at %s" % (stem, gw1000_str))
                 ip_address = disc_ip.encode() if ip_address is None else ip_address.encode()
                 port = disc_port if port is None else port
             self.ip_address = ip_address
@@ -1633,7 +1637,7 @@ class Gw1000Collector(Collector):
             b'\x16': ('decode_uv', 2, 'uv'),  # UV  (uW/m2), size in bytes:2
             b'\x17': ('decode_uvi', 1, 'uvi'),  # UVI (0-15 index), size in bytes:1
             b'\x18': ('decode_datetime', 6, 'datetime'),  # Date and time, size in bytes:6
-            b'\x19': ('decode_speed', 1, 'daymaxwind'),  # Day max_wind (m/s), size in bytes:2
+            b'\x19': ('decode_speed', 2, 'daymaxwind'),  # Day max_wind (m/s), size in bytes:2
             b'\x1A': ('decode_temp', 2, 'temp1'),
             b'\x1B': ('decode_temp', 2, 'temp2'),
             b'\x1C': ('decode_temp', 2, 'temp3'),
@@ -2186,7 +2190,7 @@ if __name__ == '__main__':
                 gw1000_found = 0
                 for (ip, port) in sorted_list:
                     if ip is not None and port is not None:
-                        print("GW1000 discovered at IP address %s and port %d" % (ip, port))
+                        print("GW1000 discovered at IP address %s on port %d" % (ip, port))
                         found = True
                         gw1000_found += 1
                 else:
