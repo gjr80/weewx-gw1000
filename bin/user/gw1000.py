@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b3                                  Date: 22 July 2020
+Version: 0.1.0b4                                  Date: 23 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -243,6 +243,7 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. --sensors battery data does not agree with --live-data battery states (at least for WH57)
 # TODO. Need to know date-time data format for decode date_time()
+# TODO. If no IP/port specified two discoveries are undertaken on startup
 
 # TODO. Verify field map/field map extensions work correctly
 
@@ -321,7 +322,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b3'
+DRIVER_VERSION = '0.1.0b4'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -488,13 +489,43 @@ class Gw1000(object):
                                                 default_broadcast_port)
         self.socket_timeout = gw1000_config.get('socket_timeout',
                                                 default_socket_timeout)
-        # obtain the GW1000 ip address and port from the config dict
-        self.ip_address = gw1000_config.get('ip_address')
-        if self.ip_address is not None and self.ip_address.lower() == 'auto':
-            self.ip_address = None
-        self.port = gw1000_config.get('port', default_port)
-        if self.port is not None and self.port.lower() == 'auto':
-            self.port = None
+        # obtain the GW1000 ip address
+        _ip_address = gw1000_config.get('ip_address')
+        # if the user has specified some variation of 'auto' then we are to
+        # automatically detect the GW1000 IP address, to do that we set the
+        # ip_address property to None
+        if _ip_address is not None:
+            # do we have a variation of 'auto'
+            if _ip_address.lower() == 'auto':
+                # we need to autodetect ip address so set to None
+                _ip_address = None
+            else:
+                # if the ip address is specified we need to encode it
+                _ip_address = _ip_address.encode()
+        # set the ip address property
+        self.ip_address = _ip_address
+        # obtain the GW1000 port from the config dict
+        # for port number we have a default value we can use, so if port is not
+        # specified use the default
+        _port = gw1000_config.get('port', default_port)
+        # if a port number was specified it needs to be an integer not a string
+        # so try to do the conversion
+        try:
+            _port = int(_port)
+        except TypeError:
+            # most likely port somehow ended up being None, in any case force
+            # autodetection by setting port to None
+            _port = None
+        except ValueError:
+            # We couldn't convert the port number to an integer. Maybe it was
+            # because it was 'auto' (or some variation) or perhaps it was
+            # invalid. Either way we need to set port to None to force
+            # autodetection. If there was an invalid port specified then log it.
+            if _port.lower() != 'auto':
+                loginf("Invalid GW1000 port '%s' specified, port will be autodetected" % (_port,))
+            _port = None
+        # set the port property
+        self.port = _port
         # how many times to poll the API before giving up, default is 3
         self.max_tries = int(gw1000_config.get('max_tries', 3))
         # wait time in seconds between retries, default is 10 seconds
@@ -2224,8 +2255,10 @@ if __name__ == '__main__':
 
         loginf("Testing GW1000 driver...")
         stn_dict = dict()
-        stn_dict['ip_address'] = opts.ip_address if opts.ip_address else None
-        stn_dict['port'] = opts.port if opts.port else None
+        if opts.ip_address:
+            stn_dict['ip_address'] = opts.ip_address
+        if opts.port:
+            stn_dict['port'] = opts.port
         if opts.poll_interval:
             stn_dict['poll_interval'] = opts.poll_interval
         if opts.max_tries:

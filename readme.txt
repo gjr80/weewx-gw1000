@@ -31,11 +31,11 @@ method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b3/weewx-gw1000-0.1.0b3.tar.gz
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b4/weewx-gw1000-0.1.0b4.tar.gz
 
     -   install the GW1000 driver extension:
 
-        $ wee_extension --install=/var/tmp/weewx-gw1000.0.1.0b3.tar.gz
+        $ wee_extension --install=/var/tmp/weewx-gw1000.0.1.0b4.tar.gz
 
     -   skip to step 4
 
