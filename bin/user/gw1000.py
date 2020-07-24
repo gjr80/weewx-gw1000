@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b4                                  Date: 23 July 2020
+Version: 0.1.0b5                                  Date: 24 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -293,6 +293,9 @@ try:
     def log_traceback_critical(prefix=''):
         log_traceback(log.critical, prefix=prefix)
 
+    def log_traceback_error(prefix=''):
+        log_traceback(log.error, prefix=prefix)
+
     def log_traceback_debug(prefix=''):
         log_traceback(log.debug, prefix=prefix)
 
@@ -319,11 +322,14 @@ except ImportError:
     def log_traceback_critical(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_CRIT)
 
+    def log_traceback_error(prefix=''):
+        log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
+
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b4'
+DRIVER_VERSION = '0.1.0b5'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -1512,11 +1518,11 @@ class Gw1000Collector(Collector):
                 except socket.timeout as e:
                     # a socket timeout occurred, log it then wait retry_wait
                     # seconds and continue
-                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt, cmd, e))
+                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
                     time.sleep(self.retry_wait)
                 except Exception as e:
                     # an exception was encountered, log it
-                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt, cmd, e))
+                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
                 else:
                     # if we made it here we have a response, check that it is
                     # valid
@@ -1525,7 +1531,14 @@ class Gw1000Collector(Collector):
                     except (InvalidChecksum, InvalidApiResponse) as e:
                         # the response was not valid, log it and attempt again
                         # if we haven't had too many attempts already
-                        logdbg("Invalid response to attempt %d to send command '%s': %s" % (attempt, cmd, e))
+                        logdbg("Invalid response to attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                    except Exception as e:
+                        # Some other error occurred in check_response(),
+                        # perhaps the response was malformed. Log the stack
+                        # trace but continue.
+                        logerr("Unexpected exception occurred while checking response "
+                               "to attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                        log_traceback_error('    ****  ')
                     else:
                         # our response is valid so return it
                         return response
@@ -1607,17 +1620,6 @@ class Gw1000Collector(Collector):
                                                                         resp_int,
                                                                         "{:02X}".format(resp_int))
                 raise InvalidApiResponse(_msg)
-
-        def verify_checksum(self, response):
-            """Verify the checksum in a GW1000 API response.
-
-            Returns True if the checksum byte matches the calculated checksum
-            of a response, otherwise returns False.
-
-            response: Response received from the GW1000 API call. Byte string.
-            """
-
-            return self.calc_checksum(response[2:-1]) == six.indexbytes(response, -1)
 
         @staticmethod
         def calc_checksum(data):
@@ -1747,10 +1749,10 @@ class Gw1000Collector(Collector):
             b'\x6A': ('decode_temp_batt', 3, 'usertemp8'),
         }
 
-        multi_batt = {'wh24': {'mask': 1 << 7},
+        multi_batt = {'wh40': {'mask': 1 << 4},
+                      'wh26': {'mask': 1 << 5},
                       'wh25': {'mask': 1 << 6},
-                      'wh32': {'mask': 1 << 5},
-                      'wh40': {'mask': 1 << 4}
+                      'wh24': {'mask': 1 << 7}
                       }
         wh31_batt = {1: {'mask': 1 << 0},
                      2: {'mask': 1 << 1},
@@ -1985,16 +1987,27 @@ class Gw1000Collector(Collector):
             store battery voltage.
 
             The battery status data is allocated as follows
-            byte 1  WH40(b4) WH26(WH32)(b5) WH25(b6) WH24(b7)
-                 2  WH31 ch1(b0) - ch8(b)
-                 3  WH51 ch1(b0) - ch8(b7)
-                 4       ch9(b0) - 16(b7)
-                 5  WH57
-                 6  WS68
-                 7  WS80
+            byte 1  WH40(b4)        0/1
+                    WH26(WH32)(b5)  0/1
+                    WH25(b6)        0/1
+                    WH24(b7)        0/1
+                 2  WH31 ch1(b0)    0/1
+                         ...
+                         ch8(b7)    0/1
+                 3  WH51 ch1(b0)    0-5
+                         ...
+                         ch8(b7)    0/1
+                 4       ch9(b0)    0/1
+                         ...
+                         ch16(b7)   0/1
+                 5  WH57            0-5
+                 6  WS68            0.02*value Volts
+                 7  WS80            0.02*value Volts
                  8  Unused
-                 9  WH41 ch1(b0) - ch2(b4)
-                 10      ch3(b0) - ch4(b4)
+                 9  WH41 ch1(b0-b3) 0-5
+                         ch2(b4-b7) 0-5
+                 10      ch3(b0-b3) 0-5
+                         ch4(b4-b7) 0-5
                  11 WH55 ch1
                  12 WH55 ch2
                  13 WH55 ch3
