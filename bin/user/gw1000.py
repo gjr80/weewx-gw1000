@@ -82,7 +82,7 @@ method):
 
     -   install the GW1000 driver extension:
 
-        $ wee_extension --install=/var/tmp/gw1000.0.1.0.tar.gz
+        $ wee_extension --install=/var/tmp/gw1000-0.1.0.tar.gz
 
     -   skip to step 4
 

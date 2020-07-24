@@ -30,7 +30,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
     -   install the GW1000 driver extension:
 
-            $ wee_extension --install=/var/tmp/gw1000.0.1.0b4.tar.gz
+            $ wee_extension --install=/var/tmp/gw1000-0.1.0b4.tar.gz
 
     -   skip to step 4
 
@@ -38,11 +38,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater.
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b4/weewx-gw1000-0.1.0b4.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b4/gw1000-0.1.0b4.tar.gz
 
     -   extract *gw1000.py* from the GW1000 driver extension package:
     
-            $ tar -xzf /var/tmp/gw1000.0.1.0b4.tar.gz
+            $ tar -xzf /var/tmp/gw1000-0.1.0b4.tar.gz
      
     -   copy the file *gw1000.py* to the *$BIN_ROOT/user* directory:
     
