@@ -46,7 +46,7 @@ on your WeeWX installation type:
 
     or for package installs use:
 
-        $ python -m user.gw1000 --help
+        $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --help
 
 Note. The nature of the GW1000 API and the GW1000 driver mean that the GW1000
 driver can be run from the command line while the GW1000 continues to serve
@@ -2098,7 +2098,7 @@ def natural_sort_dict(source_dict):
 #
 # or for package installs use:
 #
-#   $ python -m user.gw1000
+#   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
 #
 # The above commands will display details of available command line options.
 
