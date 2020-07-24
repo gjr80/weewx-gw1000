@@ -129,9 +129,9 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
     
     **Note:** If necessary you can specify the GW1000 IP address and port using the *--ip-address* and *--port* command line options. Refer to the GW1000 driver help using --help for further information.
 
-    You should observe loop packets being emitted on a regular basis. Some, but not necessarily all, loop packets should include GW1000 data. Once finished press Control-C to exit.
+    You should observe loop packets being emitted on a regular basis. Some, but not necessarily all, loop packets should include GW1000 data. Once finished press *ctrl-c* to exit.
 
-    **Note:** When the driver file is run directly with the *--test-service* command line option a series of simulated loop packets are emitted every 10 seconds to simulate a running WeeWX instance. The GW1000 is polled and the GW1000 data added to the loop packets when available. As the default GW1000 poll interval is 60 seconds it is likely that not all loop packets will be augmented with GW1000 data.
+    **Note:** When the driver file is run directly with the *--test-service* command line option a series of simulated loop packets are emitted every 10 seconds to simulate a running WeeWX instance. The GW1000 is polled and the GW1000 data added to the loop packets when available. As the default GW1000 poll interval is 60 seconds not all loop packets will be augmented with GW1000 data.
 
     **Note:** You will only see loop packets and not archive records when running the service directly. This is because you are seeing the direct output of the driver and the GW1000 service and not WeeWX. 
 
