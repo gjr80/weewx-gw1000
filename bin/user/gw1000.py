@@ -245,6 +245,7 @@ the WeeWX daemon:
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. If no IP/port specified two discoveries are undertaken on startup
 # TODO. Need to add battery status fields to field map
+# TODO. Confirm frequency byte meaning for other than 433MHz
 
 # TODO. Verify field map/field map extensions work correctly
 
@@ -1101,8 +1102,12 @@ class Gw1000Collector(Collector):
                                                socket_timeout=socket_timeout,
                                                max_tries=max_tries,
                                                retry_wait=retry_wait)
+        # Do we have a WH24 attached? First obtain our system parameters.
+        _sys_params = self.station.get_system_params()
+        # WH24 is indicated by the 6th byte being 0
+        is_wh24 = _sys_params[5] == 0
         # get a parser object to parse any data from the station
-        self.parser = Gw1000Collector.Parser()
+        self.parser = Gw1000Collector.Parser(is_wh24)
         self._thread = None
         self._collect_data = False
 
@@ -1195,6 +1200,43 @@ class Gw1000Collector(Collector):
         return filtered
 
     @property
+    def rain_data(self):
+        """Obtain GW1000 rain data."""
+
+        # obtain the rain data data via the API
+        response = self.station.get_raindata()
+        # determine the size of the rain data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        data_dict['rain_rate'] = self.parser.decode_big_rain(data[0:4])
+        data_dict['rain_day'] = self.parser.decode_big_rain(data[4:8])
+        data_dict['rain_week'] = self.parser.decode_big_rain(data[8:12])
+        data_dict['rain_month'] = self.parser.decode_big_rain(data[12:16])
+        data_dict['rain_year'] = self.parser.decode_big_rain(data[16:20])
+        return data_dict
+
+    @property
+    def system_parameters(self):
+        """Obtain GW1000 system parameters."""
+
+        # obtain the system parameters data via the API
+        response = self.station.get_system_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        data_dict['frequency'] = six.indexbytes(data, 0)
+        data_dict['sensor_type'] = six.indexbytes(data, 1)
+        data_dict['utc'] = self.parser.decode_utc(data[2:6])
+        data_dict['timezone'] = six.indexbytes(data, 6)
+        return data_dict
+
+    @property
     def mac_address(self):
         """Obtain the MAC address of the GW1000."""
 
@@ -1224,7 +1266,7 @@ class Gw1000Collector(Collector):
         sensor_id_data = sensor_id_response[4:4 + raw_sensor_id_data_size - 3]
         # initialise a counter
         index = 0
-        # initialise a dict to hold our final data
+        # initialise a list to hold our final data
         sensor_id_list = []
         # iterate over
         while index < len(sensor_id_data):
@@ -1468,6 +1510,16 @@ class Gw1000Collector(Collector):
             """Get GW1000 live data."""
 
             return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
+
+        def get_raindata(self):
+            """Get GW1000 rain data."""
+
+            return self.send_cmd_with_retries('CMD_READ_RAINDATA')
+
+        def get_system_params(self):
+            """Read GW1000 system parameters."""
+
+            return self.send_cmd_with_retries('CMD_READ_SSSS')
 
         def get_mac_address(self):
             """Get GW1000 MAC address."""
@@ -1808,8 +1860,16 @@ class Gw1000Collector(Collector):
                        'unused', 'wh41', 'wh55')
         battery_state_format = "<BBHBBBBHLBB"
 
-        def __init__(self):
-            pass
+        def __init__(self, is_wh24=False):
+            # Tell our battery state decoding whether we have a WH24 or a WH65
+            # (they both share the same battery state bit). By default we are
+            # set to use a WH24. Is there a WH24 connected?
+            if not is_wh24:
+                # there is no WH24 so me must assume it is a WH65, set the WH65
+                # decode dict entry
+                self.multi_batt['wh65'] = self.multi_batt['wh24']
+                # and pop off the no longer needed WH24 decode dict entry
+                self.multi_batt.pop('wh24')
 
         def parse(self, raw_data, timestamp=None):
             """Parse raw sensor data.
@@ -1866,7 +1926,7 @@ class Gw1000Collector(Collector):
                 return {field: None}
 
         @staticmethod
-        def decode_press(data, field):
+        def decode_press(data, field=None):
             """Decode pressure data.
 
             Data is contained in a two byte big endian integer and represents
@@ -1874,12 +1934,16 @@ class Gw1000Collector(Collector):
             """
 
             if len(data) == 2:
-                return {field: struct.unpack(">H", data)[0] / 10.0}
+                value = struct.unpack(">H", data)[0] / 10.0
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         @staticmethod
-        def decode_big_rain(data, field):
+        def decode_big_rain(data, field=None):
             """Decode 4 byte rain data.
 
             Data is contained in a four byte big endian integer and represents
@@ -1887,9 +1951,13 @@ class Gw1000Collector(Collector):
             """
 
             if len(data) >= 4:
-                return {field: struct.unpack(">L", data)[0] / 10.0}
+                value = struct.unpack(">L", data)[0] / 10.0
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         @staticmethod
         def decode_datetime(data, field):
@@ -1933,7 +2001,7 @@ class Gw1000Collector(Collector):
                 return {field: None}
 
         @staticmethod
-        def decode_utc(data, field):
+        def decode_utc(data, field=None):
             """Decode UTC time.
 
             GW1000 UTC times are seconds since Unix epoch and are stored in a
@@ -1942,11 +2010,16 @@ class Gw1000Collector(Collector):
             if len(data) >= 4:
                 # unpack the 4 byte int
                 value = struct.unpack(">L", data)[0]
-                # if the value is 0xFFFFFFFF it means we have never seen a strike so we want a
-                resp = value if value != 0xFFFFFFFF else None
-                return {field: resp}
+                # when processing the last lightning strike time if the value
+                # is 0xFFFFFFFF it means we have never seen a strike so return
+                # None
+                value = value if value != 0xFFFFFFFF else None
             else:
-                return {field: None}
+                resp = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         @staticmethod
         def decode_count(data, field):
@@ -1987,31 +2060,32 @@ class Gw1000Collector(Collector):
             store battery voltage.
 
             The battery status data is allocated as follows
-            byte 1  WH40(b4)        0/1
-                    WH26(WH32)(b5)  0/1
-                    WH25(b6)        0/1
-                    WH24(b7)        0/1
-                 2  WH31 ch1(b0)    0/1
+            Byte #  Sensor          Value               Comments
+            byte 1  WH40(b4)        0/1                 1=low, 0=normal
+                    WH26(WH32?)(b5) 0/1                 1=low, 0=normal
+                    WH25(b6)        0/1                 1=low, 0=normal
+                    WH24(b7)        0/1                 may be WH65, 1=low, 0=normal
+                 2  WH31 ch1(b0)    0/1                 1=low, 0=normal, 8 channels b0..b7
                          ...
-                         ch8(b7)    0/1
-                 3  WH51 ch1(b0)    0-5
+                         ch8(b7)    0/1                 1=low, 0=normal
+                 3  WH51 ch1(b0)    0/1                 1=low, 0=normal, 16 channels b0..b7 over 2 bytes
                          ...
-                         ch8(b7)    0/1
-                 4       ch9(b0)    0/1
+                         ch8(b7)    0/1                 1=low, 0=normal
+                 4       ch9(b0)    0/1                 1=low, 0=normal
                          ...
-                         ch16(b7)   0/1
-                 5  WH57            0-5
+                         ch16(b7)   0/1                 1=low, 0=normal
+                 5  WH57            0-5                 <=1 is low
                  6  WS68            0.02*value Volts
                  7  WS80            0.02*value Volts
                  8  Unused
-                 9  WH41 ch1(b0-b3) 0-5
-                         ch2(b4-b7) 0-5
-                 10      ch3(b0-b3) 0-5
-                         ch4(b4-b7) 0-5
-                 11 WH55 ch1
-                 12 WH55 ch2
-                 13 WH55 ch3
-                 14 WH55 ch4
+                 9  WH41 ch1(b0-b3) 0-5                 <=1 is low
+                         ch2(b4-b7) 0-5                 <=1 is low
+                 10      ch3(b0-b3) 0-5                 <=1 is low
+                         ch4(b4-b7) 0-5                 <=1 is low
+                 11 WH55 ch1        0-5                 <=1 is low
+                 12 WH55 ch2        0-5                 <=1 is low
+                 13 WH55 ch3        0-5                 <=1 is low
+                 14 WH55 ch4        0-5                 <=1 is low
                  15 Unused
                  16 Unused
 
@@ -2118,6 +2192,79 @@ def natural_sort_dict(source_dict):
 
 if __name__ == '__main__':
     import optparse
+
+    def system_params(opts):
+        """Display system parameters."""
+
+        # dict for decoding system parameters frequency byte, at present all we
+        # know is 0 = 433MHz
+        freq_decode = {
+            0: '433MHz',
+            998: '868Mhz',
+            999: '915MHz'
+        }
+        # obtain any command line specified ip address and port
+        ip_address = opts.ip_address if opts.ip_address else None
+        port = opts.port if opts.port else None
+        # get a GW1000 Gw1000Collector object
+        collector = Gw1000Collector(ip_address=ip_address,
+                                    port=port)
+        # identify the GW1000 being used
+        print()
+        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                 collector.station.port))
+        # get the collector objects system_parameters property, wrap in a try so
+        # we can catch any socket timeouts
+        try:
+            sys_params_dict = collector.system_parameters
+            # create a meaningful string for frequncy representation
+            freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
+            # if sensor_type is 0 there is a WH24 connected, if its a 1 there
+            # is a WH65
+            _is_wh24 = sys_params_dict['sensor_type'] == 0
+            # string to use in sensor type message
+            _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
+        except socket.timeout:
+            # socket timeout so inform the user
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # print the system parameters
+            print()
+            print("GW1000 frequency: %s (%s)" % (sys_params_dict['frequency'],
+                                                 freq_str))
+            print("GW1000 sensor type: %s (%s)" % (sys_params_dict['sensor_type'],
+                                                   _sensor_type_str))
+            print("GW1000 decoded UTC: %s" % weeutil.weeutil.timestamp_to_gmtime(sys_params_dict['utc']))
+            print("GW1000 timezone: %s" % (sys_params_dict['timezone'],))
+
+    def rain_data(opts):
+        """Display rain data."""
+
+        # obtain any command line specified ip address and port
+        ip_address = opts.ip_address if opts.ip_address else None
+        port = opts.port if opts.port else None
+        # get a GW1000 Gw1000Collector object
+        collector = Gw1000Collector(ip_address=ip_address,
+                                    port=port)
+        # identify the GW1000 being used
+        print()
+        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                 collector.station.port))
+        # get the collector objects rain_data property, wrap in a try so we can
+        # catch any socket timeouts
+        try:
+            rain_data = collector.rain_data
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            print()
+            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rain_rate'], rain_data['rain_rate']/25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rain_day'], rain_data['rain_day']/25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week']/25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month']/25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year']/25.4))
 
     def station_mac(opts):
 
@@ -2418,6 +2565,14 @@ if __name__ == '__main__':
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
+       python -m user.gw1000 --system-params
+            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [--ip=IP_ADDRESS] [--port=PORT]
+            [--debug=0|1|2|3]     
+       python -m user.gw1000 --rain-data
+            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [--ip=IP_ADDRESS] [--port=PORT]
+            [--debug=0|1|2|3]     
        python -m user.gw1000 --discover
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--debug=0|1|2|3]"""
@@ -2436,10 +2591,14 @@ if __name__ == '__main__':
                       help='display GW1000 firmware version')
     parser.add_option('--mac-address', dest='mac', action='store_true',
                       help='display GW1000 station MAC address')
+    parser.add_option('--system-params', dest='sys_params', action='store_true',
+                      help='display GW1000 system parameters')
     parser.add_option('--sensors', dest='sensors', action='store_true',
                       help='display GW1000 sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
                       help='display GW1000 sensor data')
+    parser.add_option('--rain-data', dest='rain', action='store_true',
+                      help='display GW1000 rain data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
@@ -2496,6 +2655,14 @@ if __name__ == '__main__':
     # run the service with simulator
     if opts.test_service:
         test_service(opts)
+        exit(0)
+
+    if opts.sys_params:
+        system_params(opts)
+        exit(0)
+
+    if opts.rain:
+        rain_data(opts)
         exit(0)
 
     if opts.mac:
