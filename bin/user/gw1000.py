@@ -48,6 +48,12 @@ on your WeeWX installation type:
 
         $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --help
 
+Note. Whilst the driver may be run independently of WeeWX the driver still
+requires WeeWX and it's dependencies be installed. Consequently, if WeeWX 4.0.0
+or later is installed the driver must be run under the same Python version as
+WeeWX uses. This means that on some systems 'python' in the above commands may
+need to be changed to 'python2' or 'python3'.
+
 Note. The nature of the GW1000 API and the GW1000 driver mean that the GW1000
 driver can be run from the command line while the GW1000 continues to serve
 data to any existing services. This makes it possible to configure and test the
@@ -2277,9 +2283,14 @@ def natural_sort_dict(source_dict):
 #   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
 #
 # The above commands will display details of available command line options.
+#
+# Note. Whilst the driver may be run independently of WeeWX the driver still
+# requires WeeWX and it's dependencies be installed. Consequently, if
+# WeeWX 4.0.0 or later is installed the driver must be run under the same
+# Python version as WeeWX uses. This means that on some systems 'python' in the
+# above commands may need to be changed to 'python2' or 'python3'.
 
-
-if __name__ == '__main__':
+def main():
     import optparse
 
     def system_params(opts):
@@ -2621,7 +2632,6 @@ if __name__ == '__main__':
             engine.shutDown()
         loginf("GW1000 service testing complete")
 
-
     usage = """Usage: python -m user.gw1000 --help
        python -m user.gw1000 --version
        python -m user.gw1000 --test-driver
@@ -2780,3 +2790,7 @@ if __name__ == '__main__':
 
     # if we made it here no option was selected so display our help
     parser.print_help()
+
+if __name__ == '__main__':
+
+    main()
