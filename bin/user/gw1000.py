@@ -228,6 +228,8 @@ the WeeWX daemon:
     $ sudo systemctl start weewx
 """
 # TODO. Review against latest
+# TODO. Comments re python version when runnign directly
+# TODO. Is it possible to catch the import error on python version mismatch
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm sensor ID signal value meaning
 # TODO. Confirm sensor ID battery meaning
@@ -398,6 +400,7 @@ class Gw1000(object):
         'windDir': 'winddir',
         'windSpeed': 'windspeed',
         'windGust': 'gustspeed',
+        'rain': 'rain',
         'rainevent': 'rainevent',
         'rainRate': 'rainrate',
         'rainhour': 'rainhour',
@@ -482,10 +485,34 @@ class Gw1000(object):
         # construct the field map, first obtain the field map from our config
         field_map = gw1000_config.get('field_map')
         # obtain any field map extensions from our config
-        field_map_extensions = gw1000_config.get('field_map_extensions', {})
+        extensions = gw1000_config.get('field_map_extensions', {})
         # if we have no field map then use the default
         if field_map is None:
             field_map = dict(Gw1000.default_field_map)
+            # If a user wishes to rename a field from the default map they can
+            # include an entry in field_map_extensions but that leaves the
+            # original field map as well. This can be removed if the user adds
+            # a an 'empty' entry in field_map_extensions for the now redundant
+            # field from the default field map eg:
+            # [[field_map_extensions]]
+            #    dayRain = rainday
+            #    rainday =
+            # The first entry re-maps rainday to dayRain, the second entry
+            # removes the map rainday to rainday in the default field map.
+            # Do we have any field map extensions
+            if len(extensions) > 0:
+                # yes, make a copy of our field map extensions as we will need
+                # to pop off any 'empty' entries
+                field_map_extensions = dict(extensions)
+                # iterate over the keys and values in the field map extensions
+                for w,g in six.iteritems(extensions):
+                    # if we find an empty entry
+                    if g == '':
+                        # pop off the entry from the field map
+                        dummy = field_map.pop(w, None)
+                        # and pop off the spent entry in the field map
+                        # extensions
+                        dummy = field_map_extensions.pop(w, None)
         # update our field map with any field map extensions
         field_map.update(field_map_extensions)
         # we now have our final field map
@@ -543,6 +570,12 @@ class Gw1000(object):
         # age (in seconds) before API data is considered too old to use,
         # default is 60 seconds
         self.max_age = int(gw1000_config.get('max_age', default_max_age))
+        # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
+        # to the GW1000. In tems of TH data the process is transparent and we
+        # do not need to know if a WH32 or other sensor is providing outdoor TH
+        # data but in terms of battery state we need to know so the battery
+        # state data can be reported against the correct sensor.
+        use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
         # create an Gw1000Collector object to interact with the GW1000 API
         self.collector = Gw1000Collector(ip_address=self.ip_address,
                                          port=self.port,
@@ -551,7 +584,8 @@ class Gw1000(object):
                                          socket_timeout=self.socket_timeout,
                                          poll_interval=self.poll_interval,
                                          max_tries=self.max_tries,
-                                         retry_wait=self.retry_wait)
+                                         retry_wait=self.retry_wait,
+                                         use_th32=use_th32)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
@@ -1042,7 +1076,7 @@ class Gw1000Collector(Collector):
         b'\x02': {'name': 'ws80', 'long_name': 'WS80'},
         b'\x03': {'name': 'wh40', 'long_name': 'WH40'},
         b'\x04': {'name': 'wh25', 'long_name': 'WH25'},
-        b'\x05': {'name': 'wh32', 'long_name': 'WH32'},
+        b'\x05': {'name': 'wh26', 'long_name': 'WH26'},
         b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1'},
         b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2'},
         b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3'},
@@ -1081,7 +1115,7 @@ class Gw1000Collector(Collector):
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, poll_interval=60,
-                 max_tries=3, retry_wait=10):
+                 max_tries=3, retry_wait=10, use_th32=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -1093,6 +1127,8 @@ class Gw1000Collector(Collector):
         self.max_tries = max_tries
         # period in seconds to wait before polling again, default is 10 seconds
         self.retry_wait = retry_wait
+        # arewe using a th32 sensor
+        self.use_th32 = use_th32
         # get a station object to do the handle the interaction with the
         # GW1000 API
         self.station = Gw1000Collector.Station(ip_address=ip_address,
@@ -1105,7 +1141,13 @@ class Gw1000Collector(Collector):
         # Do we have a WH24 attached? First obtain our system parameters.
         _sys_params = self.station.get_system_params()
         # WH24 is indicated by the 6th byte being 0
-        is_wh24 = _sys_params[5] == 0
+        is_wh24 = six.indexbytes(_sys_params, 5) == 0
+        # Tell our sensor id decoding whether we have a WH24 or a WH65. By
+        # default we are coded to use a WH65. Is there a WH24 connected?
+        if is_wh24:
+            # set the WH24 sensor id decode dict entry
+            self.sensor_ids[ b'\x00']['name'] = 'wh24'
+            self.sensor_ids[b'\x00']['long_name'] = 'WH24'
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24)
         self._thread = None
@@ -1259,24 +1301,24 @@ class Gw1000Collector(Collector):
         """
 
         # obtain the sensor id data via the API
-        sensor_id_response = self.station.get_sensor_id()
+        response = self.station.get_sensor_id()
         # determine the size of the sensor id data
-        raw_sensor_id_data_size = six.indexbytes(sensor_id_response, 3)
+        raw_data_size = six.indexbytes(response, 3)
         # extract the actual sensor id data
-        sensor_id_data = sensor_id_response[4:4 + raw_sensor_id_data_size - 3]
+        data = response[4:4 + raw_data_size - 3]
         # initialise a counter
         index = 0
         # initialise a list to hold our final data
         sensor_id_list = []
         # iterate over
-        while index < len(sensor_id_data):
-            sensor_id = self.bytes_to_hex(sensor_id_data[index + 1: index + 5],
+        while index < len(data):
+            sensor_id = self.bytes_to_hex(data[index + 1: index + 5],
                                           separator='',
                                           caps=False)
-            sensor_id_list.append({'address': sensor_id_data[index:index + 1],
+            sensor_id_list.append({'address': data[index:index + 1],
                                    'id': sensor_id,
-                                   'signal': six.indexbytes(sensor_id_data, index + 5),
-                                   'battery': six.indexbytes(sensor_id_data, index + 6)
+                                   'signal': six.indexbytes(data, index + 5),
+                                   'battery': six.indexbytes(data, index + 6)
                                    })
             index += 7
         return sensor_id_list
@@ -1413,29 +1455,41 @@ class Gw1000Collector(Collector):
             # if ip address or port was not specified (None) then attempt to
             # discover the GW1000 with a UDP broadcast
             if ip_address is None or port is None:
-                try:
-                    # discover() returns a list of (ip address, port) tuples
-                    ip_port_list = self.discover()
-                except (socket.error, socket.timeout) as e:
-                    logerr("Unable to detect GW1000 ip address and port: %s (%s)" % (e, type(e)))
-                    log_traceback_critical("    ****  ")
-                    # signal that we have a critical error
-                    raise weewx.ViolatedPrecondition(e)
-                # did we find any GW1000
-                if len(ip_port_list) > 0:
-                    # we have at least one, arbitrarily choose the first one
-                    # found as the one to use
-                    disc_ip = ip_port_list[0][0]
-                    disc_port = ip_port_list[0][1]
-                    # log the fact as well as what we found
-                    gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
-                    if len(ip_port_list) == 1:
-                        stem = "GW1000 was"
+                for attempt in range(max_tries):
+                    try:
+                        # discover() returns a list of (ip address, port) tuples
+                        ip_port_list = self.discover()
+                    except socket.error as e:
+                        logerr("Unable to detect GW1000 ip address and port: %s (%s)" % (e, type(e)))
+                        log_traceback_critical("    ****  ")
+                        # signal that we have a critical error
+                        raise weewx.ViolatedPrecondition(e)
+                    # did we find any GW1000
+                    if len(ip_port_list) > 0:
+                        # we have at least one, arbitrarily choose the first one
+                        # found as the one to use
+                        disc_ip = ip_port_list[0][0]
+                        disc_port = ip_port_list[0][1]
+                        # log the fact as well as what we found
+                        gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
+                        if len(ip_port_list) == 1:
+                            stem = "GW1000 was"
+                        else:
+                            stem = "Multiple GW1000 were"
+                        loginf("%s found at %s" % (stem, gw1000_str))
+                        ip_address = disc_ip.encode() if ip_address is None else ip_address.encode()
+                        port = disc_port if port is None else port
+                        break
                     else:
-                        stem = "Multiple GW1000 were"
-                    loginf("%s found at %s" % (stem, gw1000_str))
-                ip_address = disc_ip.encode() if ip_address is None else ip_address.encode()
-                port = disc_port if port is None else port
+                        # did not discover any GW1000, log it and wait then try again
+                        logdbg("Failed attempt %d to detect GW1000 ip address and port" % (attempt + 1,))
+                        time.sleep(retry_wait)
+                else:
+                    # if we made it here we failed after max_tries attempts, log it and fail hard
+                    logerr("Failed to detect GW1000 ip address and port after %d attempts" % (attempt + 1,))
+                    # signal that we have a critical error
+                    raise weewx.ViolatedPrecondition("GW1000 not found, you may need to specify "
+                                                     "the GW1000 ip address and port in weewx.conf")
             self.ip_address = ip_address
             self.port = port
             self.max_tries = max_tries
@@ -1594,7 +1648,7 @@ class Gw1000Collector(Collector):
                     else:
                         # our response is valid so return it
                         return response
-            # if we made it here we failed after three attempts, log it and return None
+            # if we made it here we failed after self.max_tries attempts, log it and return None
             logerr("Failed to send command '%s' after %d attempts" % (cmd, attempt + 1))
             return None
 
@@ -1804,7 +1858,7 @@ class Gw1000Collector(Collector):
         multi_batt = {'wh40': {'mask': 1 << 4},
                       'wh26': {'mask': 1 << 5},
                       'wh25': {'mask': 1 << 6},
-                      'wh24': {'mask': 1 << 7}
+                      'wh65': {'mask': 1 << 7}
                       }
         wh31_batt = {1: {'mask': 1 << 0},
                      2: {'mask': 1 << 1},
@@ -1863,13 +1917,13 @@ class Gw1000Collector(Collector):
         def __init__(self, is_wh24=False):
             # Tell our battery state decoding whether we have a WH24 or a WH65
             # (they both share the same battery state bit). By default we are
-            # set to use a WH24. Is there a WH24 connected?
-            if not is_wh24:
-                # there is no WH24 so me must assume it is a WH65, set the WH65
-                # decode dict entry
-                self.multi_batt['wh65'] = self.multi_batt['wh24']
-                # and pop off the no longer needed WH24 decode dict entry
-                self.multi_batt.pop('wh24')
+            # coded to use a WH65. Is there a WH24 connected?
+            if is_wh24:
+                # there is a WH24 connected so create the WH24 decode dict
+                # entry, it's the same as the WH65 decode entry
+                self.multi_batt['wh24'] = self.multi_batt['wh65']
+                # and pop off the no longer needed WH65 decode dict entry
+                self.multi_batt.pop('wh65')
 
         def parse(self, raw_data, timestamp=None):
             """Parse raw sensor data.
@@ -1901,7 +1955,7 @@ class Gw1000Collector(Collector):
             return data
 
         @staticmethod
-        def decode_temp(data, field):
+        def decode_temp(data, field=None):
             """Decode temperature data.
 
             Data is contained in a two byte big endian signed integer and
@@ -1909,21 +1963,29 @@ class Gw1000Collector(Collector):
             """
 
             if len(data) == 2:
-                return {field: struct.unpack(">h", data)[0] / 10.0}
+                value = struct.unpack(">h", data)[0] / 10.0
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         @staticmethod
-        def decode_humid(data, field):
+        def decode_humid(data, field=None):
             """Decode humidity data.
 
             Data is contained in a single unsigned byte and represents whole units.
             """
 
             if len(data) > 0:
-                return {field: struct.unpack("B", data)[0]}
+                value = struct.unpack("B", data)[0]
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         @staticmethod
         def decode_press(data, field=None):
@@ -1960,33 +2022,53 @@ class Gw1000Collector(Collector):
                 return value
 
         @staticmethod
-        def decode_datetime(data, field):
+        def decode_datetime(data, field=None):
             """Decode date-time data.
 
             Unknown format but length is six bytes.
             """
 
             if len(data) >= 6:
-                print("decode_datetime=%s" % (struct.unpack("BBBBBB", data),))
-                return {field: None}
+                value = struct.unpack("BBBBBB", data)
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
-        def decode_temp_batt(self, data, field):
+        def decode_temp_batt(self, data, field=None):
             """Decode combined temperature and battery status data.
 
             Data consists of three bytes; bytes 0 and 1 are normal temperature data
             and byte 3 is battery status data.
             """
+
+            # do we have valid data
             if len(data) == 3:
-                resp = self.decode_temp(data[0:2], field)
-                resp['%s_batt' % field] = self.battery_voltage(data[2])
-                return resp
+                # yes, decode temperature from bytes 0 and 1
+                temp = self.decode_temp(data[0:2], field)
+                # decode battery voltage from byte 2
+                batt = self.battery_voltage(data[2])
+                # were we given a field to use for the return
+                if field is not None:
+                    # we have a field, 'temp' will be a dict so add the battery
+                    # state data and return the resulting dict
+                    temp['%s_batt' % field] = batt
+                    return temp
+                else:
+                    # No field provided, so 'temp' will just be a value.
+                    # Package temperature and battery state data in a generic
+                    # dict and return
+                    return {'temperature': temp,
+                            'battery': batt
+                            }
             else:
-                return {field: None, '%s_batt' % field: None}
+                # invalid data assumed, return None
+                return None
 
         @staticmethod
-        def decode_distance(data, field):
+        def decode_distance(data, field=None):
             """Decode lightning distance.
 
             Data is contained in a single byte integer and represents a value
@@ -1994,11 +2076,14 @@ class Gw1000Collector(Collector):
             """
 
             if len(data) >= 1:
-                dist = struct.unpack("B", data)[0]
-                dist = dist if dist <= 40 else None
-                return {field: dist}
+                value = struct.unpack("B", data)[0]
+                value = value if value <= 40 else None
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         @staticmethod
         def decode_utc(data, field=None):
@@ -2022,15 +2107,19 @@ class Gw1000Collector(Collector):
                 return value
 
         @staticmethod
-        def decode_count(data, field):
+        def decode_count(data, field=None):
             """Decode lightning count.
 
             Count is an integer stored in a 4 byte big endian integer."""
 
             if len(data) >= 4:
-                return {field: struct.unpack(">L", data)[0]}
+                value = struct.unpack(">L", data)[0]
             else:
-                return {field: None}
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
 
         # alias' for other decodes
         decode_dir = decode_press
