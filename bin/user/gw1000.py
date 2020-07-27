@@ -234,8 +234,6 @@ the WeeWX daemon:
     $ sudo systemctl start weewx
 """
 # TODO. Review against latest
-# TODO. Comments re python version when runnign directly
-# TODO. Is it possible to catch the import error on python version mismatch
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm sensor ID signal value meaning
 # TODO. Confirm sensor ID battery meaning
@@ -251,10 +249,8 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. --sensors battery data does not agree with --live-data battery states (at least for WH57)
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. If no IP/port specified two discoveries are undertaken on startup
 # TODO. Need to add battery status fields to field map
 # TODO. Confirm frequency byte meaning for other than 433MHz
-
 # TODO. Verify field map/field map extensions work correctly
 
 # Python imports
@@ -338,7 +334,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b5'
+DRIVER_VERSION = '0.1.0b6'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -495,32 +491,32 @@ class Gw1000(object):
         # if we have no field map then use the default
         if field_map is None:
             field_map = dict(Gw1000.default_field_map)
-            # If a user wishes to rename a field from the default map they can
-            # include an entry in field_map_extensions but that leaves the
-            # original field map as well. This can be removed if the user adds
-            # a an 'empty' entry in field_map_extensions for the now redundant
-            # field from the default field map eg:
-            # [[field_map_extensions]]
-            #    dayRain = rainday
-            #    rainday =
-            # The first entry re-maps rainday to dayRain, the second entry
-            # removes the map rainday to rainday in the default field map.
-            # Do we have any field map extensions
-            if len(extensions) > 0:
-                # yes, make a copy of our field map extensions as we will need
-                # to pop off any 'empty' entries
-                field_map_extensions = dict(extensions)
-                # iterate over the keys and values in the field map extensions
-                for w,g in six.iteritems(extensions):
-                    # if we find an empty entry
-                    if g == '':
-                        # pop off the entry from the field map
-                        dummy = field_map.pop(w, None)
-                        # and pop off the spent entry in the field map
-                        # extensions
-                        dummy = field_map_extensions.pop(w, None)
-        # update our field map with any field map extensions
-        field_map.update(field_map_extensions)
+        # If a user wishes to rename a field from the default map they can
+        # include an entry in field_map_extensions but that leaves the
+        # original field map as well. This can be removed if the user adds
+        # a an 'empty' entry in field_map_extensions for the now redundant
+        # field from the default field map eg:
+        # [[field_map_extensions]]
+        #    dayRain = rainday
+        #    rainday =
+        # The first entry re-maps rainday to dayRain, the second entry
+        # removes the map rainday to rainday in the default field map.
+        # Do we have any field map extensions
+        if len(extensions) > 0:
+            # yes, make a copy of our field map extensions as we will need
+            # to pop off any 'empty' entries
+            field_map_extensions = dict(extensions)
+            # iterate over the keys and values in the field map extensions
+            for w,g in six.iteritems(extensions):
+                # if we find an empty entry
+                if g == '':
+                    # pop off the entry from the field map
+                    dummy = field_map.pop(w, None)
+                    # and pop off the spent entry in the field map
+                    # extensions
+                    dummy = field_map_extensions.pop(w, None)
+            # update our field map with any field map extensions
+            field_map.update(field_map_extensions)
         # we now have our final field map
         self.field_map = field_map
         # network broadcast address and port
