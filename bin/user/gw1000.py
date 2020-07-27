@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b5                                  Date: 24 July 2020
+Version: 0.1.0b6                                  Date: 24 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
