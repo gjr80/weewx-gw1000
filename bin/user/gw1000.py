@@ -1357,6 +1357,22 @@ class Gw1000Collector(Collector):
     def sensor_id_data(self):
         """Get sensor id data.
 
+        The GW1000 clearly shows the position of the 'signal' and
+        'battery state' data in the CMD_READ_SENSOR_ID response. However, when
+        decoded as per the API the CMD_READ_SENSOR_ID 'battery state' data
+        does not agree with the battery battery state data obtained from
+        CMD_GW1000_LIVEDATA response. However, observations of a live system
+        containing a number of different sensor types shows that the
+        CMD_READ_SENSOR_ID sensor 'signal' data matches the
+        CMD_GW1000_LIVEDATA battery data precisely. Furter observations reveal
+        the CMD_READ_SENSOR_ID sensor battery states match the sensor signal
+        levels shown in the WS View app.
+
+        The inference is that the CMD_READ_SENSOR_ID 'signal' and
+        'battery state' bytes are in fact transposed. No other PWS software
+        developers seem to have noticed this so for the time being the
+        CMD_READ_SENSOR_ID 'signal' and 'battery state' bytes have been
+        swapped.
         """
 
         # obtain the sensor id data via the API
@@ -1374,10 +1390,13 @@ class Gw1000Collector(Collector):
             sensor_id = self.bytes_to_hex(data[index + 1: index + 5],
                                           separator='',
                                           caps=False)
+            # As per method comments above swap signal and battery state bytes,
+            # the GW1000 API says signal should be byte 5 and battery byte 6,
+            # we will use signal as byte 6 and battery as byte 5.
             sensor_id_list.append({'address': data[index:index + 1],
                                    'id': sensor_id,
-                                   'signal': six.indexbytes(data, index + 5),
-                                   'battery': six.indexbytes(data, index + 6)
+                                   'signal': six.indexbytes(data, index + 6),
+                                   'battery': six.indexbytes(data, index + 5)
                                    })
             index += 7
         return sensor_id_list
@@ -1972,6 +1991,20 @@ class Gw1000Collector(Collector):
         batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'ws68', 'ws80',
                        'unused', 'wh41', 'wh55')
         battery_state_format = "<BBHBBBBHLBB"
+        battery_state_desc = {'wh24': 'binary_desc',
+                              'wh25': 'binary_desc',
+                              'wh26': 'binary_desc',
+                              'wh31': 'binary_desc',
+                              'wh32': 'binary_desc',
+                              'wh40': 'binary_desc',
+                              'wh41': 'level_desc',
+                              'wh51': 'binary_desc',
+                              'wh55': 'level_desc',
+                              'wh57': 'level_desc',
+                              'wh65': 'binary_desc',
+                              'ws68': 'voltage_desc',
+                              'ws80': 'voltage_desc',
+                              }
 
         def __init__(self, is_wh24=False):
             # Tell our battery state decoding whether we have a WH24 or a WH65
@@ -2293,6 +2326,31 @@ class Gw1000Collector(Collector):
         def battery_voltage(data):
             return 0.02 * data
 
+        @staticmethod
+        def binary_desc(value):
+            if value == 0:
+                return "OK"
+            elif value == 1:
+                return "low"
+            else:
+                return None
+
+        @staticmethod
+        def voltage_desc(value):
+            if value <= 1.2:
+                return "low"
+            else:
+                return "OK"
+
+        @staticmethod
+        def level_desc(value):
+            if value <= 1:
+                return "low"
+            elif value == 6:
+                return "DC"
+            else:
+                return "OK"
+
 
 # ============================================================================
 #                             Utility functions
@@ -2354,7 +2412,7 @@ def main():
         freq_decode = {
             0: '433MHz',
             998: '868Mhz',
-            999: '915MHz'
+            2: '915MHz'
         }
         # obtain any command line specified ip address and port
         ip_address = opts.ip_address if opts.ip_address else None
@@ -2495,10 +2553,14 @@ def main():
             else:
                 # the sensor is registered so we should have signal and battery
                 # data as well
+                sensor_model = Gw1000Collector.sensor_ids[address].get('name').split("_")[0]
+                battery_desc = getattr(collector.parser,
+                                       collector.parser.battery_state_desc[sensor_model])(sensor.get('battery'))
+                battery_str = "%s (%s)" % (sensor.get('battery'), battery_desc)
                 state = "sensor ID: %s  signal: %s  battery: %s" % (sensor.get('id').strip('0'),
                                                                     sensor.get('signal'),
-                                                                    sensor.get('battery'))
-            # print the formatted data
+                                                                    battery_str)
+                # print the formatted data
             print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
 
     def live_data(opts):
