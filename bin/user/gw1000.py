@@ -281,16 +281,21 @@ try:
     # WeeWX4 logging
     import logging
     from weeutil.logger import log_traceback
+
     log = logging.getLogger("%s: %s" % ('gw1000', __name__))
+
 
     def logdbg(msg):
         log.debug(msg)
 
+
     def loginf(msg):
         log.info(msg)
 
+
     def logerr(msg):
         log.error(msg)
+
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -298,8 +303,10 @@ try:
     def log_traceback_critical(prefix=''):
         log_traceback(log.critical, prefix=prefix)
 
+
     def log_traceback_error(prefix=''):
         log_traceback(log.error, prefix=prefix)
+
 
     def log_traceback_debug(prefix=''):
         log_traceback(log.debug, prefix=prefix)
@@ -309,17 +316,22 @@ except ImportError:
     import syslog
     from weeutil.weeutil import log_traceback
 
+
     def logmsg(level, msg):
         syslog.syslog(level, 'gw1000: %s' % msg)
+
 
     def logdbg(msg):
         logmsg(syslog.LOG_DEBUG, msg)
 
+
     def loginf(msg):
         logmsg(syslog.LOG_INFO, msg)
 
+
     def logerr(msg):
         logmsg(syslog.LOG_ERR, msg)
+
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -327,8 +339,10 @@ except ImportError:
     def log_traceback_critical(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_CRIT)
 
+
     def log_traceback_error(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
+
 
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
@@ -480,6 +494,47 @@ class Gw1000(object):
         'lightning_last_det_time': 'lightningdettime',
         'lightning_strike_count': 'lightning_strike_count'
     }
+    battery_field_map = {
+        'wh40_batt': 'wh40_batt',
+        'wh26_batt': 'wh26_batt',
+        'wh25_batt': 'wh25_batt',
+        'wh65_batt': 'wh65_batt',
+        'wh31_ch1_batt': 'wh31_ch1_batt',
+        'wh31_ch2_batt': 'wh31_ch2_batt',
+        'wh31_ch3_batt': 'wh31_ch3_batt',
+        'wh31_ch4_batt': 'wh31_ch4_batt',
+        'wh31_ch5_batt': 'wh31_ch5_batt',
+        'wh31_ch6_batt': 'wh31_ch6_batt',
+        'wh31_ch7_batt': 'wh31_ch7_batt',
+        'wh31_ch8_batt': 'wh31_ch8_batt',
+        'wh41_ch1_batt': 'wh41_ch1_batt',
+        'wh41_ch2_batt': 'wh41_ch2_batt',
+        'wh41_ch3_batt': 'wh41_ch3_batt',
+        'wh41_ch4_batt': 'wh41_ch4_batt',
+        'wh51_ch1_batt': 'wh51_ch1_batt',
+        'wh51_ch2_batt': 'wh51_ch2_batt',
+        'wh51_ch3_batt': 'wh51_ch3_batt',
+        'wh51_ch4_batt': 'wh51_ch4_batt',
+        'wh51_ch5_batt': 'wh51_ch5_batt',
+        'wh51_ch6_batt': 'wh51_ch6_batt',
+        'wh51_ch7_batt': 'wh51_ch7_batt',
+        'wh51_ch8_batt': 'wh51_ch8_batt',
+        'wh51_ch9_batt': 'wh51_ch9_batt',
+        'wh51_ch10_batt': 'wh51_ch10_batt',
+        'wh51_ch11_batt': 'wh51_ch11_batt',
+        'wh51_ch12_batt': 'wh51_ch12_batt',
+        'wh51_ch13_batt': 'wh51_ch13_batt',
+        'wh51_ch14_batt': 'wh51_ch14_batt',
+        'wh51_ch15_batt': 'wh51_ch15_batt',
+        'wh51_ch16_batt': 'wh51_ch16_batt',
+        'wh55_ch1_batt': 'wh55_ch1_batt',
+        'wh55_ch2_batt': 'wh55_ch2_batt',
+        'wh55_ch3_batt': 'wh55_ch3_batt',
+        'wh55_ch4_batt': 'wh55_ch4_batt',
+        'wh57_batt': 'wh57_batt',
+        'ws68_batt': 'ws68_batt',
+        'ws80_batt': 'ws80_batt'
+    }
 
     def __init__(self, **gw1000_config):
         """Initialise a GW1000 object."""
@@ -490,7 +545,10 @@ class Gw1000(object):
         extensions = gw1000_config.get('field_map_extensions', {})
         # if we have no field map then use the default
         if field_map is None:
+            # obtain the default field map
             field_map = dict(Gw1000.default_field_map)
+            # now add in the battery state field map
+            field_map.update(Gw1000.battery_field_map)
         # If a user wishes to rename a field from the default map they can
         # include an entry in field_map_extensions but that leaves the
         # original field map as well. This can be removed if the user adds
@@ -507,7 +565,7 @@ class Gw1000(object):
             # to pop off any 'empty' entries
             field_map_extensions = dict(extensions)
             # iterate over the keys and values in the field map extensions
-            for w,g in six.iteritems(extensions):
+            for w, g in six.iteritems(extensions):
                 # if we find an empty entry
                 if g == '':
                     # pop off the entry from the field map
@@ -865,7 +923,6 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
 
 
 def loader(config_dict, engine):
-
     return Gw1000Driver(**config_dict[DRIVER_NAME])
 
 
@@ -876,8 +933,8 @@ def configurator_loader(config_dict):  # @UnusedVariable
 
 
 def confeditor_loader():
-
     return Gw1000ConfEditor()
+
 
 # ============================================================================
 #                          class Gw1000ConfEditor
@@ -894,7 +951,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
         # The driver to use:
         driver = user.gw1000
-        
+
         # How often to poll the GW1000 API:
         poll_interval = 60
     """
@@ -993,7 +1050,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
             else:
                 # create a loop packet and initialise with dateTime and usUnits
                 packet = {'dateTime': int(time.time() + 0.5)}
-                # if not already determined determine which cumulative rain
+                # if not already determined, determine which cumulative rain
                 # field will be used to determine the per period rain field
                 if not self.rain_mapping_confirmed:
                     self.get_cumulative_rain_field(parsed_data)
@@ -1129,7 +1186,7 @@ class Gw1000Collector(Collector):
         self.max_tries = max_tries
         # period in seconds to wait before polling again, default is 10 seconds
         self.retry_wait = retry_wait
-        # arewe using a th32 sensor
+        # are we using a th32 sensor
         self.use_th32 = use_th32
         # get a station object to do the handle the interaction with the
         # GW1000 API
@@ -1148,7 +1205,7 @@ class Gw1000Collector(Collector):
         # default we are coded to use a WH65. Is there a WH24 connected?
         if is_wh24:
             # set the WH24 sensor id decode dict entry
-            self.sensor_ids[ b'\x00']['name'] = 'wh24'
+            self.sensor_ids[b'\x00']['name'] = 'wh24'
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24)
@@ -1712,7 +1769,7 @@ class Gw1000Collector(Collector):
                     return
                 else:
                     # checksum check failed, raise an InvalidChecksum exception
-                    _msg = "Invalid checksum in API response. "\
+                    _msg = "Invalid checksum in API response. " \
                            "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
                                                                             "{:02X}".format(calc_checksum),
                                                                             resp_checksum,
@@ -1722,7 +1779,7 @@ class Gw1000Collector(Collector):
                 # command code check failed, raise an InvalidApiResponse exception
                 exp_int = six.byte2int(cmd_code)
                 resp_int = six.indexbytes(response, 2)
-                _msg = "Invalid command code in API response. "\
+                _msg = "Invalid command code in API response. " \
                        "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
                                                                         "{:02X}".format(exp_int),
                                                                         resp_int,
@@ -2356,11 +2413,11 @@ def main():
             print("Timeout. GW1000 did not respond.")
         else:
             print()
-            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rain_rate'], rain_data['rain_rate']/25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rain_day'], rain_data['rain_day']/25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week']/25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month']/25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year']/25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rain_rate'], rain_data['rain_rate'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rain_day'], rain_data['rain_day'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
     def station_mac(opts):
 
@@ -2377,7 +2434,7 @@ def main():
         # we can catch any socket timeouts
         try:
             print()
-            print("GW1000 MAC address: %s" % (collector.mac_address, ))
+            print("GW1000 MAC address: %s" % (collector.mac_address,))
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
@@ -2397,7 +2454,7 @@ def main():
         # we can catch any socket timeouts
         try:
             print()
-            print("GW1000 firmware version string: %s" % (collector.firmware_version, ))
+            print("GW1000 firmware version string: %s" % (collector.firmware_version,))
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
@@ -2787,6 +2844,6 @@ def main():
     # if we made it here no option was selected so display our help
     parser.print_help()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     main()
