@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b6                                  Date: 24 July 2020
+Version: 0.1.0b7                                  Date: 28 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -348,7 +348,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b6'
+DRIVER_VERSION = '0.1.0b7'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -2097,6 +2097,23 @@ class Gw1000Collector(Collector):
                 return value
 
         @staticmethod
+        def decode_dir(data, field=None):
+            """Decode direction data.
+
+            Data is contained in a two byte big endian integer and represents
+            whole degrees.
+            """
+
+            if len(data) == 2:
+                value = struct.unpack(">H", data)[0]
+            else:
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
+
+        @staticmethod
         def decode_big_rain(data, field=None):
             """Decode 4 byte rain data.
 
@@ -2214,7 +2231,6 @@ class Gw1000Collector(Collector):
                 return value
 
         # alias' for other decodes
-        decode_dir = decode_press
         decode_speed = decode_press
         decode_rain = decode_press
         decode_rainrate = decode_press
@@ -2411,7 +2427,7 @@ def main():
         # know is 0 = 433MHz
         freq_decode = {
             0: '433MHz',
-            998: '868Mhz',
+            1: '868Mhz',
             2: '915MHz'
         }
         # obtain any command line specified ip address and port
