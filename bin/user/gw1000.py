@@ -240,7 +240,7 @@ the WeeWX daemon:
 # TODO. Confirm WH26/WH32 battery status
 # TODO. Confirm WH51 battery status
 # TODO. Confirm WH57 battery status and meaning
-# TODO. Confirm WS68 battery status
+# TODO. Confirm WH68 battery status
 # TODO. Confirm WS80 battery status
 # TODO. Confirm WH41 battery status and meaning
 # TODO. Confirm WH55 battery status
@@ -532,7 +532,7 @@ class Gw1000(object):
         'wh55_ch3_batt': 'wh55_ch3_batt',
         'wh55_ch4_batt': 'wh55_ch4_batt',
         'wh57_batt': 'wh57_batt',
-        'ws68_batt': 'ws68_batt',
+        'wh68_batt': 'wh68_batt',
         'ws80_batt': 'ws80_batt'
     }
 
@@ -1131,7 +1131,7 @@ class Gw1000Collector(Collector):
     # map of sensor ids to short and long names
     sensor_ids = {
         b'\x00': {'name': 'wh65', 'long_name': 'WH65'},
-        b'\x01': {'name': 'ws68', 'long_name': 'WS68'},
+        b'\x01': {'name': 'wh68', 'long_name': 'WH68'},
         b'\x02': {'name': 'ws80', 'long_name': 'WS80'},
         b'\x03': {'name': 'wh40', 'long_name': 'WH40'},
         b'\x04': {'name': 'wh25', 'long_name': 'WH25'},
@@ -1975,7 +1975,7 @@ class Gw1000Collector(Collector):
                      4: {'shift': 24, 'mask': 0xFF}
                      }
         wh57_batt = {'wh57': {}}
-        ws68_batt = {'ws68': {}}
+        wh68_batt = {'wh68': {}}
         ws80_batt = {'ws80': {}}
         batt = {
             'multi': (multi_batt, 'battery_mask'),
@@ -1983,12 +1983,12 @@ class Gw1000Collector(Collector):
             'wh51': (wh51_batt, 'battery_mask'),
             'wh41': (wh41_batt, 'battery_value'),
             'wh57': (wh57_batt, 'battery_value'),
-            'ws68': (ws68_batt, 'battery_voltage'),
+            'wh68': (wh68_batt, 'battery_voltage'),
             'ws80': (ws80_batt, 'battery_voltage'),
             'wh55': (wh55_batt, 'battery_value'),
             'unused': ({}, 'battery_mask')
         }
-        batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'ws68', 'ws80',
+        batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
                        'unused', 'wh41', 'wh55')
         battery_state_format = "<BBHBBBBHLBB"
         battery_state_desc = {'wh24': 'binary_desc',
@@ -2002,7 +2002,7 @@ class Gw1000Collector(Collector):
                               'wh55': 'level_desc',
                               'wh57': 'level_desc',
                               'wh65': 'binary_desc',
-                              'ws68': 'voltage_desc',
+                              'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
 
@@ -2253,7 +2253,7 @@ class Gw1000Collector(Collector):
             WH24, WH25, WH26(WH32), WH31, WH40, WH41 and WH51
             stations/sensors use a single bit per station/sensor to indicate OK or
             low battery. WH55 and WH57 sensors use a single byte per sensor to
-            indicate OK or low battery. WS68 and WS80 sensors use a single byte to
+            indicate OK or low battery. WH68 and WS80 sensors use a single byte to
             store battery voltage.
 
             The battery status data is allocated as follows
@@ -2272,7 +2272,7 @@ class Gw1000Collector(Collector):
                          ...
                          ch16(b7)   0/1                 1=low, 0=normal
                  5  WH57            0-5                 <=1 is low
-                 6  WS68            0.02*value Volts
+                 6  WH68            0.02*value Volts
                  7  WS80            0.02*value Volts
                  8  Unused
                  9  WH41 ch1(b0-b3) 0-5                 <=1 is low
