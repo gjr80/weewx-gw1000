@@ -10,7 +10,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.1.0b6                                      Date: 27 July 2020
+Version: 0.1.0b8                                      Date: 29 July 2020
 
 Revision History
     ?? ????? 2020       v0.1.0
@@ -23,7 +23,7 @@ from distutils.version import StrictVersion
 from setup import ExtensionInstaller
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.1.0b6"
+GW1000_VERSION = "0.1.0b8"
 
 
 def loader():
@@ -49,10 +49,166 @@ class Gw1000Installer(ExtensionInstaller):
                     'driver': 'user.gw1000'
                 },
                 'Accumulator': {
+                    'daymaxwind': {
+                        'extractor': 'last'
+                    },
+                    'lightning_distance': {
+                        'extractor': 'last'
+                    },
                     'lightning_strike_count': {
                         'extractor': 'sum'
                     },
                     'lightning_last_det_time': {
+                        'extractor': 'last'
+                    },
+                    'rainevent': {
+                        'extractor': 'last'
+                    },
+                    'rainhour': {
+                        'extractor': 'last'
+                    },
+                    'rainday': {
+                        'extractor': 'last'
+                    },
+                    'rainweek': {
+                        'extractor': 'last'
+                    },
+                    'rainmonth': {
+                        'extractor': 'last'
+                    },
+                    'rainyear': {
+                        'extractor': 'last'
+                    },
+                    'raintotals': {
+                        'extractor': 'last'
+                    },
+                    '24havpm251': {
+                        'extractor': 'last'
+                    },
+                    '24havpm252': {
+                        'extractor': 'last'
+                    },
+                    '24havpm253': {
+                        'extractor': 'last'
+                    },
+                    '24havpm254': {
+                        'extractor': 'last'
+                    },
+                    'wh40_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh26_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh25_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh65_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch1_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch2_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch3_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch4_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch5_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch6_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch7_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch8_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch1_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch2_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch3_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch4_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch1_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch2_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch3_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch4_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch5_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch6_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch7_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch8_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch9_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch10_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch11_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch12_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch13_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch14_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch15_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch16_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch1_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch2_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch3_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch4_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh57_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh68_batt': {
+                        'extractor': 'last'
+                    },
+                    'ws80_batt': {
                         'extractor': 'last'
                     }
                 }
