@@ -98,22 +98,126 @@ method):
 
     -   add the following stanza to weewx.conf:
 
-[GW1000]
-    # This section is for the GW1000
+        [GW1000]
+            # This section is for the GW1000
 
-    # The driver itself
-    driver = user.gw1000
+            # The driver itself
+            driver = user.gw1000
 
     -   add the following stanza to weewx.conf:
 
-    Note: If an [Accumulator] stanza already exists in weewx.conf just add the
-          child settings.
+        Note: If an [Accumulator] stanza already exists in weewx.conf just add
+              the child settings.
 
-[Accumulator]
-    [[lightning_strike_count]]
-        extractor = sum
-    [[lightning_last_det_time]]
-        extractor = last
+        [Accumulator]
+            [[lightning_strike_count]]
+                extractor = sum
+            [[lightning_last_det_time]]
+                extractor = last
+            [[daymaxwind]]
+                extractor = last
+            [[lightning_distance]]
+                extractor = last
+            [[rainevent]]
+                extractor = last
+            [[rainhour]]
+                extractor = last
+            [[rainday]]
+                extractor = last
+            [[rainweek]]
+                extractor = last
+            [[rainmonth]]
+                extractor = last
+            [[rainyear]]
+                extractor = last
+            [[raintotals]]
+                extractor = last
+            [[24havpm251]]
+                extractor = last
+            [[24havpm252]]
+                extractor = last
+            [[24havpm253]]
+                extractor = last
+            [[24havpm254]]
+                extractor = last
+            [[wh40_batt]]
+                extractor = last
+            [[wh26_batt]]
+                extractor = last
+            [[wh25_batt]]
+                extractor = last
+            [[wh65_batt]]
+                extractor = last
+            [[wh31_ch1_batt]]
+                extractor = last
+            [[wh31_ch2_batt]]
+                extractor = last
+            [[wh31_ch3_batt]]
+                extractor = last
+            [[wh31_ch4_batt]]
+                extractor = last
+            [[wh31_ch5_batt]]
+                extractor = last
+            [[wh31_ch6_batt]]
+                extractor = last
+            [[wh31_ch7_batt]]
+                extractor = last
+            [[wh31_ch8_batt]]
+                extractor = last
+            [[wh41_ch1_batt]]
+                extractor = last
+            [[wh41_ch2_batt]]
+                extractor = last
+            [[wh41_ch3_batt]]
+                extractor = last
+            [[wh41_ch4_batt]]
+                extractor = last
+            [[wh51_ch1_batt]]
+                extractor = last
+            [[wh51_ch2_batt]]
+                extractor = last
+            [[wh51_ch3_batt]]
+                extractor = last
+            [[wh51_ch4_batt]]
+                extractor = last
+            [[wh51_ch5_batt]]
+                extractor = last
+            [[wh51_ch6_batt]]
+                extractor = last
+            [[wh51_ch7_batt]]
+                extractor = last
+            [[wh51_ch8_batt]]
+                extractor = last
+            [[wh51_ch9_batt]]
+                extractor = last
+            [[wh51_ch10_batt]]
+                extractor = last
+            [[wh51_ch11_batt]]
+                extractor = last
+            [[wh51_ch12_batt]]
+                extractor = last
+            [[wh51_ch13_batt]]
+                extractor = last
+            [[wh51_ch14_batt]]
+                extractor = last
+            [[wh51_ch15_batt]]
+                extractor = last
+            [[wh51_ch16_batt]]
+                extractor = last
+            [[wh55_ch1_batt]]
+                extractor = last
+            [[wh55_ch2_batt]]
+                extractor = last
+            [[wh55_ch3_batt]]
+                extractor = last
+            [[wh55_ch4_batt]]
+                extractor = last
+            [[wh57_batt]]
+                extractor = last
+            [[wh68_batt]]
+                extractor = last
+            [[ws80_batt]]
+                extractor = last
 
 4.  The GW1000 driver uses a default field map to map GW1000 API fields to
 common WeeWX fields. If required this default field map can be overridden by
@@ -249,9 +353,6 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. --sensors battery data does not agree with --live-data battery states (at least for WH57)
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. Need to add battery status fields to field map
-# TODO. Confirm frequency byte meaning for other than 433MHz
-# TODO. Verify field map/field map extensions work correctly
 
 # Python imports
 from __future__ import absolute_import
