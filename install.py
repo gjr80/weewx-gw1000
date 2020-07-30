@@ -61,25 +61,25 @@ class Gw1000Installer(ExtensionInstaller):
                     'lightning_last_det_time': {
                         'extractor': 'last'
                     },
-                    'rainevent': {
+                    'stormRain': {
                         'extractor': 'last'
                     },
-                    'rainhour': {
+                    'hourRain': {
                         'extractor': 'last'
                     },
-                    'rainday': {
+                    'dayRain': {
                         'extractor': 'last'
                     },
-                    'rainweek': {
+                    'weekRain': {
                         'extractor': 'last'
                     },
-                    'rainmonth': {
+                    'monthRain': {
                         'extractor': 'last'
                     },
-                    'rainyear': {
+                    'yearRain': {
                         'extractor': 'last'
                     },
-                    'raintotals': {
+                    'totalRain': {
                         'extractor': 'last'
                     },
                     '24havpm251': {
