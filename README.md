@@ -26,11 +26,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b6/gw1000-0.1.0b6.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b8/gw1000-0.1.0b8.tar.gz
 
     -   install the GW1000 driver extension:
 
-            $ wee_extension --install=/var/tmp/gw1000-0.1.0b6.tar.gz
+            $ wee_extension --install=/var/tmp/gw1000-0.1.0b8.tar.gz
             
         **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -40,11 +40,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b6/gw1000-0.1.0b6.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b8/gw1000-0.1.0b8.tar.gz
 
     -   extract the contents of the GW1000 driver extension package:
     
-            $ tar -xzf /var/tmp/gw1000-0.1.0b6.tar.gz -C /var/tmp
+            $ tar -xzf /var/tmp/gw1000-0.1.0b8.tar.gz -C /var/tmp
      
     -   copy the file *gw1000.py* to the *$BIN_ROOT/user* directory:
     
@@ -64,6 +64,110 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                 [[lightning_strike_count]]
                     extractor = sum
                 [[lightning_last_det_time]]
+                    extractor = last
+                [[lightning_distance]]
+                    extractor = last
+                [[daymaxwind]]
+                    extractor = last
+                [[stormRain]]
+                    extractor = last
+                [[hourRain]]
+                    extractor = last
+                [[dayRain]]
+                    extractor = last
+                [[weekRain]]
+                    extractor = last
+                [[monthRain]]
+                    extractor = last
+                [[yearRain]]
+                    extractor = last
+                [[totalRain]]
+                    extractor = last
+                [[24havpm251]]
+                    extractor = last
+                [[24havpm252]]
+                    extractor = last
+                [[24havpm253]]
+                    extractor = last
+                [[24havpm254]]
+                    extractor = last
+                [[wh40_batt]]
+                    extractor = last
+                [[wh26_batt]]
+                    extractor = last
+                [[wh25_batt]]
+                    extractor = last
+                [[wh65_batt]]
+                    extractor = last
+                [[wh31_ch1_batt]]
+                    extractor = last
+                [[wh31_ch2_batt]]
+                    extractor = last
+                [[wh31_ch3_batt]]
+                    extractor = last
+                [[wh31_ch4_batt]]
+                    extractor = last
+                [[wh31_ch5_batt]]
+                    extractor = last
+                [[wh31_ch6_batt]]
+                    extractor = last
+                [[wh31_ch7_batt]]
+                    extractor = last
+                [[wh31_ch8_batt]]
+                    extractor = last
+                [[wh41_ch1_batt]]
+                    extractor = last
+                [[wh41_ch2_batt]]
+                    extractor = last
+                [[wh41_ch3_batt]]
+                    extractor = last
+                [[wh41_ch4_batt]]
+                    extractor = last
+                [[wh51_ch1_batt]]
+                    extractor = last
+                [[wh51_ch2_batt]]
+                    extractor = last
+                [[wh51_ch3_batt]]
+                    extractor = last
+                [[wh51_ch4_batt]]
+                    extractor = last
+                [[wh51_ch5_batt]]
+                    extractor = last
+                [[wh51_ch6_batt]]
+                    extractor = last
+                [[wh51_ch7_batt]]
+                    extractor = last
+                [[wh51_ch8_batt]]
+                    extractor = last
+                [[wh51_ch9_batt]]
+                    extractor = last
+                [[wh51_ch10_batt]]
+                    extractor = last
+                [[wh51_ch11_batt]]
+                    extractor = last
+                [[wh51_ch12_batt]]
+                    extractor = last
+                [[wh51_ch13_batt]]
+                    extractor = last
+                [[wh51_ch14_batt]]
+                    extractor = last
+                [[wh51_ch15_batt]]
+                    extractor = last
+                [[wh51_ch16_batt]]
+                    extractor = last
+                [[wh55_ch1_batt]]
+                    extractor = last
+                [[wh55_ch2_batt]]
+                    extractor = last
+                [[wh55_ch3_batt]]
+                    extractor = last
+                [[wh55_ch4_batt]]
+                    extractor = last
+                [[wh57_batt]]
+                    extractor = last
+                [[wh68_batt]]
+                    extractor = last
+                [[ws80_batt]]
                     extractor = last
 
         **Note:** If an *[Accumulator]* stanza already exists in *weewx.conf* just add the child settings.
