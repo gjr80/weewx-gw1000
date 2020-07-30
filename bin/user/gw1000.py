@@ -656,10 +656,10 @@ class Gw1000(object):
         # a an 'empty' entry in field_map_extensions for the now redundant
         # field from the default field map eg:
         # [[field_map_extensions]]
-        #    dayRain = rainday
-        #    rainday =
-        # The first entry re-maps rainday to dayRain, the second entry
-        # removes the map rainday to rainday in the default field map.
+        #    myRain = rainday
+        #    dayRain =
+        # The first entry re-maps rainday to myRain, the second entry
+        # removes the mapping of rainday to dayRain in the default field map.
         # Do we have any field map extensions
         if len(extensions) > 0:
             # yes, make a copy of our field map extensions as we will need
@@ -1697,13 +1697,14 @@ class Gw1000Collector(Collector):
             ttl = struct.pack('b', 1)
             socket_obj.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
             # Create packet to broadcast. Format is:
-            #   Header, GW1000 Broadcast command, Size, Checksum
-            size = len(b''.join([self.header, self.commands['CMD_BROADCAST']]))
-            _header_data_size = b''.join([self.header, self.commands['CMD_BROADCAST'],
-                                          struct.pack('B', size)])
-            checksum = struct.pack('B',
-                                   struct.unpack('B', self.commands['CMD_BROADCAST'])[0] + size)
-            packet = b''.join([_header_data_size, checksum])
+            #   fixed header, GW1000 Broadcast command, size, checksum
+            size = len(self.commands['CMD_BROADCAST']) + 1 + 1
+            # construct the portion of the message for which the checksum is calculated
+            body = b''.join([self.commands['CMD_BROADCAST'], struct.pack('B', size)])
+            # calculate the checksum
+            checksum = self.calc_checksum(body)
+            # construct the entire message packet
+            packet = b''.join([self.header, body, struct.pack('B', checksum)])
             if weewx.debug >= 3:
                 logdbg("Sending broadcast packet '%s' to '%s:%d'" % (Gw1000Collector.bytes_to_hex(packet),
                                                                      self.broadcast_address,
@@ -1769,7 +1770,7 @@ class Gw1000Collector(Collector):
 
             return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
 
-        def send_cmd_with_retries(self, cmd):
+        def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000 API with retries and return the
             response.
 
@@ -1778,23 +1779,35 @@ class Gw1000Collector(Collector):
             invalid an appropriate exception is raised and the command resent
             up to self.max_tries times after which the value None is returned.
 
+            A GW1000 API command looks like:
+
+            fixed header, command, size, data1, data2...datan, checksum
+
+            where:
+            fixed header is 2 bytes = 0xFFFF
+            command is a 1 byte API command code
+            size is 1 byte being the number of bytes of command to checksum
+            data1, data2...datan is the data being transmitted and is n bytes long
+            checksum is a byte checksum of command + size + data1 + data2 ... + datan
+
             cmd: A string containing a valid GW1000 API command,
                  eg: 'CMD_READ_FIRMWARE_VERSION'
+            payload: The data to be sent with the API command, byte string.
 
             Returns the response as a byte string or the value None.
             """
 
-            # obtain the size of the command to be sent
+            # calculate size
             try:
-                size = len(b''.join([self.header, self.commands[cmd]]))
+                size = len(self.commands[cmd]) + 1 + len(payload) + 1
             except KeyError:
                 raise UnknownCommand("Unknown GW1000 API command '%s'" % (cmd,))
-            # obtain the size of the header data being sent
-            _header_data_size = b''.join([self.header, self.commands[cmd], struct.pack('B', size)])
+            # construct the portion of the message for which the checksum is calculated
+            body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
             # calculate the checksum
-            checksum = struct.pack('B', struct.unpack('B', self.commands[cmd])[0] + size)
-            # construct the command packet
-            packet = b''.join([_header_data_size, checksum])
+            checksum = self.calc_checksum(body)
+            # construct the entire message packet
+            packet = b''.join([self.header, body, struct.pack('B', checksum)])
             # attempt to send up to 'self.max_tries' times
             for attempt in range(self.max_tries):
                 # wrap in  try..except so we can catch any errors
