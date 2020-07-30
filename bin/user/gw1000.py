@@ -513,7 +513,7 @@ class Gw1000(object):
         'inHumidity': 'inhumid',
         'outHumidity': 'outhumid',
         'pressure': 'absbarometer',
-        'altimeter': 'relbarometer',
+        'relbarometer': 'relbarometer',
         'windDir': 'winddir',
         'windSpeed': 'windspeed',
         'windGust': 'gustspeed',
