@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b8                                  Date: 30 July 2020
+Version: 0.1.0b9                                  Date: 31 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -118,19 +118,19 @@ method):
                 extractor = last
             [[lightning_distance]]
                 extractor = last
-            [[rainevent]]
+            [[stormRain]]
                 extractor = last
-            [[rainhour]]
+            [[hourRain]]
                 extractor = last
-            [[rainday]]
+            [[dayRain]]
                 extractor = last
-            [[rainweek]]
+            [[weekRain]]
                 extractor = last
-            [[rainmonth]]
+            [[monthRain]]
                 extractor = last
-            [[rainyear]]
+            [[yearRain]]
                 extractor = last
-            [[raintotals]]
+            [[totalRain]]
                 extractor = last
             [[24havpm251]]
                 extractor = last
@@ -449,7 +449,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b8'
+DRIVER_VERSION = '0.1.0b9'
 
 # various defaults used throughout
 # default port used by GW1000
