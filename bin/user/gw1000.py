@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b7                                  Date: 28 July 2020
+Version: 0.1.0b8                                  Date: 30 July 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -348,7 +348,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b7'
+DRIVER_VERSION = '0.1.0b8'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -412,21 +412,21 @@ class Gw1000(object):
         'inHumidity': 'inhumid',
         'outHumidity': 'outhumid',
         'pressure': 'absbarometer',
-        'barometer': 'relbarometer',
+        'altimeter': 'relbarometer',
         'windDir': 'winddir',
         'windSpeed': 'windspeed',
         'windGust': 'gustspeed',
         'rain': 'rain',
-        'rainevent': 'rainevent',
+        'stormRain': 'rainevent',
         'rainRate': 'rainrate',
-        'rainhour': 'rainhour',
-        'rainday': 'rainday',
-        'rainweek': 'rainweek',
-        'rainmonth': 'rainmonth',
-        'rainyear': 'rainyear',
-        'raintotals': 'raintotals',
+        'hourRain': 'rainhour',
+        'dayRain': 'rainday',
+        'weekRain': 'rainweek',
+        'monthRain': 'rainmonth',
+        'yearRain': 'rainyear',
+        'totalRain': 'raintotals',
         'luminosity': 'light',
-        'uvRadiation': 'uv',
+        'uvradiation': 'uv',
         'UV': 'uvi',
         'dateTime': 'datetime',
         'daymaxwind': 'daymaxwind',
@@ -2639,16 +2639,21 @@ def main():
     def field_map():
         """Display the default field map."""
 
+        # obtain a copy of the default field map, we need a copy so we can
+        # augment it with the battery state map
+        field_map = dict(Gw1000.default_field_map)
+        # now add in the battery state field map
+        field_map.update(Gw1000.battery_field_map)
         print()
         print("GW1000 driver/service default field map:")
         print("(format is WeeWX field name: GW1000 field name)")
         print()
         # obtain a list of naturally sorted dict keys so that, for example,
         # xxxxx16 appears in the correct order
-        keys_list = natural_sort_dict(Gw1000.default_field_map)
+        keys_list = natural_sort_dict(field_map)
         # iterate over the sorted keys and print the key and item
         for key in keys_list:
-            print("    %s: %s" % (key, Gw1000.default_field_map[key]))
+            print("    %s: %s" % (key, field_map[key]))
 
     def test_driver(opts):
         """Run the GW1000 driver."""
