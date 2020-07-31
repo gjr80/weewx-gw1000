@@ -76,6 +76,14 @@ method):
             # The driver itself
             driver = user.gw1000
 
+    -   confirm that in weewx.conf under [StdArchive] the record_generation setting is set to software:
+
+            [StdArchive]
+                ....
+                record_generation = software
+
+        If record_generation is set to hardware change it to software.
+
     -   add the following stanza to weewx.conf:
 
         [Accumulator]
