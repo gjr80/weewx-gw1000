@@ -58,14 +58,6 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                 # The driver itself
                 driver = user.gw1000
 
-    -   confirm that in *weewx.conf* under *[StdArchive]* the *record_generation* setting is set to *software*:
-    
-            [StdArchive]
-                ....
-                record_generation = software
-    
-        If *record_generation* is set to *hardware* change it to *software*.
-        
     -   add the following stanza to *weewx.conf*:
 
             [Accumulator]
@@ -180,7 +172,15 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
         **Note:** If an *[Accumulator]* stanza already exists in *weewx.conf* just add the child settings.
 
-4.  Test the GW1000 driver by running the driver file directly using the *--test-driver* command line option:
+4.  Confirm that WeeWX is set to use software [record generation](http://weewx.com/docs/usersguide.htm#record_generation). In *weewx.conf* under *[StdArchive]* ensure the *record_generation* setting is set to *software*:
+    
+        [StdArchive]
+            ....
+            record_generation = software
+    
+    If *record_generation* is set to *hardware* change it to *software*.
+        
+5.  Test the GW1000 driver by running the driver file directly using the *--test-driver* command line option:
 
         $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-driver
 
@@ -194,7 +194,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     **Note:** You will only see loop packets and not archive records when running the driver directly. This is because you are seeing output directly from the driver and not WeeWX. 
 
-5.  Configure the driver:
+6.  Configure the driver:
 
         $ wee_config --reconfigure --driver=user.gw1000
 
@@ -243,7 +243,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     You should observe loop packets being emitted on a regular basis. Some, but not necessarily all, loop packets should include GW1000 data. Once finished press *ctrl-c* to exit.
 
-    **Note:** When the driver file is run directly with the *--test-service* command line option a series of simulated loop packets are emitted every 10 seconds to simulate a running WeeWX instance. The GW1000 is polled and the GW1000 data added to the loop packets when available. As the default GW1000 poll interval is 60 seconds not all loop packets will be augmented with GW1000 data.
+    **Note:** When the GW1000 driver is run directly with the *--test-service* command line option a series of simulated loop packets are emitted every 10 seconds to simulate a running WeeWX instance. The GW1000 is polled and the GW1000 data added to the loop packets when available. As the default GW1000 poll interval is 60 seconds not all loop packets will be augmented with GW1000 data.
 
     **Note:** You will only see loop packets and not archive records when running the service directly. This is because you are seeing the direct output of the driver and the GW1000 service and not WeeWX. 
 
