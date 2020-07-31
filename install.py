@@ -48,9 +48,6 @@ class Gw1000Installer(ExtensionInstaller):
                 'GW1000': {
                     'driver': 'user.gw1000'
                 },
-                'StdArchive': {
-                    'record_generation': 'software'
-                },
                 'Accumulator': {
                     'daymaxwind': {
                         'extractor': 'last'
