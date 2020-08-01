@@ -332,6 +332,7 @@ the WeeWX daemon:
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
+# TODO. System parameters UTC is displayed as local time with (UTC)
 
 # Python imports
 from __future__ import absolute_import
@@ -669,14 +670,9 @@ class Gw1000(object):
         # if the user has specified some variation of 'auto' then we are to
         # automatically detect the GW1000 IP address, to do that we set the
         # ip_address property to None
-        if _ip_address is not None:
-            # do we have a variation of 'auto'
-            if _ip_address.lower() == 'auto':
-                # we need to autodetect ip address so set to None
-                _ip_address = None
-            else:
-                # if the ip address is specified we need to encode it
-                _ip_address = _ip_address.encode()
+        if _ip_address is not None and _ip_address.lower() == 'auto':
+            # we need to autodetect ip address so set to None
+            _ip_address = None
         # set the ip address property
         self.ip_address = _ip_address
         # obtain the GW1000 port from the config dict
@@ -1800,7 +1796,7 @@ class Gw1000Collector(Collector):
                         else:
                             stem = "Multiple GW1000 were"
                         loginf("%s found at %s" % (stem, gw1000_str))
-                        ip_address = disc_ip.encode() if ip_address is None else ip_address.encode()
+                        ip_address = disc_ip if ip_address is None else ip_address
                         port = disc_port if port is None else port
                         break
                     else:
@@ -1813,7 +1809,9 @@ class Gw1000Collector(Collector):
                     # signal that we have a critical error
                     raise weewx.ViolatedPrecondition("GW1000 not found, you may need to specify "
                                                      "the GW1000 ip address and port in weewx.conf")
-            self.ip_address = ip_address
+            # set our ip_address property but encode it first, it saves doing
+            # it repeatedly later
+            self.ip_address = ip_address.encode()
             self.port = port
             self.max_tries = max_tries
             self.retry_wait = retry_wait
@@ -2678,7 +2676,88 @@ def natural_sort_dict(source_dict):
 def main():
     import optparse
 
-    def system_params(opts):
+    def ip_from_config_opts(opts, stn_dict):
+        """Obtain the IP address from station config or command line options.
+
+        Determine the IP address to use given a station config dict and command
+        line options. The IP address is chosen as follows:
+        - if specified use the ip address from the command line
+        - if an IP address was not specified on the command line obtain the IP
+          address from the station config dict
+        - if the station config dict does not specify an IP address, or if it
+          is set to 'auto', return None to force device discovery
+        """
+
+        # obtain an ip address from the command line options
+        ip_address = opts.ip_address if opts.ip_address else None
+        # if we didn't get an ip address check the station config dict
+        if ip_address is None:
+            # obtain the ip address from the station config dict
+            ip_address = stn_dict.get('ip_address')
+            # if the station config dict specifies some variation of 'auto'
+            # then we need to return None to force device discovery
+            if ip_address is not None:
+                # do we have a variation of 'auto'
+                if ip_address.lower() == 'auto':
+                    # we need to autodetect ip address so set to None
+                    ip_address = None
+                    if weewx.debug >= 1:
+                        print()
+                        print("IP address to be obtained by discovery")
+                else:
+                    if weewx.debug >= 1:
+                        print()
+                        print("IP address obtained from station config")
+            else:
+                if weewx.debug >= 1:
+                    print()
+                    print("IP address to be obtained by discovery")
+        else:
+            if weewx.debug >= 1:
+                print()
+                print("IP address obtained from command line options")
+        return ip_address
+
+    def port_from_config_opts(opts, stn_dict):
+        """Obtain the port from station config or command line options.
+
+        Determine the port to use given a station config dict and command
+        line options. The port is chosen as follows:
+        - if specified use the port from the command line
+        - if a port was not specified on the command line obtain the port from
+          the station config dict
+        - if the station config dict does not specify a port use the default
+          45000
+        """
+
+        # obtain a port number from the command line options
+        port = opts.port if opts.port else None
+        # if we didn't get a port number check the station config dict
+        if port is None:
+            # obtain the port number from the station config dict
+            port = stn_dict.get('port')
+            # if a port number was specified it needs to be an integer not a
+            # string so try to do the conversion
+            try:
+                port = int(port)
+            except (TypeError, ValueError):
+                # If a TypeError then most likely port somehow ended up being
+                # None. If a ValueError then we couldn't convert the port
+                # number to an integer, maybe it was because it was 'auto'
+                # (or some variation) or perhaps it was invalid. Regardless of
+                # the error we need to set port to None to force discovery.
+                port = default_port
+                if weewx.debug >= 1:
+                    print("Port number set to default port number")
+            else:
+                if weewx.debug >= 1:
+                    print("Port number obtained from station config")
+        else:
+            if weewx.debug >= 1:
+                print("Port number obtained from command line options")
+        return port
+
+    def system_params(opts, stn_dict):
         """Display system parameters."""
 
         # dict for decoding system parameters frequency byte, at present all we
@@ -2688,9 +2767,9 @@ def main():
             1: '868Mhz',
             2: '915MHz'
         }
-        # obtain any command line specified ip address and port
-        ip_address = opts.ip_address if opts.ip_address else None
-        port = opts.port if opts.port else None
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
         # get a GW1000 Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
@@ -2723,12 +2802,12 @@ def main():
             print("GW1000 decoded UTC: %s" % weeutil.weeutil.timestamp_to_gmtime(sys_params_dict['utc']))
             print("GW1000 timezone: %s" % (sys_params_dict['timezone'],))
 
-    def rain_data(opts):
+    def rain_data(opts, stn_dict):
         """Display rain data."""
 
-        # obtain any command line specified ip address and port
-        ip_address = opts.ip_address if opts.ip_address else None
-        port = opts.port if opts.port else None
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
         # get a GW1000 Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
@@ -2751,10 +2830,11 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
-    def station_mac(opts):
+    def station_mac(opts, stn_dict):
 
-        ip_address = opts.ip_address if opts.ip_address else None
-        port = opts.port if opts.port else None
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
         # get a GW1000 Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
@@ -2771,10 +2851,11 @@ def main():
             print()
             print("Timeout. GW1000 did not respond.")
 
-    def firmware(opts):
+    def firmware(opts, stn_dict):
 
-        ip_address = opts.ip_address if opts.ip_address else None
-        port = opts.port if opts.port else None
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
         # get a Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
@@ -2791,10 +2872,11 @@ def main():
             print()
             print("Timeout. GW1000 did not respond.")
 
-    def sensors(opts):
+    def sensors(opts, stn_dict):
 
-        ip_address = opts.ip_address if opts.ip_address else None
-        port = opts.port if opts.port else None
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
         # get a Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
@@ -2837,10 +2919,11 @@ def main():
                 # print the formatted data
             print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
 
-    def live_data(opts):
+    def live_data(opts, stn_dict):
 
-        ip_address = opts.ip_address if opts.ip_address else None
-        port = opts.port if opts.port else None
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
         # get a Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
@@ -2911,17 +2994,18 @@ def main():
         keys_list = natural_sort_dict(field_map)
         # iterate over the sorted keys and print the key and item
         for key in keys_list:
-            print("    %s: %s" % (key, field_map[key]))
+            print("    %23s: %s" % (key, field_map[key]))
 
-    def test_driver(opts):
+    def test_driver(opts, stn_dict):
         """Run the GW1000 driver."""
 
         loginf("Testing GW1000 driver...")
-        stn_dict = dict()
-        if opts.ip_address:
-            stn_dict['ip_address'] = opts.ip_address
-        if opts.port:
-            stn_dict['port'] = opts.port
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # set the IP address and port in the station config dict
+        stn_dict['ip_address'] = ip_address
+        stn_dict['port'] = port
         if opts.poll_interval:
             stn_dict['poll_interval'] = opts.poll_interval
         if opts.max_tries:
@@ -2946,7 +3030,7 @@ def main():
             driver.closePort()
         loginf("GW1000 driver testing complete")
 
-    def test_service(opts):
+    def test_service(opts, stn_dict):
         """Test the GW1000 service.
 
         Uses a dummy engine/simulator to generate arbitrary loop packets for
@@ -2973,11 +3057,13 @@ def main():
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service',
                     'report_services': 'weewx.engine.StdPrint'}}}
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # set the IP address and port in the dummy config
+        config['Gw1000Service']['ip_address'] = ip_address
+        config['Gw1000Service']['port'] = port
         # these command line options should only be added if they exist
-        if opts.ip_address:
-            config['Gw1000Service']['ip_address'] = opts.ip_address
-        if opts.port:
-            config['Gw1000Service']['port'] = opts.port
         if opts.poll_interval:
             config['Gw1000Service']['poll_interval'] = opts.poll_interval
         if opts.max_tries:
@@ -3142,36 +3228,36 @@ def main():
 
     # run the driver
     if opts.test_driver:
-        test_driver(opts)
+        test_driver(opts, stn_dict)
         exit(0)
 
     # run the service with simulator
     if opts.test_service:
-        test_service(opts)
+        test_service(opts, stn_dict)
         exit(0)
 
     if opts.sys_params:
-        system_params(opts)
+        system_params(opts, stn_dict)
         exit(0)
 
     if opts.rain:
-        rain_data(opts)
+        rain_data(opts, stn_dict)
         exit(0)
 
     if opts.mac:
-        station_mac(opts)
+        station_mac(opts, stn_dict)
         exit(0)
 
     if opts.firmware:
-        firmware(opts)
+        firmware(opts, stn_dict)
         exit(0)
 
     if opts.sensors:
-        sensors(opts)
+        sensors(opts, stn_dict)
         exit(0)
 
     if opts.live:
-        live_data(opts)
+        live_data(opts, stn_dict)
         exit(0)
 
     if opts.discover:
