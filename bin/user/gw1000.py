@@ -1269,9 +1269,9 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
         loginf("poll interval is %d seconds" % self.poll_interval)
         logdbg('max tries is %d, retry wait time is %d seconds' % (self.max_tries,
                                                                    self.retry_wait))
-        logdbg('broadcast address %s:%d, socket timeout is %d seconds' % (self.broadcast_address,
-                                                                          self.broadcast_port,
-                                                                          self.socket_timeout))
+        logdbg('broadcast address is %s:%d, socket timeout is %d seconds' % (self.broadcast_address,
+                                                                             self.broadcast_port,
+                                                                             self.socket_timeout))
         # start the Gw1000Collector in its own thread
         self.collector.startup()
 
