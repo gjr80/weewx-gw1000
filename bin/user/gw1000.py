@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b9                                  Date: 31 July 2020
+Version: 0.1.0b10                                 Date: 1 August 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -428,7 +428,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b9'
+DRIVER_VERSION = '0.1.0b10'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -3030,41 +3030,41 @@ def main():
        python -m user.gw1000 --version
        python -m user.gw1000 --test-driver
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--poll-interval=INTERVAL]
             [--max-tries=MAX_TRIES]
             [--retry-wait=RETRY_WAIT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --test-service
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--poll-interval=INTERVAL]
             [--max-tries=MAX_TRIES]
             [--retry-wait=RETRY_WAIT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --firmware-version
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --mac-address
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --sensors
             [CONFIG_FILE|--config=CONFIG_FILE]
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --system-params
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --rain-data
             [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip=IP_ADDRESS] [--port=PORT]
+            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --discover
             [CONFIG_FILE|--config=CONFIG_FILE]  
@@ -3098,7 +3098,7 @@ def main():
                       metavar='TEST_DRIVER', help='test the GW1000 driver')
     parser.add_option('--test-service', dest='test_service', action='store_true',
                       metavar='TEST_SERVICE', help='test the GW1000 service')
-    parser.add_option('--ip', dest='ip_address',
+    parser.add_option('--ip-address', dest='ip_address',
                       help='GW1000 IP address to use')
     parser.add_option('--port', dest='port', type=int,
                       help='GW1000 port to use')
