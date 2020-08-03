@@ -636,32 +636,30 @@ class Gw1000(object):
             field_map = dict(Gw1000.default_field_map)
             # now add in the battery state field map
             field_map.update(Gw1000.battery_field_map)
-        # If a user wishes to rename a field from the default map they can
-        # include an entry in field_map_extensions but that leaves the
-        # original field map as well. This can be removed if the user adds
-        # a an 'empty' entry in field_map_extensions for the now redundant
-        # field from the default field map eg:
-        # [[field_map_extensions]]
-        #    myRain = rainday
-        #    dayRain =
-        # The first entry re-maps rainday to myRain, the second entry
-        # removes the mapping of rainday to dayRain in the default field map.
-        # Do we have any field map extensions
+        # If a user wishes to map a GW1000 field differently to that in the
+        # default map they can include an entry in field_map_extensions, but if
+        # we just update the field map dict with the field map extensions that
+        # leaves two entries for that GW1000 field in the field map; the
+        # original field map entry as well as the entry from the extended map.
+        # So if we have field_map_extensions we need to first go through the
+        # field map and delete any entries that map GW1000 fields that are
+        # included in the field_map_extensions.
+        # we only need process the field_map_extensions if we have any
         if len(extensions) > 0:
-            # yes, make a copy of our field map extensions as we will need
-            # to pop off any 'empty' entries
-            field_map_extensions = dict(extensions)
-            # iterate over the keys and values in the field map extensions
-            for w, g in six.iteritems(extensions):
-                # if we find an empty entry
-                if g == '':
-                    # pop off the entry from the field map
-                    dummy = field_map.pop(w, None)
-                    # and pop off the spent entry in the field map
-                    # extensions
-                    dummy = field_map_extensions.pop(w, None)
-            # update our field map with any field map extensions
-            field_map.update(field_map_extensions)
+            # first make a copy of the field map because we will be iterating
+            # over it and changing it
+            field_map_copy = dict(field_map)
+            # iterate over each key, value pair in the copy of the field map
+            for k,v in six.iteritems(field_map_copy):
+                # if the 'value' (ie the GW1000 field) is in the field map
+                # extensions we will be mapping that GW1000 field elsewhere so
+                # pop that field map entry out of the field map so we don't end
+                # up with multiple mappings for a GW1000 field
+                if v in extensions.values():
+                    # pop the field map entry
+                    _dummy = field_map.pop(k)
+            # now we can update the field map with the extensions
+            field_map.update(extensions)
         # we now have our final field map
         self.field_map = field_map
         # network broadcast address and port
