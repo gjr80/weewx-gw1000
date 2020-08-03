@@ -912,7 +912,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         """Initialise a Gw1000Service object."""
 
         # extract the GW1000 service config dictionary
-        gw1000_config_dict = config_dict.get('Gw1000Service', {})
+        gw1000_config_dict = config_dict.get('GW1000', {})
         # initialize my superclasses
         super(Gw1000Service, self).__init__(engine, config_dict)
         super(weewx.engine.StdService, self).__init__(**gw1000_config_dict)
@@ -3096,7 +3096,7 @@ def main():
             'Simulator': {
                 'driver': 'weewx.drivers.simulator',
                 'mode': 'simulator'},
-            'Gw1000Service': {},
+            'GW1000': {},
             'Engine': {
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service',
@@ -3105,15 +3105,15 @@ def main():
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
         # set the IP address and port in the dummy config
-        config['Gw1000Service']['ip_address'] = ip_address
-        config['Gw1000Service']['port'] = port
+        config['GW1000']['ip_address'] = ip_address
+        config['GW1000']['port'] = port
         # these command line options should only be added if they exist
         if opts.poll_interval:
-            config['Gw1000Service']['poll_interval'] = opts.poll_interval
+            config['GW1000']['poll_interval'] = opts.poll_interval
         if opts.max_tries:
-            config['Gw1000Service']['max_tries'] = opts.max_tries
+            config['GW1000']['max_tries'] = opts.max_tries
         if opts.retry_wait:
-            config['Gw1000Service']['retry_wait'] = opts.retry_wait
+            config['GW1000']['retry_wait'] = opts.retry_wait
         # assign our dummyTemp field to a unit group so unit conversion works
         # properly
         weewx.units.obs_group_dict['dummyTemp'] = 'group_temperature'
