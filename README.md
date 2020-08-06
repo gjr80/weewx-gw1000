@@ -241,6 +241,8 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
         $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-service
     
+    **Note:** Whilst the driver may be run independently of WeeWX the driver still requires WeeWX and it's dependencies be installed. Consequently, if WeeWX 4.0.0 or later is installed the driver must be run under the same Python version as WeeWX uses. This may be different to the Python version invoked by the command 'python'. This means that on some systems 'python' in the above commands may need to be changed to 'python2' or 'python3'.
+    
     **Note:** If necessary you can specify the GW1000 IP address and port using the *--ip-address* and *--port* command line options. Refer to the GW1000 driver help using *--help* for further information.
 
     You should observe loop packets being emitted on a regular basis. Some, but not necessarily all, loop packets should include GW1000 data. Once finished press *ctrl-c* to exit.
