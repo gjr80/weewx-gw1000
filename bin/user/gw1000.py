@@ -337,6 +337,7 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Test service shutdown when network lost
+# TODO. Need to check behaviour of new exception handling when running directly
 
 # Python imports
 from __future__ import absolute_import
