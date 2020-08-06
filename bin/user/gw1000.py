@@ -1570,16 +1570,12 @@ class Gw1000Collector(Collector):
             if weewx.debug >= 3:
                 logdbg("Parsed data: %s" % parsed_data)
             filtered_data = self.filter_battery_data(parsed_data)
-            if filtered_data is not None:
-                # log the filtered parsed data but only if debug>=3
-                if weewx.debug >= 3:
-                    logdbg("Filtered parsed data: %s" % filtered_data)
-                return filtered_data
-            else:
-                logdbg("Could not obtain filtered parsed data")
+            # log the filtered parsed data but only if debug>=3
+            if weewx.debug >= 3:
+                logdbg("Filtered parsed data: %s" % filtered_data)
+            return filtered_data
         else:
-            # we did not get any data so log it and continue
-            logerr("Failed to get sensor data")
+            logdbg("Unable to obtain live data")
         return None
 
     def filter_battery_data(self, parsed_data):
@@ -1867,35 +1863,38 @@ class Gw1000Collector(Collector):
                         logerr(_msg)
                         # signal that we have a critical error
                         raise
-                    # did we find any GW1000
-                    if len(ip_port_list) > 0:
-                        # we have at least one, arbitrarily choose the first one
-                        # found as the one to use
-                        disc_ip = ip_port_list[0][0]
-                        disc_port = ip_port_list[0][1]
-                        # log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
-                        if len(ip_port_list) == 1:
-                            stem = "GW1000 was"
-                        else:
-                            stem = "Multiple GW1000 were"
-                        loginf("%s found at %s" % (stem, gw1000_str))
-                        ip_address = disc_ip if ip_address is None else ip_address
-                        port = disc_port if port is None else port
-                        break
                     else:
-                        # did not discover any GW1000 so log it
-                        logdbg("Failed attempt %d to detect GW1000 ip address and/or port" % (attempt + 1,))
-                        # do we try again or raise an exception
-                        if attempt < max_tries - 1:
-                            # we still have at least one more try left so sleep
-                            # and try again
-                            time.sleep(retry_wait)
+                        # did we find any GW1000
+                        if len(ip_port_list) > 0:
+                            # we have at least one, arbitrarily choose the first one
+                            # found as the one to use
+                            # TODO. Remove before release
+                            disc_ip = ip_port_list[0][0]
+                            # disc_ip = '192.168.2.32'
+                            disc_port = ip_port_list[0][1]
+                            # log the fact as well as what we found
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
+                            if len(ip_port_list) == 1:
+                                stem = "GW1000 was"
+                            else:
+                                stem = "Multiple GW1000 were"
+                            loginf("%s found at %s" % (stem, gw1000_str))
+                            ip_address = disc_ip if ip_address is None else ip_address
+                            port = disc_port if port is None else port
+                            break
                         else:
-                            # we've used all our tries, log it and raise an exception
-                            _msg = "Failed to detect GW1000 ip address and/or port after %d attempts" % (attempt + 1,)
-                            logerr(_msg)
-                            raise GW1000IOError(_msg)
+                            # did not discover any GW1000 so log it
+                            logdbg("Failed attempt %d to detect GW1000 ip address and/or port" % (attempt + 1,))
+                            # do we try again or raise an exception
+                            if attempt < max_tries - 1:
+                                # we still have at least one more try left so sleep
+                                # and try again
+                                time.sleep(retry_wait)
+                            else:
+                                # we've used all our tries, log it and raise an exception
+                                _msg = "Failed to detect GW1000 ip address and/or port after %d attempts" % (attempt + 1,)
+                                logerr(_msg)
+                                raise GW1000IOError(_msg)
             # set our ip_address property but encode it first, it saves doing
             # it repeatedly later
             self.ip_address = ip_address.encode()
@@ -1974,7 +1973,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to the API with retries to obtain live data from
             the GW1000. If the GW1000 cannot be contacted rediscovery is
-            attempted and None is returned.
+            attempted.
             """
 
             # send the API command to obtain live data from the GW1000, be
@@ -1986,8 +1985,9 @@ class Gw1000Collector(Collector):
             except GW1000IOError:
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
-                self.rediscover()
-                raise
+                if not self.rediscover():
+                    raise
+            return None
 
         def get_raindata(self):
             """Get GW1000 rain data.
@@ -2043,7 +2043,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to the API with retries to obtain sensor ID data
             from the GW1000. If the GW1000 cannot be contacted rediscovery is
-            attempted and None is returned.
+            attempted.
             """
 
             # send the API command to obtain sensor ID data from the GW1000, be
@@ -2054,9 +2054,8 @@ class Gw1000Collector(Collector):
             except GW1000IOError:
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
-                self.rediscover()
-                raise
-            # rediscover has finished, but we have no data so return None
+                if not self.rediscover():
+                    raise
             return None
 
         def send_cmd_with_retries(self, cmd, payload=b''):
@@ -2233,55 +2232,68 @@ class Gw1000Collector(Collector):
             return checksum % 256
 
         def rediscover(self):
-            """Attempt to rediscover a lost GW1000."""
+            """Attempt to rediscover a lost GW1000.
+
+            Use UDP broadcast to discover a GW1000 that may have changed to a
+            new IP. We should not be re-discovering a GW1000 for which the user
+            specified and IP, only for those for which we discovered the IP
+            address on startup. If a GW1000 is discovered then change my
+            ip_address and port properties as necessary to use the device in
+            future.
+            """
 
             # we will only rediscover if we first discovered
             if self.ip_discovered:
-                loginf("Attempting to re-discover GW1000...")
+                # log that we are attempting re-discovery
+                logdbg("Attempting to re-discover GW1000...")
+                # attempt to discover up to self.max_tries times
                 for attempt in range(self.max_tries):
                     try:
                         # discover() returns a list of (ip address, port) tuples
                         ip_port_list = self.discover()
                     except socket.error as e:
-                        _msg = "Unable to detect GW1000: %s (%s)" % (e, type(e))
-                        logerr(_msg)
-                        # signal that we have a critical error
-                        raise GW1000IOError(_msg)
-                    # did we find any GW1000
-                    if len(ip_port_list) > 0:
-                        # we have at least one, arbitrarily choose the first one
-                        # found as the one to use
-                        disc_ip = ip_port_list[0][0]
-                        disc_port = ip_port_list[0][1]
-                        # log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
-                        if len(ip_port_list) == 1:
-                            stem = "GW1000 was"
-                        else:
-                            stem = "Multiple GW1000 were"
-                        loginf("%s found at %s" % (stem, gw1000_str))
-                        self.ip_address = disc_ip
-                        self.port = disc_port
-                        break
+                        # log the error
+                        _msg = "Failed attempt %d to detect GW1000: %s (%s)" % (attempt + 1, e, type(e))
+                        logdbg(_msg)
                     else:
-                        # did not discover any GW1000 so log it
-                        logdbg("Failed attempt %d to detect GW1000" % (attempt + 1,))
-                        # do we try again or raise an exception
-                        if attempt < self.max_tries - 1:
-                            # we still have at least one more try left so sleep
-                            # and try again
-                            time.sleep(self.retry_wait)
+                        # did we find any GW1000
+                        if len(ip_port_list) > 0:
+                            # we have at least one, arbitrarily choose the first one
+                            # found as the one to use
+                            disc_ip = ip_port_list[0][0]
+                            disc_port = ip_port_list[0][1]
+                            # log the fact as well as what we found
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
+                            if len(ip_port_list) == 1:
+                                stem = "GW1000 was"
+                            else:
+                                stem = "Multiple GW1000 were"
+                            loginf("%s found at %s" % (stem, gw1000_str))
+                            # log the new IP address and port
+                            loginf("GW1000 at address %s:%d will be used" % (disc_ip,
+                                                                             disc_port))
+                            # save the new IP address and port
+                            self.ip_address = disc_ip.encode()
+                            self.port = disc_port
+                            # return True indicating the re-discovery was successful
+                            return True
                         else:
-                            # we've used all our tries, log it and raise an exception
-                            _msg = "Failed to detect GW1000 after %d attempts" % (attempt + 1,)
-                            logerr(_msg)
-                            raise GW1000IOError(_msg)
-
+                            # did not discover any GW1000 so log it
+                            logdbg("Failed attempt %d to detect GW1000" % (attempt + 1,))
+                            # do we try again or raise an exception
+                            if attempt < self.max_tries - 1:
+                                # we still have at least one more try left so sleep
+                                # and try again
+                                time.sleep(self.retry_wait)
+                            else:
+                                # we've used all our tries, log it and raise an exception
+                                _msg = "Failed to detect GW1000 after %d attempts" % (attempt + 1,)
+                                loginf(_msg)
             else:
-                # ip address specified so we cannot go searching, fail hard
-#                raise GW1000IOError("IP address specified in weewx.conf, unable to re-discover GW1000")
+                # ip address specified so we cannot go searching, log the error
                 logerr("IP address specified in weewx.conf, unable to re-discover GW1000")
-
+            # return False indicating we did not re-discover the GW1000
+            return False
 
     class Parser(object):
         """Class to parse GW1000 sensor data."""
