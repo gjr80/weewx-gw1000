@@ -1235,9 +1235,18 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
                 'poll_interval': poll_interval
                 }
 
-    @staticmethod
-    def modify_config(config_dict):
+    def modify_config(self, config_dict):
 
+        default_loop_on_init = config_dict.get('loop_on_init', '1')
+        print("""The GW1000 driver requires a network connection to the 
+                 GW1000. Consequently, the absence of a network connection 
+                 when WeeWX starts will cause WeeWX to exit. This situation 
+                 can occur on system startup. The 'loop_on_init' setting 
+                 can be used to mitigate such problems by having WeeWX 
+                 retry startup indefinitely. Set to '0' to attempt startup 
+                 once only or '1' to attempt startup indefinitely.""")
+        config_dict['loop_on_init'] = self._prompt('loop_on_init',
+                                                   default_loop_on_init)
         print("""Setting record_generation to software.""")
         config_dict['StdArchive']['record_generation'] = 'software'
         print("""Setting accumulator extractor functions.""")
@@ -1814,7 +1823,7 @@ class Gw1000Collector(Collector):
                         _msg = "Unable to detect GW1000 ip address and port: %s (%s)" % (e, type(e))
                         logerr(_msg)
                         # signal that we have a critical error
-                        raise weewx.engine.InitializationError(_msg)
+                        raise
                     # did we find any GW1000
                     if len(ip_port_list) > 0:
                         # we have at least one, arbitrarily choose the first one
@@ -1843,7 +1852,8 @@ class Gw1000Collector(Collector):
                             # we've used all our tries, log it and raise an exception
                             _msg = "Failed to detect GW1000 ip address and/or port after %d attempts" % (attempt + 1,)
                             logerr(_msg)
-                            raise weewx.engine.InitializationError(_msg)
+                            raise GW1000IOError(_msg)
+#                            raise weewx.engine.InitializationError(_msg)
             # set our ip_address property but encode it first, it saves doing
             # it repeatedly later
             self.ip_address = ip_address.encode()
@@ -1920,7 +1930,11 @@ class Gw1000Collector(Collector):
         def get_livedata(self):
             """Get GW1000 live data."""
 
-            return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
+            try:
+                return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
+            except GW1000IOError:
+                self.rediscover()
+                return None
 
         def get_raindata(self):
             """Get GW1000 rain data."""
@@ -1945,9 +1959,92 @@ class Gw1000Collector(Collector):
         def get_sensor_id(self):
             """Get GW1000 sensor ID data."""
 
-            return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
+            try:
+                return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
+            except GW1000IOError:
+                self.rediscover()
+                return None
 
         def send_cmd_with_retries(self, cmd, payload=b''):
+            """Send a command to the GW1000 API with retries and return the
+            response.
+
+            Send a command to the GW1000 and obtain the response. If the
+            the response is valid return the response. If the response is
+            invalid an appropriate exception is raised and the command resent
+            up to self.max_tries times after which the value None is returned.
+
+            A GW1000 API command looks like:
+
+            fixed header, command, size, data1, data2...datan, checksum
+
+            where:
+            fixed header is 2 bytes = 0xFFFF
+            command is a 1 byte API command code
+            size is 1 byte being the number of bytes of command to checksum
+            data1, data2...datan is the data being transmitted and is n bytes long
+            checksum is a byte checksum of command + size + data1 + data2 ... + datan
+
+            cmd: A string containing a valid GW1000 API command,
+                 eg: 'CMD_READ_FIRMWARE_VERSION'
+            payload: The data to be sent with the API command, byte string.
+
+            Returns the response as a byte string or the value None.
+            """
+
+            # calculate size
+            try:
+                size = len(self.commands[cmd]) + 1 + len(payload) + 1
+            except KeyError:
+                raise UnknownCommand("Unknown GW1000 API command '%s'" % (cmd,))
+            # construct the portion of the message for which the checksum is calculated
+            body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
+            # calculate the checksum
+            checksum = self.calc_checksum(body)
+            # construct the entire message packet
+            packet = b''.join([self.header, body, struct.pack('B', checksum)])
+            # attempt to send up to 'self.max_tries' times
+            for attempt in range(self.max_tries):
+                # wrap in  try..except so we can catch any errors
+                try:
+                    response = self.send_cmd(packet)
+                except socket.timeout as e:
+                    # a socket timeout occurred, log it then wait retry_wait
+                    # seconds and continue
+                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                    time.sleep(self.retry_wait)
+                except Exception as e:
+                    # an exception was encountered, log it
+                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                else:
+                    # if we made it here we have a response, check that it is
+                    # valid
+                    try:
+                        self.check_response(response, self.commands[cmd])
+                    except (InvalidChecksum, InvalidApiResponse) as e:
+                        # the response was not valid, log it and attempt again
+                        # if we haven't had too many attempts already
+                        logdbg("Invalid response to attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                    except Exception as e:
+                        # Some other error occurred in check_response(),
+                        # perhaps the response was malformed. Log the stack
+                        # trace but continue.
+                        logerr("Unexpected exception occurred while checking response "
+                               "to attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                        log_traceback_error('    ****  ')
+                    else:
+                        # our response is valid so return it
+                        return response
+            # if we made it here we failed after self.max_tries attempts
+            # first of all log it
+            logerr("Failed to send command '%s' after %d attempts" % (cmd, attempt + 1))
+            # perhaps our GW1000 has changed IP address
+            self.rediscover()
+            # if we made it back here we re-discovered the device so continue
+            # and return None
+            return None
+
+        def first_cut_send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000 API with retries and return the
             response.
 
