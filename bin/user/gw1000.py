@@ -1234,13 +1234,17 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
     def prompt_for_settings(self):
 
+        print("self.existing_options=%s" % (self.existing_options,))
         print("Specify GW1000 IP address, for example: 192.168.1.100")
         print("Set to 'auto' to autodiscover GW1000 IP address")
-        ip_address = self._prompt('IP address')
+        ip_address = self._prompt('IP address',
+                                  dflt=self.existing_options.get('ip_address'))
         print("Specify GW1000 network port, for example: 45000")
-        port = self._prompt('port', default_port)
+        port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
         print("Specify how often to poll the GW1000 API in seconds")
-        poll_interval = self._prompt('Poll interval', default_poll_interval)
+        poll_interval = self._prompt('Poll interval',
+                                     dflt=self.existing_options.get('poll_interval',
+                                                                    default_poll_interval))
         return {'ip_address': ip_address,
                 'port': port,
                 'poll_interval': poll_interval
@@ -1248,16 +1252,17 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
     def modify_config(self, config_dict):
 
-        default_loop_on_init = config_dict.get('loop_on_init', '1')
-        print("""The GW1000 driver requires a network connection to the 
-                 GW1000. Consequently, the absence of a network connection 
-                 when WeeWX starts will cause WeeWX to exit. This situation 
-                 can occur on system startup. The 'loop_on_init' setting 
-                 can be used to mitigate such problems by having WeeWX 
-                 retry startup indefinitely. Set to '0' to attempt startup 
-                 once only or '1' to attempt startup indefinitely.""")
-        config_dict['loop_on_init'] = self._prompt('loop_on_init',
-                                                   default_loop_on_init)
+        import weecfg
+
+        dflt = config_dict.get('loop_on_init', '1')
+        label="""The GW1000 driver requires a network connection to the 
+GW1000. Consequently, the absence of a network connection 
+when WeeWX starts will cause WeeWX to exit. This situation 
+can occur on system startup. The 'loop_on_init' setting 
+can be used to mitigate such problems by having WeeWX 
+retry startup indefinitely. Set to '0' to attempt startup 
+once only or '1' to attempt startup indefinitely."""
+        config_dict['loop_on_init'] = weecfg.prompt_with_options(label, dflt, ['0', '1'])
         print("""Setting record_generation to software.""")
         config_dict['StdArchive']['record_generation'] = 'software'
         print("""Setting accumulator extractor functions.""")
@@ -1265,6 +1270,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             config_dict['Accumulator'].update(Gw1000ConfEditor.accumulator_config)
         else:
             config_dict['Accumulator'] = Gw1000ConfEditor.accumulator_config
+        del weecfg
 
 
 # ============================================================================
@@ -1871,7 +1877,7 @@ class Gw1000Collector(Collector):
                             # found as the one to use
                             # TODO. Remove before release
                             disc_ip = ip_port_list[0][0]
-                            # disc_ip = '192.168.2.32'
+                            disc_ip = '192.168.2.32'
                             disc_port = ip_port_list[0][1]
                             # log the fact as well as what we found
                             gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
@@ -2112,7 +2118,6 @@ class Gw1000Collector(Collector):
                     # a socket timeout occurred, log it then wait retry_wait
                     # seconds and continue
                     logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
-                    time.sleep(self.retry_wait)
                 except Exception as e:
                     # an exception was encountered, log it
                     logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
@@ -2135,6 +2140,10 @@ class Gw1000Collector(Collector):
                     else:
                         # our response is valid so return it
                         return response
+                # sleep before our next attempt, but skip the sleep if we
+                # have just made our last attempt
+                if attempt < self.max_tries - 1:
+                    time.sleep(self.retry_wait)
             # if we made it here we failed after self.max_tries attempts
             # first of all log it
             _msg = ("Failed to send command '%s' after %d attempts" % (cmd, attempt + 1))
@@ -2253,58 +2262,71 @@ class Gw1000Collector(Collector):
             # we will only rediscover if we first discovered
             if self.ip_discovered:
                 # log that we are attempting re-discovery
-                logdbg("Attempting to re-discover GW1000...")
+                loginf("Attempting to re-discover GW1000...")
                 # attempt to discover up to self.max_tries times
                 for attempt in range(self.max_tries):
+                    # sleep before our attempt, but not if its the first one
+                    if attempt > 0:
+                        time.sleep(self.retry_wait)
                     try:
                         # discover() returns a list of (ip address, port) tuples
                         ip_port_list = self.discover()
                     except socket.error as e:
                         # log the error
-                        _msg = "Failed attempt %d to detect GW1000: %s (%s)" % (attempt + 1, e, type(e))
-                        logdbg(_msg)
+                        logdbg("Failed attempt %d to detect any GW1000: %s (%s)" % (attempt + 1,
+                                                                                    e,
+                                                                                    type(e)))
                     else:
                         # did we find any GW1000
                         if len(ip_port_list) > 0:
-                            # we have at least one, iterate over each checking
-                            # their MAC address against my mac property. This
-                            # way we know we are connecting to the GW1000 we
-                            # were previously using
-                            for _ip, _port in ip_port_list:
-                                pass
-                            disc_ip = ip_port_list[0][0]
-                            disc_port = ip_port_list[0][1]
-                            # log the fact as well as what we found
+                            # we have at least one, log the fact as well as what we found
                             gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
                             if len(ip_port_list) == 1:
                                 stem = "GW1000 was"
                             else:
                                 stem = "Multiple GW1000 were"
                             loginf("%s found at %s" % (stem, gw1000_str))
+                            # keep our current IP address and port in case we
+                            # don't find a match as we will change our
+                            # ip_address and port properties in order to get
+                            # the MAC for that IP address and port
+                            present_ip = self.ip_address
+                            present_port = self.port
+                            # iterate over each candidate checking their MAC
+                            # address against my mac property. This way we know
+                            # we are connecting to the GW1000 we were
+                            # previously using
+                            for _ip, _port in ip_port_list:
+                                self.ip_address = _ip.encode()
+                                self.port = _port
+                                # do the MACs match, if so we have our old
+                                # device and we can exit the loop
+                                if self.mac == self.get_mac_address():
+                                    break
+                            else:
+                                # exhausted the ip_port_list without a match,
+                                # revert to our old IP address and port
+                                self.ip_address = present_ip
+                                self.port = present_port
+                                # and continue the outer loop if we have any
+                                # attempts left
+                                continue
                             # log the new IP address and port
-                            loginf("GW1000 at address %s:%d will be used" % (disc_ip,
-                                                                             disc_port))
-                            # save the new IP address and port
-                            self.ip_address = disc_ip.encode()
-                            self.port = disc_port
+                            loginf("GW1000 at address %s:%d will be used" % (self.ip_address.decode(),
+                                                                             self.port))
                             # return True indicating the re-discovery was successful
                             return True
                         else:
                             # did not discover any GW1000 so log it
-                            logdbg("Failed attempt %d to detect GW1000" % (attempt + 1,))
-                            # do we try again or raise an exception
-                            if attempt < self.max_tries - 1:
-                                # we still have at least one more try left so sleep
-                                # and try again
-                                time.sleep(self.retry_wait)
-                            else:
-                                # we've used all our tries, log it and raise an exception
-                                _msg = "Failed to detect GW1000 after %d attempts" % (attempt + 1,)
-                                loginf(_msg)
+                            logdbg("Failed attempt %d to detect any GW1000" % (attempt + 1,))
+                else:
+                    # we exhausted our attempts at re-discovery so log it
+                    loginf("Failed to detect original GW1000 after %d attempts" % (attempt + 1,))
             else:
-                # ip address specified so we cannot go searching, log the error
-                logerr("IP address specified in weewx.conf, unable to re-discover GW1000")
-            # return False indicating we did not re-discover the GW1000
+                # an IP address was specified so we cannot go searching, log it
+                logdbg("IP address specified in 'weewx.conf', "
+                       "unable to re-discover GW1000")
+            # if we made it here re-discovery was unsuccessful so return False
             return False
 
     class Parser(object):
