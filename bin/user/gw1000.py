@@ -1512,7 +1512,8 @@ class Gw1000Collector(Collector):
     def collect_sensor_data(self):
         """Collect sensor data by polling the API.
 
-        Loop forever waking periodically to see if it is time to quit.
+        Loop forever waking periodically to see if it is time to quit or
+        collect more data.
         """
 
         # initialise ts of last time API was polled
@@ -1901,6 +1902,8 @@ class Gw1000Collector(Collector):
             self.port = port
             self.max_tries = max_tries
             self.retry_wait = retry_wait
+            # get my GW1000 MAC address to use later if we have to rediscover
+            self.mac = self.get_mac_address()
 
         def discover(self):
             """Discover any GW1000s on the local network.
@@ -1971,9 +1974,11 @@ class Gw1000Collector(Collector):
         def get_livedata(self):
             """Get GW1000 live data.
 
-            Sends the command to the API with retries to obtain live data from
-            the GW1000. If the GW1000 cannot be contacted rediscovery is
-            attempted.
+            Sends the command to obtain live data from the GW1000 to the API
+            with retries. If the GW1000 cannot be contacted re-discovery is
+            attempted and None is returned. Any code that calls this method
+            should be prepared to handle a GW1000IOError exception and a
+            returned value of None.
             """
 
             # send the API command to obtain live data from the GW1000, be
@@ -1992,8 +1997,8 @@ class Gw1000Collector(Collector):
         def get_raindata(self):
             """Get GW1000 rain data.
 
-            Sends the command to the API with retries to obtain rain data from
-            the GW1000. If the GW1000 cannot be contacted a GW1000IOError will
+            Sends the command to obtain rain data from the GW1000 to the API
+            with retries. If the GW1000 cannot be contacted a GW1000IOError will
             have been raised by send_cmd_with_retries() which will be passed
             through by get_raindata(). Any code calling get_raindata() should
             be prepared to handle this exception.
@@ -2004,8 +2009,8 @@ class Gw1000Collector(Collector):
         def get_system_params(self):
             """Read GW1000 system parameters.
 
-            Sends the command to the API with retries to obtain system
-            parameters from the GW1000. If the GW1000 cannot be contacted a
+            Sends the command to obtain system parameters from the GW1000 to
+            the API with retries. If the GW1000 cannot be contacted a
             GW1000IOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_system_params(). Any code
             calling get_system_params() should be prepared to handle this
@@ -2017,8 +2022,8 @@ class Gw1000Collector(Collector):
         def get_mac_address(self):
             """Get GW1000 MAC address.
 
-            Sends the command to the API with retries to obtain the GW1000 MAC
-            address. If the GW1000 cannot be contacted a GW1000IOError will
+            Sends the command to obtain the GW1000 MAC address to the API with
+            retries. If the GW1000 cannot be contacted a GW1000IOError will
             have been raised by send_cmd_with_retries() which will be passed
             through by get_mac_address(). Any code calling get_mac_address()
             should be prepared to handle this exception.
@@ -2029,8 +2034,8 @@ class Gw1000Collector(Collector):
         def get_firmware_version(self):
             """Get GW1000 firmware version.
 
-            Sends the command to the API with retries to obtain GW1000 firmware
-            version. If the GW1000 cannot be contacted a GW1000IOError will
+            Sends the command to obtain GW1000 firmware version to the API with
+            retries. If the GW1000 cannot be contacted a GW1000IOError will
             have been raised by send_cmd_with_retries() which will be passed
             through by get_firmware_version(). Any code calling
             get_firmware_version() should be prepared to handle this exception.
@@ -2041,9 +2046,11 @@ class Gw1000Collector(Collector):
         def get_sensor_id(self):
             """Get GW1000 sensor ID data.
 
-            Sends the command to the API with retries to obtain sensor ID data
-            from the GW1000. If the GW1000 cannot be contacted rediscovery is
-            attempted.
+            Sends the command to obtain sensor ID data from the GW1000 to the
+            API with retries. If the GW1000 cannot be contacted re-discovery is
+            attempted and None is returned. Any code that calls this method
+            should be prepared to handle a GW1000IOError exception and a
+            returned value of None.
             """
 
             # send the API command to obtain sensor ID data from the GW1000, be
@@ -2239,7 +2246,8 @@ class Gw1000Collector(Collector):
             specified and IP, only for those for which we discovered the IP
             address on startup. If a GW1000 is discovered then change my
             ip_address and port properties as necessary to use the device in
-            future.
+            future. If the rediscover was successful return True otherwise
+            return False.
             """
 
             # we will only rediscover if we first discovered
@@ -2258,8 +2266,12 @@ class Gw1000Collector(Collector):
                     else:
                         # did we find any GW1000
                         if len(ip_port_list) > 0:
-                            # we have at least one, arbitrarily choose the first one
-                            # found as the one to use
+                            # we have at least one, iterate over each checking
+                            # their MAC address against my mac property. This
+                            # way we know we are connecting to the GW1000 we
+                            # were previously using
+                            for _ip, _port in ip_port_list:
+                                pass
                             disc_ip = ip_port_list[0][0]
                             disc_port = ip_port_list[0][1]
                             # log the fact as well as what we found
