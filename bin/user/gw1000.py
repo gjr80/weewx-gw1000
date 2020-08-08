@@ -1234,13 +1234,16 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
     def prompt_for_settings(self):
 
-        print("self.existing_options=%s" % (self.existing_options,))
+        print()
         print("Specify GW1000 IP address, for example: 192.168.1.100")
-        print("Set to 'auto' to autodiscover GW1000 IP address")
+        print("Set to 'auto' to autodiscover GW1000 IP address (not")
+        print("recommended for systems with more than one GW1000)")
         ip_address = self._prompt('IP address',
                                   dflt=self.existing_options.get('ip_address'))
+        print()
         print("Specify GW1000 network port, for example: 45000")
         port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
+        print()
         print("Specify how often to poll the GW1000 API in seconds")
         poll_interval = self._prompt('Poll interval',
                                      dflt=self.existing_options.get('poll_interval',
@@ -1257,20 +1260,24 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         dflt = config_dict.get('loop_on_init', '1')
         label="""The GW1000 driver requires a network connection to the 
 GW1000. Consequently, the absence of a network connection 
-when WeeWX starts will cause WeeWX to exit. This situation 
+when WeeWX starts will cause WeeWX to exit and such a situation 
 can occur on system startup. The 'loop_on_init' setting 
 can be used to mitigate such problems by having WeeWX 
 retry startup indefinitely. Set to '0' to attempt startup 
 once only or '1' to attempt startup indefinitely."""
+        print()
         config_dict['loop_on_init'] = weecfg.prompt_with_options(label, dflt, ['0', '1'])
+        print()
         print("""Setting record_generation to software.""")
         config_dict['StdArchive']['record_generation'] = 'software'
+        print()
         print("""Setting accumulator extractor functions.""")
         if 'Accumulator' in config_dict:
             config_dict['Accumulator'].update(Gw1000ConfEditor.accumulator_config)
         else:
             config_dict['Accumulator'] = Gw1000ConfEditor.accumulator_config
         del weecfg
+        print()
 
 
 # ============================================================================
