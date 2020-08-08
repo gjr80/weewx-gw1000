@@ -360,6 +360,7 @@ import weeutil.weeutil
 import weewx.drivers
 import weewx.engine
 import weewx.wxformulas
+import user.gw1000
 
 # import/setup logging, WeeWX v3 is syslog based but WeeWX v4 is logging based,
 # try v4 logging and if it fails use v3 logging
@@ -1882,9 +1883,7 @@ class Gw1000Collector(Collector):
                         if len(ip_port_list) > 0:
                             # we have at least one, arbitrarily choose the first one
                             # found as the one to use
-                            # TODO. Remove before release
                             disc_ip = ip_port_list[0][0]
-                            disc_ip = '192.168.2.32'
                             disc_port = ip_port_list[0][1]
                             # log the fact as well as what we found
                             gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
@@ -2729,7 +2728,6 @@ class Gw1000Collector(Collector):
                 # is 0xFFFFFFFF it means we have never seen a strike so return
                 # None
                 value = value if value != 0xFFFFFFFF else None
-                print("utc value=%s" % (value,))
             else:
                 resp = None
             if field is not None:
@@ -3024,7 +3022,14 @@ def main():
         return port
 
     def system_params(opts, stn_dict):
-        """Display system parameters."""
+        """Display system parameters.
+
+        Obtain and display the GW1000 system parameters. GW1000 IP address and
+        port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
 
         # dict for decoding system parameters frequency byte, at present all we
         # know is 0 = 433MHz
@@ -3036,29 +3041,32 @@ def main():
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
-        # get a GW1000 Gw1000Collector object
-        collector = Gw1000Collector(ip_address=ip_address,
-                                    port=port)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                 collector.station.port))
-        # get the collector objects system_parameters property, wrap in a try so
-        # we can catch any socket timeouts
+        # wrap in a try..except in case there is an error
         try:
+            # get a GW1000 Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the collector objects system_parameters property
             sys_params_dict = collector.system_parameters
-            # create a meaningful string for frequncy representation
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            # socket timeout so inform the user
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # create a meaningful string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
             # if sensor_type is 0 there is a WH24 connected, if its a 1 there
             # is a WH65
             _is_wh24 = sys_params_dict['sensor_type'] == 0
             # string to use in sensor type message
             _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
-        except socket.timeout:
-            # socket timeout so inform the user
-            print()
-            print("Timeout. GW1000 did not respond.")
-        else:
             # print the system parameters
             print()
             print("GW1000 frequency: %s (%s)" % (sys_params_dict['frequency'],
@@ -3081,22 +3089,32 @@ def main():
             print("GW1000 timezone: %s" % (sys_params_dict['timezone'],))
 
     def rain_data(opts, stn_dict):
-        """Display rain data."""
+        """Display the GW1000 rain data.
+
+        Obtain and display the GW1000 rain data. GW1000 IP address and port are
+        derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
 
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
-        # get a GW1000 Gw1000Collector object
-        collector = Gw1000Collector(ip_address=ip_address,
-                                    port=port)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                 collector.station.port))
-        # get the collector objects rain_data property, wrap in a try so we can
-        # catch any socket timeouts
+        # wrap in a try..except in case there is an error
         try:
+            # get a GW1000 Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the collector objects rain_data property
             rain_data = collector.rain_data
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
@@ -3109,108 +3127,157 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
     def station_mac(opts, stn_dict):
+        """Display the GW1000 hardware MAC address.
+
+        Obtain and display the hardware MAC address of the selected GW1000.
+        GW1000 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
 
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
-        # get a GW1000 Gw1000Collector object
-        collector = Gw1000Collector(ip_address=ip_address,
-                                    port=port)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                 collector.station.port))
-        # call the driver objects mac_address() method, wrap in a try so
-        # we can catch any socket timeouts
+        # wrap in a try..except in case there is an error
         try:
+            # get a GW1000 Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the driver objects mac_address() method
             print()
             print("GW1000 MAC address: %s" % (collector.mac_address,))
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
 
     def firmware(opts, stn_dict):
+        """Display the firmware version string from a GW1000.
+
+        Obtain and display the firmware version string from the selected
+        GW1000. GW1000 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
 
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
-        # get a Gw1000Collector object
-        collector = Gw1000Collector(ip_address=ip_address,
-                                    port=port)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                 collector.station.port))
-        # call the driver objects firmware_version() method, wrap in a try so
-        # we can catch any socket timeouts
+        # wrap in a try..except in case there is an error
         try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the driver objects firmware_version() method
             print()
             print("GW1000 firmware version string: %s" % (collector.firmware_version,))
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
 
     def sensors(opts, stn_dict):
+        """Display the sensor ID information from a GW1000.
+
+        Obtain and display the sensor ID information from the selected GW1000.
+        GW1000 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
 
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
-        # get a Gw1000Collector object
-        collector = Gw1000Collector(ip_address=ip_address,
-                                    port=port)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                 collector.station.port))
-        # call the driver objects get_sensor_ids() method
-        sensor_id_data = collector.sensor_id_data
-        # did we get any sensor ID data
-        if sensor_id_data is not None:
-            # now format and display the data
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
             print()
-            print("%-10s %s" % ("Sensor", "Status"))
-            # iterate over each sensor for which we have data
-            for sensor in sensor_id_data:
-                # sensor address
-                address = sensor['address']
-                # the sensor id indicates whether it is disabled, attempting to
-                # register a sensor or already registered
-                if sensor.get('id') == 'fffffffe':
-                    state = 'sensor is disabled'
-                elif sensor.get('id') == 'ffffffff':
-                    state = 'sensor is registering...'
-                else:
-                    # the sensor is registered so we should have signal and battery
-                    # data as well
-                    sensor_model = Gw1000Collector.sensor_ids[address].get('name').split("_")[0]
-                    battery_desc = getattr(collector.parser,
-                                           collector.parser.battery_state_desc[sensor_model])(sensor.get('battery'))
-                    battery_str = "%s (%s)" % (sensor.get('battery'), battery_desc)
-                    state = "sensor ID: %s  signal: %s  battery: %s" % (sensor.get('id').strip('0'),
-                                                                        sensor.get('signal'),
-                                                                        battery_str)
-                    # print the formatted data
-                print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the driver objects get_sensor_ids() method
+            sensor_id_data = collector.sensor_id_data
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
         else:
-            print()
-            print("GW1000 did not respond.")
+            # did we get any sensor ID data
+            if sensor_id_data is not None:
+                # now format and display the data
+                print()
+                print("%-10s %s" % ("Sensor", "Status"))
+                # iterate over each sensor for which we have data
+                for sensor in sensor_id_data:
+                    # sensor address
+                    address = sensor['address']
+                    # the sensor id indicates whether it is disabled, attempting to
+                    # register a sensor or already registered
+                    if sensor.get('id') == 'fffffffe':
+                        state = 'sensor is disabled'
+                    elif sensor.get('id') == 'ffffffff':
+                        state = 'sensor is registering...'
+                    else:
+                        # the sensor is registered so we should have signal and battery
+                        # data as well
+                        sensor_model = Gw1000Collector.sensor_ids[address].get('name').split("_")[0]
+                        battery_desc = getattr(collector.parser,
+                                               collector.parser.battery_state_desc[sensor_model])(sensor.get('battery'))
+                        battery_str = "%s (%s)" % (sensor.get('battery'), battery_desc)
+                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor.get('id').strip('0'),
+                                                                            sensor.get('signal'),
+                                                                            battery_str)
+                        # print the formatted data
+                    print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
+            else:
+                print()
+                print("GW1000 did not respond.")
 
     def live_data(opts, stn_dict):
+        """Display live sensor data from a GW1000.
+
+        Obtain and display live sensor data from the selected GW1000. GW1000
+        IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
 
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
-        # get a Gw1000Collector object
-        collector = Gw1000Collector(ip_address=ip_address,
-                                    port=port)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
-                                                 collector.station.port))
-        # call the driver objects get_live_sensor_data() method, wrap in a try
-        # so we can catch any socket timeouts
+        # wrap in a try..except in case there is an error
         try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the driver objects get_live_sensor_data() method
             live_sensor_data_dict = collector.get_live_sensor_data()
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
@@ -3219,12 +3286,13 @@ def main():
             print("GW1000 live sensor data: %s" % weeutil.weeutil.to_sorted_string(live_sensor_data_dict))
 
     def discover():
+        """Display IP address and port data of GW1000s on the local network."""
 
         # get an Gw1000Collector object
         collector = Gw1000Collector()
+        print()
         # call the Gw1000Collector object discover() method, wrap in a try so we can
         # catch any socket timeouts
-        print()
         try:
             ip_port_list = collector.station.discover()
         except socket.timeout:
@@ -3273,7 +3341,14 @@ def main():
             print("    %23s: %s" % (key, field_map[key]))
 
     def test_driver(opts, stn_dict):
-        """Run the GW1000 driver."""
+        """Run the GW1000 driver.
+
+        Exercises the GW1000 driver only. Loop packets, but no archive records,
+        are emitted to the console continuously until a keyboard interrupt is
+        received. A station config dict is coalesced from any relevant command
+        line parameters and the config file in use with command line parameters
+        overriding those in the config file.
+        """
 
         loginf("Testing GW1000 driver...")
         # obtain the IP address and port number to use
@@ -3288,19 +3363,22 @@ def main():
             stn_dict['max_tries'] = opts.max_tries
         if opts.retry_wait:
             stn_dict['retry_wait'] = opts.retry_wait
-        # get a Gw1000Driver object
-        driver = Gw1000Driver(**stn_dict)
-        # identify the GW1000 being used
-        print()
-        print("Interrogating GW1000 at %s:%d" % (driver.collector.station.ip_address.decode(),
-                                                 driver.collector.station.port))
-        print()
-        # wrap in a try..except so we can pickup a keyboard interrupt
+        # wrap in a try..except in case there is an error
         try:
+            # get a Gw1000Driver object
+            driver = Gw1000Driver(**stn_dict)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (driver.collector.station.ip_address.decode(),
+                                                     driver.collector.station.port))
+            print()
             # continuously get loop packets and print them to screen
             for pkt in driver.genLoopPackets():
                 print(": ".join([weeutil.weeutil.timestamp_to_string(pkt['dateTime']),
                                  weeutil.weeutil.to_sorted_string(pkt)]))
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
         except KeyboardInterrupt:
             # we have a keyboard interrupt so shut down
             driver.closePort()
@@ -3349,27 +3427,28 @@ def main():
         # assign our dummyTemp field to a unit group so unit conversion works
         # properly
         weewx.units.obs_group_dict['dummyTemp'] = 'group_temperature'
-        # create a dummy engine
-        engine = weewx.engine.StdEngine(config)
-        # Our GW1000 service will have been instantiated by the engine during
-        # its startup. Whilst access to the service is not normally required we
-        # require access here so we can obtain some info about the station we
-        # are using for this test. The engine does not provide a ready means to
-        # access that GW1000 service so we can do a bit of guessing and iterate
-        # over all of the engine's services and select the one that has a
-        # 'collector' property. Unlikely to cause a problem since there are
-        # only two services in the dummy engine.
-        gw1000_svc = None
-        for svc in engine.service_obj:
-            if hasattr(svc, 'collector'):
-                gw1000_svc = svc
-        if gw1000_svc is not None:
-            # identify the GW1000 being used
-            print()
-            print("Interrogating GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
-                                                     gw1000_svc.collector.station.port))
-        print()
+        # wrap in a try..except in case there is an error
         try:
+            # create a dummy engine
+            engine = weewx.engine.StdEngine(config)
+            # Our GW1000 service will have been instantiated by the engine during
+            # its startup. Whilst access to the service is not normally required we
+            # require access here so we can obtain some info about the station we
+            # are using for this test. The engine does not provide a ready means to
+            # access that GW1000 service so we can do a bit of guessing and iterate
+            # over all of the engine's services and select the one that has a
+            # 'collector' property. Unlikely to cause a problem since there are
+            # only two services in the dummy engine.
+            gw1000_svc = None
+            for svc in engine.service_obj:
+                if hasattr(svc, 'collector'):
+                    gw1000_svc = svc
+            if gw1000_svc is not None:
+                # identify the GW1000 being used
+                print()
+                print("Interrogating GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
+                                                         gw1000_svc.collector.station.port))
+            print()
             while True:
                 # create an arbitrary loop packet, all it needs is a timestamp, a
                 # defined unit system and a token obs
@@ -3384,6 +3463,9 @@ def main():
                                                  origin='software'))
                 # sleep for a bit to emulate the simulator
                 time.sleep(10)
+        except (GW1000IOError, user.gw1000.GW1000IOError) as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
         except KeyboardInterrupt:
             engine.shutDown()
         loginf("GW1000 service testing complete")
@@ -3472,6 +3554,11 @@ def main():
                       help='GW1000 port to use')
     (opts, args) = parser.parse_args()
 
+    # display driver version number
+    if opts.version:
+        print("%s driver version: %s" % (DRIVER_NAME, DRIVER_VERSION))
+        exit(0)
+
     # get config_dict to use
     config_path, config_dict = weecfg.read_config(opts.config_path, args)
     print("Using configuration file %s" % config_path)
@@ -3483,6 +3570,9 @@ def main():
     else:
         _debug = weeutil.weeutil.to_int(config_dict.get('debug', 0))
     weewx.debug = _debug
+    # inform the user if the debug level is 'higher' than 0
+    if _debug > 0:
+        print("debug level is '%d'" % _debug)
 
     # Now we can set up the user customized logging but we need to handle both
     # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
@@ -3496,11 +3586,6 @@ def main():
         # now raise the log level if required
         if weewx.debug > 0:
             syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
-
-    # display driver version number
-    if opts.version:
-        print("%s driver version: %s" % (DRIVER_NAME, DRIVER_VERSION))
-        exit(0)
 
     # run the driver
     if opts.test_driver:
