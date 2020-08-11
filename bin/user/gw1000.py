@@ -336,7 +336,6 @@ the WeeWX daemon:
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. Test service shutdown when network lost
 
 # Python imports
 from __future__ import absolute_import
@@ -451,6 +450,9 @@ default_socket_timeout = 2
 default_max_age = 60
 # default GW1000 poll interval
 default_poll_interval = 60
+# default period between lost contact log entries during an extended period of
+# lost contact when run as a Service
+default_lost_contact_log_period = 21600
 
 
 # ============================================================================
@@ -714,19 +716,14 @@ class Gw1000(object):
         self.retry_wait = int(gw1000_config.get('retry_wait', 10))
         # how often (in seconds) we should poll the API, default is 60 seconds
         self.poll_interval = int(gw1000_config.get('poll_interval', 60))
-        # age (in seconds) before API data is considered too old to use,
-        # default is 60 seconds
-        self.max_age = int(gw1000_config.get('max_age', default_max_age))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
         # to the GW1000. In tems of TH data the process is transparent and we
         # do not need to know if a WH32 or other sensor is providing outdoor TH
         # data but in terms of battery state we need to know so the battery
         # state data can be reported against the correct sensor.
         use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
-        # what does the collector do if it strikes an IO error after startup,
-        # does it retry forever or cause WeeWX to exit
-        loop_on_ioerror = weeutil.weeutil.tobool(gw1000_config.get('loop_on_ioerror',
-                                                                   True))
+        lost_contact_log_period = int(gw1000_config.get('lost_contact_log_period',
+                                                        default_lost_contact_log_period))
         # create an Gw1000Collector object to interact with the GW1000 API
         self.collector = Gw1000Collector(ip_address=self.ip_address,
                                          port=self.port,
@@ -737,7 +734,7 @@ class Gw1000(object):
                                          max_tries=self.max_tries,
                                          retry_wait=self.retry_wait,
                                          use_th32=use_th32,
-                                         loop_on_ioerror=loop_on_ioerror)
+                                         lost_contact_log_period=lost_contact_log_period)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
@@ -929,6 +926,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         super(Gw1000Service, self).__init__(engine, config_dict)
         super(weewx.engine.StdService, self).__init__(**gw1000_config_dict)
 
+        # age (in seconds) before API data is considered too old to use,
+        # default is 60 seconds
+        self.max_age = int(gw1000_config_dict.get('max_age', default_max_age))
         # log our version number
         loginf('version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
@@ -947,6 +947,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                                                                           self.broadcast_port,
                                                                           self.socket_timeout))
         loginf("max age of API data to be used is %d seconds" % self.max_age)
+
         # start the Gw1000Collector in its own thread
         self.collector.startup()
         # bind our self to the relevant weeWX events
@@ -1305,6 +1306,10 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
     def __init__(self, **stn_dict):
         """Initialise a GW1000 driver object."""
 
+        # The lost contact log period is the period between 'lost contact' log
+        # entries when the GW1000 driver is run as a service. When run as a
+        # driver it is not used and should be set to zero.
+        stn_dict['lost_contact_log_period'] = 0
         # initialize my superclasses
         super(Gw1000Driver, self).__init__(**stn_dict)
 
@@ -1341,26 +1346,26 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
             # wrap in a try to catch any instances where the queue is empty
             try:
                 # get any data from the collector queue
-                entry = self.collector.queue.get(True, 10)
+                queue_data = self.collector.queue.get(True, 10)
             except six.moves.queue.Empty:
                 # there was nothing in the queue so continue
                 pass
             else:
-                # did we get data or our signal to shutdown
-                if entry is not None:
-                    # we received data
-                    # create a loop packet and initialise with dateTime and usUnits
+                # did we get data or something else
+                if hasattr(queue_data, 'keys'):
+                    # we have a dict so assume it is data, create a loop packet
+                    # and initialise with dateTime and usUnits
                     packet = {'dateTime': int(time.time() + 0.5)}
                     # if not already determined, determine which cumulative rain
                     # field will be used to determine the per period rain field
                     if not self.rain_mapping_confirmed:
-                        self.get_cumulative_rain_field(entry)
+                        self.get_cumulative_rain_field(queue_data)
                     # get the rainfall this period from total
-                    self.calculate_rain(entry)
+                    self.calculate_rain(queue_data)
                     # get the lightning strike count this period from total
-                    self.calculate_lightning_count(entry)
+                    self.calculate_lightning_count(queue_data)
                     # map the raw data to WeeWX loop packet fields
-                    mapped_data = self.map_data(entry)
+                    mapped_data = self.map_data(queue_data)
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet but only if debug>=2
@@ -1368,7 +1373,11 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                         logdbg('Packet: %s' % packet)
                     # yield the loop packet
                     yield packet
-                else:
+                elif isinstance(queue_data, tuple):
+                    # we have a tuple, it should contain an error class and error text
+                    if len(queue_data) >= 2:
+                        raise queue_data[0](queue_data[1])
+                elif queue_data is None:
                     # we received the signal to shutdown, so call closePort()
                     self.closePort()
                     # and raise an exception to cause the engine to shutdown
@@ -1482,7 +1491,7 @@ class Gw1000Collector(Collector):
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, poll_interval=60,
                  max_tries=3, retry_wait=10, use_th32=False,
-                 loop_on_ioerror=True):
+                 lost_contact_log_period=0):
         """Initialise our class."""
 
         # initialize my base class:
@@ -1496,8 +1505,6 @@ class Gw1000Collector(Collector):
         self.retry_wait = retry_wait
         # are we using a th32 sensor
         self.use_th32 = use_th32
-        # what do we do if we receive an IO error, do we retry forever or exit
-        self.loop_on_ioerror = loop_on_ioerror
         # get a station object to do the handle the interaction with the
         # GW1000 API
         self.station = Gw1000Collector.Station(ip_address=ip_address,
@@ -1506,7 +1513,8 @@ class Gw1000Collector(Collector):
                                                broadcast_port=broadcast_port,
                                                socket_timeout=socket_timeout,
                                                max_tries=max_tries,
-                                               retry_wait=retry_wait)
+                                               retry_wait=retry_wait,
+                                               lost_contact_log_period=lost_contact_log_period)
         # Do we have a WH24 attached? First obtain our system parameters.
         _sys_params = self.station.get_system_params()
         # WH24 is indicated by the 6th byte being 0
@@ -1538,29 +1546,18 @@ class Gw1000Collector(Collector):
             if now - last_poll > self.poll_interval:
                 # it is time to poll
                 try:
-                    filtered_data = self.get_live_sensor_data()
+                    queue_data = self.get_live_sensor_data()
                 except GW1000IOError as e:
                     # a GW1000IOError occurred, most likely because the Station
                     # object could not contact the GW1000
                     # first up log the event
-                    logerr("Did not collect sensor data: %s" % (e,))
-                    # what we do next depends on loop_on_ioerror, if True then
-                    # we wait for the next poll to come around, if false we put
-                    # None in the queue to tell our collector to shutdown
-                    if not self.loop_on_ioerror:
-                        self.queue.put(None)
-                    # we are retrying, so reset the last_poll timestamp so we
-                    # wait until the next poll to retry
-                    last_poll = now
-                else:
-                    # did we get any data
-                    if filtered_data is not None:
-                        # put the data in the queue
-                        self.queue.put(filtered_data)
-                    # reset the last poll ts
-                    last_poll = now
-                    # debug log when we will next poll the API
-                    logdbg('Next update in %s seconds' % self.poll_interval)
+                    queue_data = (weewx.WeeWxIOError, e)
+                # put the queue data in he queue
+                self.queue.put(queue_data)
+                # debug log when we will next poll the API
+                logdbg('Next update in %d seconds' % self.poll_interval)
+                # reset the last poll ts
+                last_poll = now
             # sleep for a second and then see if its time to poll again
             time.sleep(1)
 
@@ -1855,7 +1852,8 @@ class Gw1000Collector(Collector):
 
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
-                     socket_timeout=None, max_tries=3, retry_wait=5):
+                     socket_timeout=None, max_tries=3, retry_wait=5,
+                     lost_contact_log_period=0):
 
             # network broadcast address
             self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -1913,6 +1911,18 @@ class Gw1000Collector(Collector):
             self.port = port
             self.max_tries = max_tries
             self.retry_wait = retry_wait
+            # If we lose contact with the GW1000 it could be some time before
+            # the situation is fixed, rather than filling the logs with
+            # frequent failed contact attempts only log the failed attempts
+            # every so often.
+            # during an extended period of 'lost contact' how long (in seconds)
+            # between 'lost contact' type log entries
+            self.lost_contact_log_period = lost_contact_log_period
+            # initialise the time we last had a failed attempt to connect to
+            # the GW1000, None means never
+            self.lost_con_ts = None
+            # set flag as to whether we are logging 'contact failures' or not
+            self.log_failures = True
             # get my GW1000 MAC address to use later if we have to rediscover
             self.mac = self.get_mac_address()
 
@@ -1987,9 +1997,10 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain live data from the GW1000 to the API
             with retries. If the GW1000 cannot be contacted re-discovery is
-            attempted and None is returned. Any code that calls this method
-            should be prepared to handle a GW1000IOError exception and a
-            returned value of None.
+            attempted. If rediscovery is successful None is returned otherwise
+            the lost contact timestamp is set and the exception raised. Any
+            code that calls this method should be prepared to handle a
+            GW1000IOError exception and a returned value of None.
             """
 
             # send the API command to obtain live data from the GW1000, be
@@ -2002,6 +2013,10 @@ class Gw1000Collector(Collector):
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
                 if not self.rediscover():
+                    # we could not re-discover so set the lost contact
+                    # timestamp if it is not already set
+                    self.lost_con_ts = time.time() if self.lost_con_ts is None else self.lost_con_ts
+                    # raise the exception
                     raise
             return None
 
@@ -2059,9 +2074,10 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain sensor ID data from the GW1000 to the
             API with retries. If the GW1000 cannot be contacted re-discovery is
-            attempted and None is returned. Any code that calls this method
-            should be prepared to handle a GW1000IOError exception and a
-            returned value of None.
+            attempted. If rediscovery is successful None is returned otherwise
+            the lost contact timestamp is set and the exception raised. Any
+            code that calls this method should be prepared to handle a
+            GW1000IOError exception and a returned value of None.
             """
 
             # send the API command to obtain sensor ID data from the GW1000, be
@@ -2073,6 +2089,10 @@ class Gw1000Collector(Collector):
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
                 if not self.rediscover():
+                    # we could not re-discover so set the lost contact
+                    # timestamp if it is not already set
+                    self.lost_con_ts = time.time() if self.lost_con_ts is None else self.lost_con_ts
+                    # raise the exception
                     raise
             return None
 
@@ -2114,18 +2134,32 @@ class Gw1000Collector(Collector):
             checksum = self.calc_checksum(body)
             # construct the entire message packet
             packet = b''.join([self.header, body, struct.pack('B', checksum)])
+            # Are we logging failures? We will log if we haven't yet lost
+            # contact (ie self.lost_con_ts is None) or we have lost contact but
+            # we are still within the no-log grace period.
+            self.log_failures = self.lost_con_ts is None or \
+                                time.time() > self.lost_con_ts + self.lost_contact_log_period
+            # reset the lost contact timestamp if we are logging failures and
+            # we are already in a lost contact state
+            if self.log_failures and self.lost_con_ts is not None:
+                self.lost_con_ts = time.time()
             # attempt to send up to 'self.max_tries' times
             for attempt in range(self.max_tries):
+                response = None
                 # wrap in  try..except so we can catch any errors
                 try:
                     response = self.send_cmd(packet)
+                    # successful comms with the GW1000 so clear the lost
+                    # contact timestamp
+                    self.lost_con_ts = None
                 except socket.timeout as e:
-                    # a socket timeout occurred, log it then wait retry_wait
-                    # seconds and continue
-                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                    # a socket timeout occurred, log it
+                    if self.log_failures:
+                        logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
                 except Exception as e:
                     # an exception was encountered, log it
-                    logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                    if self.log_failures:
+                        logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
                 else:
                     # if we made it here we have a response, check that it is
                     # valid
@@ -2152,7 +2186,9 @@ class Gw1000Collector(Collector):
             # if we made it here we failed after self.max_tries attempts
             # first of all log it
             _msg = ("Failed to send command '%s' after %d attempts" % (cmd, attempt + 1))
-            logerr(_msg)
+            if response is not None or self.log_failures:
+                logerr(_msg)
+            # finally raise a GW1000IOError exception
             raise GW1000IOError(_msg)
 
         def send_cmd(self, packet):
@@ -2267,7 +2303,8 @@ class Gw1000Collector(Collector):
             # we will only rediscover if we first discovered
             if self.ip_discovered:
                 # log that we are attempting re-discovery
-                loginf("Attempting to re-discover GW1000...")
+                if self.log_failures:
+                    loginf("Attempting to re-discover GW1000...")
                 # attempt to discover up to self.max_tries times
                 for attempt in range(self.max_tries):
                     # sleep before our attempt, but not if its the first one
@@ -2323,14 +2360,17 @@ class Gw1000Collector(Collector):
                             return True
                         else:
                             # did not discover any GW1000 so log it
-                            logdbg("Failed attempt %d to detect any GW1000" % (attempt + 1,))
+                            if self.log_failures:
+                                logdbg("Failed attempt %d to detect any GW1000" % (attempt + 1,))
                 else:
                     # we exhausted our attempts at re-discovery so log it
-                    loginf("Failed to detect original GW1000 after %d attempts" % (attempt + 1,))
+                    if self.log_failures:
+                        loginf("Failed to detect original GW1000 after %d attempts" % (attempt + 1,))
             else:
                 # an IP address was specified so we cannot go searching, log it
-                logdbg("IP address specified in 'weewx.conf', "
-                       "unable to re-discover GW1000")
+                if self.log_failures:
+                    logdbg("IP address specified in 'weewx.conf', "
+                           "re-discovery was not attempted")
             # if we made it here re-discovery was unsuccessful so return False
             return False
 
@@ -2516,13 +2556,27 @@ class Gw1000Collector(Collector):
         def __init__(self, is_wh24=False):
             # Tell our battery state decoding whether we have a WH24 or a WH65
             # (they both share the same battery state bit). By default we are
-            # coded to use a WH65. Is there a WH24 connected?
+            # coded to use a WH65. But is there a WH24 connected?
             if is_wh24:
-                # there is a WH24 connected so create the WH24 decode dict
-                # entry, it's the same as the WH65 decode entry
-                self.multi_batt['wh24'] = self.multi_batt['wh65']
-                # and pop off the no longer needed WH65 decode dict entry
-                self.multi_batt.pop('wh65')
+                # We have a WH24. On startup we are set for a WH65 but if it is
+                # a restart we will likely already be setup for a WH24. We need
+                # to handle both cases.
+                if 'wh24' not in self.multi_batt.keys():
+                    # we don't have a 'wh24' entry so create one, it's the same
+                    # as the 'wh65' entry
+                    self.multi_batt['wh24'] = self.multi_batt['wh65']
+                    # and pop off the no longer needed WH65 decode dict entry
+                    self.multi_batt.pop('wh65')
+            else:
+                # We don't have a WH24 but a WH65. On startup we are set for a
+                # WH65 but if it is a restart it is possible we have already
+                # been setup for a WH24. We need to handle both cases.
+                if 'wh65' not in self.multi_batt.keys():
+                    # we don't have a 'wh65' entry so create one, it's the same
+                    # as the 'wh24' entry
+                    self.multi_batt['wh65'] = self.multi_batt['wh24']
+                    # and pop off the no longer needed WH65 decode dict entry
+                    self.multi_batt.pop('wh24')
 
         def parse(self, raw_data, timestamp=None):
             """Parse raw sensor data.
