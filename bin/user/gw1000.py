@@ -349,7 +349,7 @@ import threading
 import time
 from operator import itemgetter
 
-# python 2/3 compatibility shim
+# Python 2/3 compatibility shim
 import six
 
 # WeeWX imports
@@ -385,6 +385,8 @@ try:
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
     # level so define a suitable wrapper function.
+
+
     def log_traceback_critical(prefix=''):
         log_traceback(log.critical, prefix=prefix)
 
@@ -421,6 +423,8 @@ except ImportError:
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
     # level so define a suitable wrapper function.
+
+
     def log_traceback_critical(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_CRIT)
 
@@ -659,7 +663,7 @@ class Gw1000(object):
             # over it and changing it
             field_map_copy = dict(field_map)
             # iterate over each key, value pair in the copy of the field map
-            for k,v in six.iteritems(field_map_copy):
+            for k, v in six.iteritems(field_map_copy):
                 # if the 'value' (ie the GW1000 field) is in the field map
                 # extensions we will be mapping that GW1000 field elsewhere so
                 # pop that field map entry out of the field map so we don't end
@@ -722,6 +726,8 @@ class Gw1000(object):
         # data but in terms of battery state we need to know so the battery
         # state data can be reported against the correct sensor.
         use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
+        # minimum period in seconds between 'lost contact' log entries during
+        # an extended lost contact period when run as a service
         lost_contact_log_period = int(gw1000_config.get('lost_contact_log_period',
                                                         default_lost_contact_log_period))
         # create an Gw1000Collector object to interact with the GW1000 API
@@ -740,12 +746,12 @@ class Gw1000(object):
         self.last_rain = None
         self.rain_mapping_confirmed = False
         self.rain_total_field = None
-        # finally log any config that is not being pushed any further down
-        # sensor map to be used
-        # Dict output will be in unsorted key order. It is easier to read if
-        # sorted alphanumerically but we have keys such as xxxxx16 that do not
-        # sort well. Use a custom natural sort of the keys in a manually
-        # produced formatted dict representation.
+        # Finally, log any config that is not being pushed any further down. In
+        # this case that is just the field map. Field map dict output will be
+        # in unsorted key order. It is easier to read if sorted
+        # alphanumerically but we have keys such as xxxxx16 that do not sort
+        # well. Use a custom natural sort of the keys in a manually produced
+        # formatted dict representation.
         sorted_dict_fields = ["'%s': '%s'" % (k, self.field_map[k]) for k in natural_sort_dict(self.field_map)]
         sorted_dict_str = "{%s}" % ", ".join(sorted_dict_fields)
         loginf('field map is %s' % sorted_dict_str)
@@ -769,25 +775,27 @@ class Gw1000(object):
                 _result[weewx_field] = data.get(data_field)
         return _result
 
-    def get_cumulative_rain_field(self, parsed_data):
+    def get_cumulative_rain_field(self, data):
         """Determine the cumulative rain field used to derive field 'rain'.
 
         Ecowitt rain gauges/GW1000 emit various rain totals but WeeWX needs a
         per period value for field rain. Try the 'big' (4 byte) counters
         starting at the longest period and working our way down. This should
         only need be done once.
+
+        data: dic of parsed GW1000 API data
         """
 
         # if raintotals is present used that as our first choice
-        if 'raintotals' in parsed_data:
+        if 'raintotals' in data:
             self.rain_total_field = 'raintotals'
             self.rain_mapping_confirmed = True
         # raintotals is not present so now try rainyear
-        elif 'rainyear' in parsed_data:
+        elif 'rainyear' in data:
             self.rain_total_field = 'rainyear'
             self.rain_mapping_confirmed = True
         # rainyear is not present so now try rainmonth
-        elif 'rainmonth' in parsed_data:
+        elif 'rainmonth' in data:
             self.rain_total_field = 'rainmonth'
             self.rain_mapping_confirmed = True
         # otherwise do nothing, we can try again next packet
@@ -797,40 +805,44 @@ class Gw1000(object):
         if self.rain_mapping_confirmed:
             loginf("using '%s' for rain total" % self.rain_total_field)
 
-    def calculate_rain(self, parsed_data):
+    def calculate_rain(self, data):
         """Calculate total rainfall for a period.
 
         'rain' is calculated as the change in a user designated cumulative rain
         field between successive periods. 'rain' is only calculated if the
         field to be used has been selected and the designated field exists.
+
+        data: dict of parsed GW1000 API data
         """
 
         # have we decided on a field to use and is the field present
-        if self.rain_mapping_confirmed and self.rain_total_field in parsed_data:
+        if self.rain_mapping_confirmed and self.rain_total_field in data:
             # yes on both counts, so get the new total
-            new_total = parsed_data[self.rain_total_field]
+            new_total = data[self.rain_total_field]
             # now calculate field rain as the difference between the new and
             # old totals
-            parsed_data['rain'] = self.delta_rain(new_total, self.last_rain)
+            data['rain'] = self.delta_rain(new_total, self.last_rain)
             # save the new total as the old total for next time
             self.last_rain = new_total
 
-    def calculate_lightning_count(self, parsed_data):
+    def calculate_lightning_count(self, data):
         """Calculate total lightning strike count for a period.
 
         'lightning_strike_count' is calculated as the change in field
-        'lighningcount' between successive periods. 'lightning_strike_count' is
-        only calculated if 'lightningcount' exists.
+        'lightningcount' between successive periods. 'lightning_strike_count'
+        is only calculated if 'lightningcount' exists.
+
+        data: dict of parsed GW1000 API data
         """
 
-        # is the ligthningcount field present
-        if 'lightningcount' in parsed_data:
+        # is the lightningcount field present
+        if 'lightningcount' in data:
             # yes, so get the new total
-            new_total = parsed_data['lightningcount']
+            new_total = data['lightningcount']
             # now calculate field lightning_strike_count as the difference
             # between the new and old totals
-            parsed_data['lightning_strike_count'] = self.delta_lightning(new_total,
-                                                                         self.last_lightning)
+            data['lightning_strike_count'] = self.delta_lightning(new_total,
+                                                                  self.last_lightning)
             # save the new total as the old total for next time
             self.last_lightning = new_total
 
@@ -842,6 +854,9 @@ class Gw1000(object):
         If either value is None the value None is returned. If the previous
         value is greater than the latest value a counter wrap around is assumed
         and the latest value is returned.
+
+        rain:      current cumulative rain value
+        last_rain: last cumulative rain value
         """
 
         # do we have a last rain value
@@ -871,6 +886,9 @@ class Gw1000(object):
         cumulative values. If either value is None the value None is returned.
         If the previous value is greater than the latest value a counter wrap
         around is assumed and the latest value is returned.
+
+        count:      current cumulative lightning count
+        last_count: last cumulative lightning count
         """
 
         # do we have a last count
@@ -1235,15 +1253,18 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
     def prompt_for_settings(self):
 
+        # obtain IP address
         print()
         print("Specify GW1000 IP address, for example: 192.168.1.100")
         print("Set to 'auto' to autodiscover GW1000 IP address (not")
         print("recommended for systems with more than one GW1000)")
         ip_address = self._prompt('IP address',
                                   dflt=self.existing_options.get('ip_address'))
+        # obtain port number
         print()
         print("Specify GW1000 network port, for example: 45000")
         port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
+        # obtain poll interval
         print()
         print("Specify how often to poll the GW1000 API in seconds")
         poll_interval = self._prompt('Poll interval',
@@ -1259,7 +1280,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         import weecfg
 
         dflt = config_dict.get('loop_on_init', '1')
-        label="""The GW1000 driver requires a network connection to the 
+        label = """The GW1000 driver requires a network connection to the 
 GW1000. Consequently, the absence of a network connection 
 when WeeWX starts will cause WeeWX to exit and such a situation 
 can occur on system startup. The 'loop_on_init' setting 
@@ -1310,7 +1331,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
         # entries when the GW1000 driver is run as a service. When run as a
         # driver it is not used and should be set to zero.
         stn_dict['lost_contact_log_period'] = 0
-        # initialize my superclasses
+        # now initialize my superclasses
         super(Gw1000Driver, self).__init__(**stn_dict)
 
         # log our version number
@@ -1374,6 +1395,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # yield the loop packet
                     yield packet
                 elif isinstance(queue_data, tuple):
+                    # TODO. Make this more general, driver should choose the exception to raise not the collector
                     # we have a tuple, it should contain an error class and error text
                     if len(queue_data) >= 2:
                         raise queue_data[0](queue_data[1])
@@ -1382,7 +1404,6 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     self.closePort()
                     # and raise an exception to cause the engine to shutdown
                     raise GW1000IOError("Gw1000Collector needs to shutdown")
-
 
     @property
     def hardware_name(self):
@@ -1411,7 +1432,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
     def closePort(self):
         """Close down the driver port."""
 
-        # in this case there is no port to close, just the collector thread
+        # in this case there is no port to close, just shutdown the collector
         self.collector.shutdown()
 
 
@@ -1541,6 +1562,7 @@ class Gw1000Collector(Collector):
         last_poll = 0
         # collect data continuously while we are told to collect data
         while self._collect_data:
+            # store the current time
             now = time.time()
             # is it time to poll?
             if now - last_poll > self.poll_interval:
@@ -1580,6 +1602,8 @@ class Gw1000Collector(Collector):
             # log the parsed data but only if debug>=3
             if weewx.debug >= 3:
                 logdbg("Parsed data: %s" % parsed_data)
+            # the parsed data wil likely have battery data for sensors that do
+            # not exist, filter out the data for non-existent sensors
             filtered_data = self.filter_battery_data(parsed_data)
             # log the filtered parsed data but only if debug>=3
             if weewx.debug >= 3:
@@ -1597,6 +1621,8 @@ class Gw1000Collector(Collector):
         others). Some further processing of the battery status data is required
         to ensure that battery status is only provided for sensors that
         actually exist.
+
+        parsed_data: dict of parsed GW1000 API data
         """
 
         # tuple of values for sensors that are not registered with the GW1000
@@ -1665,9 +1691,15 @@ class Gw1000Collector(Collector):
 
     @property
     def mac_address(self):
-        """Obtain the MAC address of the GW1000."""
+        """Obtain the MAC address of the GW1000.
 
+        Returns the GW1000 MAC address as a string of colon separated hex
+        bytes.
+        """
+
+        # obtain the GW1000 MAC address bytes
         station_mac_b = self.station.get_mac_address()
+        # return the formatted string
         return self.bytes_to_hex(station_mac_b[4:10], separator=":")
 
     @property
@@ -1902,7 +1934,8 @@ class Gw1000Collector(Collector):
                                 time.sleep(retry_wait)
                             else:
                                 # we've used all our tries, log it and raise an exception
-                                _msg = "Failed to detect GW1000 ip address and/or port after %d attempts" % (attempt + 1,)
+                                _msg = "Failed to detect GW1000 ip address and/or " \
+                                       "port after %d attempts" % (attempt + 1,)
                                 logerr(_msg)
                                 raise GW1000IOError(_msg)
             # set our ip_address property but encode it first, it saves doing
@@ -2107,14 +2140,16 @@ class Gw1000Collector(Collector):
 
             A GW1000 API command looks like:
 
-            fixed header, command, size, data1, data2...datan, checksum
+            fixed header, command, size, data 1, data 2...data n, checksum
 
             where:
-            fixed header is 2 bytes = 0xFFFF
-            command is a 1 byte API command code
-            size is 1 byte being the number of bytes of command to checksum
-            data1, data2...datan is the data being transmitted and is n bytes long
-            checksum is a byte checksum of command + size + data1 + data2 ... + datan
+                fixed header is 2 bytes = 0xFFFF
+                command is a 1 byte API command code
+                size is 1 byte being the number of bytes of command to checksum
+                data 1, data 2 ... data n is the data being transmitted and is n
+                    bytes long
+                checksum is a byte checksum of command + size + data 1 +
+                    data 2 ... + data n
 
             cmd: A string containing a valid GW1000 API command,
                  eg: 'CMD_READ_FIRMWARE_VERSION'
@@ -2138,7 +2173,7 @@ class Gw1000Collector(Collector):
             # contact (ie self.lost_con_ts is None) or we have lost contact but
             # we are still within the no-log grace period.
             self.log_failures = self.lost_con_ts is None or \
-                                time.time() > self.lost_con_ts + self.lost_contact_log_period
+                time.time() > self.lost_con_ts + self.lost_contact_log_period
             # reset the lost contact timestamp if we are logging failures and
             # we are already in a lost contact state
             if self.log_failures and self.lost_con_ts is not None:
@@ -2149,8 +2184,8 @@ class Gw1000Collector(Collector):
                 # wrap in  try..except so we can catch any errors
                 try:
                     response = self.send_cmd(packet)
-                    # successful comms with the GW1000 so clear the lost
-                    # contact timestamp
+                    # successful communications with the GW1000 so clear the
+                    # lost contact timestamp
                     self.lost_con_ts = None
                 except socket.timeout as e:
                     # a socket timeout occurred, log it
