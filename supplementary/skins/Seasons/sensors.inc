@@ -35,7 +35,6 @@
                           ('wh51_ch1_batt', 'get_binary_battery_status'),
                           ('wh51_ch2_batt', 'get_binary_battery_status'),
                           ('wh51_ch3_batt', 'get_binary_battery_status'),
-                          ('wh51_ch4_batt', 'get_binary_battery_status'),
                           ('wh57_batt', 'get_multi_battery_status')
                          ]
 ##
@@ -72,8 +71,8 @@
       #if getattr($current, $x[0]).has_data
         #set $have_battery_status = 1
       #end if
-  #except AttributeError
-    ## there is no battery state data for this sensor
+  #except (AttributeError, TypeError)
+    ## there is no battery state data for that sensor
     #pass
   #end try
 #end for
@@ -118,8 +117,8 @@
     <td class="data">$state</td>
   </tr>
       #end if
-    #except AttributeError
-      ## there is no battery state data for this sensor
+    #except (AttributeError, TypeError)
+      ## there is no battery state data for that sensor
       #pass
     #end try
   #end for
