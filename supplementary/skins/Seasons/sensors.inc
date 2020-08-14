@@ -35,6 +35,7 @@
                           ('wh51_ch1_batt', 'get_binary_battery_status'),
                           ('wh51_ch2_batt', 'get_binary_battery_status'),
                           ('wh51_ch3_batt', 'get_binary_battery_status'),
+                          ('wh51_ch4_batt', 'get_binary_battery_status'),
                           ('wh57_batt', 'get_multi_battery_status')
                          ]
 ##
@@ -67,9 +68,14 @@
 ##
 #set $have_battery_status = 0
 #for $x in $sensor_batt_data
-  #if getattr($current, $x[0]).has_data
-    #set $have_battery_status = 1
-  #end if
+  #try
+      #if getattr($current, $x[0]).has_data
+        #set $have_battery_status = 1
+      #end if
+  #except AttributeError
+    ## there is no battery state data for this sensor
+    #pass
+  #end try
 #end for
 ##
 #set $have_voltage = 0
@@ -92,26 +98,31 @@
   <table>
 ##
 #if $have_conn
-    <tr><th>Connectivity</th><th></th></tr>
+  <tr><th>Connectivity</th><th></th></tr>
 #if $day.rxCheckPercent.has_data
-    <tr>
-      <td class="label">$obs.label.rxCheckPercent</td>
-      <td class="data">$current.rxCheckPercent</td>
-    </tr>
+  <tr>
+    <td class="label">$obs.label.rxCheckPercent</td>
+    <td class="data">$current.rxCheckPercent</td>
+  </tr>
 #end if
 #end if
 ##
 #if $have_battery_status
-    <tr><th>Battery Status</th><th></th></tr>
-    #for $battery in $sensor_batt_data
-        #if getattr($current, $battery[0]).has_data
-            #set $state = getattr(self, $battery[1])(getattr($current, $battery[0]).raw)
-    <tr>
-      <td class="label">$obs.label[$battery[0]]</td>
-      <td class="data">$state</td>
-    </tr>
-        #end if
-    #end for
+  <tr><th>Battery Status</th><th></th></tr>
+  #for $battery in $sensor_batt_data
+    #try
+      #if getattr($current, $battery[0]).has_data
+        #set $state = getattr(self, $battery[1])(getattr($current, $battery[0]).raw)
+  <tr>
+    <td class="label">$obs.label[$battery[0]]</td>
+    <td class="data">$state</td>
+  </tr>
+      #end if
+    #except AttributeError
+      ## there is no battery state data for this sensor
+      #pass
+    #end try
+  #end for
 #end if
 ##
 #if $have_voltage
