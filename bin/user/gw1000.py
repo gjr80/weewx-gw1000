@@ -498,23 +498,10 @@ class Gw1000(object):
         'outHumidity': 'outhumid',
         'pressure': 'absbarometer',
         'relbarometer': 'relbarometer',
-        'windDir': 'winddir',
-        'windSpeed': 'windspeed',
-        'windGust': 'gustspeed',
-        'rain': 'rain',
-        'stormRain': 'rainevent',
-        'rainRate': 'rainrate',
-        'hourRain': 'rainhour',
-        'dayRain': 'rainday',
-        'weekRain': 'rainweek',
-        'monthRain': 'rainmonth',
-        'yearRain': 'rainyear',
-        'totalRain': 'raintotals',
         'luminosity': 'light',
         'uvradiation': 'uv',
         'UV': 'uvi',
         'dateTime': 'datetime',
-        'daymaxwind': 'daymaxwind',
         'extraTemp1': 'temp1',
         'extraTemp2': 'temp2',
         'extraTemp3': 'temp3',
@@ -579,6 +566,29 @@ class Gw1000(object):
         'lightning_last_det_time': 'lightningdettime',
         'lightning_strike_count': 'lightning_strike_count'
     }
+    # Rain related fields default field map, merged into default_field_map to
+    # give the overall default field map. Kept separate to make it easier to
+    # iterate over rain related fields.
+    rain_field_map = {
+        'rain': 'rain',
+        'stormRain': 'rainevent',
+        'rainRate': 'rainrate',
+        'hourRain': 'rainhour',
+        'dayRain': 'rainday',
+        'weekRain': 'rainweek',
+        'monthRain': 'rainmonth',
+        'yearRain': 'rainyear',
+        'totalRain': 'raintotals',
+    }
+    # wind related fields default field map, merged into default_field_map to
+    # give the overall default field map. Kept separate to make it easier to
+    # iterate over wind related fields.
+    wind_field_map = {
+        'windDir': 'winddir',
+        'windSpeed': 'windspeed',
+        'windGust': 'gustspeed',
+        'daymaxwind': 'daymaxwind',
+    }
     # battery state default field map, merged into default_field_map to give
     # the overall default field map
     battery_field_map = {
@@ -634,6 +644,10 @@ class Gw1000(object):
         if field_map is None:
             # obtain the default field map
             field_map = dict(Gw1000.default_field_map)
+            # now add in the rain field map
+            field_map.update(Gw1000.rain_field_map)
+            # now add in the wind field map
+            field_map.update(Gw1000.wind_field_map)
             # now add in the battery state field map
             field_map.update(Gw1000.battery_field_map)
         # If a user wishes to map a GW1000 field differently to that in the
@@ -716,6 +730,8 @@ class Gw1000(object):
         # data but in terms of battery state we need to know so the battery
         # state data can be reported against the correct sensor.
         use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
+        self.debug_rain = int(gw1000_config.get('debug_rain', 0))
+        self.debug_wind = int(gw1000_config.get('debug_wind', 0))
         # create an Gw1000Collector object to interact with the GW1000 API
         self.collector = Gw1000Collector(ip_address=self.ip_address,
                                          port=self.port,
@@ -760,6 +776,17 @@ class Gw1000(object):
                 _result[weewx_field] = data.get(data_field)
         return _result
 
+    def log_rain_data(self, data, preamble=None):
+        """Log rain related data from the collector."""
+
+        msg_list = []
+        for gw1000_rain_field in Gw1000.rain_field_map.values():
+            if gw1000_rain_field in data:
+                msg_list.append("%s=%s" % (gw1000_rain_field,
+                                           data[gw1000_rain_field]))
+        label = "%s: " % preamble if preamble is not None else ""
+        loginf("%s%s" % (label, " ".join(msg_list)))
+
     def get_cumulative_rain_field(self, parsed_data):
         """Determine the cumulative rain field used to derive field 'rain'.
 
@@ -787,6 +814,8 @@ class Gw1000(object):
         # if we found a field log what we are using
         if self.rain_mapping_confirmed:
             loginf("using '%s' for rain total" % self.rain_total_field)
+        elif self.debug_rain > 0:
+            loginf("no suitable field found for rain total")
 
     def calculate_rain(self, parsed_data):
         """Calculate total rainfall for a period.
@@ -803,6 +832,10 @@ class Gw1000(object):
             # now calculate field rain as the difference between the new and
             # old totals
             parsed_data['rain'] = self.delta_rain(new_total, self.last_rain)
+            if self.debug_rain > 0:
+                loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
+                                                                                         new_total,
+                                                                                         new_total))
             # save the new total as the old total for next time
             self.last_rain = new_total
 
@@ -961,6 +994,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # we got something out of the queue but only process it if it was
             # not None
             if parsed_data is not None:
+                # log the received rain data if necessary
+                if self.debug_rain >=2:
+                    self.log_rain_data(parsed_data, "parsed collector rain data")
                 # if not already determined determine which cumulative rain
                 # field will be used to determine the per period rain field
                 if not self.rain_mapping_confirmed:
@@ -971,11 +1007,29 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                 self.calculate_lightning_count(parsed_data)
                 # map the raw data to WeeWX fields
                 mapped_data = self.map_data(parsed_data)
+                if self.debug_rain > 0:
+                    if 'rain' in mapped_data:
+                        loginf("new_loop_packet: mapped_data['rain']=%s "
+                               "mapped_data timestamp=%d" % (mapped_data['rain'],
+                                                             mapped_data.get('dateTime',
+                                                                             "field 'dateTime' not found")))
+                    else:
+                        loginf("new_loop_packet: field 'rain' not in "
+                               "mapped_data timestamp=%d" % mapped_data.get('dateTime',
+                                                                            "field 'dateTime' not found"))
                 # and finally augment the loop packet with the mapped data
                 self.augment_packet(event.packet, mapped_data)
                 # log the augmented packet but only if debug>=2
                 if weewx.debug >= 2:
                     logdbg('Augmented packet: %s' % event.packet)
+                if self.debug_rain > 0:
+                    if 'rain' in event.packet:
+                        loginf("new_loop_packet: event.packet['rain']=%s "
+                               "event.packet timestamp=%d" % (event.packet['rain'],
+                                                              event.packet['dateTime']))
+                    else:
+                        loginf("new_loop_packet: field 'rain' not in event.packet "
+                               "timestamp=%d" % event.packet['dateTime'])
 
     def augment_packet(self, packet, data):
         """Augment a loop packet with data from another packet.
@@ -1308,6 +1362,9 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # there was nothing in the queue so continue
                 pass
             else:
+                # log the received rain data if necessary
+                if self.debug_rain >=2:
+                    self.log_rain_data(parsed_data, "parsed collector rain data")
                 # create a loop packet and initialise with dateTime and usUnits
                 packet = {'dateTime': int(time.time() + 0.5)}
                 # if not already determined, determine which cumulative rain
@@ -1325,6 +1382,12 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # log the packet but only if debug>=2
                 if weewx.debug >= 2:
                     logdbg('Packet: %s' % packet)
+                if self.debug_rain > 0:
+                    if 'rain' in packet:
+                        loginf("genLoopPackets: packet['rain']=%s loop packet timestamped %d" % (packet['rain'],
+                                                                                                 packet['dateTime']))
+                    else:
+                        loginf("genLoopPackets: field 'rain' not in loop packet timestamped %d" % packet['dateTime'])
                 # yield the loop packet
                 yield packet
 
