@@ -741,7 +741,9 @@ class Gw1000(object):
                                          poll_interval=self.poll_interval,
                                          max_tries=self.max_tries,
                                          retry_wait=self.retry_wait,
-                                         use_th32=use_th32)
+                                         use_th32=use_th32,
+                                         debug_rain=self.debug_rain,
+                                         debug_wind=self.debug_wind)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
@@ -749,6 +751,14 @@ class Gw1000(object):
         self.rain_total_field = None
         # finally log any config that is not being pushed any further down
         # sensor map to be used
+        # debug_rain and debug_wind but only if > 0
+        debug_list = []
+        if self.debug_rain > 0:
+            debug_list.append("debug_rain is %d" % (self.debug_rain,))
+        if self.debug_wind > 0:
+            debug_list.append("debug_wind is %d" % (self.debug_wind,))
+        if len(debug_list) > 0:
+            loginf(" ".join(debug_list))
         # Dict output will be in unsorted key order. It is easier to read if
         # sorted alphanumerically but we have keys such as xxxxx16 that do not
         # sort well. Use a custom natural sort of the keys in a manually
@@ -785,7 +795,10 @@ class Gw1000(object):
                 msg_list.append("%s=%s" % (gw1000_rain_field,
                                            data[gw1000_rain_field]))
         label = "%s: " % preamble if preamble is not None else ""
-        loginf("%s%s" % (label, " ".join(msg_list)))
+        if len(msg_list) > 0:
+            loginf("%s%s" % (label, " ".join(msg_list)))
+        else:
+            loginf("%sno rain data found" % (label,))
 
     def get_cumulative_rain_field(self, parsed_data):
         """Determine the cumulative rain field used to derive field 'rain'.
@@ -1497,7 +1510,8 @@ class Gw1000Collector(Collector):
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, poll_interval=60,
-                 max_tries=3, retry_wait=10, use_th32=False):
+                 max_tries=3, retry_wait=10, use_th32=False,
+                 debug_rain=0, debug_wind=0):
         """Initialise our class."""
 
         # initialize my base class:
@@ -1531,7 +1545,7 @@ class Gw1000Collector(Collector):
             self.sensor_ids[b'\x00']['name'] = 'wh24'
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
         # get a parser object to parse any data from the station
-        self.parser = Gw1000Collector.Parser(is_wh24)
+        self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
         self._thread = None
         self._collect_data = False
 
@@ -1665,7 +1679,7 @@ class Gw1000Collector(Collector):
         """Obtain the MAC address of the GW1000."""
 
         station_mac_b = self.station.get_mac_address()
-        return self.bytes_to_hex(station_mac_b[4:10], separator=":")
+        return bytes_to_hex(station_mac_b[4:10], separator=":")
 
     @property
     def firmware_version(self):
@@ -1710,9 +1724,9 @@ class Gw1000Collector(Collector):
         sensor_id_list = []
         # iterate over
         while index < len(data):
-            sensor_id = self.bytes_to_hex(data[index + 1: index + 5],
-                                          separator='',
-                                          caps=False)
+            sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                     separator='',
+                                     caps=False)
             # As per method comments above swap signal and battery state bytes,
             # the GW1000 API says signal should be byte 5 and battery byte 6,
             # we will use signal as byte 6 and battery as byte 5.
@@ -1751,21 +1765,6 @@ class Gw1000Collector(Collector):
             else:
                 logdbg("Gw1000Collector thread has been terminated")
         self._thread = None
-
-    @staticmethod
-    def bytes_to_hex(iterable, separator=' ', caps=True):
-        """Produce a hex string representation of a sequence of bytes."""
-
-        # assume 'iterable' can be iterated by iterbytes and the individual
-        # elements can be formatted with {:02X}
-        format_str = "{:02X}" if caps else "{:02x}"
-        try:
-            return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-        except (TypeError, ValueError):
-            # ValueError - cannot format c as {:02X}
-            # TypeError - 'iterable' is not iterable
-            # either way we can't represent as a string of hex bytes
-            return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
 
     class CollectorThread(threading.Thread):
         """Class used to collect data via the GW1000 API in a thread."""
@@ -1930,7 +1929,7 @@ class Gw1000Collector(Collector):
             # construct the entire message packet
             packet = b''.join([self.header, body, struct.pack('B', checksum)])
             if weewx.debug >= 3:
-                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (Gw1000Collector.bytes_to_hex(packet),
+                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                                      self.broadcast_address,
                                                                      self.broadcast_port))
             # create a list for the results as multiple GW1000 may respond
@@ -1944,7 +1943,7 @@ class Gw1000Collector(Collector):
                         response = socket_obj.recv(1024)
                         # log the response if debug is high enough
                         if weewx.debug >= 3:
-                            logdbg("Received broadcast response '%s'" % (Gw1000Collector.bytes_to_hex(response),))
+                            logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
                     except socket.timeout:
                         # if we timeout then we are done
                         break
@@ -2086,13 +2085,13 @@ class Gw1000Collector(Collector):
             try:
                 socket_obj.connect((self.ip_address, self.port))
                 if weewx.debug >= 3:
-                    logdbg("Sending packet '%s' to '%s:%d'" % (Gw1000Collector.bytes_to_hex(packet),
+                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                                self.ip_address.decode(),
                                                                self.port))
                 socket_obj.sendall(packet)
                 response = socket_obj.recv(1024)
                 if weewx.debug >= 3:
-                    logdbg("Received response '%s'" % (Gw1000Collector.bytes_to_hex(response),))
+                    logdbg("Received response '%s'" % (bytes_to_hex(response),))
                 return response
             except socket.error:
                 raise
@@ -2343,8 +2342,11 @@ class Gw1000Collector(Collector):
                               'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
+        rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
+                            b'\x11', b'\x12', b'\x13', b'\x14', b'\x01', b'\x06')
+        wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
-        def __init__(self, is_wh24=False):
+        def __init__(self, is_wh24=False, debug_rain=0, debug_wind=0):
             # Tell our battery state decoding whether we have a WH24 or a WH65
             # (they both share the same battery state bit). By default we are
             # coded to use a WH65. Is there a WH24 connected?
@@ -2354,6 +2356,8 @@ class Gw1000Collector(Collector):
                 self.multi_batt['wh24'] = self.multi_batt['wh65']
                 # and pop off the no longer needed WH65 decode dict entry
                 self.multi_batt.pop('wh65')
+            self.debug_rain = debug_rain
+            self.debug_wind = debug_wind
 
         def parse(self, raw_data, timestamp=None):
             """Parse raw sensor data.
@@ -2370,14 +2374,27 @@ class Gw1000Collector(Collector):
             resp = raw_data[5:5 + resp_size - 4]
             # log the actual sensor data as a sequence of bytes in hex
             if weewx.debug >= 3:
-                logdbg("sensor data is '%s'" % (Gw1000Collector.bytes_to_hex(resp),))
+                logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
             if len(resp) > 0:
                 index = 0
                 data = {}
                 while index < len(resp) - 1:
                     decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
-                    data.update(getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
-                                                          field))
+                    _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
+                                                            field)
+                    data.update(_field_data)
+                    if self.debug_rain >= 3 and resp[index:index + 1] in self.rain_field_codes:
+                        loginf("parse: raw rain data: field:%s and "
+                               "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
+                                                             bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                             field,
+                                                             _field_data[field]))
+                    if self.debug_wind >= 3 and resp[index:index + 1] in self.wind_field_codes:
+                        loginf("parse: raw wind data: field:%s and "
+                               "data:%s decoded as %s=%s" % (resp[index:index + 1],
+                                                             bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                             field,
+                                                             _field_data[field]))
                     index += field_size + 1
             # if it does not exist add a datetime field with the current epoch timestamp
             if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
@@ -2750,6 +2767,21 @@ def natural_sort_dict(source_dict):
     return keys_list
 
 
+def bytes_to_hex(iterable, separator=' ', caps=True):
+    """Produce a hex string representation of a sequence of bytes."""
+
+    # assume 'iterable' can be iterated by iterbytes and the individual
+    # elements can be formatted with {:02X}
+    format_str = "{:02X}" if caps else "{:02x}"
+    try:
+        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
+    except (TypeError, ValueError):
+        # ValueError - cannot format c as {:02X}
+        # TypeError - 'iterable' is not iterable
+        # either way we can't represent as a string of hex bytes
+        return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
+
+
 # To use this driver in standalone mode for testing or development, use one of
 # the following commands (depending on your WeeWX install). For setup.py
 # installs use:
@@ -3031,6 +3063,7 @@ def main():
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
         port = port_from_config_opts(opts, stn_dict)
+        ip_address = opts.ip_address if opts.ip_address else None
         # get a Gw1000Collector object
         collector = Gw1000Collector(ip_address=ip_address,
                                     port=port)
