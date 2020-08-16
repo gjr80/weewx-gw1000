@@ -511,23 +511,10 @@ class Gw1000(object):
         'outHumidity': 'outhumid',
         'pressure': 'absbarometer',
         'relbarometer': 'relbarometer',
-        'windDir': 'winddir',
-        'windSpeed': 'windspeed',
-        'windGust': 'gustspeed',
-        'rain': 'rain',
-        'stormRain': 'rainevent',
-        'rainRate': 'rainrate',
-        'hourRain': 'rainhour',
-        'dayRain': 'rainday',
-        'weekRain': 'rainweek',
-        'monthRain': 'rainmonth',
-        'yearRain': 'rainyear',
-        'totalRain': 'raintotals',
         'luminosity': 'light',
         'uvradiation': 'uv',
         'UV': 'uvi',
         'dateTime': 'datetime',
-        'daymaxwind': 'daymaxwind',
         'extraTemp1': 'temp1',
         'extraTemp2': 'temp2',
         'extraTemp3': 'temp3',
@@ -592,6 +579,29 @@ class Gw1000(object):
         'lightning_last_det_time': 'lightningdettime',
         'lightning_strike_count': 'lightning_strike_count'
     }
+    # Rain related fields default field map, merged into default_field_map to
+    # give the overall default field map. Kept separate to make it easier to
+    # iterate over rain related fields.
+    rain_field_map = {
+        'rain': 'rain',
+        'stormRain': 'rainevent',
+        'rainRate': 'rainrate',
+        'hourRain': 'rainhour',
+        'dayRain': 'rainday',
+        'weekRain': 'rainweek',
+        'monthRain': 'rainmonth',
+        'yearRain': 'rainyear',
+        'totalRain': 'raintotals',
+    }
+    # wind related fields default field map, merged into default_field_map to
+    # give the overall default field map. Kept separate to make it easier to
+    # iterate over wind related fields.
+    wind_field_map = {
+        'windDir': 'winddir',
+        'windSpeed': 'windspeed',
+        'windGust': 'gustspeed',
+        'daymaxwind': 'daymaxwind',
+    }
     # battery state default field map, merged into default_field_map to give
     # the overall default field map
     battery_field_map = {
@@ -647,6 +657,10 @@ class Gw1000(object):
         if field_map is None:
             # obtain the default field map
             field_map = dict(Gw1000.default_field_map)
+            # now add in the rain field map
+            field_map.update(Gw1000.rain_field_map)
+            # now add in the wind field map
+            field_map.update(Gw1000.wind_field_map)
             # now add in the battery state field map
             field_map.update(Gw1000.battery_field_map)
         # If a user wishes to map a GW1000 field differently to that in the
@@ -726,6 +740,9 @@ class Gw1000(object):
         # data but in terms of battery state we need to know so the battery
         # state data can be reported against the correct sensor.
         use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
+        # get rain_debug and wind_debug
+        self.debug_rain = int(gw1000_config.get('debug_rain', 0))
+        self.debug_wind = int(gw1000_config.get('debug_wind', 0))
         # minimum period in seconds between 'lost contact' log entries during
         # an extended lost contact period when run as a service
         lost_contact_log_period = int(gw1000_config.get('lost_contact_log_period',
@@ -740,18 +757,27 @@ class Gw1000(object):
                                          max_tries=self.max_tries,
                                          retry_wait=self.retry_wait,
                                          use_th32=use_th32,
-                                         lost_contact_log_period=lost_contact_log_period)
+                                         lost_contact_log_period=lost_contact_log_period,
+                                         debug_rain=self.debug_rain,
+                                         debug_wind=self.debug_wind)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
         self.rain_mapping_confirmed = False
         self.rain_total_field = None
-        # Finally, log any config that is not being pushed any further down. In
-        # this case that is just the field map. Field map dict output will be
-        # in unsorted key order. It is easier to read if sorted
-        # alphanumerically but we have keys such as xxxxx16 that do not sort
-        # well. Use a custom natural sort of the keys in a manually produced
-        # formatted dict representation.
+        # Finally, log any config that is not being pushed any further down.
+        # debug_rain and debug_wind but only if > 0
+        debug_list = []
+        if self.debug_rain > 0:
+            debug_list.append("debug_rain is %d" % (self.debug_rain,))
+        if self.debug_wind > 0:
+            debug_list.append("debug_wind is %d" % (self.debug_wind,))
+        if len(debug_list) > 0:
+            loginf(" ".join(debug_list))
+        # The field map. Field map dict output will be in unsorted key order.
+        # It is easier to read if sorted alphanumerically but we have keys such
+        # as xxxxx16 that do not sort well. Use a custom natural sort of the
+        # keys in a manually produced formatted dict representation.
         sorted_dict_fields = ["'%s': '%s'" % (k, self.field_map[k]) for k in natural_sort_dict(self.field_map)]
         sorted_dict_str = "{%s}" % ", ".join(sorted_dict_fields)
         loginf('field map is %s' % sorted_dict_str)
@@ -774,6 +800,27 @@ class Gw1000(object):
             if data_field in data:
                 _result[weewx_field] = data.get(data_field)
         return _result
+
+    @staticmethod
+    def log_rain_data(data, preamble=None):
+        """Log rain related data from the collector."""
+
+        msg_list = []
+        # iterate over our rain_field_map values, these are the GW1000 'fields'
+        # we are interested in
+        for gw1000_rain_field in Gw1000.rain_field_map.values():
+            # do we have a field of interest
+            if gw1000_rain_field in data:
+                # we do so add some formatted output to our list
+                msg_list.append("%s=%s" % (gw1000_rain_field,
+                                           data[gw1000_rain_field]))
+        # pre-format the log line label
+        label = "%s: " % preamble if preamble is not None else ""
+        # if we have some entries log them otherwise provide suitable text
+        if len(msg_list) > 0:
+            loginf("%s%s" % (label, " ".join(msg_list)))
+        else:
+            loginf("%sno rain data found" % (label,))
 
     def get_cumulative_rain_field(self, data):
         """Determine the cumulative rain field used to derive field 'rain'.
@@ -804,6 +851,9 @@ class Gw1000(object):
         # if we found a field log what we are using
         if self.rain_mapping_confirmed:
             loginf("using '%s' for rain total" % self.rain_total_field)
+        elif self.debug_rain > 0:
+            # if debug_rain is set log that we had nothing
+            loginf("no suitable field found for rain total")
 
     def calculate_rain(self, data):
         """Calculate total rainfall for a period.
@@ -822,6 +872,11 @@ class Gw1000(object):
             # now calculate field rain as the difference between the new and
             # old totals
             data['rain'] = self.delta_rain(new_total, self.last_rain)
+            # if debug_rain is set log some pertinent values
+            if self.debug_rain > 0:
+                loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
+                                                                                         new_total,
+                                                                                         new_total))
             # save the new total as the old total for next time
             self.last_rain = new_total
 
@@ -991,6 +1046,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         else:
             # did we get data or our signal to shutdown
             if entry is not None:
+                # log the received rain data if necessary
+                if self.debug_rain >= 2:
+                    self.log_rain_data(entry, "parsed collector rain data")
                 # we received data
                 # if not already determined determine which cumulative rain
                 # field will be used to determine the per period rain field
@@ -1002,11 +1060,33 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                 self.calculate_lightning_count(entry)
                 # map the raw data to WeeWX fields
                 mapped_data = self.map_data(entry)
+                # if debug_rain is set log the 'rain' field from the mapped
+                # data, if it does not exist say so
+                if self.debug_rain > 0:
+                    if 'rain' in mapped_data:
+                        loginf("new_loop_packet: mapped_data['rain']=%s "
+                               "mapped_data timestamp=%d" % (mapped_data['rain'],
+                                                             mapped_data.get('dateTime',
+                                                                             "field 'dateTime' not found")))
+                    else:
+                        loginf("new_loop_packet: field 'rain' not in "
+                               "mapped_data timestamp=%d" % mapped_data.get('dateTime',
+                                                                            "field 'dateTime' not found"))
                 # and finally augment the loop packet with the mapped data
                 self.augment_packet(event.packet, mapped_data)
                 # log the augmented packet but only if debug>=2
                 if weewx.debug >= 2:
                     logdbg('Augmented packet: %s' % event.packet)
+                # if debug_rain is set log the 'rain' field in the packet, if
+                # it does not exist say so
+                if self.debug_rain > 0:
+                    if 'rain' in event.packet:
+                        loginf("new_loop_packet: event.packet['rain']=%s "
+                               "event.packet timestamp=%d" % (event.packet['rain'],
+                                                              event.packet['dateTime']))
+                    else:
+                        loginf("new_loop_packet: field 'rain' not in event.packet "
+                               "timestamp=%d" % event.packet['dateTime'])
             else:
                 # we received the signal that the Gw1000Collector needs to
                 # shutdown
@@ -1372,6 +1452,9 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # there was nothing in the queue so continue
                 pass
             else:
+                # log the received rain data if necessary
+                if self.debug_rain >= 2:
+                    self.log_rain_data(queue_data, "parsed collector rain data")
                 # did we get data or something else
                 if hasattr(queue_data, 'keys'):
                     # we have a dict so assume it is data, create a loop packet
@@ -1392,6 +1475,16 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # log the packet but only if debug>=2
                     if weewx.debug >= 2:
                         logdbg('Packet: %s' % packet)
+                    # if debug_rain is set log the 'rain' field in the loop
+                    # packet being emitted, if it does not exist say so
+                    if self.debug_rain > 0:
+                        if 'rain' in packet:
+                            loginf("genLoopPackets: packet['rain']=%s "
+                                   "loop packet timestamped %d" % (packet['rain'],
+                                                                   packet['dateTime']))
+                        else:
+                            loginf("genLoopPackets: field 'rain' not in "
+                                   "loop packet timestamped %d" % packet['dateTime'])
                     # yield the loop packet
                     yield packet
                 elif isinstance(queue_data, tuple):
@@ -1508,11 +1601,10 @@ class Gw1000Collector(Collector):
         b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8'}
     }
 
-    def __init__(self, ip_address=None, port=None,
-                 broadcast_address=None, broadcast_port=None,
-                 socket_timeout=None, poll_interval=60,
+    def __init__(self, ip_address=None, port=None, broadcast_address=None,
+                 broadcast_port=None, socket_timeout=None, poll_interval=60,
                  max_tries=3, retry_wait=10, use_th32=False,
-                 lost_contact_log_period=0):
+                 lost_contact_log_period=0, debug_rain=0, debug_wind=0):
         """Initialise our class."""
 
         # initialize my base class:
@@ -1547,7 +1639,7 @@ class Gw1000Collector(Collector):
             self.sensor_ids[b'\x00']['name'] = 'wh24'
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
         # get a parser object to parse any data from the station
-        self.parser = Gw1000Collector.Parser(is_wh24)
+        self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
         self._thread = None
         self._collect_data = False
 
@@ -1700,7 +1792,7 @@ class Gw1000Collector(Collector):
         # obtain the GW1000 MAC address bytes
         station_mac_b = self.station.get_mac_address()
         # return the formatted string
-        return self.bytes_to_hex(station_mac_b[4:10], separator=":")
+        return bytes_to_hex(station_mac_b[4:10], separator=":")
 
     @property
     def firmware_version(self):
@@ -1746,9 +1838,9 @@ class Gw1000Collector(Collector):
             sensor_id_list = []
             # iterate over
             while index < len(data):
-                sensor_id = self.bytes_to_hex(data[index + 1: index + 5],
-                                              separator='',
-                                              caps=False)
+                sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                         separator='',
+                                         caps=False)
                 # As per method comments above swap signal and battery state bytes,
                 # the GW1000 API says signal should be byte 5 and battery byte 6,
                 # we will use signal as byte 6 and battery as byte 5.
@@ -1789,21 +1881,6 @@ class Gw1000Collector(Collector):
             else:
                 logdbg("Gw1000Collector thread has been terminated")
         self._thread = None
-
-    @staticmethod
-    def bytes_to_hex(iterable, separator=' ', caps=True):
-        """Produce a hex string representation of a sequence of bytes."""
-
-        # assume 'iterable' can be iterated by iterbytes and the individual
-        # elements can be formatted with {:02X}
-        format_str = "{:02X}" if caps else "{:02x}"
-        try:
-            return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-        except (TypeError, ValueError):
-            # ValueError - cannot format c as {:02X}
-            # TypeError - 'iterable' is not iterable
-            # either way we can't represent as a string of hex bytes
-            return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
 
     class CollectorThread(threading.Thread):
         """Class used to collect data via the GW1000 API in a thread."""
@@ -1991,7 +2068,7 @@ class Gw1000Collector(Collector):
             # construct the entire message packet
             packet = b''.join([self.header, body, struct.pack('B', checksum)])
             if weewx.debug >= 3:
-                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (Gw1000Collector.bytes_to_hex(packet),
+                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                                      self.broadcast_address,
                                                                      self.broadcast_port))
             # create a list for the results as multiple GW1000 may respond
@@ -2005,7 +2082,7 @@ class Gw1000Collector(Collector):
                         response = socket_obj.recv(1024)
                         # log the response if debug is high enough
                         if weewx.debug >= 3:
-                            logdbg("Received broadcast response '%s'" % (Gw1000Collector.bytes_to_hex(response),))
+                            logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
                     except socket.timeout:
                         # if we timeout then we are done
                         break
@@ -2244,13 +2321,13 @@ class Gw1000Collector(Collector):
             try:
                 socket_obj.connect((self.ip_address, self.port))
                 if weewx.debug >= 3:
-                    logdbg("Sending packet '%s' to '%s:%d'" % (Gw1000Collector.bytes_to_hex(packet),
+                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                                self.ip_address.decode(),
                                                                self.port))
                 socket_obj.sendall(packet)
                 response = socket_obj.recv(1024)
                 if weewx.debug >= 3:
-                    logdbg("Received response '%s'" % (Gw1000Collector.bytes_to_hex(response),))
+                    logdbg("Received response '%s'" % (bytes_to_hex(response),))
                 return response
             except socket.error:
                 raise
@@ -2587,8 +2664,15 @@ class Gw1000Collector(Collector):
                               'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
+        # tuple of field codes for rain related fields in the GW1000 live data
+        # so we can isolate these fields
+        rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
+                            b'\x11', b'\x12', b'\x13', b'\x14')
+        # tuple of field codes for wind related fields in the GW1000 live data
+        # so we can isolate these fields
+        wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
-        def __init__(self, is_wh24=False):
+        def __init__(self, is_wh24=False, debug_rain=0, debug_wind=0):
             # Tell our battery state decoding whether we have a WH24 or a WH65
             # (they both share the same battery state bit). By default we are
             # coded to use a WH65. But is there a WH24 connected?
@@ -2612,6 +2696,9 @@ class Gw1000Collector(Collector):
                     self.multi_batt['wh65'] = self.multi_batt['wh24']
                     # and pop off the no longer needed WH65 decode dict entry
                     self.multi_batt.pop('wh24')
+            # get debug_rain and debug_wind
+            self.debug_rain = debug_rain
+            self.debug_wind = debug_wind
 
         def parse(self, raw_data, timestamp=None):
             """Parse raw sensor data.
@@ -2628,14 +2715,27 @@ class Gw1000Collector(Collector):
             resp = raw_data[5:5 + resp_size - 4]
             # log the actual sensor data as a sequence of bytes in hex
             if weewx.debug >= 3:
-                logdbg("sensor data is '%s'" % (Gw1000Collector.bytes_to_hex(resp),))
+                logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
             if len(resp) > 0:
                 index = 0
                 data = {}
                 while index < len(resp) - 1:
                     decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
-                    data.update(getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
-                                                          field))
+                    _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
+                                                            field)
+                    data.update(_field_data)
+                    if self.debug_rain >= 3 and resp[index:index + 1] in self.rain_field_codes:
+                        loginf("parse: raw rain data: field:%s and "
+                               "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
+                                                             bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                             field,
+                                                             _field_data[field]))
+                    if self.debug_wind >= 3 and resp[index:index + 1] in self.wind_field_codes:
+                        loginf("parse: raw wind data: field:%s and "
+                               "data:%s decoded as %s=%s" % (resp[index:index + 1],
+                                                             bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                             field,
+                                                             _field_data[field]))
                     index += field_size + 1
             # if it does not exist add a datetime field with the current epoch timestamp
             if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
@@ -2817,7 +2917,7 @@ class Gw1000Collector(Collector):
                 # None
                 value = value if value != 0xFFFFFFFF else None
             else:
-                resp = None
+                value = None
             if field is not None:
                 return {field: value}
             else:
@@ -3005,6 +3105,21 @@ def natural_sort_dict(source_dict):
     keys_list.sort(key=natural_keys)
     # return the sorted list
     return keys_list
+
+
+def bytes_to_hex(iterable, separator=' ', caps=True):
+    """Produce a hex string representation of a sequence of bytes."""
+
+    # assume 'iterable' can be iterated by iterbytes and the individual
+    # elements can be formatted with {:02X}
+    format_str = "{:02X}" if caps else "{:02x}"
+    try:
+        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
+    except (TypeError, ValueError):
+        # ValueError - cannot format c as {:02X}
+        # TypeError - 'iterable' is not iterable
+        # either way we can't represent as a string of hex bytes
+        return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
 
 
 # To use this driver in standalone mode for testing or development, use one of
