@@ -83,13 +83,13 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                     extractor = last
                 [[totalRain]]
                     extractor = last
-                [[24havpm251]]
+                [[pm2_51_24hav]]
                     extractor = last
-                [[24havpm252]]
+                [[pm2_52_24hav]]
                     extractor = last
-                [[24havpm253]]
+                [[pm2_53_24hav]]
                     extractor = last
-                [[24havpm254]]
+                [[pm2_54_24hav]]
                     extractor = last
                 [[wh40_batt]]
                     extractor = last
