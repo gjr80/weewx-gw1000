@@ -1088,30 +1088,36 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                 self.calculate_rain(queue_data)
                 # get the lightning strike count this period from total
                 self.calculate_lightning_count(queue_data)
-                # map the raw data to WeeWX fields
+
+                # Now start to create a loop packet. A loop packet must
+                # have a timestamp, if we have one (key 'datetime') in the
+                # received data use it otherwise allocate one.
+                if 'datetime' in queue_data:
+                    mapped_packet = {'dateTime': queue_data['datetime']}
+                else:
+                    # we don't have a timestamp so create one
+                    mapped_packet = {'dateTime': int(time.time() + 0.5)}
+                # map the raw data to WeeWX loop packet fields
                 mapped_data = self.map_data(queue_data)
-                # log the mapped data if necessary, there are several debug
-                # settings that may require this, start from the highest (most
-                # encompassing) and work to the lowest (least encompassing)
+                # add the mapped data to the timestamped bare mapped packet
+                mapped_packet.update(mapped_data)
+                # log the mapped data if necessary
                 if self.debug_loop:
-                    if 'dateTime' in mapped_data:
-                        loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_data['dateTime']),
-                                                              natural_sort_dict(mapped_data)))
-                    else:
-                        loginf("Mapped GW1000 data: %s" % (natural_sort_dict(mapped_data),))
+                    loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_packet['dateTime']),
+                                                          natural_sort_dict(mapped_packet)))
                 else:
                     # perhaps we have individual debugs such as rain or wind
                     if self.debug_rain:
                         # debug_rain is set so log the 'rain' field in the
                         # mapped data, if it does not exist say so
-                        self.log_rain_data(mapped_data, "Mapped GW1000 data")
+                        self.log_rain_data(mapped_packet, "Mapped GW1000 data")
                     if self.debug_wind:
                         # debug_wind is set so log the 'wind' fields in the
                         # mapped data, if they do not exist say so
                         # TODO. Need to implement debug_wind reporting
                         pass
                 # and finally augment the loop packet with the mapped data
-                self.augment_packet(event.packet, mapped_data)
+                self.augment_packet(event.packet, mapped_packet)
                 # log the augmented packet if necessary, there are several debug
                 # settings that may require this, start from the highest (most
                 # encompassing) and work to the lowest (least encompassing)
