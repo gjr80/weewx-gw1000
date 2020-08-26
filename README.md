@@ -26,11 +26,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b11/gw1000-0.1.0b11.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b12/gw1000-0.1.0b12.tar.gz
 
     -   install the GW1000 driver extension:
 
-            $ wee_extension --install=/var/tmp/gw1000-0.1.0b11.tar.gz
+            $ wee_extension --install=/var/tmp/gw1000-0.1.0b12.tar.gz
             
         **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -40,11 +40,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b11/gw1000-0.1.0b11.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b12/gw1000-0.1.0b12.tar.gz
 
     -   extract the contents of the GW1000 driver extension package:
     
-            $ tar -xzf /var/tmp/gw1000-0.1.0b11.tar.gz -C /var/tmp
+            $ tar -xzf /var/tmp/gw1000-0.1.0b12.tar.gz -C /var/tmp
      
     -   copy the file *gw1000.py* to the *$BIN_ROOT/user* directory:
     
@@ -83,13 +83,13 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                     extractor = last
                 [[totalRain]]
                     extractor = last
-                [[24havpm251]]
+                [[pm2_51_24hav]]
                     extractor = last
-                [[24havpm252]]
+                [[pm2_52_24hav]]
                     extractor = last
-                [[24havpm253]]
+                [[pm2_53_24hav]]
                     extractor = last
-                [[24havpm254]]
+                [[pm2_54_24hav]]
                     extractor = last
                 [[wh40_batt]]
                     extractor = last

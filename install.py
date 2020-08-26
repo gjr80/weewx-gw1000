@@ -10,7 +10,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.1.0b11                                     Date: 5 August 2020
+Version: 0.1.0b12                                     Date: 18 August 2020
 
 Revision History
     ?? ????? 2020       v0.1.0
@@ -23,7 +23,7 @@ from distutils.version import StrictVersion
 from setup import ExtensionInstaller
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.1.0b11"
+GW1000_VERSION = "0.1.0b12"
 
 
 def loader():
@@ -82,16 +82,16 @@ class Gw1000Installer(ExtensionInstaller):
                     'totalRain': {
                         'extractor': 'last'
                     },
-                    '24havpm251': {
+                    'pm2_51_24hav': {
                         'extractor': 'last'
                     },
-                    '24havpm252': {
+                    'pm2_52_24hav': {
                         'extractor': 'last'
                     },
-                    '24havpm253': {
+                    'pm2_53_24hav': {
                         'extractor': 'last'
                     },
-                    '24havpm254': {
+                    'pm2_54_24hav': {
                         'extractor': 'last'
                     },
                     'wh40_batt': {
