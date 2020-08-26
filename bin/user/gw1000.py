@@ -1531,11 +1531,16 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                                                                     natural_sort_dict(queue_data)))
                         else:
                             loginf("Received GW1000 data: %s" % (natural_sort_dict(queue_data),))
-                    # if we are not debugging loop perhaps we are debugging rain
                     else:
+                        # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
+                            # debug_rain is set so log the 'rain' field in the
+                            # received data, if it does not exist say so
                             self.log_rain_data(queue_data, "Received GW1000 data")
                         if self.debug_wind:
+                            # debug_wind is set so log the 'wind' fields in the
+                            # received data, if they do not exist say so
+                            # TODO. Need to implement debug_wind reporting
                             pass
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
@@ -1562,6 +1567,17 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                                                                   natural_sort_dict(mapped_data)))
                         else:
                             loginf("Mapped GW1000 data: %s" % (natural_sort_dict(mapped_data),))
+                    else:
+                        # perhaps we have individual debugs such as rain or wind
+                        if self.debug_rain:
+                            # debug_rain is set so log the 'rain' field in the
+                            # mapped data, if it does not exist say so
+                            self.log_rain_data(mapped_data, "Mapped GW1000 data")
+                        if self.debug_wind:
+                            # debug_wind is set so log the 'wind' fields in the
+                            # mapped data, if they do not exist say so
+                            # TODO. Need to implement debug_wind reporting
+                            pass
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet if necessary, there are several debug
@@ -1580,11 +1596,8 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                             # debug_rain is set so log the 'rain' field in the
                             # loop packet being emitted, if it does not exist
                             # say so
-                            if 'rain' in packet:
-                                loginf("Packet%s: 'rain'=%s " % (timestamp_to_string(packet['dateTime']),
-                                                                 packet['rain']))
-                            else:
-                                loginf("Packet%s: 'rain' not in packet" % timestamp_to_string(packet['dateTime']))
+                            self.log_rain_data(mapped_data,
+                                               "Packet%s" % timestamp_to_string(packet['dateTime']))
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
