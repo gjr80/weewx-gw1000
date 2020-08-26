@@ -368,7 +368,7 @@ try:
     import logging
     from weeutil.logger import log_traceback
 
-    log = logging.getLogger("%s: %s" % ('gw1000', __name__))
+    log = logging.getLogger(__name__)
 
 
     def logdbg(msg):
@@ -858,10 +858,10 @@ class Gw1000(object):
             self.rain_total_field = None
         # if we found a field log what we are using
         if self.rain_mapping_confirmed:
-            loginf("using '%s' for rain total" % self.rain_total_field)
+            loginf("Using '%s' for rain total" % self.rain_total_field)
         elif self.debug_rain:
             # if debug_rain is set log that we had nothing
-            loginf("no suitable field found for rain total")
+            loginf("No suitable field found for rain total")
 
     def calculate_rain(self, data):
         """Calculate total rainfall for a period.
@@ -957,18 +957,18 @@ class Gw1000(object):
         # do we have a last count
         if last_count is None:
             # no, log it and return None
-            loginf("skipping lightning count of %s: no last count" % count)
+            loginf("Skipping lightning count of %s: no last count" % count)
             return None
         # do we have a non-None current count
         if count is None:
             # no, log it and return None
-            loginf("skipping lightning count: no current count")
+            loginf("Skipping lightning count: no current count")
             return None
         # is the last count greater than the current count
         if count < last_count:
             # it is, assume a counter wrap around/reset, log it and return the
             # latest count
-            loginf("lightning counter wraparound detected: new=%s last=%s" % (count, last_count))
+            loginf("Lightning counter wraparound detected: new=%s last=%s" % (count, last_count))
             return count
         # otherwise return the difference between the counts
         return count - last_count
@@ -1041,7 +1041,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         mapped data to augment the loop packet.
         """
 
-        if self.debug_loop:
+        # log the loop packet received if necessary, there are several debug
+        # settings that may require this
+        if self.debug_loop or self.debug_rain or self.debug_wind:
             loginf("Processing loop packet: %s %s" % (timestamp_to_string(event.packet['dateTime']),
                                                       natural_sort_dict(event.packet)))
         # Check the queue to get the latest GW1000 sensor data. Wrap in a try
@@ -1049,71 +1051,89 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         # to pop off any old records to get the most recent.
         try:
             # get any data from the collector queue, but don't dwell very long
-            entry = self.collector.queue.get(True, 0.5)
+            queue_data = self.collector.queue.get(True, 0.5)
         except six.moves.queue.Empty:
             # there was nothing in the queue so log it if required else continue
-            if self.debug_loop:
+            if self.debug_loop or self.debug_rain or self.debug_wind:
                 loginf("No queued GW1000 data to process")
         else:
             # did we get data or our signal to shutdown
-            if entry is not None:
-                # log the received data if necessary
+            if queue_data is not None:
+                # log the mapped data if necessary, there are several debug
+                # settings that may require this, start from the highest (most
+                # encompassing) and work to the lowest (least encompassing)
                 if self.debug_loop:
-                    if 'datetime' in entry:
-                        loginf("Received GW1000 data: %s %s" % (timestamp_to_string(entry['datetime']),
-                                                                natural_sort_dict(entry)))
+                    if 'datetime' in queue_data:
+                        loginf("Received GW1000 data: %s %s" % (timestamp_to_string(queue_data['datetime']),
+                                                                natural_sort_dict(queue_data)))
                     else:
-                        loginf("Received GW1000 data: %s" % (natural_sort_dict(entry),))
-                # log the received rain data if necessary
-                if self.debug_rain:
-                    self.log_rain_data(entry, "parsed collector rain data")
+                        loginf("Received GW1000 data: %s" % (natural_sort_dict(queue_data),))
+                else:
+                    # perhaps we have individual debugs such as rain or wind
+                    if self.debug_rain:
+                        # debug_rain is set so log the 'rain' field in the
+                        # mapped data, if it does not exist say so
+                        self.log_rain_data(queue_data, "Received GW1000 data")
+                    if self.debug_wind:
+                        # debug_wind is set so log the 'wind' fields in the
+                        # received data, if they do not exist say so
+                        # TODO. Need to implement debug_wind reporting
+                        pass
                 # we received data
                 # if not already determined determine which cumulative rain
                 # field will be used to determine the per period rain field
                 if not self.rain_mapping_confirmed:
-                    self.get_cumulative_rain_field(entry)
+                    self.get_cumulative_rain_field(queue_data)
                 # get the rainfall this period from total
-                self.calculate_rain(entry)
+                self.calculate_rain(queue_data)
                 # get the lightning strike count this period from total
-                self.calculate_lightning_count(entry)
+                self.calculate_lightning_count(queue_data)
                 # map the raw data to WeeWX fields
-                mapped_data = self.map_data(entry)
-                # log the mapped data if necessary
+                mapped_data = self.map_data(queue_data)
+                # log the mapped data if necessary, there are several debug
+                # settings that may require this, start from the highest (most
+                # encompassing) and work to the lowest (least encompassing)
                 if self.debug_loop:
                     if 'dateTime' in mapped_data:
                         loginf("Mapped GW1000 data: %s %s" % (timestamp_to_string(mapped_data['dateTime']),
                                                               natural_sort_dict(mapped_data)))
                     else:
                         loginf("Mapped GW1000 data: %s" % (natural_sort_dict(mapped_data),))
-                # if debug_rain is set log the 'rain' field from the mapped
-                # data, if it does not exist say so
-                if self.debug_rain:
-                    if 'rain' in mapped_data:
-                        loginf("new_loop_packet: mapped_data['rain']=%s "
-                               "mapped_data timestamp=%d" % (mapped_data['rain'],
-                                                             mapped_data.get('dateTime',
-                                                                             "field 'dateTime' not found")))
-                    else:
-                        loginf("new_loop_packet: field 'rain' not in "
-                               "mapped_data timestamp=%d" % mapped_data.get('dateTime',
-                                                                            "field 'dateTime' not found"))
+                else:
+                    # perhaps we have individual debugs such as rain or wind
+                    if self.debug_rain:
+                        # debug_rain is set so log the 'rain' field in the
+                        # mapped data, if it does not exist say so
+                        self.log_rain_data(mapped_data, "Mapped GW1000 data")
+                    if self.debug_wind:
+                        # debug_wind is set so log the 'wind' fields in the
+                        # mapped data, if they do not exist say so
+                        # TODO. Need to implement debug_wind reporting
+                        pass
                 # and finally augment the loop packet with the mapped data
                 self.augment_packet(event.packet, mapped_data)
-                # log the augmented packet but only if debug>=2 or debug_loop
-                # is set
-                if weewx.debug >= 2 or self.debug_loop:
+                # log the augmented packet if necessary, there are several debug
+                # settings that may require this, start from the highest (most
+                # encompassing) and work to the lowest (least encompassing)
+                if self.debug_loop:
                     loginf('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                         natural_sort_dict(event.packet)))
-                # if debug_rain is set log the 'rain' field in the packet, if
-                # it does not exist say so
-                if self.debug_rain:
-                    if 'rain' in event.packet:
-                        loginf("new_loop_packet: event.packet['rain']=%s "
-                               "event.packet timestamp=%d" % (event.packet['rain'],
-                                                              event.packet['dateTime']))
-                    else:
-                        loginf("new_loop_packet: field 'rain' not in event.packet "
-                               "timestamp=%d" % event.packet['dateTime'])
+                elif weewx.debug >= 2:
+                    logdbg('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
+                                                        natural_sort_dict(event.packet)))
+                else:
+                    # perhaps we have individual debugs such as rain or wind
+                    if self.debug_rain:
+                        # debug_rain is set so log the 'rain' field in the
+                        # augmented loop packet, if it does not exist say
+                        # so
+                        self.log_rain_data(event.packet, "Augmented packet")
+                    if self.debug_wind:
+                        # debug_wind is set so log the 'wind' fields in the
+                        # loop packet being emitted, if they do not exist
+                        # say so
+                        # TODO. Need to implement debug_wind reporting
+                        pass
             else:
                 # we received the signal that the Gw1000Collector needs to
                 # shutdown
@@ -1514,7 +1534,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # if we are not debugging loop perhaps we are debugging rain
                     else:
                         if self.debug_rain:
-                            self.log_rain_data(queue_data, "parsed collector rain data")
+                            self.log_rain_data(queue_data, "Received GW1000 data")
                         if self.debug_wind:
                             pass
                     # Now start to create a loop packet. A loop packet must
