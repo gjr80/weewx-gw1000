@@ -884,7 +884,7 @@ class Gw1000(object):
             if self.debug_rain:
                 loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
                                                                                          new_total,
-                                                                                         new_total))
+                                                                                         data['rain']))
             # save the new total as the old total for next time
             self.last_rain = new_total
 
