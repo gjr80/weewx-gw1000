@@ -325,6 +325,7 @@ the WeeWX daemon:
     $ sudo systemctl start weewx
 """
 # TODO. Review against latest
+# TODO. GW1000Service and GW1000Driver need to be able to handle data, an exception tuple and None in the queue
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm sensor ID signal value meaning
 # TODO. Confirm sensor ID battery meaning
@@ -1057,8 +1058,17 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             if self.debug_loop or self.debug_rain or self.debug_wind:
                 loginf("No queued GW1000 data to process")
         else:
-            # did we get data or our signal to shutdown
-            if queue_data is not None:
+            # We received something in the queue, it will be one of three
+            # things:
+            # 1. a dict containing sensor data
+            # 2. a tuple containing an exception and exception text
+            # 3. the value None signalling a serious error that means the
+            #    Collector needs to shut down
+
+            # if the data has a 'keys' attribute it is a dict so must be
+            # data
+            if hasattr(queue_data, 'keys'):
+                # we have a dict so assume it is data
                 # log the mapped data if necessary, there are several debug
                 # settings that may require this, start from the highest (most
                 # encompassing) and work to the lowest (least encompassing)
@@ -1079,7 +1089,6 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                         # received data, if they do not exist say so
                         # TODO. Need to implement debug_wind reporting
                         pass
-                # we received data
                 # if not already determined determine which cumulative rain
                 # field will be used to determine the per period rain field
                 if not self.rain_mapping_confirmed:
@@ -1140,10 +1149,31 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                         # say so
                         # TODO. Need to implement debug_wind reporting
                         pass
-            else:
+            # if it's a tuple then it's a tuple with an exception and
+            # exception text
+            elif isinstance(queue_data, tuple):
+                # TODO. Make this more general, service should choose the exception to raise not the collector
+                # we have a tuple, it should contain an error class and error text
+                # if debug_loop log what we received
+                if self.debug_loop:
+                    loginf("Received an exception: %s" % (queue_data,))
+                if len(queue_data) >= 2:
+                    raise queue_data[0](queue_data[1])
+            # if it's None then its a signal the Collector needs to shutdown
+            elif queue_data is None:
+                # if debug_loop log what we received
+                if self.debug_loop:
+                    loginf("Received 'None'")
                 # we received the signal that the Gw1000Collector needs to
                 # shutdown
                 self.shutDown()
+                # and raise an exception to cause the engine to shutdown
+                raise GW1000IOError("Gw1000Collector needs to shutdown")
+            # if it's none of the above (which it should never be) we don't
+            # know what to do with it so pass and wait for the next item in
+            # the queue
+            else:
+                pass
 
     def augment_packet(self, packet, data):
         """Augment a loop packet with data from another packet.
@@ -1526,8 +1556,15 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # there was nothing in the queue so continue
                 pass
             else:
-                # we received something in the queue but what was it
-                # did we get data ?
+                # We received something in the queue, it will be one of three
+                # things:
+                # 1. a dict containing sensor data
+                # 2. a tuple containing an exception and exception text
+                # 3. the value None signalling a serious error that means the
+                #    Collector needs to shut down
+
+                # if the data has a 'keys' attribute it is a dict so must be
+                # data
                 if hasattr(queue_data, 'keys'):
                     # we have a dict so assume it is data
                     # log the received data if necessary
@@ -1612,6 +1649,8 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                             pass
                     # yield the loop packet
                     yield packet
+                # if it's a tuple then it's a tuple with an exception and
+                # exception text
                 elif isinstance(queue_data, tuple):
                     # TODO. Make this more general, driver should choose the exception to raise not the collector
                     # we have a tuple, it should contain an error class and error text
@@ -1620,6 +1659,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                         loginf("Received an exception: %s" % (queue_data,))
                     if len(queue_data) >= 2:
                         raise queue_data[0](queue_data[1])
+                # if it's None then its a signal the Collector needs to shutdown
                 elif queue_data is None:
                     # if debug_loop log what we received
                     if self.debug_loop:
@@ -1628,6 +1668,11 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     self.closePort()
                     # and raise an exception to cause the engine to shutdown
                     raise GW1000IOError("Gw1000Collector needs to shutdown")
+                # if it's none of the above (which it should never be) we don't
+                # know what to do with it so pass and wait for the next item in
+                # the queue
+                else:
+                    pass
 
     @property
     def hardware_name(self):
@@ -1731,6 +1776,8 @@ class Gw1000Collector(Collector):
         b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7'},
         b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8'}
     }
+    # tuple of values for sensors that are not registered with the GW1000
+    not_registered = ('fffffffe', 'ffffffff')
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
                  broadcast_port=None, socket_timeout=None, poll_interval=60,
@@ -1790,15 +1837,20 @@ class Gw1000Collector(Collector):
             now = time.time()
             # is it time to poll?
             if now - last_poll > self.poll_interval:
-                # it is time to poll
+                # it is time to poll, wrap in a try..except in case we get a
+                # GW1000IOError exception
                 try:
                     queue_data = self.get_live_sensor_data()
                 except GW1000IOError as e:
                     # a GW1000IOError occurred, most likely because the Station
                     # object could not contact the GW1000
                     # first up log the event
+                    logerr('Unable to obtain live sensor data')
+                    # then construct a tuple containing a weewx.WeeWxIOError
+                    # exception but with the GW1000IOError message, this will
+                    # be sent in the queue to our controller
                     queue_data = (weewx.WeeWxIOError, e)
-                # put the queue data in he queue
+                # put the queue data in the queue
                 self.queue.put(queue_data)
                 # debug log when we will next poll the API
                 logdbg('Next update in %d seconds' % self.poll_interval)
@@ -1816,26 +1868,25 @@ class Gw1000Collector(Collector):
         dict. If no data was obtained from the API the value None is returned.
         """
 
-        # obtain the raw data via the GW1000 API
+        # obtain the raw data via the GW1000 API, we may get a GW1000IOError
+        # exception, if we do let it bubble up
         raw_data = self.station.get_livedata()
+        # if we made it here our raw data was validated by checksum
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
-        if raw_data is not None:
-            # parse the raw data
-            parsed_data = self.parser.parse(raw_data, _timestamp)
-            # log the parsed data but only if debug>=3
-            if weewx.debug >= 3:
-                logdbg("Parsed data: %s" % parsed_data)
-            # the parsed data wil likely have battery data for sensors that do
-            # not exist, filter out the data for non-existent sensors
-            filtered_data = self.filter_battery_data(parsed_data)
-            # log the filtered parsed data but only if debug>=3
-            if weewx.debug >= 3:
-                logdbg("Filtered parsed data: %s" % filtered_data)
-            return filtered_data
-        else:
-            logdbg("Unable to obtain live data")
-        return None
+        # parse the raw data
+        parsed_data = self.parser.parse(raw_data, _timestamp)
+        # log the parsed data but only if debug>=3
+        if weewx.debug >= 3:
+            logdbg("Parsed data: %s" % parsed_data)
+        # The parsed data will likely have battery data for sensors that do
+        # not exist, filter out the data for non-existent sensors. We may get
+        # a GW1000IOError exception, if we do let it bubble up
+        filtered_data = self.filter_battery_data(parsed_data)
+        # log the filtered parsed data but only if debug>=3
+        if weewx.debug >= 3:
+            logdbg("Filtered parsed data: %s" % filtered_data)
+        return filtered_data
 
     def filter_battery_data(self, parsed_data):
         """Filter out battery data for unused sensors.
@@ -1849,32 +1900,31 @@ class Gw1000Collector(Collector):
         parsed_data: dict of parsed GW1000 API data
         """
 
-        # tuple of values for sensors that are not registered with the GW1000
-        not_registered = ('fffffffe', 'ffffffff')
-        # obtain details of the sensors from the GW1000 API
+# TODO. Remove comments before release
+#        # tuple of values for sensors that are not registered with the GW1000
+#        not_registered = ('fffffffe', 'ffffffff')
+        # obtain details of the sensors from the GW1000 API, we may get a GW1000IOError
+        # exception, but let it bubble up
         sensor_list = self.sensor_id_data
-        if sensor_list is not None:
-            # determine which sensors are registered, these are the sensors for
-            # which we desire battery state information
-            registered_sensors = [s['address'] for s in sensor_list if s['id'] not in not_registered]
-            # obtain a list of registered sensor names
-            reg_sensor_names = [Gw1000Collector.sensor_ids[a]['name'] for a in registered_sensors]
-            # obtain a copy of our parsed data as we are going to alter it
-            filtered = dict(parsed_data)
-            # iterate over the parsed data
-            for key, data in six.iteritems(parsed_data):
-                # obtain the sensor name from any any battery fields
-                stripped = key[:-5] if key.endswith('_batt') else key
-                # if field is a battery state field, and the field pertains to an
-                # unregistered sensor, remove the field from the parsed data
-                if '_batt' in key and stripped not in reg_sensor_names:
-                    del filtered[key]
-            # return our parsed data with battery state information fo unregistered
-            # sensors removed
-            return filtered
-        else:
-            logdbg("No sensor ID data available. Could not filter battery data.")
-            return None
+        # if we made it here our response was validated by checksum
+        # determine which sensors are registered, these are the sensors for
+        # which we desire battery state information
+        reg_sensors = [s['address'] for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
+        # obtain a list of registered sensor names
+        reg_sensor_names = [Gw1000Collector.sensor_ids[a]['name'] for a in reg_sensors]
+        # obtain a copy of our parsed data as we are going to alter it
+        filtered = dict(parsed_data)
+        # iterate over the parsed data
+        for key, data in six.iteritems(parsed_data):
+            # obtain the sensor name from any any battery fields
+            stripped = key[:-5] if key.endswith('_batt') else key
+            # if field is a battery state field, and the field pertains to an
+            # unregistered sensor, remove the field from the parsed data
+            if '_batt' in key and stripped not in reg_sensor_names:
+                del filtered[key]
+        # return our parsed data with battery state information fo unregistered
+        # sensors removed
+        return filtered
 
     @property
     def rain_data(self):
@@ -1946,7 +1996,7 @@ class Gw1000Collector(Collector):
         CMD_GW1000_LIVEDATA response. However, observations of a live system
         containing a number of different sensor types shows that the
         CMD_READ_SENSOR_ID sensor 'signal' data matches the
-        CMD_GW1000_LIVEDATA battery data precisely. Furter observations reveal
+        CMD_GW1000_LIVEDATA battery data precisely. Further observations reveal
         the CMD_READ_SENSOR_ID sensor battery states match the sensor signal
         levels shown in the WS View app.
 
@@ -1957,34 +2007,33 @@ class Gw1000Collector(Collector):
         swapped.
         """
 
-        # obtain the sensor id data via the API
+        # obtain the sensor id data via the API, we may get a GW1000IOError
+        # exception, if we do let it bubble up
         response = self.station.get_sensor_id()
-        if response is not None:
-            # determine the size of the sensor id data
-            raw_data_size = six.indexbytes(response, 3)
-            # extract the actual sensor id data
-            data = response[4:4 + raw_data_size - 3]
-            # initialise a counter
-            index = 0
-            # initialise a list to hold our final data
-            sensor_id_list = []
-            # iterate over
-            while index < len(data):
-                sensor_id = bytes_to_hex(data[index + 1: index + 5],
-                                         separator='',
-                                         caps=False)
-                # As per method comments above swap signal and battery state bytes,
-                # the GW1000 API says signal should be byte 5 and battery byte 6,
-                # we will use signal as byte 6 and battery as byte 5.
-                sensor_id_list.append({'address': data[index:index + 1],
-                                       'id': sensor_id,
-                                       'signal': six.indexbytes(data, index + 6),
-                                       'battery': six.indexbytes(data, index + 5)
-                                       })
-                index += 7
-            return sensor_id_list
-        else:
-            return None
+        # if we made it here our response was validated by checksum
+        # determine the size of the sensor id data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual sensor id data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a counter
+        index = 0
+        # initialise a list to hold our final data
+        sensor_id_list = []
+        # iterate over the data
+        while index < len(data):
+            sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                     separator='',
+                                     caps=False)
+            # As per method comments above swap signal and battery state bytes,
+            # the GW1000 API says signal should be byte 5 and battery byte 6,
+            # we will use signal as byte 6 and battery as byte 5.
+            sensor_id_list.append({'address': data[index:index + 1],
+                                   'id': sensor_id,
+                                   'signal': six.indexbytes(data, index + 6),
+                                   'battery': six.indexbytes(data, index + 5)
+                                   })
+            index += 7
+        return sensor_id_list
 
     def startup(self):
         """Start a thread that collects data from the GW1000 API."""
@@ -2022,7 +2071,7 @@ class Gw1000Collector(Collector):
             threading.Thread.__init__(self)
             # keep reference to the client we are supporting
             self.client = client
-            self.name = 'gw1000-client'
+            self.name = 'gw1000-collector'
 
         def run(self):
             # rather than letting the thread silently fail if an exception
@@ -2239,10 +2288,10 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain live data from the GW1000 to the API
             with retries. If the GW1000 cannot be contacted re-discovery is
-            attempted. If rediscovery is successful None is returned otherwise
-            the lost contact timestamp is set and the exception raised. Any
-            code that calls this method should be prepared to handle a
-            GW1000IOError exception and a returned value of None.
+            attempted. If rediscovery is successful the command is tried again
+            otherwise the lost contact timestamp is set and the exception
+            raised. Any code that calls this method should be prepared to
+            handle a GW1000IOError exception.
             """
 
             # send the API command to obtain live data from the GW1000, be
@@ -2260,7 +2309,10 @@ class Gw1000Collector(Collector):
                     self.lost_con_ts = time.time() if self.lost_con_ts is None else self.lost_con_ts
                     # raise the exception
                     raise
-            return None
+                else:
+                    # we did rediscover successfully so try again, if it fails
+                    # we get another GW1000IOError exception which will be raised
+                    return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
 
         def get_raindata(self):
             """Get GW1000 rain data.
@@ -2316,10 +2368,10 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain sensor ID data from the GW1000 to the
             API with retries. If the GW1000 cannot be contacted re-discovery is
-            attempted. If rediscovery is successful None is returned otherwise
-            the lost contact timestamp is set and the exception raised. Any
-            code that calls this method should be prepared to handle a
-            GW1000IOError exception and a returned value of None.
+            attempted. If rediscovery is successful the command is tried again
+            otherwise the lost contact timestamp is set and the exception
+            raised. Any code that calls this method should be prepared to
+            handle a GW1000IOError exception.
             """
 
             # send the API command to obtain sensor ID data from the GW1000, be
@@ -2336,7 +2388,10 @@ class Gw1000Collector(Collector):
                     self.lost_con_ts = time.time() if self.lost_con_ts is None else self.lost_con_ts
                     # raise the exception
                     raise
-            return None
+                else:
+                    # we did rediscover successfully so try again, if it fails
+                    # we get another GW1000IOError exception which will be raised
+                    return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000 API with retries and return the
@@ -2393,9 +2448,6 @@ class Gw1000Collector(Collector):
                 # wrap in  try..except so we can catch any errors
                 try:
                     response = self.send_cmd(packet)
-                    # successful communications with the GW1000 so clear the
-                    # lost contact timestamp
-                    self.lost_con_ts = None
                 except socket.timeout as e:
                     # a socket timeout occurred, log it
                     if self.log_failures:
@@ -2405,8 +2457,10 @@ class Gw1000Collector(Collector):
                     if self.log_failures:
                         logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
                 else:
-                    # if we made it here we have a response, check that it is
-                    # valid
+                    # if we made it here we have successful communications with
+                    # the GW1000 so clear the lost contact timestamp
+                    self.lost_con_ts = None
+                    # check the response is valid
                     try:
                         self.check_response(response, self.commands[cmd])
                     except (InvalidChecksum, InvalidApiResponse) as e:
