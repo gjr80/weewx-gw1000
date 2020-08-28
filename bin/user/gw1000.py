@@ -1153,22 +1153,26 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # exception text
             elif isinstance(queue_data, tuple):
                 # TODO. Make this more general, service should choose the exception to raise not the collector
-                # we have a tuple, it should contain an error class and error text
-                # if debug_loop log what we received
-                if self.debug_loop:
-                    loginf("Received an exception: %s" % (queue_data,))
-                if len(queue_data) >= 2:
-                    raise queue_data[0](queue_data[1])
+                # We have a tuple, it should contain an error class and error
+                # text. The collector did not deem it serious enough to want to
+                # shutdown and we are only a service so log what we can and
+                # continue.
+                logerr("Received an exception: %s" % (queue_data,))
+                # and provide the traceback
+                log_traceback_error('    ****  ')
             # if it's None then its a signal the Collector needs to shutdown
             elif queue_data is None:
                 # if debug_loop log what we received
                 if self.debug_loop:
                     loginf("Received collector shutdown signal 'None'")
                 # we received the signal that the Gw1000Collector needs to
-                # shutdown
+                # shutdown, that means we cannot continue so call our shutdown
+                # method which will also shutdown the GW1000Collector thread
                 self.shutDown()
-                # and raise an exception to cause the engine to shutdown
-                raise GW1000IOError("Gw1000Collector needs to shutdown")
+                # the Gw1000Collector has been shutdown so we will not see
+                # anything more in the queue, we are still bound to
+                # NEW_LOOP_PACKET but since the queue is always empty we will
+                # just wait for the empty queue timeout before exiting
             # if it's none of the above (which it should never be) we don't
             # know what to do with it so pass and wait for the next item in
             # the queue
@@ -1653,10 +1657,11 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # exception text
                 elif isinstance(queue_data, tuple):
                     # TODO. Make this more general, driver should choose the exception to raise not the collector
-                    # we have a tuple, it should contain an error class and error text
-                    # if debug_loop log what we received
-                    if self.debug_loop:
-                        loginf("Received an exception: %s" % (queue_data,))
+                    # We have a tuple, it should contain an error class and error
+                    # text. The collector did not deem it serious enough to want
+                    # to shutdown but we are a driver and we should log then
+                    # raise the error.
+                    logerr("Received an exception: %s" % (queue_data,))
                     if len(queue_data) >= 2:
                         raise queue_data[0](queue_data[1])
                 # if it's None then its a signal the Collector needs to shutdown
@@ -2064,7 +2069,7 @@ class Gw1000Collector(Collector):
             if self.thread.isAlive():
                 logerr("Unable to shut down Gw1000Collector thread")
             else:
-                logdbg("Gw1000Collector thread has been terminated")
+                loginf("Gw1000Collector thread has been terminated")
         self.thread = None
 
     class CollectorThread(threading.Thread):
