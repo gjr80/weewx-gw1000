@@ -1163,7 +1163,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             elif queue_data is None:
                 # if debug_loop log what we received
                 if self.debug_loop:
-                    loginf("Received 'None'")
+                    loginf("Received collector shutdown signal 'None'")
                 # we received the signal that the Gw1000Collector needs to
                 # shutdown
                 self.shutDown()
@@ -1819,8 +1819,8 @@ class Gw1000Collector(Collector):
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
-        self._thread = None
-        self._collect_data = False
+        self.thread = None
+        self.collect_data = False
 
     def collect_sensor_data(self):
         """Collect sensor data by polling the API.
@@ -1832,7 +1832,7 @@ class Gw1000Collector(Collector):
         # initialise ts of last time API was polled
         last_poll = 0
         # collect data continuously while we are told to collect data
-        while self._collect_data:
+        while self.collect_data:
             # store the current time
             now = time.time()
             # is it time to poll?
@@ -2038,11 +2038,15 @@ class Gw1000Collector(Collector):
     def startup(self):
         """Start a thread that collects data from the GW1000 API."""
 
-        self._thread = Gw1000Collector.CollectorThread(self)
-        self._collect_data = True
-        self._thread.setDaemon(True)
-        self._thread.setName('Gw1000CollectorThread')
-        self._thread.start()
+        try:
+            self.thread = Gw1000Collector.CollectorThread(self)
+            self.collect_data = True
+            self.thread.setDaemon(True)
+            self.thread.setName('Gw1000CollectorThread')
+            self.thread.start()
+        except threading.ThreadError:
+            logerr("Unable to launch Gw1000Collector thread")
+            self.thread = None
 
     def shutdown(self):
         """Shut down the thread that collects data from the GW1000 API.
@@ -2051,17 +2055,17 @@ class Gw1000Collector(Collector):
         """
 
         # we only need do something if a thread exists
-        if self._thread:
+        if self.thread:
             # tell the thread to stop collecting data
-            self._collect_data = False
+            self.collect_data = False
             # terminate the thread
-            self._thread.join(10.0)
+            self.thread.join(10.0)
             # log the outcome
-            if self._thread.isAlive():
+            if self.thread.isAlive():
                 logerr("Unable to shut down Gw1000Collector thread")
             else:
                 logdbg("Gw1000Collector thread has been terminated")
-        self._thread = None
+        self.thread = None
 
     class CollectorThread(threading.Thread):
         """Class used to collect data via the GW1000 API in a thread."""
