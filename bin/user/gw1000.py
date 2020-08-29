@@ -455,7 +455,7 @@ default_socket_timeout = 2
 # is considered stale and will not be used to augment loop packets
 default_max_age = 60
 # default GW1000 poll interval
-default_poll_interval = 60
+default_poll_interval = 20
 # default period between lost contact log entries during an extended period of
 # lost contact when run as a Service
 default_lost_contact_log_period = 21600
