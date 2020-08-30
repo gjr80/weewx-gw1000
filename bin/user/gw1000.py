@@ -336,6 +336,7 @@ the WeeWX daemon:
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
+# TODO. Need to implement debug_wind reporting
 
 # Python imports
 from __future__ import absolute_import
@@ -1060,7 +1061,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # We received something in the queue, it will be one of three
             # things:
             # 1. a dict containing sensor data
-            # 2. a tuple containing an exception and exception text
+            # 2. an exception
             # 3. the value None signalling a serious error that means the
             #    Collector needs to shut down
 
@@ -1086,7 +1087,6 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                     if self.debug_wind:
                         # debug_wind is set so log the 'wind' fields in the
                         # received data, if they do not exist say so
-                        # TODO. Need to implement debug_wind reporting
                         pass
                 # if not already determined determine which cumulative rain
                 # field will be used to determine the per period rain field
@@ -1122,7 +1122,6 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                     if self.debug_wind:
                         # debug_wind is set so log the 'wind' fields in the
                         # mapped data, if they do not exist say so
-                        # TODO. Need to implement debug_wind reporting
                         pass
                 # and finally augment the loop packet with the mapped data
                 self.augment_packet(event.packet, mapped_packet)
@@ -1146,20 +1145,19 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                         # debug_wind is set so log the 'wind' fields in the
                         # loop packet being emitted, if they do not exist
                         # say so
-                        # TODO. Need to implement debug_wind reporting
                         pass
             # if it's a tuple then it's a tuple with an exception and
             # exception text
-            elif isinstance(queue_data, tuple):
-                # We have a tuple, it should contain an error class and error
-                # text. The collector did not deem it serious enough to want to
-                # shutdown or it would have sent None instead. The action we
-                # take depends on the type of exception it is. If its a
-                # GW1000IOError we can ignore it as appropriate action will
-                # have been taken by the GW1000Collector. If it is anything
-                # else we log it.
+            elif isinstance(queue_data, BaseException):
+                # We have an exception. The collector did not deem it serious
+                # enough to want to shutdown or it would have sent None
+                # instead. The action we take depends on the type of exception
+                # it is. If its a GW1000IOError we can ignore it as appropriate
+                # action will have been taken by the GW1000Collector. If it is
+                # anything else we log it.
                 # first extract our exception
-                e = queue_data[0]
+                e = queue_data
+                loginf("e=%s" % e)
                 # and process it if we have something
                 if e:
                     # is it a GW1000Error
@@ -1573,7 +1571,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # We received something in the queue, it will be one of three
                 # things:
                 # 1. a dict containing sensor data
-                # 2. a tuple containing an exception and exception text
+                # 2. an exception
                 # 3. the value None signalling a serious error that means the
                 #    Collector needs to shut down
 
@@ -1597,7 +1595,6 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
-                            # TODO. Need to implement debug_wind reporting
                             pass
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
@@ -1633,7 +1630,6 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
-                            # TODO. Need to implement debug_wind reporting
                             pass
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
@@ -1659,22 +1655,20 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                             # debug_wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
-                            # TODO. Need to implement debug_wind reporting
                             pass
                     # yield the loop packet
                     yield packet
                 # if it's a tuple then it's a tuple with an exception and
                 # exception text
-                elif isinstance(queue_data, tuple):
-                    # We have a tuple, it should contain an error class and
-                    # error text. The collector did not deem it serious enough
-                    # to want to shutdown or it would have sent None instead.
-                    # The action we take depends on the type of exception it
-                    # is. If its a GW1000IOError we need to force the WeeWX
-                    # engine to restart by raining a WeewxIOError. If it is
-                    # anything else we log it and then raise it.
+                elif isinstance(queue_data, BaseException):
+                    # We have an exception. The collector did not deem it
+                    # serious enough to want to shutdown or it would have sent
+                    # None instead. The action we take depends on the type of
+                    # exception it is. If its a GW1000IOError we need to force
+                    # the WeeWX engine to restart by raining a WeewxIOError. If
+                    # it is anything else we log it and then raise it.
                     # first extract our exception
-                    e = queue_data[0]
+                    e = queue_data
                     # and process it if we have something
                     if e:
                         # is it a GW1000Error
@@ -1879,7 +1873,7 @@ class Gw1000Collector(Collector):
                     # then construct a tuple containing the GW1000IOError
                     # exception, this will be sent in the queue to our
                     # controlling object
-                    queue_data = (e,)
+                    queue_data = e
                 # put the queue data in the queue
                 self.queue.put(queue_data)
                 # debug log when we will next poll the API
