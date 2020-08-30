@@ -325,7 +325,6 @@ the WeeWX daemon:
     $ sudo systemctl start weewx
 """
 # TODO. Review against latest
-# TODO. GW1000Service and GW1000Driver need to be able to handle data, an exception tuple and None in the queue
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm sensor ID signal value meaning
 # TODO. Confirm sensor ID battery meaning
@@ -1152,14 +1151,25 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # if it's a tuple then it's a tuple with an exception and
             # exception text
             elif isinstance(queue_data, tuple):
-                # TODO. Make this more general, service should choose the exception to raise not the collector
                 # We have a tuple, it should contain an error class and error
                 # text. The collector did not deem it serious enough to want to
-                # shutdown and we are only a service so log what we can and
-                # continue.
-                logerr("Received an exception: %s" % (queue_data,))
-                # and provide the traceback
-                log_traceback_error('    ****  ')
+                # shutdown or it would have sent None instead. The action we
+                # take depends on the type of exception it is. If its a
+                # GW1000IOError we can ignore it as appropriate action will
+                # have been taken by the GW1000Collector. If it is anything
+                # else we log it.
+                # first extract our exception
+                e = queue_data[0]
+                # and process it if we have something
+                if e:
+                    # is it a GW1000Error
+                    if isinstance(e, GW1000IOError):
+                        # it is so we can ignore it
+                        pass
+                    else:
+                        # it's not so log it
+                        logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
+                                                                       e))
             # if it's None then its a signal the Collector needs to shutdown
             elif queue_data is None:
                 # if debug_loop log what we received
@@ -1656,14 +1666,27 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                 # if it's a tuple then it's a tuple with an exception and
                 # exception text
                 elif isinstance(queue_data, tuple):
-                    # TODO. Make this more general, driver should choose the exception to raise not the collector
-                    # We have a tuple, it should contain an error class and error
-                    # text. The collector did not deem it serious enough to want
-                    # to shutdown but we are a driver and we should log then
-                    # raise the error.
-                    logerr("Received an exception: %s" % (queue_data,))
-                    if len(queue_data) >= 2:
-                        raise queue_data[0](queue_data[1])
+                    # We have a tuple, it should contain an error class and
+                    # error text. The collector did not deem it serious enough
+                    # to want to shutdown or it would have sent None instead.
+                    # The action we take depends on the type of exception it
+                    # is. If its a GW1000IOError we need to force the WeeWX
+                    # engine to restart by raining a WeewxIOError. If it is
+                    # anything else we log it and then raise it.
+                    # first extract our exception
+                    e = queue_data[0]
+                    # and process it if we have something
+                    if e:
+                        # is it a GW1000Error
+                        if isinstance(e, GW1000IOError):
+                            # it is so we raise a WeewxIOError
+                            raise weewx.WeeWxIOError from e
+                        else:
+                            # it's not so log it
+                            logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
+                                                                           e))
+                            # then raise it, WeeWX will decide what to do
+                            raise e
                 # if it's None then its a signal the Collector needs to shutdown
                 elif queue_data is None:
                     # if debug_loop log what we received
@@ -1849,12 +1872,14 @@ class Gw1000Collector(Collector):
                 except GW1000IOError as e:
                     # a GW1000IOError occurred, most likely because the Station
                     # object could not contact the GW1000
-                    # first up log the event
-                    logerr('Unable to obtain live sensor data')
-                    # then construct a tuple containing a weewx.WeeWxIOError
-                    # exception but with the GW1000IOError message, this will
-                    # be sent in the queue to our controller
-                    queue_data = (weewx.WeeWxIOError, e)
+                    # first up log the event, but only if we are logging failures,
+                    # our Station object is keeping track of that
+                    if self.station.log_failures:
+                        logerr('Unable to obtain live sensor data')
+                    # then construct a tuple containing the GW1000IOError
+                    # exception, this will be sent in the queue to our
+                    # controlling object
+                    queue_data = (e,)
                 # put the queue data in the queue
                 self.queue.put(queue_data)
                 # debug log when we will next poll the API
@@ -1905,9 +1930,6 @@ class Gw1000Collector(Collector):
         parsed_data: dict of parsed GW1000 API data
         """
 
-# TODO. Remove comments before release
-#        # tuple of values for sensors that are not registered with the GW1000
-#        not_registered = ('fffffffe', 'ffffffff')
         # obtain details of the sensors from the GW1000 API, we may get a GW1000IOError
         # exception, but let it bubble up
         sensor_list = self.sensor_id_data
@@ -2460,7 +2482,9 @@ class Gw1000Collector(Collector):
                 except socket.timeout as e:
                     # a socket timeout occurred, log it
                     if self.log_failures:
-                        logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                        logdbg("Failed to obtain response to attempt %d to send command '%s': %s" % (attempt + 1,
+                                                                                                     cmd,
+                                                                                                     e))
                 except Exception as e:
                     # an exception was encountered, log it
                     if self.log_failures:
@@ -2492,7 +2516,7 @@ class Gw1000Collector(Collector):
                     time.sleep(self.retry_wait)
             # if we made it here we failed after self.max_tries attempts
             # first of all log it
-            _msg = ("Failed to send command '%s' after %d attempts" % (cmd, attempt + 1))
+            _msg = ("Failed to obtain response to command '%s' after %d attempts" % (cmd, attempt + 1))
             if response is not None or self.log_failures:
                 logerr(_msg)
             # finally raise a GW1000IOError exception
