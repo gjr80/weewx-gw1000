@@ -343,6 +343,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+
 import re
 import socket
 import struct
@@ -1157,7 +1158,6 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                 # anything else we log it.
                 # first extract our exception
                 e = queue_data
-                loginf("e=%s" % e)
                 # and process it if we have something
                 if e:
                     # is it a GW1000Error
@@ -1673,8 +1673,10 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     if e:
                         # is it a GW1000Error
                         if isinstance(e, GW1000IOError):
-                            # it is so we raise a WeewxIOError
-                            raise weewx.WeeWxIOError from e
+                            # it is so we raise a WeewxIOError, ideally would
+                            # use raise .. from .. but raise.. from .. is not
+                            # available under Python 2
+                            raise weewx.WeeWxIOError(e)
                         else:
                             # it's not so log it
                             logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
