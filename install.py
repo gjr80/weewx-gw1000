@@ -10,7 +10,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.1.0b12                                     Date: 18 August 2020
+Version: 0.1.0b12                                     Date: 31 August 2020
 
 Revision History
     ?? ????? 2020       v0.1.0
