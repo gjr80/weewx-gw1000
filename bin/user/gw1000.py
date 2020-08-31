@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b12                                 Date: 26 August 2020
+Version: 0.1.0b12                                 Date: 31 August 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -753,10 +753,6 @@ class Gw1000(object):
         # loop data
         self.debug_loop = weeutil.weeutil.tobool(gw1000_config.get('debug_loop',
                                                                    False))
-        # minimum period in seconds between 'lost contact' log entries during
-        # an extended lost contact period when run as a service
-        lost_contact_log_period = int(gw1000_config.get('lost_contact_log_period',
-                                                        default_lost_contact_log_period))
         # create an Gw1000Collector object to interact with the GW1000 API
         self.collector = Gw1000Collector(ip_address=self.ip_address,
                                          port=self.port,
@@ -767,7 +763,6 @@ class Gw1000(object):
                                          max_tries=self.max_tries,
                                          retry_wait=self.retry_wait,
                                          use_th32=use_th32,
-                                         lost_contact_log_period=lost_contact_log_period,
                                          debug_rain=self.debug_rain,
                                          debug_wind=self.debug_wind)
         # initialise last lightning count and last rain properties
@@ -1012,6 +1007,14 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         # age (in seconds) before API data is considered too old to use,
         # default is 60 seconds
         self.max_age = int(gw1000_config_dict.get('max_age', default_max_age))
+        # minimum period in seconds between 'lost contact' log entries during
+        # an extended lost contact period
+        self.lost_contact_log_period = int(gw1000_config_dict.get('lost_contact_log_period',
+                                                                  default_lost_contact_log_period))
+        # set failure logging on
+        self.log_failures = True
+        # reset the lost contact timestamp
+        self.lost_con_ts = None
         # log our version number
         loginf('version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
@@ -1030,6 +1033,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                                                                           self.broadcast_port,
                                                                           self.socket_timeout))
         loginf("max age of API data to be used is %d seconds" % self.max_age)
+        loginf("lost contact will be logged every %d seconds" % self.lost_contact_log_period)
         # start the Gw1000Collector in its own thread
         self.collector.startup()
         # bind our self to the relevant weeWX events
@@ -1058,6 +1062,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # there was nothing in the queue so log it if required else continue
             if self.debug_loop or self.debug_rain or self.debug_wind:
                 loginf("No queued GW1000 data to process")
+            if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
+                self.lost_con_ts = time.time()
+                self.set_failure_logging(True)
         else:
             # We received something in the queue, it will be one of three
             # things:
@@ -1070,6 +1077,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
             # data
             if hasattr(queue_data, 'keys'):
                 # we have a dict so assume it is data
+                self.lost_con_ts = None
+                self.set_failure_logging(True)
+
                 # log the mapped data if necessary, there are several debug
                 # settings that may require this, start from the highest (most
                 # encompassing) and work to the lowest (least encompassing)
@@ -1162,8 +1172,21 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                 if e:
                     # is it a GW1000Error
                     if isinstance(e, GW1000IOError):
-                        # it is so we can ignore it
-                        pass
+                        # set our failure logging appropriately
+                        if self.lost_con_ts is None:
+                            # we have previously been in contact with the
+                            # GW1000 so set our lost contact timestamp
+                            self.lost_con_ts = time.time()
+                            # any failure logging for this failure will already
+                            # have occurred in our GW1000Collector object and
+                            # its Station, so turn off failure logging
+                            self.set_failure_logging(False)
+                        elif self.log_failures:
+                            # we are already in a lost contact state, but
+                            # failure logging may have been turned on for a
+                            # 'once in a while' log entry so we need to trun it
+                            # off again
+                            self.set_failure_logging(False)
                     else:
                         # it's not so log it
                         logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
@@ -1234,6 +1257,24 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                 _stem = "Mapped data (%s) is too old to augment loop packet(%s)"
                 loginf(_stem % (timestamp_to_string(data.get('dateTime')),
                                 timestamp_to_string(packet['dateTime'])))
+
+    def set_failure_logging(self, log_failures):
+        """Turn failure logging on or off.
+
+        When operating as a service lost contact or other non-fatal errors
+        should only be logged every so often so as not to flood the logs.
+        Failure logging occurs at three levels:
+        1. in myself (the service)
+        2. in the GW1000Collector object
+        3. in the GW1000Collector object's Station object
+
+        Failure logging is turned on or off by setting the log_failures
+        property True or False for each of the above 3 objects.
+        """
+
+        self.log_failures = log_failures
+        self.collector.log_failures = log_failures
+        self.collector.station.log_failures = log_failures
 
     def shutDown(self):
         """Shut down the service."""
@@ -1523,10 +1564,6 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
     def __init__(self, **stn_dict):
         """Initialise a GW1000 driver object."""
 
-        # The lost contact log period is the period between 'lost contact' log
-        # entries when the GW1000 driver is run as a service. When run as a
-        # driver it is not used and should be set to zero.
-        stn_dict['lost_contact_log_period'] = 0
         # now initialize my superclasses
         super(Gw1000Driver, self).__init__(**stn_dict)
 
@@ -1841,9 +1878,14 @@ class Gw1000Collector(Collector):
             # set the WH24 sensor id decode dict entry
             self.sensor_ids[b'\x00']['name'] = 'wh24'
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
+        # start off logging failures
+        self.log_failures = True
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
+        # create a thread property
         self.thread = None
+        # we start off not collecting data, it will be turned on later when we
+        # are threaded
         self.collect_data = False
 
     def collect_sensor_data(self):
@@ -1868,13 +1910,12 @@ class Gw1000Collector(Collector):
                 except GW1000IOError as e:
                     # a GW1000IOError occurred, most likely because the Station
                     # object could not contact the GW1000
-                    # first up log the event, but only if we are logging failures,
-                    # our Station object is keeping track of that
-                    if self.station.log_failures:
+                    # first up log the event, but only if we are logging
+                    # failures
+                    if self.log_failures:
                         logerr('Unable to obtain live sensor data')
-                    # then construct a tuple containing the GW1000IOError
-                    # exception, this will be sent in the queue to our
-                    # controlling object
+                    # assign the GW1000IOError exception so it will be sent in
+                    # the queue to our controlling object
                     queue_data = e
                 # put the queue data in the queue
                 self.queue.put(queue_data)
@@ -2229,17 +2270,7 @@ class Gw1000Collector(Collector):
             self.port = port
             self.max_tries = max_tries
             self.retry_wait = retry_wait
-            # If we lose contact with the GW1000 it could be some time before
-            # the situation is fixed, rather than filling the logs with
-            # frequent failed contact attempts only log the failed attempts
-            # every so often.
-            # during an extended period of 'lost contact' how long (in seconds)
-            # between 'lost contact' type log entries
-            self.lost_contact_log_period = lost_contact_log_period
-            # initialise the time we last had a failed attempt to connect to
-            # the GW1000, None means never
-            self.lost_con_ts = None
-            # set flag as to whether we are logging 'contact failures' or not
+            # start off logging failures
             self.log_failures = True
             # get my GW1000 MAC address to use later if we have to rediscover
             self.mac = self.get_mac_address()
@@ -2331,10 +2362,7 @@ class Gw1000Collector(Collector):
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
                 if not self.rediscover():
-                    # we could not re-discover so set the lost contact
-                    # timestamp if it is not already set
-                    self.lost_con_ts = time.time() if self.lost_con_ts is None else self.lost_con_ts
-                    # raise the exception
+                    # we could not re-discover so raise the exception
                     raise
                 else:
                     # we did rediscover successfully so try again, if it fails
@@ -2410,10 +2438,7 @@ class Gw1000Collector(Collector):
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
                 if not self.rediscover():
-                    # we could not re-discover so set the lost contact
-                    # timestamp if it is not already set
-                    self.lost_con_ts = time.time() if self.lost_con_ts is None else self.lost_con_ts
-                    # raise the exception
+                    # we could not re-discover so raise the exception
                     raise
                 else:
                     # we did rediscover successfully so try again, if it fails
@@ -2460,15 +2485,6 @@ class Gw1000Collector(Collector):
             checksum = self.calc_checksum(body)
             # construct the entire message packet
             packet = b''.join([self.header, body, struct.pack('B', checksum)])
-            # Are we logging failures? We will log if we haven't yet lost
-            # contact (ie self.lost_con_ts is None) or we have lost contact but
-            # we are still within the no-log grace period.
-            self.log_failures = self.lost_con_ts is None or \
-                time.time() > self.lost_con_ts + self.lost_contact_log_period
-            # reset the lost contact timestamp if we are logging failures and
-            # we are already in a lost contact state
-            if self.log_failures and self.lost_con_ts is not None:
-                self.lost_con_ts = time.time()
             # attempt to send up to 'self.max_tries' times
             for attempt in range(self.max_tries):
                 response = None
@@ -2486,9 +2502,6 @@ class Gw1000Collector(Collector):
                     if self.log_failures:
                         logdbg("Failed attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
                 else:
-                    # if we made it here we have successful communications with
-                    # the GW1000 so clear the lost contact timestamp
-                    self.lost_con_ts = None
                     # check the response is valid
                     try:
                         self.check_response(response, self.commands[cmd])
