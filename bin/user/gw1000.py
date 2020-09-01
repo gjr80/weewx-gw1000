@@ -28,7 +28,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b12                                 Date: 31 August 2020
+Version: 0.1.0b13                                 Date: 1 September 2020
 
 Revision History
     ?? ????? 2020      v0.1.0
@@ -440,7 +440,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b12'
+DRIVER_VERSION = '0.1.0b13'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -452,6 +452,8 @@ default_broadcast_address = '255.255.255.255'
 default_broadcast_port = 46000
 # default socket timeout
 default_socket_timeout = 2
+# default retry/wait time
+default_retry_wait = 10
 # When run as a service the default age in seconds after which GW1000 API data
 # is considered stale and will not be used to augment loop packets
 default_max_age = 60
@@ -734,9 +736,11 @@ class Gw1000(object):
         # how many times to poll the API before giving up, default is 3
         self.max_tries = int(gw1000_config.get('max_tries', 3))
         # wait time in seconds between retries, default is 10 seconds
-        self.retry_wait = int(gw1000_config.get('retry_wait', 10))
+        self.retry_wait = int(gw1000_config.get('retry_wait',
+                                                default_retry_wait))
         # how often (in seconds) we should poll the API, default is 60 seconds
-        self.poll_interval = int(gw1000_config.get('poll_interval', 60))
+        self.poll_interval = int(gw1000_config.get('poll_interval',
+                                                   default_poll_interval))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
         # to the GW1000. In tems of TH data the process is transparent and we
         # do not need to know if a WH32 or other sensor is providing outdoor TH
@@ -1485,8 +1489,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         driver = user.gw1000
 
         # How often to poll the GW1000 API:
-        poll_interval = 60
-    """
+        poll_interval = %d
+    """ % (default_poll_interval,)
 
     def prompt_for_settings(self):
 
@@ -1841,8 +1845,9 @@ class Gw1000Collector(Collector):
     not_registered = ('fffffffe', 'ffffffff')
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
-                 broadcast_port=None, socket_timeout=None, poll_interval=60,
-                 max_tries=3, retry_wait=10, use_th32=False,
+                 broadcast_port=None, socket_timeout=None,
+                 poll_interval=default_poll_interval, max_tries=3,
+                 retry_wait=default_retry_wait, use_th32=False,
                  lost_contact_log_period=0, debug_rain=False,
                  debug_wind=False):
         """Initialise our class."""
@@ -2210,8 +2215,8 @@ class Gw1000Collector(Collector):
 
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
-                     socket_timeout=None, max_tries=3, retry_wait=5,
-                     lost_contact_log_period=0):
+                     socket_timeout=None, max_tries=3,
+                     retry_wait=default_retry_wait):
 
             # network broadcast address
             self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
