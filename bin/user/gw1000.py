@@ -454,6 +454,8 @@ default_broadcast_port = 46000
 default_socket_timeout = 2
 # default retry/wait time
 default_retry_wait = 10
+# default max tries when polling the API
+default_max_tries = 3
 # When run as a service the default age in seconds after which GW1000 API data
 # is considered stale and will not be used to augment loop packets
 default_max_age = 60
@@ -733,9 +735,11 @@ class Gw1000(object):
             _port = None
         # set the port property
         self.port = _port
-        # how many times to poll the API before giving up, default is 3
-        self.max_tries = int(gw1000_config.get('max_tries', 3))
-        # wait time in seconds between retries, default is 10 seconds
+        # how many times to poll the API before giving up, default is
+        # default_max_tries
+        self.max_tries = int(gw1000_config.get('max_tries', default_max_tries))
+        # wait time in seconds between retries, default is default_retry_wait
+        # seconds
         self.retry_wait = int(gw1000_config.get('retry_wait',
                                                 default_retry_wait))
         # how often (in seconds) we should poll the API, default is 60 seconds
@@ -1846,9 +1850,9 @@ class Gw1000Collector(Collector):
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
                  broadcast_port=None, socket_timeout=None,
-                 poll_interval=default_poll_interval, max_tries=3,
-                 retry_wait=default_retry_wait, use_th32=False,
-                 lost_contact_log_period=0, debug_rain=False,
+                 poll_interval=default_poll_interval,
+                 max_tries=default_max_tries, retry_wait=default_retry_wait,
+                 use_th32=False,lost_contact_log_period=0, debug_rain=False,
                  debug_wind=False):
         """Initialise our class."""
 
@@ -1857,9 +1861,11 @@ class Gw1000Collector(Collector):
 
         # interval between polls of the API, default is 60 seconds
         self.poll_interval = poll_interval
-        # how many times to poll the API before giving up, default is 3
+        # how many times to poll the API before giving up, default is
+        # default_max_tries
         self.max_tries = max_tries
-        # period in seconds to wait before polling again, default is 10 seconds
+        # period in seconds to wait before polling again, default is
+        # default_retry_wait seconds
         self.retry_wait = retry_wait
         # are we using a th32 sensor
         self.use_th32 = use_th32
@@ -2215,7 +2221,7 @@ class Gw1000Collector(Collector):
 
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
-                     socket_timeout=None, max_tries=3,
+                     socket_timeout=None, max_tries=default_max_tries,
                      retry_wait=default_retry_wait):
 
             # network broadcast address
