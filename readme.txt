@@ -43,11 +43,11 @@ method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b12/gw1000-0.1.0b12.tar.gz
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b13/gw1000-0.1.0b13.tar.gz
 
     -   install the GW1000 driver extension:
 
-        $ wee_extension --install=/var/tmp/gw1000-0.1.0b12.tar.gz
+        $ wee_extension --install=/var/tmp/gw1000-0.1.0b13.tar.gz
             
         Note: Depending on your system/installation the above command may need
               to be prefixed with sudo.
@@ -58,11 +58,11 @@ method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b12/gw1000-0.1.0b12.tar.gz
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b13/gw1000-0.1.0b13.tar.gz
 
     -   extract the contents of the GW1000 driver extension package:
     
-        $ tar -xzf /var/tmp/gw1000-0.1.0b12.tar.gz -C /var/tmp
+        $ tar -xzf /var/tmp/gw1000-0.1.0b13.tar.gz -C /var/tmp
      
     -   copy the file gw1000.py to the $BIN_ROOT/user directory:
     
