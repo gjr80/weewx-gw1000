@@ -2190,15 +2190,11 @@ class Gw1000Collector(Collector):
             'CMD_READ_WEATHERCLOUD': b'\x24',
             'CMD_WRITE_WEATHERCLOUD': b'\x25',
             'CMD_READ_STATION_MAC': b'\x26',
-            'CMD_READ_CUSTOMIZED': b'\x2A',
-            'CMD_WRITE_CUSTOMIZED': b'\x2B',
-            'CMD_WRITE_UPDATE': b'\x43',
-            'CMD_READ_FIRMWARE_VERSION': b'\x50',
-            'CMD_READ_USR_PATH': b'\x51',
-            'CMD_WRITE_USR_PATH': b'\x52',
             'CMD_GW1000_LIVEDATA': b'\x27',
             'CMD_GET_SOILHUMIAD': b'\x28',
             'CMD_SET_SOILHUMIAD': b'\x29',
+            'CMD_READ_CUSTOMIZED': b'\x2A',
+            'CMD_WRITE_CUSTOMIZED': b'\x2B',
             'CMD_GET_MulCH_OFFSET': b'\x2C',
             'CMD_SET_MulCH_OFFSET': b'\x2D',
             'CMD_GET_PM25_OFFSET': b'\x2E',
@@ -2215,7 +2211,13 @@ class Gw1000Collector(Collector):
             'CMD_WRITE_SENSOR_ID': b'\x3B',
             'CMD_READ_SENSOR_ID_NEW': b'\x3C',
             'CMD_WRITE_REBOOT': b'\x40',
-            'CMD_WRITE_RESET': b'\x41'
+            'CMD_WRITE_RESET': b'\x41',
+            'CMD_WRITE_UPDATE': b'\x43',
+            'CMD_READ_FIRMWARE_VERSION': b'\x50',
+            'CMD_READ_USR_PATH': b'\x51',
+            'CMD_WRITE_USR_PATH': b'\x52',
+            'CMD_GET_CO2_OFFSET': b'\x53',
+            'CMD_SET_CO2_OFFSET': b'\x54'
         }
         # header used in each API command and response packet
         header = b'\xff\xff'
@@ -2830,6 +2832,7 @@ class Gw1000Collector(Collector):
             b'\x68': ('decode_temp_batt', 3, 'usertemp6'),
             b'\x69': ('decode_temp_batt', 3, 'usertemp7'),
             b'\x6A': ('decode_temp_batt', 3, 'usertemp8'),
+            b'\x70': ('decode_co2', 3, 'usertemp8')
         }
 
         multi_batt = {'wh40': {'mask': 1 << 4},
@@ -3177,6 +3180,15 @@ class Gw1000Collector(Collector):
                 return {field: value}
             else:
                 return value
+
+        @staticmethod
+        def decode_co2(data, field=None):
+            """Decode CO2.
+
+            ?
+            """
+
+            return None
 
         # alias' for other decodes
         decode_speed = decode_press
