@@ -2035,7 +2035,8 @@ class Gw1000Collector(Collector):
         data_dict['frequency'] = six.indexbytes(data, 0)
         data_dict['sensor_type'] = six.indexbytes(data, 1)
         data_dict['utc'] = self.parser.decode_utc(data[2:6])
-        data_dict['timezone'] = six.indexbytes(data, 6)
+        data_dict['timezone_index'] = six.indexbytes(data, 6)
+        data_dict['dst_status'] = six.indexbytes(data, 7) != 0
         return data_dict
 
     @property
@@ -3495,7 +3496,8 @@ def main():
         freq_decode = {
             0: '433MHz',
             1: '868Mhz',
-            2: '915MHz'
+            2: '915MHz',
+            3: '920MHz'
         }
         # obtain the IP address and port number to use
         ip_address = ip_from_config_opts(opts, stn_dict)
@@ -3539,13 +3541,14 @@ def main():
             # work around this by formatting this offset UTC timestamp as a UTC
             # date-time but then calling it local time. ideally we would
             # re-adjust to remove the timezone offset to get the real
-            # (unadjusted) epoch timestamp but since the timezone is stored as
-            # an arbitrary number rather than an offset in seconds this is not
-            # possible. We can only do what we can.
+            # (unadjusted) epoch timestamp but since the timezone index is
+            # stored as an arbitrary number rather than an offset in seconds
+            # this is not possible. We can only do what we can.
             date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                           time.gmtime(sys_params_dict['utc']))
             print("GW1000 date-time: %s" % date_time_str)
-            print("GW1000 timezone: %s" % (sys_params_dict['timezone'],))
+            print("GW1000 timezone index: %s" % (sys_params_dict['timezone_index'],))
+            print("GW1000 DST status: %s" % (sys_params_dict['dst_status'],))
 
     def rain_data(opts, stn_dict):
         """Display the GW1000 rain data.
