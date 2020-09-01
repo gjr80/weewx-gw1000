@@ -2213,7 +2213,7 @@ class Gw1000Collector(Collector):
             'CMD_WRITE_CALIBRATION': b'\x39',
             'CMD_READ_SENSOR_ID': b'\x3A',
             'CMD_WRITE_SENSOR_ID': b'\x3B',
-            'CMD_WRITE_SENSOR_ID_NEW': b'\x3C',
+            'CMD_READ_SENSOR_ID_NEW': b'\x3C',
             'CMD_WRITE_REBOOT': b'\x40',
             'CMD_WRITE_RESET': b'\x41'
         }
