@@ -1853,8 +1853,7 @@ class Gw1000Collector(Collector):
                  broadcast_port=None, socket_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_th32=False,lost_contact_log_period=0, debug_rain=False,
-                 debug_wind=False):
+                 use_th32=False, debug_rain=False, debug_wind=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -1878,8 +1877,7 @@ class Gw1000Collector(Collector):
                                                broadcast_port=broadcast_port,
                                                socket_timeout=socket_timeout,
                                                max_tries=max_tries,
-                                               retry_wait=retry_wait,
-                                               lost_contact_log_period=lost_contact_log_period)
+                                               retry_wait=retry_wait)
         # Do we have a WH24 attached? First obtain our system parameters.
         _sys_params = self.station.get_system_params()
         # WH24 is indicated by the 6th byte being 0
