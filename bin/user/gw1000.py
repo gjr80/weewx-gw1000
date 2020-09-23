@@ -2125,7 +2125,7 @@ class Gw1000Collector(Collector):
             # terminate the thread
             self.thread.join(10.0)
             # log the outcome
-            if self.thread.isAlive():
+            if self.thread.is_alive():
                 logerr("Unable to shut down Gw1000Collector thread")
             else:
                 loginf("Gw1000Collector thread has been terminated")
