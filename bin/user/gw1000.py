@@ -2221,7 +2221,7 @@ class Gw1000Collector(Collector):
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
                      socket_timeout=None, max_tries=default_max_tries,
-                     retry_wait=default_retry_wait):
+                     retry_wait=default_retry_wait, mac=None):
 
             # network broadcast address
             self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -2283,7 +2283,10 @@ class Gw1000Collector(Collector):
             # start off logging failures
             self.log_failures = True
             # get my GW1000 MAC address to use later if we have to rediscover
-            self.mac = self.get_mac_address()
+            if mac is not None:
+                self.mac = mac
+            else:
+                self.mac = self.get_mac_address()
 
         def discover(self):
             """Discover any GW1000s on the local network.
@@ -2954,9 +2957,9 @@ class Gw1000Collector(Collector):
             # log the actual sensor data as a sequence of bytes in hex
             if weewx.debug >= 3:
                 logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
+            data = {}
             if len(resp) > 0:
                 index = 0
-                data = {}
                 while index < len(resp) - 1:
                     decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
                     _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
@@ -3290,32 +3293,38 @@ class Gw1000Collector(Collector):
 
         @staticmethod
         def binary_desc(value):
-            if value == 0:
-                return "OK"
-            elif value == 1:
-                return "low"
-            else:
-                return None
+            if value is not None:
+                if value == 0:
+                    return "OK"
+                elif value == 1:
+                    return "low"
+                else:
+                    return None
+            return None
 
         @staticmethod
         def voltage_desc(value):
-            if value <= 1.2:
-                return "low"
-            else:
-                return "OK"
+            if value is not None:
+                if value <= 1.2:
+                    return "low"
+                else:
+                    return "OK"
+            return None
 
         @staticmethod
         def level_desc(value):
-            if value <= 1:
-                return "low"
-            elif value == 6:
-                return "DC"
-            else:
-                return "OK"
+            if value is not None:
+                if value <= 1:
+                    return "low"
+                elif value == 6:
+                    return "DC"
+                else:
+                    return "OK"
+            return None
 
 
 # ============================================================================
-#                             Utility functions
+#                             Utility function
 # ============================================================================
 
 def natural_sort_keys(source_dict):
@@ -3370,9 +3379,10 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     format_str = "{:02X}" if caps else "{:02x}"
     try:
         return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AttributeError):
         # ValueError - cannot format c as {:02X}
         # TypeError - 'iterable' is not iterable
+        # AttributeError - likely cause separator is None
         # either way we can't represent as a string of hex bytes
         return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
 
