@@ -2677,6 +2677,18 @@ class Gw1000Collector(Collector):
                     # we get another GW1000IOError exception which will be raised
                     return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
 
+        def get_pm25_offset(self):
+            """Get PM2.5 offset data.
+
+            Sends the command to obtain the PM2.5 sensor offset data to the API
+            with retries. If the GW1000 cannot be contacted a GW1000IOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_pm25_offset(). Any code calling
+            get_pm25_offset() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
+
         def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000 API with retries and return the
             response.
@@ -3812,6 +3824,37 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
+
+    def pm25_offset(opts, stn_dict):
+        """Display the PM2.5 offset data from a GW1000.
+
+        Obtain and display the PM2.5 offset data from the selected GW1000.
+        GW1000 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the driver objects get_pm25_offset() method
+            print()
+            print("GW1000 firmware version string: %s" % (collector.firmware_version,))
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
 
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
