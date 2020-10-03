@@ -28,10 +28,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b13                                 Date: 1 September 2020
+Version: 0.2.0b1                                  Date: 3 October 2020
 
 Revision History
-    ?? ????? 2020      v0.1.0
+    3 October 2020          v0.2.0
+        -   added basic test suite
+        -   sensor signal levels added to loop packet
+    1 September 2020        v0.1.0b13
         - initial release
 
 
@@ -441,7 +444,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b13'
+DRIVER_VERSION = '0.2.0b1'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -653,6 +656,49 @@ class Gw1000(object):
         'wh68_batt': 'wh68_batt',
         'ws80_batt': 'ws80_batt'
     }
+    # sensor signal level default field map, merged into default_field_map to 
+    # give the overall default field map
+    sensor_signal_field_map = {
+        'wh40_sig': 'wh40_sig',
+        'wh26_sig': 'wh26_sig',
+        'wh25_sig': 'wh25_sig',
+        'wh65_sig': 'wh65_sig',
+        'wh31_ch1_sig': 'wh31_ch1_sig',
+        'wh31_ch2_sig': 'wh31_ch2_sig',
+        'wh31_ch3_sig': 'wh31_ch3_sig',
+        'wh31_ch4_sig': 'wh31_ch4_sig',
+        'wh31_ch5_sig': 'wh31_ch5_sig',
+        'wh31_ch6_sig': 'wh31_ch6_sig',
+        'wh31_ch7_sig': 'wh31_ch7_sig',
+        'wh31_ch8_sig': 'wh31_ch8_sig',
+        'wh41_ch1_sig': 'wh41_ch1_sig',
+        'wh41_ch2_sig': 'wh41_ch2_sig',
+        'wh41_ch3_sig': 'wh41_ch3_sig',
+        'wh41_ch4_sig': 'wh41_ch4_sig',
+        'wh51_ch1_sig': 'wh51_ch1_sig',
+        'wh51_ch2_sig': 'wh51_ch2_sig',
+        'wh51_ch3_sig': 'wh51_ch3_sig',
+        'wh51_ch4_sig': 'wh51_ch4_sig',
+        'wh51_ch5_sig': 'wh51_ch5_sig',
+        'wh51_ch6_sig': 'wh51_ch6_sig',
+        'wh51_ch7_sig': 'wh51_ch7_sig',
+        'wh51_ch8_sig': 'wh51_ch8_sig',
+        'wh51_ch9_sig': 'wh51_ch9_sig',
+        'wh51_ch10_sig': 'wh51_ch10_sig',
+        'wh51_ch11_sig': 'wh51_ch11_sig',
+        'wh51_ch12_sig': 'wh51_ch12_sig',
+        'wh51_ch13_sig': 'wh51_ch13_sig',
+        'wh51_ch14_sig': 'wh51_ch14_sig',
+        'wh51_ch15_sig': 'wh51_ch15_sig',
+        'wh51_ch16_sig': 'wh51_ch16_sig',
+        'wh55_ch1_sig': 'wh55_ch1_sig',
+        'wh55_ch2_sig': 'wh55_ch2_sig',
+        'wh55_ch3_sig': 'wh55_ch3_sig',
+        'wh55_ch4_sig': 'wh55_ch4_sig',
+        'wh57_sig': 'wh57_sig',
+        'wh68_sig': 'wh68_sig',
+        'ws80_sig': 'ws80_sig'
+    }
 
     def __init__(self, **gw1000_config):
         """Initialise a GW1000 object."""
@@ -671,6 +717,8 @@ class Gw1000(object):
             field_map.update(Gw1000.wind_field_map)
             # now add in the battery state field map
             field_map.update(Gw1000.battery_field_map)
+            # now add in the sensor signal field map
+            field_map.update(Gw1000.sensor_signal_field_map)
         # If a user wishes to map a GW1000 field differently to that in the
         # default map they can include an entry in field_map_extensions, but if
         # we just update the field map dict with the field map extensions that
@@ -3797,6 +3845,8 @@ def main():
         field_map = dict(Gw1000.default_field_map)
         # now add in the battery state field map
         field_map.update(Gw1000.battery_field_map)
+        # now add in the sensor signal field map
+        field_map.update(Gw1000.sensor_signal_field_map)
         print()
         print("GW1000 driver/service default field map:")
         print("(format is WeeWX field name: GW1000 field name)")
