@@ -1529,6 +1529,123 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         },
         'ws80_batt': {
             'extractor': 'last'
+        },
+        'wh40_sig': {
+            'extractor': 'last'
+        },
+        'wh26_sig': {
+            'extractor': 'last'
+        },
+        'wh25_sig': {
+            'extractor': 'last'
+        },
+        'wh65_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch5_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch6_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch7_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch8_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch5_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch6_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch7_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch8_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch9_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch10_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch11_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch12_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch13_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch14_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch15_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch16_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh57_sig': {
+            'extractor': 'last'
+        },
+        'wh68_sig': {
+            'extractor': 'last'
+        },
+        'ws80_sig': {
+            'extractor': 'last'
         }
     }
 
@@ -1988,9 +2105,11 @@ class Gw1000Collector(Collector):
         """Get sensor data.
 
         Obtain live sensor data from the GW1000 API. Parse the API response.
-        The parsed battery data is then further processed to filter out battery
-        state data for non-existent sensors. The filtered data is returned as a
-        dict. If no data was obtained from the API the value None is returned.
+        The parsed battery data is then further processed to filter battery
+        state data for sensors that are not registered and to include sensor
+        signal level data for registered sensors. The processed data is
+        returned as a dict. If no data was obtained from the API the value None
+        is returned.
         """
 
         # obtain the raw data via the GW1000 API, we may get a GW1000IOError
@@ -2004,17 +2123,55 @@ class Gw1000Collector(Collector):
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
-        # The parsed data will likely have battery data for sensors that do
-        # not exist, filter out the data for non-existent sensors. We may get
-        # a GW1000IOError exception, if we do let it bubble up
-        filtered_data = self.filter_battery_data(parsed_data)
-        # log the filtered parsed data but only if debug>=3
+        # The nature of the GW1000 API means that the parsed live data will
+        # likely contain battery state information for sensors that do not
+        # exist. The parsed live data also does not contain any sensor signal
+        # level data. The GW1000 API does provide details on what sensors are
+        # connected to the GW1000 and their signal levels via the
+        # CMD_READ_SENSOR_ID command. The data received from the
+        # CMD_READ_SENSOR_ID command can be used to filter sensor battery state
+        # fields for sensors that are not registered and to add sensor signal
+        # level fields to the live data.
+        parsed_data = self.process_sensor_id_data(parsed_data)
+        # log the processed parsed data but only if debug>=3
         if weewx.debug >= 3:
-            logdbg("Filtered parsed data: %s" % filtered_data)
-        return filtered_data
+            logdbg("Processed parsed data: %s" % parsed_data)
+        return parsed_data
 
-    def filter_battery_data(self, parsed_data):
-        """Filter out battery data for unused sensors.
+    def process_sensor_id_data(self, parsed_data):
+        """Use sensor ID data to update live sensor data.
+
+        The CMD_READ_SENSOR_ID API command returns address, id, signal and
+        battery state information for sensors registered with the GW1000.
+        Whilst the CMD_GW1000_LIVEDATA API command returns sensor data and
+        sensor battery state data it is not possible to tell from the
+        CMD_GW1000_LIVEDATA response which sensors are in fact registered with
+        the GW1000. The CMD_GW1000_LIVEDATA response does not include sensor
+        signal level data. The CMD_READ_SENSOR_ID data can be used to filter
+        battery state data from the live sensor data for sensors that are not
+        registered with the GW1000. The CMD_READ_SENSOR_ID data can also be
+        used to add sensor signal level data to the live sensor data.
+
+        parsed_data: dict of parsed GW1000 live sensor data
+        """
+
+        # obtain details of the sensors from the GW1000 API, we may get a
+        # GW1000IOError exception, but let it bubble up
+        sensor_list = self.sensor_id_data
+        # If we made it here our response was validated by checksum. Now create
+        # a filtered list of registered sensors, these are the sensors we are
+        # interested in.
+        registered_sensors = [s for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
+        # first filter the battery state fields
+        processed_data = self.filter_battery_data(parsed_data,
+                                                  registered_sensors)
+        # now add any sensor signal levels
+        processed_data.update(self.get_signal_level_data(registered_sensors))
+        # return our processed data
+        return processed_data
+
+    def filter_battery_data(self, data, registered_sensors):
+        """Filter battery data for unused sensors.
 
         The battery status data returned by the GW1000 API does not allow the
         discrimination of all used/unused sensors (it does for some but not for
@@ -2022,22 +2179,15 @@ class Gw1000Collector(Collector):
         to ensure that battery status is only provided for sensors that
         actually exist.
 
-        parsed_data: dict of parsed GW1000 API data
+        data: dict of parsed GW1000 API data
         """
 
-        # obtain details of the sensors from the GW1000 API, we may get a GW1000IOError
-        # exception, but let it bubble up
-        sensor_list = self.sensor_id_data
-        # if we made it here our response was validated by checksum
-        # determine which sensors are registered, these are the sensors for
-        # which we desire battery state information
-        reg_sensors = [s['address'] for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
         # obtain a list of registered sensor names
-        reg_sensor_names = [Gw1000Collector.sensor_ids[a]['name'] for a in reg_sensors]
+        reg_sensor_names = [Gw1000Collector.sensor_ids[a['address']]['name'] for a in registered_sensors]
         # obtain a copy of our parsed data as we are going to alter it
-        filtered = dict(parsed_data)
+        filtered = dict(data)
         # iterate over the parsed data
-        for key, data in six.iteritems(parsed_data):
+        for key, data in six.iteritems(data):
             # obtain the sensor name from any any battery fields
             stripped = key[:-5] if key.endswith('_batt') else key
             # if field is a battery state field, and the field pertains to an
@@ -2047,6 +2197,27 @@ class Gw1000Collector(Collector):
         # return our parsed data with battery state information fo unregistered
         # sensors removed
         return filtered
+
+    def get_signal_level_data(self, registered_sensors):
+        """Add sensor signal level data to a sensor data packet.
+
+        Iterate over the list of registered sensors and obtain a dict of sensor
+        signal level data for each registered sensor.
+
+        registered_sensors: list of dicts of sesnor ID data for each registered
+                            sensor
+        """
+
+        # initialise a dict to hold the sensor signal level data
+        signal_level_data = {}
+        # iterate over our registered sensors
+        for sensor in registered_sensors:
+            # get the sensor name
+            sensor_name = Gw1000Collector.sensor_ids[sensor['address']]['name']
+            # create the sensor signal level field for this sensor
+            signal_level_data[''.join([sensor_name, '_sig'])] = sensor['signal']
+        # return our sensor signal level data
+        return signal_level_data
 
     @property
     def rain_data(self):
