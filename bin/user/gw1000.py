@@ -2240,6 +2240,28 @@ class Gw1000Collector(Collector):
         return data_dict
 
     @property
+    def mulch_offset(self):
+        """Obtain GW1000 multi-channel temperature and humidity offset data."""
+
+        # obtain the mulch offset data via the API
+        response = self.station.get_mulch_offset()
+        # determine the size of the mulch offset data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a counter
+        index = 0
+        # initialise a list to hold our final data
+        offset_dict = {}
+        # iterate over the data
+        while index < len(data):
+            offset_dict[data[index]] = {}
+            offset_dict[data[index]]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
+            offset_dict[data[index]]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
+            index += 3
+        return offset_dict
+
+    @property
     def pm25_offset(self):
         """Obtain GW1000 PM2.5 offset data."""
 
@@ -2697,6 +2719,19 @@ class Gw1000Collector(Collector):
                     # we did rediscover successfully so try again, if it fails
                     # we get another GW1000IOError exception which will be raised
                     return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
+
+        def get_mulch_offset(self):
+            """Get multi-channel temperature and humidity offset data.
+
+            Sends the command to obtain the multi-channel temperature and
+            humidity offset data to the API with retries. If the GW1000 cannot
+            be contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_mulch_offset(). Any code calling get_mulch_offset() should be
+            prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
 
         def get_pm25_offset(self):
             """Get PM2.5 offset data.
@@ -3846,6 +3881,54 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
+    def get_mulch_offset(opts, stn_dict):
+        """Display the multi-channel temperature and humidity offset data from
+        a GW1000.
+
+        Obtain and display the multi-channel temperature and humidity offset
+        data from the selected GW1000. GW1000 IP address and port are derived
+        (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the driver objects get_pm25_offset() method
+            mulch_offset_data = collector.mulch_offset
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any PM2.5 offset data
+            if mulch_offset_data is not None:
+                # now format and display the data
+                print()
+                print("Multi-channel Temperature and Humidity Calibration")
+                # iterate over each channel for which we have data
+                for channel in mulch_offset_data:
+                    # print the channel and offset data
+                    mulch_str = "Channel %d: Temperature offset: %5s Humidity offset: %3s"
+                    print(mulch_str % (channel,
+                                       "%2.1f" % mulch_offset_data[channel]['temp'],
+                                       "%d" % mulch_offset_data[channel]['hum']))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
     def get_pm25_offset(opts, stn_dict):
         """Display the PM2.5 offset data from a GW1000.
 
@@ -3880,6 +3963,7 @@ def main():
             if pm25_offset_data is not None:
                 # now format and display the data
                 print()
+                print("PM2.5 Calibration")
                 # iterate over each channel for which we have data
                 for channel in pm25_offset_data:
                     # print the channel and offset data
@@ -4292,7 +4376,8 @@ def main():
     parser.add_option('--discover', dest='discover', action='store_true',
                       help='discover GW1000 and display its IP address '
                            'and port')
-    parser.add_option('--firmware-version', dest='firmware', action='store_true',
+    parser.add_option('--firmware-version', dest='firmware',
+                      action='store_true',
                       help='display GW1000 firmware version')
     parser.add_option('--mac-address', dest='mac', action='store_true',
                       help='display GW1000 station MAC address')
@@ -4302,15 +4387,21 @@ def main():
                       help='display GW1000 sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
                       help='display GW1000 sensor data')
-    parser.add_option('--rain-data', dest='rain', action='store_true',
+    parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
                       help='display GW1000 rain data')
-    parser.add_option('--pm25-offset', dest='get_pm25_offset', action='store_true',
+    parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
+                      action='store_true',
+                      help='display GW1000 multi-channel temperature and '
+                      'humidity offset data')
+    parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
+                      action='store_true',
                       help='display GW1000 PM2.5 offset data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
                       metavar='TEST_DRIVER', help='test the GW1000 driver')
-    parser.add_option('--test-service', dest='test_service', action='store_true',
+    parser.add_option('--test-service', dest='test_service',
+                      action='store_true',
                       metavar='TEST_SERVICE', help='test the GW1000 service')
     parser.add_option('--ip-address', dest='ip_address',
                       help='GW1000 IP address to use')
@@ -4371,8 +4462,12 @@ def main():
         system_params(opts, stn_dict)
         exit(0)
 
-    if opts.rain:
+    if opts.get_rain:
         get_rain_data(opts, stn_dict)
+        exit(0)
+
+    if opts.get_mulch_offset:
+        get_mulch_offset(opts, stn_dict)
         exit(0)
 
     if opts.get_pm25_offset:
