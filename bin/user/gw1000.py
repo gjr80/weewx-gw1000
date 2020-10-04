@@ -341,6 +341,7 @@ the WeeWX daemon:
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Need to implement debug_wind reporting
 # TODO. Review queue dwell times
+# TODO. Move decoding of any response from GW1000 API to class Parser()
 
 # Python imports
 from __future__ import absolute_import
@@ -2239,6 +2240,26 @@ class Gw1000Collector(Collector):
         return data_dict
 
     @property
+    def pm25_offset(self):
+        """Obtain GW1000 PM2.5 offset data."""
+
+        # obtain the PM2.5 offset data via the API
+        response = self.station.get_pm25_offset()
+        # determine the size of the PM2.5 offset data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a counter
+        index = 0
+        # initialise a list to hold our final data
+        offset_dict = {}
+        # iterate over the data
+        while index < len(data):
+            offset_dict[data[index]] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
+            index += 3
+        return offset_dict
+
+    @property
     def system_parameters(self):
         """Obtain GW1000 system parameters."""
 
@@ -3787,7 +3808,7 @@ def main():
             print("GW1000 date-time: %s" % date_time_str)
             print("GW1000 timezone: %s" % (sys_params_dict['timezone'],))
 
-    def rain_data(opts, stn_dict):
+    def get_rain_data(opts, stn_dict):
         """Display the GW1000 rain data.
 
         Obtain and display the GW1000 rain data. GW1000 IP address and port are
@@ -3809,7 +3830,7 @@ def main():
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
                                                      collector.station.port))
-            # get the collector objects rain_data property
+            # get the collector objects get_rain_data property
             rain_data = collector.rain_data
         except GW1000IOError as e:
             print()
@@ -3825,7 +3846,7 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
-    def pm25_offset(opts, stn_dict):
+    def get_pm25_offset(opts, stn_dict):
         """Display the PM2.5 offset data from a GW1000.
 
         Obtain and display the PM2.5 offset data from the selected GW1000.
@@ -3847,14 +3868,25 @@ def main():
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
                                                      collector.station.port))
             # call the driver objects get_pm25_offset() method
-            print()
-            print("GW1000 firmware version string: %s" % (collector.firmware_version,))
+            pm25_offset_data = collector.pm25_offset
         except GW1000IOError as e:
             print()
             print("Unable to connect to GW1000: %s" % e)
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any PM2.5 offset data
+            if pm25_offset_data is not None:
+                # now format and display the data
+                print()
+                # iterate over each channel for which we have data
+                for channel in pm25_offset_data:
+                    # print the channel and offset data
+                    print("Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
+            else:
+                print()
+                print("GW1000 did not respond.")
 
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
@@ -4238,7 +4270,11 @@ def main():
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
-       python -m user.gw1000 --rain-data
+       python -m user.gw1000 --get-rain-data
+            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [--ip-address=IP_ADDRESS] [--port=PORT]
+            [--debug=0|1|2|3]     
+       python -m user.gw1000 --get-pm25-offset
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
@@ -4268,6 +4304,8 @@ def main():
                       help='display GW1000 sensor data')
     parser.add_option('--rain-data', dest='rain', action='store_true',
                       help='display GW1000 rain data')
+    parser.add_option('--pm25-offset', dest='get_pm25_offset', action='store_true',
+                      help='display GW1000 PM2.5 offset data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
@@ -4334,7 +4372,11 @@ def main():
         exit(0)
 
     if opts.rain:
-        rain_data(opts, stn_dict)
+        get_rain_data(opts, stn_dict)
+        exit(0)
+
+    if opts.get_pm25_offset:
+        get_pm25_offset(opts, stn_dict)
         exit(0)
 
     if opts.mac:
