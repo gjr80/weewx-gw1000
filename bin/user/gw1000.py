@@ -2339,6 +2339,51 @@ class Gw1000Collector(Collector):
         return calibration_dict
 
     @property
+    def soil_calibration(self):
+        """Obtain GW1000 soil moisture sensor calibration data.
+
+        """
+
+        # obtain the soil moisture calibration data via the API
+        response = self.station.get_soil_calibration()
+        # determine the size of the calibration data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        calibration_dict = {}
+        # initialise a counter
+        index = 0
+        # initialise a dict to hold our final data
+        calibration_dict = {}
+        # iterate over the data
+        while index < len(data):
+            try:
+                channel = six.byte2int(data[index])
+            except TypeError:
+                channel = data[index]
+            calibration_dict[channel] = {}
+            try:
+                humidity = six.byte2int(data[index + 1])
+            except TypeError:
+                humidity = data[index + 1]
+            calibration_dict[channel]['humidity'] = humidity
+            calibration_dict[channel]['ad'] = struct.unpack(">h", data[index+2:index+4])[0]
+            try:
+                ad_select = six.byte2int(data[index + 4])
+            except TypeError:
+                ad_select = data[index + 4]
+            calibration_dict[channel]['ad_select'] = ad_select
+            try:
+                min_ad = six.byte2int(data[index + 5])
+            except TypeError:
+                min_ad = data[index + 5]
+            calibration_dict[channel]['adj_min'] = min_ad
+            calibration_dict[channel]['adj_max'] = struct.unpack(">h", data[index+6:index+8])[0]
+            index += 8
+        return calibration_dict
+
+    @property
     def system_parameters(self):
         """Obtain GW1000 system parameters."""
 
@@ -2814,6 +2859,19 @@ class Gw1000Collector(Collector):
             """
 
             return self.send_cmd_with_retries('CMD_READ_GAIN')
+
+        def get_soil_calibration(self):
+            """Get soil moisture sensor calibration data.
+
+            Sends the command to obtain the soil moisture sensor calibration
+            data to the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_soil_calibration(). Any code
+            calling get_soil_calibration() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
 
         def get_offset_calibration(self):
             """Get offset calibration data.
@@ -4108,6 +4166,58 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
+    def get_soil_calibration(opts, stn_dict):
+        """Display the soil moisture sensor calibration data from a GW1000.
+
+        Obtain and display the soil moisture sensor calibration data from the
+        selected GW1000. GW1000 IP address and port are derived (in order) as
+        follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the calibration data from the collector object's
+            # soil_calibration property
+            calibration_data = collector.soil_calibration
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any calibration data
+            if calibration_data is not None:
+                # now format and display the data
+                print()
+                print("Calibration")
+                print("%26s: %4.1f" % ("Solar radiation gain", calibration_data['solar']))
+                print("%26s: %4.1f" % ("UV gain", calibration_data['uv']))
+                print("%26s: %4.1f" % ("Wind gain", calibration_data['wind']))
+                print("%26s: %4.1f" % ("Rain gain", calibration_data['rain']))
+                print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['intemp'], u'\xb0'))
+                print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['inhum']))
+                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
+                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
+                print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['outtemp'], u'\xb0'))
+                print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['outhum']))
+                print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
 
@@ -4506,6 +4616,10 @@ def main():
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
+       python -m user.gw1000 --get-soil-calibration
+            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [--ip-address=IP_ADDRESS] [--port=PORT]
+            [--debug=0|1|2|3]     
        python -m user.gw1000 --discover
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--debug=0|1|2|3]"""
@@ -4543,6 +4657,9 @@ def main():
     parser.add_option('--get-calibration', dest='get_calibration',
                       action='store_true',
                       help='display GW1000 calibration data')
+    parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
+                      action='store_true',
+                      help='display GW1000 soil moisture calibration data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
@@ -4623,6 +4740,10 @@ def main():
 
     if opts.get_calibration:
         get_calibration(opts, stn_dict)
+        exit(0)
+
+    if opts.get_soil_calibration:
+        get_soil_calibration(opts, stn_dict)
         exit(0)
 
     if opts.mac:
