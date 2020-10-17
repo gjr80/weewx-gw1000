@@ -4201,19 +4201,21 @@ def main():
             # did we get any calibration data
             if calibration_data is not None:
                 # now format and display the data
+                # first get a list of channels for which we have data, since
+                # this is the keys to a dict we need to sort them
+                channels = sorted(calibration_data.keys())
                 print()
-                print("Calibration")
-                print("%26s: %4.1f" % ("Solar radiation gain", calibration_data['solar']))
-                print("%26s: %4.1f" % ("UV gain", calibration_data['uv']))
-                print("%26s: %4.1f" % ("Wind gain", calibration_data['wind']))
-                print("%26s: %4.1f" % ("Rain gain", calibration_data['rain']))
-                print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['intemp'], u'\xb0'))
-                print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['inhum']))
-                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
-                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
-                print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['outtemp'], u'\xb0'))
-                print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['outhum']))
-                print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
+                print("Soil Calibration")
+                # iterate over each channel printing the channel data
+                for channel in channels:
+                    channel_dict = calibration_data[channel]
+                    # the API returns channels starting at 0, but the WS View
+                    # app displays channels starting at 1, so add 1 to our
+                    # channel number
+                    print("Channel %d (%d%%)" % (channel+1, channel_dict['humidity']))
+                    print("%12s: %d" % ("Now AD", channel_dict['ad']))
+                    print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
+                    print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
             else:
                 print()
                 print("GW1000 did not respond.")
