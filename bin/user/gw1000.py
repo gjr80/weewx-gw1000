@@ -28,12 +28,23 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.2.0b1                                  Date: 3 October 2020
+Version: 0.2.0b1                                  Date: 19 October 2020
 
 Revision History
-    3 October 2020          v0.2.0
+    19 October 2020          v0.2.0
         -   added basic test suite
         -   sensor signal levels added to loop packet
+        -   added --get-services command line option to display GW1000
+            supported weather services settings
+        -   added --get-pm25-offset command line option to display GW1000 PM2.5
+            sensor offset settings
+        -   added --get-mulch-offset command line option to display GW1000
+            multi-channel TH sensor calibration settings
+        -   added --get-soil-calibration command line option to display GW1000
+            soil moisture sensor calibration settings
+        -   added --get-calibration command line option to display GW1000
+            sensor calibration settings
+        -   renamed --rain-data command line option to --get-rain-data
     1 September 2020        v0.1.0b13
         - initial release
 
