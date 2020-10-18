@@ -2014,6 +2014,23 @@ class Gw1000Collector(Collector):
     }
     # tuple of values for sensors that are not registered with the GW1000
     not_registered = ('fffffffe', 'ffffffff')
+    # list of dicts of weather services that I know about
+    services = [{'name': 'ecowitt_net',
+                 'long_name': 'Ecowitt.net'
+                 },
+                {'name': 'wunderground',
+                 'long_name': 'Wunderground'
+                 },
+                {'name': 'weathercloud',
+                 'long_name': 'Weathercloud'
+                 },
+                {'name': 'wow',
+                 'long_name': 'Weather Observations Website'
+                 },
+                {'name': 'custom',
+                 'long_name': 'Customized'
+                 }
+                ]
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
                  broadcast_port=None, socket_timeout=None,
@@ -2402,6 +2419,175 @@ class Gw1000Collector(Collector):
         return data_dict
 
     @property
+    def ecowitt_net(self):
+        """Obtain GW1000 Ecowitt.net service parameters.
+
+        Obtain the GW1000 Ecowitt.net service settings.
+
+        Returns a dictionary of settings.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_ecowitt_net_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        data_dict['interval'] = six.indexbytes(data, 0)
+        # obtain the GW1000 MAC address
+        data_dict['mac'] = self.mac_address
+        return data_dict
+
+    @property
+    def wunderground(self):
+        """Obtain GW1000 Weather Underground service parameters.
+
+        Obtain the GW1000 Weather Underground service settings.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_wunderground_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # return data
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        id_size = six.indexbytes(data, 0)
+        data_dict['id'] = data[1:1+id_size].decode()
+        password_size = six.indexbytes(data, 1+id_size)
+        data_dict['password'] = data[2+id_size:2+id_size+password_size].decode()
+        return data_dict
+
+    @property
+    def weathercloud(self):
+        """Obtain GW1000 Weathercloud service parameters.
+
+        Obtain the GW1000 Weathercloud service settings.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_weathercloud_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        id_size = six.indexbytes(data, 0)
+        data_dict['id'] = data[1:1+id_size].decode()
+        key_size = six.indexbytes(data, 1+id_size)
+        data_dict['key'] = data[2+id_size:2+id_size+key_size].decode()
+        return data_dict
+
+    @property
+    def wow(self):
+        """Obtain GW1000 Weather Observations Website service parameters.
+
+        Obtain the GW1000 Weather Observations Website service settings.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_wow_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        id_size = six.indexbytes(data, 0)
+        data_dict['id'] = data[1:1+id_size].decode()
+        password_size = six.indexbytes(data, 1+id_size)
+        data_dict['password'] = data[2+id_size:2+id_size+password_size].decode()
+        station_num_size = six.indexbytes(data, 1+id_size)
+        data_dict['station_num'] = data[3+id_size+password_size:3+id_size+password_size+station_num_size].decode()
+        return data_dict
+
+    @property
+    def custom(self):
+        """Obtain GW1000 custom server parameters.
+
+        Obtain the GW1000 settings used for uploading data to a remote server.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_custom_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        index = 0
+        id_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['id'] = data[index:index+id_size].decode()
+        index += id_size
+        password_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['password'] = data[index:index+password_size].decode()
+        index += password_size
+        server_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['server'] = data[index:index+server_size].decode()
+        index += server_size
+        data_dict['port'] = struct.unpack(">h", data[index:index + 2])[0]
+        index += 2
+        data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
+        index += 2
+        data_dict['type'] = six.indexbytes(data, index)
+        index += 1
+        data_dict['active'] = six.indexbytes(data, index)
+        # the user path is obtained separately, get the user path and add it to
+        # our response
+        data_dict.update(self.usr_path)
+        return data_dict
+
+    @property
+    def usr_path(self):
+        """Obtain the GW1000 user defined custom paths.
+
+        The GW1000 allows definition of remote server customs paths for use
+        when uploading to a custom service using Ecowitt or Weather Underground
+        format. Different paths may be specified for each protocol.
+
+        Returns a dictionary with each path as a unicode text string.
+        """
+
+        # return the GW1000 user defined custom path
+        response = self.station.get_usr_path()
+        # determine the size of the user path data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        index = 0
+        ecowitt_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['ecowitt_path'] = data[index:index+ecowitt_size].decode()
+        index += ecowitt_size
+        wu_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['wu_path'] = data[index:index+wu_size].decode()
+        return data_dict
+
+    @property
     def mac_address(self):
         """Obtain the MAC address of the GW1000.
 
@@ -2770,6 +2956,84 @@ class Gw1000Collector(Collector):
             """
 
             return self.send_cmd_with_retries('CMD_READ_SSSS')
+
+        def get_ecowitt_net_params(self):
+            """Get GW1000 Ecowitt.net parameters.
+
+            Sends the command to obtain the GW1000 Ecowitt.net parameters to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_ecowitt_net_params(). Any code
+            calling get_ecowitt_net_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_ECOWITT')
+
+        def get_wunderground_params(self):
+            """Get GW1000 Weather Underground parameters.
+
+            Sends the command to obtain the GW1000 Weather Underground
+            parameters to the API with retries. If the GW1000 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_wunderground_params(). Any code calling
+            get_wunderground_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
+
+        def get_weathercloud_params(self):
+            """Get GW1000 Weathercloud parameters.
+
+            Sends the command to obtain the GW1000 Weathercloud parameters to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_weathercloud_params(). Any code
+            calling get_weathercloud_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
+
+        def get_wow_params(self):
+            """Get GW1000 Weather Observations Website parameters.
+
+            Sends the command to obtain the GW1000 Weather Observations Website
+            parameters to the API with retries. If the GW1000 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_wow_params(). Any code calling get_wow_params() should be
+            prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_WOW')
+
+        def get_custom_params(self):
+            """Get GW1000 custom server parameters.
+
+            Sends the command to obtain the GW1000 custom server parameters to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_custom_params(). Any code
+            calling get_custom_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
+
+        def get_usr_path(self):
+            """Get GW1000 user defined custom path.
+
+            Sends the command to obtain the GW1000 user defined custom path to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_usr_path(). Any code calling
+            get_usr_path() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_USR_PATH')
 
         def get_mac_address(self):
             """Get GW1000 MAC address.
@@ -3815,6 +4079,34 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
         return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
 
 
+def obfuscate(plain, obf_char='*'):
+    """Obfuscate all but the last x characters in a string.
+
+    Obfuscate all but (at most) the last four characters of a string. Always
+    reveal no more than 50% of the characters. The obfuscation character
+    defaults to '*' but can be set when the function is called.
+    """
+
+    if plain is not None and len(plain) > 0:
+        # obtain the number of the characters to be retained
+        stem = 4
+        stem = 3 if len(plain) < 8 else stem
+        stem = 2 if len(plain) < 6 else stem
+        stem = 1 if len(plain) < 4 else stem
+        stem = 0 if len(plain) < 3 else stem
+        if stem > 0:
+            # we are retaining some characters so do a little string
+            # manipulation
+            obfuscated = obf_char * (len(plain) - stem) + plain[-stem:]
+        else:
+            # we are obfuscating everything
+            obfuscated = obf_char * len(plain)
+        return obfuscated
+    else:
+        # if we received None or a zero length string then return it
+        return plain
+
+
 # To use this driver in standalone mode for testing or development, use one of
 # the following commands (depending on your WeeWX install). For setup.py
 # installs use:
@@ -4223,6 +4515,158 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
+    def get_services(opts, stn_dict):
+        """Display the GW1000 Weather Services settings.
+
+        Obtain and display the settings for the various weather services
+        supported by the GW1000. GW1000 IP address and port are derived (in
+        order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # each weather service uses different parameters so define individual
+        # functions to print each services settings
+
+        def print_ecowitt_net(data_dict=None):
+            """Print Ecowitt.net settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # upload interval, 0 means disabled
+                if data_dict['interval'] == 0:
+                    print("%22s: %s" % ("Upload Interval",
+                                        "Upload to Ecowitt.net is disabled"))
+                elif data_dict['interval'] > 1:
+                    print("%22s: %d minutes" % ("Upload Interval",
+                                                data_dict['interval']))
+                else:
+                    print("%22s: %d minute" % ("Upload Interval",
+                                               data_dict['interval']))
+                # GW1000 MAC
+                print("%22s: %s" % ("MAC", data_dict['mac']))
+
+        def print_wunderground(data_dict=None):
+            """Print Weather Underground settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Station ID
+                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Station ID", id))
+                # Station key
+                key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                print("%22s: %s" % ("Station Key", key))
+
+        def print_weathercloud(data_dict=None):
+            """Print Weathercloud settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Weathercloud ID
+                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Weathercloud ID", id))
+                # Weathercloud key
+                key = data_dict['key'] if opts.unmask else obfuscate(data_dict['key'])
+                print("%22s: %s" % ("Weathercloud Key", key))
+
+        def print_wow(data_dict=None):
+            """Print Weather Observations Website settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Station ID
+                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Station ID", id))
+                # Station key
+                key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                print("%22s: %s" % ("Station Key", key))
+
+        def print_custom(data_dict=None):
+            """Print Custom server settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Is upload enabled, API specifies 1=enabled and 0=disabled, if
+                # we have anything else use 'Unknown'
+                if data_dict['active'] == 1:
+                    print("%22s: %s" % ("Upload", "Enabled"))
+                elif data_dict['active'] == 0:
+                    print("%22s: %s" % ("Upload", "Disabled"))
+                else:
+                    print("%22s: %s" % ("Upload", "Unknown"))
+                # upload protocol, API specifies 1=wundeground and 0=ecowitt,
+                # if we have anything else use 'Unknown'
+                if data_dict['type'] == 0:
+                    print("%22s: %s" % ("Upload Protocol", "Ecowitt"))
+                elif data_dict['type'] == 1:
+                    print("%22s: %s" % ("Upload Protocol", "Wunderground"))
+                else:
+                    print("%22s: %s" % ("Upload Protocol", "Unknown"))
+                # remote server IP address
+                print("%22s: %s" % ("Server IP/Hostname", data_dict['server']))
+                # remote server path, if using wunderground protocol we have
+                # Station ID and Station key as well
+                if data_dict['type'] == 0:
+                    print("%22s: %s" % ("Path", data_dict['ecowitt_path']))
+                elif data_dict['type'] == 1:
+                    print("%22s: %s" % ("Path", data_dict['wu_path']))
+                    id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                    print("%22s: %s" % ("Station ID", id))
+                    key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                    print("%22s: %s" % ("Station Key", key))
+                # port
+                print("%22s: %d" % ("Port", data_dict['port']))
+                # upload interval in seconds
+                print("%22s: %d seconds" % ("Upload Interval", data_dict['interval']))
+
+        # look table of functions to use to print weather service settings
+        print_fns = {'ecowitt_net': print_ecowitt_net,
+                     'wunderground': print_wunderground,
+                     'weathercloud': print_weathercloud,
+                     'wow': print_wow,
+                     'custom': print_custom}
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a GW1000 Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the settings for each service know to the GW1000, store them
+            # in a dict keyed by the service name
+            services_data = dict()
+            for service in collector.services:
+                services_data[service['name']] = getattr(collector, service['name'])
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any service data
+            if len(services_data) > 0:
+                # now format and display the data
+                print()
+                print("Weather Services")
+                # iterate over the weather services we know about and call the
+                # relevant function to print the services settings
+                for service in collector.services:
+                    print()
+                    print("  %s" % (service['long_name'],))
+                    print_fns[service['name']](services_data[service['name']])
+            else:
+                print()
+                print("GW1000 did not respond.")
+
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
 
@@ -4571,27 +5015,12 @@ def main():
 
     usage = """Usage: python -m user.gw1000 --help
        python -m user.gw1000 --version
-       python -m user.gw1000 --test-driver
+       python -m user.gw1000 --test-driver|--test-service
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--poll-interval=INTERVAL]
             [--max-tries=MAX_TRIES]
             [--retry-wait=RETRY_WAIT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --test-service
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--poll-interval=INTERVAL]
-            [--max-tries=MAX_TRIES]
-            [--retry-wait=RETRY_WAIT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --firmware-version
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --mac-address
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --sensors
             [CONFIG_FILE|--config=CONFIG_FILE]
@@ -4601,30 +5030,20 @@ def main():
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
-       python -m user.gw1000 --system-params
+       python -m user.gw1000 --firmware-version|--mac-address|
+            --system-params|--get-rain-data
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
-       python -m user.gw1000 --get-rain-data
+       python -m user.gw1000 --get-mulch-offset|--get-pm25-offset|
+            --get-calibration|--get-soil-calibration
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
-       python -m user.gw1000 --get-mulch-offset
+       python -m user.gw1000 --get-services
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --get-pm25-offset
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --get-calibration
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --get-soil-calibration
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
+            [--unmask] [--debug=0|1|2|3]     
        python -m user.gw1000 --discover
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--debug=0|1|2|3]"""
@@ -4665,6 +5084,9 @@ def main():
     parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
                       action='store_true',
                       help='display GW1000 soil moisture calibration data')
+    parser.add_option('--get-services', dest='get_services',
+                      action='store_true',
+                      help='display GW1000 weather services configuration data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
@@ -4682,6 +5104,8 @@ def main():
                       help='GW1000 port to use')
     parser.add_option('--retry-wait', dest='retry_wait', type=int,
                       help='GW1000 port to use')
+    parser.add_option('--unmask', dest='unmask', action='store_true',
+                      help='unmask sensitive settings')
     (opts, args) = parser.parse_args()
 
     # display driver version number
@@ -4749,6 +5173,10 @@ def main():
 
     if opts.get_soil_calibration:
         get_soil_calibration(opts, stn_dict)
+        exit(0)
+
+    if opts.get_services:
+        get_services(opts, stn_dict)
         exit(0)
 
     if opts.mac:
