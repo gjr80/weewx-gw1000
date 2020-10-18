@@ -4064,7 +4064,10 @@ def main():
                 for channel in mulch_offset_data:
                     # print the channel and offset data
                     mulch_str = "Channel %d: Temperature offset: %5s Humidity offset: %3s"
-                    print(mulch_str % (channel,
+                    # the API returns channels starting at 0, but the WS View
+                    # app displays channels starting at 1, so add 1 to our
+                    # channel number
+                    print(mulch_str % (channel+1,
                                        "%2.1f" % mulch_offset_data[channel]['temp'],
                                        "%d" % mulch_offset_data[channel]['hum']))
             else:
