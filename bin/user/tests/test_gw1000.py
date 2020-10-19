@@ -190,6 +190,7 @@ class UtilitiesTestCase(unittest.TestCase):
         # test natural_sort_dict()
         self.assertEqual(user.gw1000.natural_sort_dict(self.unsorted_dict),
                          self.sorted_dict_str)
+
         # test bytes_to_hex()
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2')),
                          'FF 00 66 B2')
@@ -209,6 +210,21 @@ class UtilitiesTestCase(unittest.TestCase):
         # AttributeError
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2'), separator=None),
                          self.bytes_to_hex_fail_str % hex_to_bytes('ff0066b2'))
+
+        # test obfuscate
+        # > 8 character string, should see trailing 4 characters
+        self.assertEqual(user.gw1000.obfuscate('1234567890'), '******7890')
+        # 7 character string, should see trailing 3 characters
+        self.assertEqual(user.gw1000.obfuscate('1234567'), '****567')
+        # 5 character string, should see trailing 2 characters
+        self.assertEqual(user.gw1000.obfuscate('12345'), '***45')
+        # 3 character string, should see last character
+        self.assertEqual(user.gw1000.obfuscate('123'), '**3')
+        # 2 character string, should see no characters
+        self.assertEqual(user.gw1000.obfuscate('12'), '**')
+        # check obfuscation character
+        self.assertEqual(user.gw1000.obfuscate('1234567890', obf_char='#'),
+                         '######7890')
 
 
 class StationTestCase(unittest.TestCase):
