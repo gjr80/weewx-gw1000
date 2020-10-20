@@ -3433,109 +3433,6 @@ class Gw1000Collector(Collector):
     class Parser(object):
         """Class to parse GW1000 sensor data."""
 
-        # Dictionary keyed by GW1000 response element containing various
-        # parameters for each response 'field'. Dictionary tuple format
-        # is (decode function name, size of data in bytes, GW1000 field name)
-        response_struct = {
-            b'\x01': ('decode_temp', 2, 'intemp'),
-            b'\x02': ('decode_temp', 2, 'outtemp'),
-            b'\x03': ('decode_temp', 2, 'dewpoint'),
-            b'\x04': ('decode_temp', 2, 'windchill'),
-            b'\x05': ('decode_temp', 2, 'heatindex'),
-            b'\x06': ('decode_humid', 1, 'inhumid'),
-            b'\x07': ('decode_humid', 1, 'outhumid'),
-            b'\x08': ('decode_press', 2, 'absbarometer'),
-            b'\x09': ('decode_press', 2, 'relbarometer'),
-            b'\x0A': ('decode_dir', 2, 'winddir'),
-            b'\x0B': ('decode_speed', 2, 'windspeed'),
-            b'\x0C': ('decode_speed', 2, 'gustspeed'),
-            b'\x0D': ('decode_rain', 2, 'rainevent'),
-            b'\x0E': ('decode_rainrate', 2, 'rainrate'),
-            b'\x0F': ('decode_rain', 2, 'rainhour'),
-            b'\x10': ('decode_rain', 2, 'rainday'),
-            b'\x11': ('decode_rain', 2, 'rainweek'),
-            b'\x12': ('decode_big_rain', 4, 'rainmonth'),
-            b'\x13': ('decode_big_rain', 4, 'rainyear'),
-            b'\x14': ('decode_big_rain', 4, 'raintotals'),
-            b'\x15': ('decode_light', 4, 'light'),
-            b'\x16': ('decode_uv', 2, 'uv'),
-            b'\x17': ('decode_uvi', 1, 'uvi'),
-            b'\x18': ('decode_datetime', 6, 'datetime'),
-            b'\x19': ('decode_speed', 2, 'daymaxwind'),
-            b'\x1A': ('decode_temp', 2, 'temp1'),
-            b'\x1B': ('decode_temp', 2, 'temp2'),
-            b'\x1C': ('decode_temp', 2, 'temp3'),
-            b'\x1D': ('decode_temp', 2, 'temp4'),
-            b'\x1E': ('decode_temp', 2, 'temp5'),
-            b'\x1F': ('decode_temp', 2, 'temp6'),
-            b'\x20': ('decode_temp', 2, 'temp7'),
-            b'\x21': ('decode_temp', 2, 'temp8'),
-            b'\x22': ('decode_humid', 1, 'humid1'),
-            b'\x23': ('decode_humid', 1, 'humid2'),
-            b'\x24': ('decode_humid', 1, 'humid3'),
-            b'\x25': ('decode_humid', 1, 'humid4'),
-            b'\x26': ('decode_humid', 1, 'humid5'),
-            b'\x27': ('decode_humid', 1, 'humid6'),
-            b'\x28': ('decode_humid', 1, 'humid7'),
-            b'\x29': ('decode_humid', 1, 'humid8'),
-            b'\x2A': ('decode_aq', 2, 'pm251'),
-            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
-            b'\x2C': ('decode_moist', 1, 'soilmoist1'),
-            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
-            b'\x2E': ('decode_moist', 1, 'soilmoist2'),
-            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
-            b'\x30': ('decode_moist', 1, 'soilmoist3'),
-            b'\x31': ('decode_temp', 2, 'soiltemp4'),
-            b'\x32': ('decode_moist', 1, 'soilmoist4'),
-            b'\x33': ('decode_temp', 2, 'soiltemp5'),
-            b'\x34': ('decode_moist', 1, 'soilmoist5'),
-            b'\x35': ('decode_temp', 2, 'soiltemp6'),
-            b'\x36': ('decode_moist', 1, 'soilmoist6'),
-            b'\x37': ('decode_temp', 2, 'soiltemp7'),
-            b'\x38': ('decode_moist', 1, 'soilmoist7'),
-            b'\x39': ('decode_temp', 2, 'soiltemp8'),
-            b'\x3A': ('decode_moist', 1, 'soilmoist8'),
-            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
-            b'\x3C': ('decode_moist', 1, 'soilmoist9'),
-            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
-            b'\x3E': ('decode_moist', 1, 'soilmoist10'),
-            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
-            b'\x40': ('decode_moist', 1, 'soilmoist11'),
-            b'\x41': ('decode_temp', 2, 'soiltemp12'),
-            b'\x42': ('decode_moist', 1, 'soilmoist12'),
-            b'\x43': ('decode_temp', 2, 'soiltemp13'),
-            b'\x44': ('decode_moist', 1, 'soilmoist13'),
-            b'\x45': ('decode_temp', 2, 'soiltemp14'),
-            b'\x46': ('decode_moist', 1, 'soilmoist14'),
-            b'\x47': ('decode_temp', 2, 'soiltemp15'),
-            b'\x48': ('decode_moist', 1, 'soilmoist15'),
-            b'\x49': ('decode_temp', 2, 'soiltemp16'),
-            b'\x4A': ('decode_moist', 1, 'soilmoist16'),
-            b'\x4C': ('decode_batt', 16, 'lowbatt'),
-            b'\x4D': ('decode_aq', 2, 'pm251_24hav'),
-            b'\x4E': ('decode_aq', 2, 'pm252_24hav'),
-            b'\x4F': ('decode_aq', 2, 'pm253_24hav'),
-            b'\x50': ('decode_aq', 2, 'pm254_24hav'),
-            b'\x51': ('decode_aq', 2, 'pm252'),
-            b'\x52': ('decode_aq', 2, 'pm253'),
-            b'\x53': ('decode_aq', 2, 'pm254'),
-            b'\x58': ('decode_leak', 1, 'leak1'),
-            b'\x59': ('decode_leak', 1, 'leak2'),
-            b'\x5A': ('decode_leak', 1, 'leak3'),
-            b'\x5B': ('decode_leak', 1, 'leak4'),
-            b'\x60': ('decode_distance', 1, 'lightningdist'),
-            b'\x61': ('decode_utc', 4, 'lightningdettime'),
-            b'\x62': ('decode_count', 4, 'lightningcount'),
-            b'\x63': ('decode_temp_batt', 3, 'usertemp1'),
-            b'\x64': ('decode_temp_batt', 3, 'usertemp2'),
-            b'\x65': ('decode_temp_batt', 3, 'usertemp3'),
-            b'\x66': ('decode_temp_batt', 3, 'usertemp4'),
-            b'\x67': ('decode_temp_batt', 3, 'usertemp5'),
-            b'\x68': ('decode_temp_batt', 3, 'usertemp6'),
-            b'\x69': ('decode_temp_batt', 3, 'usertemp7'),
-            b'\x6A': ('decode_temp_batt', 3, 'usertemp8'),
-        }
-
         multi_batt = {'wh40': {'mask': 1 << 4},
                       'wh26': {'mask': 1 << 5},
                       'wh25': {'mask': 1 << 6},
@@ -3608,6 +3505,154 @@ class Gw1000Collector(Collector):
                               'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
+        # WH34 fields
+        wh34_ch1_fields = {'wh34_ch1_temp': ('decode_temp', 2),
+                           'wh34_ch1_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch2_fields = {'wh34_ch2_temp': ('decode_temp', 2),
+                           'wh34_ch2_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch3_fields = {'wh34_ch3_temp': ('decode_temp', 2),
+                           'wh34_ch3_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch4_fields = {'wh34_ch4_temp': ('decode_temp', 2),
+                           'wh34_ch4_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch5_fields = {'wh34_ch5_temp': ('decode_temp', 2),
+                           'wh34_ch5_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch6_fields = {'wh34_ch6_temp': ('decode_temp', 2),
+                           'wh34_ch6_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch7_fields = {'wh34_ch7_temp': ('decode_temp', 2),
+                           'wh34_ch7_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch8_fields = {'wh34_ch8_temp': ('decode_temp', 2),
+                           'wh34_ch8_batt': ('battery_voltage', 1)
+                      }
+        # CO2 sensor 'gw1000' fields
+        wh45_fields = {'co2_temp': ('decode_temp', 2),
+                      'co2_humid': ('decode_humid', 1),
+                      'co2_pm10': ('decode_pm10', 2),
+                      'co2_pm10_24hav': ('decode_pm10', 2),
+                      'co2_pm25': ('decode_pm25', 2),
+                      'co2_pm25_24hav': ('decode_pm25', 2),
+                      'co2': ('decode_co2', 2),
+                      'co2_24hav': ('decode_co2', 2),
+                      'co2_batt': ('battery_value', 1)
+                       }
+
+        # Dictionary keyed by GW1000 response element containing various
+        # parameters for each response 'field'. Dictionary tuple format
+        # is (decode function name, size of data in bytes, GW1000 field name)
+        response_struct = {
+            b'\x01': ('decode_temp', 2, 'intemp'),
+            b'\x02': ('decode_temp', 2, 'outtemp'),
+            b'\x03': ('decode_temp', 2, 'dewpoint'),
+            b'\x04': ('decode_temp', 2, 'windchill'),
+            b'\x05': ('decode_temp', 2, 'heatindex'),
+            b'\x06': ('decode_humid', 1, 'inhumid'),
+            b'\x07': ('decode_humid', 1, 'outhumid'),
+            b'\x08': ('decode_press', 2, 'absbarometer'),
+            b'\x09': ('decode_press', 2, 'relbarometer'),
+            b'\x0A': ('decode_dir', 2, 'winddir'),
+            b'\x0B': ('decode_speed', 2, 'windspeed'),
+            b'\x0C': ('decode_speed', 2, 'gustspeed'),
+            b'\x0D': ('decode_rain', 2, 'rainevent'),
+            b'\x0E': ('decode_rainrate', 2, 'rainrate'),
+            b'\x0F': ('decode_rain', 2, 'rainhour'),
+            b'\x10': ('decode_rain', 2, 'rainday'),
+            b'\x11': ('decode_rain', 2, 'rainweek'),
+            b'\x12': ('decode_big_rain', 4, 'rainmonth'),
+            b'\x13': ('decode_big_rain', 4, 'rainyear'),
+            b'\x14': ('decode_big_rain', 4, 'raintotals'),
+            b'\x15': ('decode_light', 4, 'light'),
+            b'\x16': ('decode_uv', 2, 'uv'),
+            b'\x17': ('decode_uvi', 1, 'uvi'),
+            b'\x18': ('decode_datetime', 6, 'datetime'),
+            b'\x19': ('decode_speed', 2, 'daymaxwind'),
+            b'\x1A': ('decode_temp', 2, 'temp1'),
+            b'\x1B': ('decode_temp', 2, 'temp2'),
+            b'\x1C': ('decode_temp', 2, 'temp3'),
+            b'\x1D': ('decode_temp', 2, 'temp4'),
+            b'\x1E': ('decode_temp', 2, 'temp5'),
+            b'\x1F': ('decode_temp', 2, 'temp6'),
+            b'\x20': ('decode_temp', 2, 'temp7'),
+            b'\x21': ('decode_temp', 2, 'temp8'),
+            b'\x22': ('decode_humid', 1, 'humid1'),
+            b'\x23': ('decode_humid', 1, 'humid2'),
+            b'\x24': ('decode_humid', 1, 'humid3'),
+            b'\x25': ('decode_humid', 1, 'humid4'),
+            b'\x26': ('decode_humid', 1, 'humid5'),
+            b'\x27': ('decode_humid', 1, 'humid6'),
+            b'\x28': ('decode_humid', 1, 'humid7'),
+            b'\x29': ('decode_humid', 1, 'humid8'),
+            b'\x2A': ('decode_pm25', 2, 'pm251'),
+            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+            b'\x2C': ('decode_moist', 1, 'soilmoist1'),
+            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+            b'\x2E': ('decode_moist', 1, 'soilmoist2'),
+            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+            b'\x30': ('decode_moist', 1, 'soilmoist3'),
+            b'\x31': ('decode_temp', 2, 'soiltemp4'),
+            b'\x32': ('decode_moist', 1, 'soilmoist4'),
+            b'\x33': ('decode_temp', 2, 'soiltemp5'),
+            b'\x34': ('decode_moist', 1, 'soilmoist5'),
+            b'\x35': ('decode_temp', 2, 'soiltemp6'),
+            b'\x36': ('decode_moist', 1, 'soilmoist6'),
+            b'\x37': ('decode_temp', 2, 'soiltemp7'),
+            b'\x38': ('decode_moist', 1, 'soilmoist7'),
+            b'\x39': ('decode_temp', 2, 'soiltemp8'),
+            b'\x3A': ('decode_moist', 1, 'soilmoist8'),
+            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+            b'\x3C': ('decode_moist', 1, 'soilmoist9'),
+            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+            b'\x3E': ('decode_moist', 1, 'soilmoist10'),
+            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+            b'\x40': ('decode_moist', 1, 'soilmoist11'),
+            b'\x41': ('decode_temp', 2, 'soiltemp12'),
+            b'\x42': ('decode_moist', 1, 'soilmoist12'),
+            b'\x43': ('decode_temp', 2, 'soiltemp13'),
+            b'\x44': ('decode_moist', 1, 'soilmoist13'),
+            b'\x45': ('decode_temp', 2, 'soiltemp14'),
+            b'\x46': ('decode_moist', 1, 'soilmoist14'),
+            b'\x47': ('decode_temp', 2, 'soiltemp15'),
+            b'\x48': ('decode_moist', 1, 'soilmoist15'),
+            b'\x49': ('decode_temp', 2, 'soiltemp16'),
+            b'\x4A': ('decode_moist', 1, 'soilmoist16'),
+            b'\x4C': ('decode_batt', 16, 'lowbatt'),
+            b'\x4D': ('decode_pm25', 2, 'pm251_24hav'),
+            b'\x4E': ('decode_pm25', 2, 'pm252_24hav'),
+            b'\x4F': ('decode_pm25', 2, 'pm253_24hav'),
+            b'\x50': ('decode_pm25', 2, 'pm254_24hav'),
+            b'\x51': ('decode_pm25', 2, 'pm252'),
+            b'\x52': ('decode_pm25', 2, 'pm253'),
+            b'\x53': ('decode_pm25', 2, 'pm254'),
+            b'\x58': ('decode_leak', 1, 'leak1'),
+            b'\x59': ('decode_leak', 1, 'leak2'),
+            b'\x5A': ('decode_leak', 1, 'leak3'),
+            b'\x5B': ('decode_leak', 1, 'leak4'),
+            b'\x60': ('decode_distance', 1, 'lightningdist'),
+            b'\x61': ('decode_utc', 4, 'lightningdettime'),
+            b'\x62': ('decode_count', 4, 'lightningcount'),
+            b'\x63': ('decode_wh34', 3, wh34_ch1_fields),
+            b'\x64': ('decode_wh34', 3, wh34_ch2_fields),
+            b'\x65': ('decode_wh34', 3, wh34_ch3_fields),
+            b'\x66': ('decode_wh34', 3, wh34_ch4_fields),
+            b'\x67': ('decode_wh34', 3, wh34_ch5_fields),
+            b'\x68': ('decode_wh34', 3, wh34_ch6_fields),
+            b'\x69': ('decode_wh34', 3, wh34_ch7_fields),
+            b'\x6A': ('decode_wh34', 3, wh34_ch8_fields),
+            b'\x70': ('decode_wh45', 3, wh45_fields),
+        }
+
         # tuple of field codes for rain related fields in the GW1000 live data
         # so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
@@ -3786,35 +3831,22 @@ class Gw1000Collector(Collector):
             else:
                 return value
 
-        def decode_temp_batt(self, data, field=None):
-            """Decode combined temperature and battery status data.
+        def decode_wh34(self, data, fields=None):
+            """Decode WH34 sensor data.
 
             Data consists of three bytes; bytes 0 and 1 are normal temperature data
             and byte 3 is battery status data.
             """
 
             # do we have valid data
-            if len(data) == 3:
-                # yes, decode temperature from bytes 0 and 1
-                temp = self.decode_temp(data[0:2], field)
-                # decode battery voltage from byte 2
-                batt = self.battery_voltage(data[2])
-                # were we given a field to use for the return
-                if field is not None:
-                    # we have a field, 'temp' will be a dict so add the battery
-                    # state data and return the resulting dict
-                    temp['%s_batt' % field] = batt
-                    return temp
-                else:
-                    # No field provided, so 'temp' will just be a value.
-                    # Package temperature and battery state data in a generic
-                    # dict and return
-                    return {'temperature': temp,
-                            'battery': batt
-                            }
-            else:
-                # invalid data assumed, return None
-                return None
+            if len(data) == 3 and hasattr(fields, 'keys'):
+                results = dict()
+                index = 0
+                for field, (decode_fn, size) in six.iteritems(fields):
+                    results[field] = getattr(self, decode_fn)(data[index:index + size])
+                    index += size
+                return results
+            return {}
 
         @staticmethod
         def decode_distance(data, field=None):
@@ -3890,8 +3922,10 @@ class Gw1000Collector(Collector):
         decode_uv = decode_press
         decode_uvi = decode_humid
         decode_moist = decode_humid
-        decode_aq = decode_press
+        decode_pm25 = decode_press
         decode_leak = decode_humid
+        decode_pm10 = decode_press
+        decode_co2 = decode_dir
 
         def decode_batt(self, data, field):
             """Decode battery status data.
@@ -4024,6 +4058,34 @@ class Gw1000Collector(Collector):
                 else:
                     return "OK"
             return None
+
+        def decode_wh45(self, data, fields=None):
+            """Decode WH45 sensor data.
+
+            CO2 sensor data includes various sensor values, 24 hour aggregates
+            and battery state data in 16 bytes.
+
+            The 16 bytes of CO2 sensor data is allocated as follows:
+            Byte(s) #      Data               Format          Comments
+            bytes   1-2    temperature        short           C x10
+                    3      humidity           unsigned byte   percent
+                    4-5    PM10               unsigned short  ug/m3 x10
+                    6-7    PM10 24hour avg    unsigned short  ug/m3 x10
+                    8-9    PM2.5              unsigned short  ug/m3 x10
+                    10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
+                    12-13  CO2                unsigned short  ppm
+                    14-15  CO2 24 our avg     unsigned short  ppm
+                    16     battery state      unsigned byte   0-5 <=1 is low
+            """
+
+            if len(data) == 16 and hasattr(fields, 'keys'):
+                results = dict()
+                index = 0
+                for field, (decode_fn, size) in six.iteritems(fields):
+                    results[field] = getattr(self, decode_fn)(data[index:index + size])
+                    index += size
+                return results
+            return {}
 
 
 # ============================================================================
