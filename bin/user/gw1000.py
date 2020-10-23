@@ -4494,7 +4494,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_calibration(opts, stn_dict):
+    def print_calibration(opts, stn_dict):
         """Display the calibration data from a GW1000.
 
         Obtain and display the calibration data from the selected GW1000.
@@ -4530,22 +4530,22 @@ def main():
                 # now format and display the data
                 print()
                 print("Calibration")
-                print("%26s: %4.1f" % ("Solar radiation gain", calibration_data['solar']))
-                print("%26s: %4.1f" % ("UV gain", calibration_data['uv']))
-                print("%26s: %4.1f" % ("Wind gain", calibration_data['wind']))
-                print("%26s: %4.1f" % ("Rain gain", calibration_data['rain']))
-                print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['intemp'], u'\xb0'))
-                print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['inhum']))
-                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
-                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
-                print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['outtemp'], u'\xb0'))
-                print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['outhum']))
-                print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
+                print("%26s: %4.1f" % ("Solar radiation gain", calibration_data['SolarRad_Gain']))
+                print("%26s: %4.1f" % ("UV gain", calibration_data['UV_Gain']))
+                print("%26s: %4.1f" % ("Wind gain", calibration_data['Wind_Gain']))
+                print("%26s: %4.1f" % ("Rain gain", calibration_data['Rain_Gain']))
+                print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['InTemp_Offset'], u'\xb0'))
+                print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['InHumi_Offset']))
+                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['Abs_Offset']))
+                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['Rel_Offset']))
+                print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['OutTemp_Offset'], u'\xb0'))
+                print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['OutHumi_Offset']))
+                print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['WindDir_Offset'], u'\xb0'))
             else:
                 print()
                 print("GW1000 did not respond.")
 
-    def get_soil_calibration(opts, stn_dict):
+    def print_soil_calibration(opts, stn_dict):
         """Display the soil moisture sensor calibration data from a GW1000.
 
         Obtain and display the soil moisture sensor calibration data from the
@@ -4587,19 +4587,20 @@ def main():
                 print("Soil Calibration")
                 # iterate over each channel printing the channel data
                 for channel in channels:
-                    channel_dict = calibration_data[channel]
+                    channel_config = calibration_data[channel]
                     # the API returns channels starting at 0, but the WS View
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
-                    print("Channel %d (%d%%)" % (channel+1, channel_dict['humidity']))
-                    print("%12s: %d" % ("Now AD", channel_dict['ad']))
-                    print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
-                    print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
+                    print("%s (%d%%)" % (channel.replace('_', ' '),
+                                         channel_config['humidity']))
+                    print("%12s: %d" % ("Now AD", channel_config['ad']))
+                    print("%12s: %d" % ("0% AD", channel_config['adj_min']))
+                    print("%12s: %d" % ("100% AD", channel_config['adj_max']))
             else:
                 print()
                 print("GW1000 did not respond.")
 
-    def get_services(opts, stn_dict):
+    def print_services(opts, stn_dict):
         """Display the GW1000 Weather Services settings.
 
         Obtain and display the settings for the various weather services
@@ -4751,7 +4752,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_calibration(collector, stn_dict):
+    def get_calibration_config(collector, stn_dict):
         """Get GW1000 calibration config."""
 
         cal_sections = {'Soil': 'soil_calibration',
@@ -4798,7 +4799,7 @@ def main():
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
                                                      collector.station.port))
             # call the get_calibration function
-            station_config.update(get_calibration(collector, stn_dict))
+            station_config.update(get_calibration_config(collector, stn_dict))
             station_config.update(get_rain(collector, stn_dict))
             b=configobj.ConfigObj(station_config)
             with open('/var/tmp/conf.conf', 'wb') as f:
@@ -5226,10 +5227,10 @@ def main():
     parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
                       action='store_true',
                       help='display GW1000 PM2.5 offset data')
-    parser.add_option('--get-calibration', dest='get_calibration',
+    parser.add_option('--get-calibration', dest='print_calibration',
                       action='store_true',
                       help='display GW1000 calibration data')
-    parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
+    parser.add_option('--get-soil-calibration', dest='print_soil_calibration',
                       action='store_true',
                       help='display GW1000 soil moisture calibration data')
     parser.add_option('--get-services', dest='get_services',
@@ -5318,16 +5319,16 @@ def main():
         get_pm25_offset(opts, stn_dict)
         exit(0)
 
-    if opts.get_calibration:
-        get_calibration(opts, stn_dict)
+    if opts.print_calibration:
+        print_calibration(opts, stn_dict)
         exit(0)
 
-    if opts.get_soil_calibration:
-        get_soil_calibration(opts, stn_dict)
+    if opts.print_soil_calibration:
+        print_soil_calibration(opts, stn_dict)
         exit(0)
 
-    if opts.get_services:
-        get_services(opts, stn_dict)
+    if opts.print_services:
+        print_services(opts, stn_dict)
         exit(0)
 
     if opts.save_station_config:
