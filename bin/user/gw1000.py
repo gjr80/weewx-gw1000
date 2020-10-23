@@ -359,7 +359,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
+import configobj
 import re
 import socket
 import struct
@@ -668,7 +668,7 @@ class Gw1000(object):
         'wh68_batt': 'wh68_batt',
         'ws80_batt': 'ws80_batt'
     }
-    # sensor signal level default field map, merged into default_field_map to 
+    # sensor signal level default field map, merged into default_field_map to
     # give the overall default field map
     sensor_signal_field_map = {
         'wh40_sig': 'wh40_sig',
@@ -2260,11 +2260,11 @@ class Gw1000Collector(Collector):
         data = response[4:4 + raw_data_size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
-        data_dict['rain_rate'] = self.parser.decode_big_rain(data[0:4])
-        data_dict['rain_day'] = self.parser.decode_big_rain(data[4:8])
-        data_dict['rain_week'] = self.parser.decode_big_rain(data[8:12])
-        data_dict['rain_month'] = self.parser.decode_big_rain(data[12:16])
-        data_dict['rain_year'] = self.parser.decode_big_rain(data[16:20])
+        data_dict['Rain_Rate'] = self.parser.decode_big_rain(data[0:4])
+        data_dict['Rain_Day'] = self.parser.decode_big_rain(data[4:8])
+        data_dict['Rain_Week'] = self.parser.decode_big_rain(data[8:12])
+        data_dict['Rain_Month'] = self.parser.decode_big_rain(data[12:16])
+        data_dict['Rain_Year'] = self.parser.decode_big_rain(data[16:20])
         return data_dict
 
     @property
@@ -2284,18 +2284,19 @@ class Gw1000Collector(Collector):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                ch = str(six.byte2int(data[index]))
             except TypeError:
-                channel = data[index]
-            offset_dict[channel] = {}
+                ch = str(data[index])
+            channel = "_".join(['Channel', str(ch)])
+            offset_dict[channel] = dict()
             try:
-                offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
+                offset_dict[channel]['hum_offset'] = struct.unpack("b", data[index + 1])[0]
             except TypeError:
-                offset_dict[channel]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
+                offset_dict[channel]['hum_offset'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
             try:
-                offset_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
+                offset_dict[channel]['temp_offset'] = struct.unpack("b", data[index + 2])[0] / 10.0
             except TypeError:
-                offset_dict[channel]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
+                offset_dict[channel]['temp_offset'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
             index += 3
         return offset_dict
 
@@ -2316,10 +2317,12 @@ class Gw1000Collector(Collector):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                ch = six.byte2int(data[index])
             except TypeError:
-                channel = data[index]
-            offset_dict[channel] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
+                ch = data[index]
+            channel = "_".join(['Channel', str(ch)])
+            offset_dict[channel] = dict()
+            offset_dict[channel]['offset'] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
             index += 3
         return offset_dict
 
@@ -2340,10 +2343,10 @@ class Gw1000Collector(Collector):
         # and decode/store the calibration data
         # bytes 0 and 1 are reserved (lux to solar radiation conversion
         # gain (126.7))
-        calibration_dict['uv'] = struct.unpack(">H", data[2:4])[0]/100.0
-        calibration_dict['solar'] = struct.unpack(">H", data[4:6])[0]/100.0
-        calibration_dict['wind'] = struct.unpack(">H", data[6:8])[0]/100.0
-        calibration_dict['rain'] = struct.unpack(">H", data[8:10])[0]/100.0
+        calibration_dict['UV_Gain'] = struct.unpack(">H", data[2:4])[0]/100.0
+        calibration_dict['SolarRad_Gain'] = struct.unpack(">H", data[4:6])[0]/100.0
+        calibration_dict['Wind_Gain'] = struct.unpack(">H", data[6:8])[0]/100.0
+        calibration_dict['Rain_Gain'] = struct.unpack(">H", data[8:10])[0]/100.0
         # obtain the offset calibration data via the API
         response = self.station.get_offset_calibration()
         # determine the size of the calibration data
@@ -2351,19 +2354,19 @@ class Gw1000Collector(Collector):
         # extract the actual data
         data = response[4:4 + raw_data_size - 3]
         # and decode/store the offset calibration data
-        calibration_dict['intemp'] = struct.unpack(">h", data[0:2])[0]/10.0
+        calibration_dict['InTemp_Offset'] = struct.unpack(">h", data[0:2])[0]/10.0
         try:
-            calibration_dict['inhum'] = struct.unpack("b", data[2])[0]
+            calibration_dict['InHumi_Offset'] = struct.unpack("b", data[2])[0]
         except TypeError:
-            calibration_dict['inhum'] = struct.unpack("b", six.int2byte(data[2]))[0]
-        calibration_dict['abs'] = struct.unpack(">l", data[3:7])[0]/10.0
-        calibration_dict['rel'] = struct.unpack(">l", data[7:11])[0]/10.0
-        calibration_dict['outtemp'] = struct.unpack(">h", data[11:13])[0]/10.0
+            calibration_dict['InHumi_Offset'] = struct.unpack("b", six.int2byte(data[2]))[0]
+        calibration_dict['Abs_Offset'] = struct.unpack(">l", data[3:7])[0]/10.0
+        calibration_dict['Rel_Offset'] = struct.unpack(">l", data[7:11])[0]/10.0
+        calibration_dict['OutTemp_Offset'] = struct.unpack(">h", data[11:13])[0]/10.0
         try:
-            calibration_dict['outhum'] = struct.unpack("b", data[13])[0]
+            calibration_dict['OutHumi_Offset'] = struct.unpack("b", data[13])[0]
         except TypeError:
-            calibration_dict['outhum'] = struct.unpack("b", six.int2byte(data[13]))[0]
-        calibration_dict['dir'] = struct.unpack(">h", data[14:16])[0]
+            calibration_dict['OutHumi_Offset'] = struct.unpack("b", six.int2byte(data[13]))[0]
+        calibration_dict['WindDir_Offset'] = struct.unpack(">h", data[14:16])[0]
         return calibration_dict
 
     @property
@@ -2387,10 +2390,11 @@ class Gw1000Collector(Collector):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                ch = str(six.byte2int(data[index]))
             except TypeError:
-                channel = data[index]
-            calibration_dict[channel] = {}
+                ch = str(data[index])
+            channel = "_".join(['Channel', str(ch)])
+            calibration_dict[channel] = dict()
             try:
                 humidity = six.byte2int(data[index + 1])
             except TypeError:
@@ -4740,6 +4744,70 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
+    def get_calibration(collector, stn_dict):
+        """Get GW1000 calibration config."""
+
+        cal_sections = {'Soil': 'soil_calibration',
+                        'Mulch': 'mulch_offset',
+                        'PM25': 'pm25_offset'}
+        _config = dict()
+        _config['Calibration'] = getattr(collector, 'calibration')
+        _cal_sections_config = dict()
+        for section, fn in six.iteritems(cal_sections):
+            try:
+                _cal_sections_config[section] = getattr(collector, fn)
+            except GW1000IOError as e:
+                print()
+                print("Unable to connect to GW1000: %s" % e)
+            except socket.timeout:
+                print()
+                print("Timeout. GW1000 did not respond.")
+        _config['Calibration'].update(_cal_sections_config)
+        return _config
+
+    def get_rain(collector, stn_dict):
+        """Get GW1000 rain 'config'."""
+
+        _config = dict()
+        _config['Rain'] = getattr(collector, 'rain_data')
+        # strip out Rain_Rate if it exists
+        _config['Rain'].pop('Rain_Rate')
+        return _config
+
+    def save_station_config(opts, stn_dict):
+        """Save the GW1000 config to file."""
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        station_config = dict()
+        # wrap in a try..except in case there is an error
+        try:
+            # get a GW1000 Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # call the get_calibration function
+            station_config.update(get_calibration(collector, stn_dict))
+            station_config.update(get_rain(collector, stn_dict))
+            b=configobj.ConfigObj(station_config)
+            with open('/var/tmp/conf.conf', 'wb') as f:
+                b.write(f)
+            print("station_config=%s" % (station_config,))
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+
+#        config_sections = ['calibration', 'rain_totals', 'device_settings', 'senors_id']
+#        for section in config_sections:
+#            pass
+
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
 
@@ -5160,6 +5228,9 @@ def main():
     parser.add_option('--get-services', dest='get_services',
                       action='store_true',
                       help='display GW1000 weather services configuration data')
+    parser.add_option('--save-config', dest='save_station_config',
+                      action='store_true',
+                      help='save GW1000 station config to file')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
@@ -5250,6 +5321,10 @@ def main():
 
     if opts.get_services:
         get_services(opts, stn_dict)
+        exit(0)
+
+    if opts.save_station_config:
+        save_station_config(opts, stn_dict)
         exit(0)
 
     if opts.mac:
