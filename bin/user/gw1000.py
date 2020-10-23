@@ -2284,10 +2284,14 @@ class Gw1000Collector(Collector):
         # iterate over the data
         while index < len(data):
             try:
-                ch = str(six.byte2int(data[index]))
+                ch = six.byte2int(data[index])
             except TypeError:
-                ch = str(data[index])
-            channel = "_".join(['Channel', str(ch)])
+                ch = data[index]
+            # The GW1000 API uses channel numbers starting at zero, but the WS
+            # View app uses channels starting at one. Since we are using this
+            # data in conjunction with or in place of the WS View app increment
+            # the API returned channel number by one.
+            channel = "_".join(['Channel', str(ch + 1)])
             offset_dict[channel] = dict()
             try:
                 offset_dict[channel]['hum_offset'] = struct.unpack("b", data[index + 1])[0]
@@ -4385,11 +4389,11 @@ def main():
             print("Timeout. GW1000 did not respond.")
         else:
             print()
-            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rain_rate'], rain_data['rain_rate'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rain_day'], rain_data['rain_day'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
+            print("%10s: %.1f mm(%.1f in)" % ('Rain rate', rain_data['Rain_Rate'], rain_data['Rain_Rate'] / 25.4))
+            print("%10s: %.1f mm(%.1f in)" % ('Day rain', rain_data['Rain_Day'], rain_data['Rain_Day'] / 25.4))
+            print("%10s: %.1f mm(%.1f in)" % ('Week rain', rain_data['Rain_Week'], rain_data['Rain_Week'] / 25.4))
+            print("%10s: %.1f mm(%.1f in)" % ('Month rain', rain_data['Rain_Month'], rain_data['Rain_Month'] / 25.4))
+            print("%10s: %.1f mm(%.1f in)" % ('Year rain', rain_data['Rain_Year'], rain_data['Rain_Year'] / 25.4))
 
     def get_mulch_offset(opts, stn_dict):
         """Display the multi-channel temperature and humidity offset data from
@@ -4430,15 +4434,18 @@ def main():
                 print()
                 print("Multi-channel Temperature and Humidity Calibration")
                 # iterate over each channel for which we have data
-                for channel in mulch_offset_data:
+                for channel, config in six.iteritems(mulch_offset_data):
                     # print the channel and offset data
-                    mulch_str = "Channel %d: Temperature offset: %5s Humidity offset: %3s"
+                    # first strip out the channel number
+                    channel_str = channel.replace('_',' ')
+                    # define the output format string
+                    mulch_str = "%s: Temperature offset: %5s Humidity offset: %3s"
                     # the API returns channels starting at 0, but the WS View
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
-                    print(mulch_str % (channel+1,
-                                       "%2.1f" % mulch_offset_data[channel]['temp'],
-                                       "%d" % mulch_offset_data[channel]['hum']))
+                    print(mulch_str % (channel_str,
+                                       "%2.1f" % mulch_offset_data[channel]['temp_offset'],
+                                       "%d" % mulch_offset_data[channel]['hum_offset']))
             else:
                 print()
                 print("GW1000 did not respond.")
