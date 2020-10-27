@@ -4782,6 +4782,12 @@ def main():
         _config['Rain'].pop('Rain_Rate')
         return _config
 
+    def get_sensors(collector, stn_dict):
+        """Get sensors 'config'."""
+
+        _config = dict()
+        _config['Sensors'] = getattr(collector, 'sensor_id_data')
+
     def save_station_config(opts, stn_dict):
         """Save the GW1000 config to file."""
 
@@ -4801,6 +4807,7 @@ def main():
             # call the get_calibration function
             station_config.update(get_calibration_config(collector, stn_dict))
             station_config.update(get_rain(collector, stn_dict))
+            station_config.update(get_sensors(collector, stn_dict))
             b=configobj.ConfigObj(station_config)
             with open('/var/tmp/conf.conf', 'wb') as f:
                 b.write(f)
