@@ -4785,8 +4785,32 @@ def main():
     def get_sensors(collector, stn_dict):
         """Get sensors 'config'."""
 
+        # get a dict to hold our config
         _config = dict()
-        _config['Sensors'] = getattr(collector, 'sensor_id_data')
+        # create a 'Sensors' field, this is where we will add our sensors
+        _config['Sensors'] = dict()
+        # get the current sensor id data
+        _sensors = getattr(collector, 'sensor_id_data')
+        # iterate over our list of sensors
+        for sensor in _sensors:
+            # obtain a human readable sensor name
+            _name = Gw1000Collector.sensor_ids[sensor['address']]['name']
+            # Obtain the sensor ID. Known sensors have leading zeroes in the
+            # ID, strip these off for readability/usability reasons.
+            _id = sensor['id'].lstrip('0')
+            # 'fffffffe' means the sensor is disabled, 'ffffffff' means it is
+            # registering. If the sensor is disabled or registering change the
+            # ID string to reflect this.
+            if _id == 'fffffffe':
+                _id = 'disabled'
+            elif _id == 'fffffffe':
+                _id = 'registering'
+            # add the sensor to our config
+            _config['Sensors'][_name] = {
+                'id': _id
+            }
+        # return the result
+        return _config
 
     def save_station_config(opts, stn_dict):
         """Save the GW1000 config to file."""
@@ -4818,10 +4842,6 @@ def main():
         except socket.timeout:
             print()
             print("Timeout. GW1000 did not respond.")
-
-#        config_sections = ['calibration', 'rain_totals', 'device_settings', 'senors_id']
-#        for section in config_sections:
-#            pass
 
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
