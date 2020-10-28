@@ -5260,7 +5260,7 @@ def main():
     parser.add_option('--get-soil-calibration', dest='print_soil_calibration',
                       action='store_true',
                       help='display GW1000 soil moisture calibration data')
-    parser.add_option('--get-services', dest='get_services',
+    parser.add_option('--get-services', dest='print_services',
                       action='store_true',
                       help='display GW1000 weather services configuration data')
     parser.add_option('--save-config', dest='save_station_config',
