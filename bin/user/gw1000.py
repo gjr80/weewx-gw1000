@@ -376,7 +376,7 @@ import weeutil.weeutil
 import weewx.drivers
 import weewx.engine
 import weewx.wxformulas
-import user.gw1000
+# import user.gw1000
 from weeutil.weeutil import timestamp_to_string
 
 # import/setup logging, WeeWX v3 is syslog based but WeeWX v4 is logging based,
@@ -2047,7 +2047,7 @@ class Gw1000Collector(Collector):
                  broadcast_port=None, socket_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_th32=False,lost_contact_log_period=0, debug_rain=False,
+                 use_th32=False, lost_contact_log_period=0, debug_rain=False,
                  debug_wind=False):
         """Initialise our class."""
 
@@ -2201,7 +2201,8 @@ class Gw1000Collector(Collector):
         # return our processed data
         return processed_data
 
-    def filter_battery_data(self, data, registered_sensors):
+    @staticmethod
+    def filter_battery_data(data, registered_sensors):
         """Filter battery data for unused sensors.
 
         The battery status data returned by the GW1000 API does not allow the
@@ -2229,13 +2230,14 @@ class Gw1000Collector(Collector):
         # sensors removed
         return filtered
 
-    def get_signal_level_data(self, registered_sensors):
+    @staticmethod
+    def get_signal_level_data(registered_sensors):
         """Add sensor signal level data to a sensor data packet.
 
         Iterate over the list of registered sensors and obtain a dict of sensor
         signal level data for each registered sensor.
 
-        registered_sensors: list of dicts of sesnor ID data for each registered
+        registered_sensors: list of dicts of sensor ID data for each registered
                             sensor
         """
 
@@ -2338,7 +2340,7 @@ class Gw1000Collector(Collector):
         # extract the actual data
         data = response[4:4 + raw_data_size - 3]
         # initialise a dict to hold our final data
-        calibration_dict = {}
+        calibration_dict = dict()
         # and decode/store the calibration data
         # bytes 0 and 1 are reserved (lux to solar radiation conversion
         # gain (126.7))
@@ -2667,8 +2669,8 @@ class Gw1000Collector(Collector):
             # we will use signal as byte 6 and battery as byte 5.
             sensor_id_list.append({'address': data[index:index + 1],
                                    'id': sensor_id,
-                                   'signal': six.indexbytes(data, index + 6),
-                                   'battery': six.indexbytes(data, index + 5)
+                                   'battery': six.indexbytes(data, index + 5),
+                                   'signal': six.indexbytes(data, index + 6)
                                    })
             index += 7
         return sensor_id_list
@@ -3513,45 +3515,45 @@ class Gw1000Collector(Collector):
         # WH34 fields
         wh34_ch1_fields = {'wh34_ch1_temp': ('decode_temp', 2),
                            'wh34_ch1_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch2_fields = {'wh34_ch2_temp': ('decode_temp', 2),
                            'wh34_ch2_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch3_fields = {'wh34_ch3_temp': ('decode_temp', 2),
                            'wh34_ch3_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch4_fields = {'wh34_ch4_temp': ('decode_temp', 2),
                            'wh34_ch4_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch5_fields = {'wh34_ch5_temp': ('decode_temp', 2),
                            'wh34_ch5_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch6_fields = {'wh34_ch6_temp': ('decode_temp', 2),
                            'wh34_ch6_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch7_fields = {'wh34_ch7_temp': ('decode_temp', 2),
                            'wh34_ch7_batt': ('battery_voltage', 1)
-                      }
+                           }
         # WH34 fields
         wh34_ch8_fields = {'wh34_ch8_temp': ('decode_temp', 2),
                            'wh34_ch8_batt': ('battery_voltage', 1)
-                      }
+                           }
         # CO2 sensor 'gw1000' fields
         wh45_fields = {'co2_temp': ('decode_temp', 2),
-                      'co2_humid': ('decode_humid', 1),
-                      'co2_pm10': ('decode_pm10', 2),
-                      'co2_pm10_24hav': ('decode_pm10', 2),
-                      'co2_pm25': ('decode_pm25', 2),
-                      'co2_pm25_24hav': ('decode_pm25', 2),
-                      'co2': ('decode_co2', 2),
-                      'co2_24hav': ('decode_co2', 2),
-                      'co2_batt': ('battery_value', 1)
+                       'co2_humid': ('decode_humid', 1),
+                       'co2_pm10': ('decode_pm10', 2),
+                       'co2_pm10_24hav': ('decode_pm10', 2),
+                       'co2_pm25': ('decode_pm25', 2),
+                       'co2_pm25_24hav': ('decode_pm25', 2),
+                       'co2': ('decode_co2', 2),
+                       'co2_24hav': ('decode_co2', 2),
+                       'co2_batt': ('battery_value', 1)
                        }
 
         # Dictionary keyed by GW1000 response element containing various
