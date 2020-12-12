@@ -43,11 +43,11 @@ method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b13/gw1000-0.1.0b13.tar.gz
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.2.0b1/gw1000-0.2.0b1.tar.gz
 
     -   install the GW1000 driver extension:
 
-        $ wee_extension --install=/var/tmp/gw1000-0.1.0b13.tar.gz
+        $ wee_extension --install=/var/tmp/gw1000-0.2.0b1.tar.gz
             
         Note: Depending on your system/installation the above command may need
               to be prefixed with sudo.
@@ -58,11 +58,11 @@ method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0b13/gw1000-0.1.0b13.tar.gz
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.2.0b1/gw1000-0.2.0b1.tar.gz
 
     -   extract the contents of the GW1000 driver extension package:
     
-        $ tar -xzf /var/tmp/gw1000-0.1.0b13.tar.gz -C /var/tmp
+        $ tar -xzf /var/tmp/gw1000-0.2.0b1.tar.gz -C /var/tmp
      
     -   copy the file gw1000.py to the $BIN_ROOT/user directory:
     
@@ -186,6 +186,84 @@ method):
             [[wh68_batt]]
                 extractor = last
             [[ws80_batt]]
+                extractor = last
+            [[wh40_sig]]
+                extractor = last
+            [[wh26_sig]]
+                extractor = last
+            [[wh25_sig]]
+                extractor = last
+            [[wh65_sig]]
+                extractor = last
+            [[wh31_ch1_sig]]
+                extractor = last
+            [[wh31_ch2_sig]]
+                extractor = last
+            [[wh31_ch3_sig]]
+                extractor = last
+            [[wh31_ch4_sig]]
+                extractor = last
+            [[wh31_ch5_sig]]
+                extractor = last
+            [[wh31_ch6_sig]]
+                extractor = last
+            [[wh31_ch7_sig]]
+                extractor = last
+            [[wh31_ch8_sig]]
+                extractor = last
+            [[wh41_ch1_sig]]
+                extractor = last
+            [[wh41_ch2_sig]]
+                extractor = last
+            [[wh41_ch3_sig]]
+                extractor = last
+            [[wh41_ch4_sig]]
+                extractor = last
+            [[wh51_ch1_sig]]
+                extractor = last
+            [[wh51_ch2_sig]]
+                extractor = last
+            [[wh51_ch3_sig]]
+                extractor = last
+            [[wh51_ch4_sig]]
+                extractor = last
+            [[wh51_ch5_sig]]
+                extractor = last
+            [[wh51_ch6_sig]]
+                extractor = last
+            [[wh51_ch7_sig]]
+                extractor = last
+            [[wh51_ch8_sig]]
+                extractor = last
+            [[wh51_ch9_sig]]
+                extractor = last
+            [[wh51_ch10_sig]]
+                extractor = last
+            [[wh51_ch11_sig]]
+                extractor = last
+            [[wh51_ch12_sig]]
+                extractor = last
+            [[wh51_ch13_sig]]
+                extractor = last
+            [[wh51_ch14_sig]]
+                extractor = last
+            [[wh51_ch15_sig]]
+                extractor = last
+            [[wh51_ch16_sig]]
+                extractor = last
+            [[wh55_ch1_sig]]
+                extractor = last
+            [[wh55_ch2_sig]]
+                extractor = last
+            [[wh55_ch3_sig]]
+                extractor = last
+            [[wh55_ch4_sig]]
+                extractor = last
+            [[wh57_sig]]
+                extractor = last
+            [[wh68_sig]]
+                extractor = last
+            [[ws80_sig]]
                 extractor = last
 
         Note: If an [Accumulator] stanza already exists in weewx.conf just add

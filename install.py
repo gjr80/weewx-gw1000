@@ -10,10 +10,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.1.0b13                                     Date: 1 September 2020
+Version: 0.2.0b1                                      Date: 3 October 2020
 
 Revision History
-    ?? ????? 2020       v0.1.0
+    3 October 2010      v0.2.0
+        - added extractor for sensor signal level fields
+    1 September 2020    v0.1.0b1
         - initial implementation
 """
 
@@ -23,7 +25,7 @@ from distutils.version import StrictVersion
 from setup import ExtensionInstaller
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.1.0b13"
+GW1000_VERSION = "0.2.0b1"
 
 
 def loader():
@@ -209,6 +211,123 @@ class Gw1000Installer(ExtensionInstaller):
                         'extractor': 'last'
                     },
                     'ws80_batt': {
+                        'extractor': 'last'
+                    },
+                    'wh40_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh26_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh25_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh65_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch1_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch2_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch3_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch4_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch5_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch6_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch7_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh31_ch8_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch1_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch2_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch3_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh41_ch4_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch1_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch2_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch3_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch4_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch5_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch6_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch7_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch8_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch9_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch10_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch11_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch12_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch13_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch14_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch15_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh51_ch16_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch1_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch2_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch3_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh55_ch4_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh57_sig': {
+                        'extractor': 'last'
+                    },
+                    'wh68_sig': {
+                        'extractor': 'last'
+                    },
+                    'ws80_sig': {
                         'extractor': 'last'
                     }
                 }

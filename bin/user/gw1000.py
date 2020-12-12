@@ -28,10 +28,24 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.1.0b13                                 Date: 1 September 2020
+Version: 0.2.0b1                                  Date: 19 October 2020
 
 Revision History
-    ?? ????? 2020      v0.1.0
+    19 October 2020          v0.2.0
+        -   added basic test suite
+        -   sensor signal levels added to loop packet
+        -   added --get-services command line option to display GW1000
+            supported weather services settings
+        -   added --get-pm25-offset command line option to display GW1000 PM2.5
+            sensor offset settings
+        -   added --get-mulch-offset command line option to display GW1000
+            multi-channel TH sensor calibration settings
+        -   added --get-soil-calibration command line option to display GW1000
+            soil moisture sensor calibration settings
+        -   added --get-calibration command line option to display GW1000
+            sensor calibration settings
+        -   renamed --rain-data command line option to --get-rain-data
+    1 September 2020        v0.1.0b13
         - initial release
 
 
@@ -337,6 +351,8 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Need to implement debug_wind reporting
+# TODO. Review queue dwell times
+# TODO. Move decoding of any response from GW1000 API to class Parser()
 
 # Python imports
 from __future__ import absolute_import
@@ -440,7 +456,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.1.0b13'
+DRIVER_VERSION = '0.2.0b1'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -652,6 +668,49 @@ class Gw1000(object):
         'wh68_batt': 'wh68_batt',
         'ws80_batt': 'ws80_batt'
     }
+    # sensor signal level default field map, merged into default_field_map to
+    # give the overall default field map
+    sensor_signal_field_map = {
+        'wh40_sig': 'wh40_sig',
+        'wh26_sig': 'wh26_sig',
+        'wh25_sig': 'wh25_sig',
+        'wh65_sig': 'wh65_sig',
+        'wh31_ch1_sig': 'wh31_ch1_sig',
+        'wh31_ch2_sig': 'wh31_ch2_sig',
+        'wh31_ch3_sig': 'wh31_ch3_sig',
+        'wh31_ch4_sig': 'wh31_ch4_sig',
+        'wh31_ch5_sig': 'wh31_ch5_sig',
+        'wh31_ch6_sig': 'wh31_ch6_sig',
+        'wh31_ch7_sig': 'wh31_ch7_sig',
+        'wh31_ch8_sig': 'wh31_ch8_sig',
+        'wh41_ch1_sig': 'wh41_ch1_sig',
+        'wh41_ch2_sig': 'wh41_ch2_sig',
+        'wh41_ch3_sig': 'wh41_ch3_sig',
+        'wh41_ch4_sig': 'wh41_ch4_sig',
+        'wh51_ch1_sig': 'wh51_ch1_sig',
+        'wh51_ch2_sig': 'wh51_ch2_sig',
+        'wh51_ch3_sig': 'wh51_ch3_sig',
+        'wh51_ch4_sig': 'wh51_ch4_sig',
+        'wh51_ch5_sig': 'wh51_ch5_sig',
+        'wh51_ch6_sig': 'wh51_ch6_sig',
+        'wh51_ch7_sig': 'wh51_ch7_sig',
+        'wh51_ch8_sig': 'wh51_ch8_sig',
+        'wh51_ch9_sig': 'wh51_ch9_sig',
+        'wh51_ch10_sig': 'wh51_ch10_sig',
+        'wh51_ch11_sig': 'wh51_ch11_sig',
+        'wh51_ch12_sig': 'wh51_ch12_sig',
+        'wh51_ch13_sig': 'wh51_ch13_sig',
+        'wh51_ch14_sig': 'wh51_ch14_sig',
+        'wh51_ch15_sig': 'wh51_ch15_sig',
+        'wh51_ch16_sig': 'wh51_ch16_sig',
+        'wh55_ch1_sig': 'wh55_ch1_sig',
+        'wh55_ch2_sig': 'wh55_ch2_sig',
+        'wh55_ch3_sig': 'wh55_ch3_sig',
+        'wh55_ch4_sig': 'wh55_ch4_sig',
+        'wh57_sig': 'wh57_sig',
+        'wh68_sig': 'wh68_sig',
+        'ws80_sig': 'ws80_sig'
+    }
 
     def __init__(self, **gw1000_config):
         """Initialise a GW1000 object."""
@@ -670,6 +729,8 @@ class Gw1000(object):
             field_map.update(Gw1000.wind_field_map)
             # now add in the battery state field map
             field_map.update(Gw1000.battery_field_map)
+            # now add in the sensor signal field map
+            field_map.update(Gw1000.sensor_signal_field_map)
         # If a user wishes to map a GW1000 field differently to that in the
         # default map they can include an entry in field_map_extensions, but if
         # we just update the field map dict with the field map extensions that
@@ -1480,6 +1541,123 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         },
         'ws80_batt': {
             'extractor': 'last'
+        },
+        'wh40_sig': {
+            'extractor': 'last'
+        },
+        'wh26_sig': {
+            'extractor': 'last'
+        },
+        'wh25_sig': {
+            'extractor': 'last'
+        },
+        'wh65_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch5_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch6_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch7_sig': {
+            'extractor': 'last'
+        },
+        'wh31_ch8_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh41_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch5_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch6_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch7_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch8_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch9_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch10_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch11_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch12_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch13_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch14_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch15_sig': {
+            'extractor': 'last'
+        },
+        'wh51_ch16_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch1_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch2_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch3_sig': {
+            'extractor': 'last'
+        },
+        'wh55_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh57_sig': {
+            'extractor': 'last'
+        },
+        'wh68_sig': {
+            'extractor': 'last'
+        },
+        'ws80_sig': {
+            'extractor': 'last'
         }
     }
 
@@ -1847,6 +2025,23 @@ class Gw1000Collector(Collector):
     }
     # tuple of values for sensors that are not registered with the GW1000
     not_registered = ('fffffffe', 'ffffffff')
+    # list of dicts of weather services that I know about
+    services = [{'name': 'ecowitt_net',
+                 'long_name': 'Ecowitt.net'
+                 },
+                {'name': 'wunderground',
+                 'long_name': 'Wunderground'
+                 },
+                {'name': 'weathercloud',
+                 'long_name': 'Weathercloud'
+                 },
+                {'name': 'wow',
+                 'long_name': 'Weather Observations Website'
+                 },
+                {'name': 'custom',
+                 'long_name': 'Customized'
+                 }
+                ]
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
                  broadcast_port=None, socket_timeout=None,
@@ -1941,9 +2136,11 @@ class Gw1000Collector(Collector):
         """Get sensor data.
 
         Obtain live sensor data from the GW1000 API. Parse the API response.
-        The parsed battery data is then further processed to filter out battery
-        state data for non-existent sensors. The filtered data is returned as a
-        dict. If no data was obtained from the API the value None is returned.
+        The parsed battery data is then further processed to filter battery
+        state data for sensors that are not registered and to include sensor
+        signal level data for registered sensors. The processed data is
+        returned as a dict. If no data was obtained from the API the value None
+        is returned.
         """
 
         # obtain the raw data via the GW1000 API, we may get a GW1000IOError
@@ -1957,17 +2154,55 @@ class Gw1000Collector(Collector):
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
-        # The parsed data will likely have battery data for sensors that do
-        # not exist, filter out the data for non-existent sensors. We may get
-        # a GW1000IOError exception, if we do let it bubble up
-        filtered_data = self.filter_battery_data(parsed_data)
-        # log the filtered parsed data but only if debug>=3
+        # The nature of the GW1000 API means that the parsed live data will
+        # likely contain battery state information for sensors that do not
+        # exist. The parsed live data also does not contain any sensor signal
+        # level data. The GW1000 API does provide details on what sensors are
+        # connected to the GW1000 and their signal levels via the
+        # CMD_READ_SENSOR_ID command. The data received from the
+        # CMD_READ_SENSOR_ID command can be used to filter sensor battery state
+        # fields for sensors that are not registered and to add sensor signal
+        # level fields to the live data.
+        parsed_data = self.process_sensor_id_data(parsed_data)
+        # log the processed parsed data but only if debug>=3
         if weewx.debug >= 3:
-            logdbg("Filtered parsed data: %s" % filtered_data)
-        return filtered_data
+            logdbg("Processed parsed data: %s" % parsed_data)
+        return parsed_data
 
-    def filter_battery_data(self, parsed_data):
-        """Filter out battery data for unused sensors.
+    def process_sensor_id_data(self, parsed_data):
+        """Use sensor ID data to update live sensor data.
+
+        The CMD_READ_SENSOR_ID API command returns address, id, signal and
+        battery state information for sensors registered with the GW1000.
+        Whilst the CMD_GW1000_LIVEDATA API command returns sensor data and
+        sensor battery state data it is not possible to tell from the
+        CMD_GW1000_LIVEDATA response which sensors are in fact registered with
+        the GW1000. The CMD_GW1000_LIVEDATA response does not include sensor
+        signal level data. The CMD_READ_SENSOR_ID data can be used to filter
+        battery state data from the live sensor data for sensors that are not
+        registered with the GW1000. The CMD_READ_SENSOR_ID data can also be
+        used to add sensor signal level data to the live sensor data.
+
+        parsed_data: dict of parsed GW1000 live sensor data
+        """
+
+        # obtain details of the sensors from the GW1000 API, we may get a
+        # GW1000IOError exception, but let it bubble up
+        sensor_list = self.sensor_id_data
+        # If we made it here our response was validated by checksum. Now create
+        # a filtered list of registered sensors, these are the sensors we are
+        # interested in.
+        registered_sensors = [s for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
+        # first filter the battery state fields
+        processed_data = self.filter_battery_data(parsed_data,
+                                                  registered_sensors)
+        # now add any sensor signal levels
+        processed_data.update(self.get_signal_level_data(registered_sensors))
+        # return our processed data
+        return processed_data
+
+    def filter_battery_data(self, data, registered_sensors):
+        """Filter battery data for unused sensors.
 
         The battery status data returned by the GW1000 API does not allow the
         discrimination of all used/unused sensors (it does for some but not for
@@ -1975,22 +2210,15 @@ class Gw1000Collector(Collector):
         to ensure that battery status is only provided for sensors that
         actually exist.
 
-        parsed_data: dict of parsed GW1000 API data
+        data: dict of parsed GW1000 API data
         """
 
-        # obtain details of the sensors from the GW1000 API, we may get a GW1000IOError
-        # exception, but let it bubble up
-        sensor_list = self.sensor_id_data
-        # if we made it here our response was validated by checksum
-        # determine which sensors are registered, these are the sensors for
-        # which we desire battery state information
-        reg_sensors = [s['address'] for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
         # obtain a list of registered sensor names
-        reg_sensor_names = [Gw1000Collector.sensor_ids[a]['name'] for a in reg_sensors]
+        reg_sensor_names = [Gw1000Collector.sensor_ids[a['address']]['name'] for a in registered_sensors]
         # obtain a copy of our parsed data as we are going to alter it
-        filtered = dict(parsed_data)
+        filtered = dict(data)
         # iterate over the parsed data
-        for key, data in six.iteritems(parsed_data):
+        for key, data in six.iteritems(data):
             # obtain the sensor name from any any battery fields
             stripped = key[:-5] if key.endswith('_batt') else key
             # if field is a battery state field, and the field pertains to an
@@ -2000,6 +2228,27 @@ class Gw1000Collector(Collector):
         # return our parsed data with battery state information fo unregistered
         # sensors removed
         return filtered
+
+    def get_signal_level_data(self, registered_sensors):
+        """Add sensor signal level data to a sensor data packet.
+
+        Iterate over the list of registered sensors and obtain a dict of sensor
+        signal level data for each registered sensor.
+
+        registered_sensors: list of dicts of sesnor ID data for each registered
+                            sensor
+        """
+
+        # initialise a dict to hold the sensor signal level data
+        signal_level_data = {}
+        # iterate over our registered sensors
+        for sensor in registered_sensors:
+            # get the sensor name
+            sensor_name = Gw1000Collector.sensor_ids[sensor['address']]['name']
+            # create the sensor signal level field for this sensor
+            signal_level_data[''.join([sensor_name, '_sig'])] = sensor['signal']
+        # return our sensor signal level data
+        return signal_level_data
 
     @property
     def rain_data(self):
@@ -2021,6 +2270,150 @@ class Gw1000Collector(Collector):
         return data_dict
 
     @property
+    def mulch_offset(self):
+        """Obtain GW1000 multi-channel temperature and humidity offset data."""
+
+        # obtain the mulch offset data via the API
+        response = self.station.get_mulch_offset()
+        # determine the size of the mulch offset data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a counter
+        index = 0
+        # initialise a dict to hold our final data
+        offset_dict = {}
+        # iterate over the data
+        while index < len(data):
+            try:
+                channel = six.byte2int(data[index])
+            except TypeError:
+                channel = data[index]
+            offset_dict[channel] = {}
+            try:
+                offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
+            except TypeError:
+                offset_dict[channel]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
+            try:
+                offset_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
+            except TypeError:
+                offset_dict[channel]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
+            index += 3
+        return offset_dict
+
+    @property
+    def pm25_offset(self):
+        """Obtain GW1000 PM2.5 offset data."""
+
+        # obtain the PM2.5 offset data via the API
+        response = self.station.get_pm25_offset()
+        # determine the size of the PM2.5 offset data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a counter
+        index = 0
+        # initialise a dict to hold our final data
+        offset_dict = {}
+        # iterate over the data
+        while index < len(data):
+            try:
+                channel = six.byte2int(data[index])
+            except TypeError:
+                channel = data[index]
+            offset_dict[channel] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
+            index += 3
+        return offset_dict
+
+    @property
+    def calibration(self):
+        """Obtain GW1000 calibration data.
+
+        """
+
+        # obtain the calibration data via the API
+        response = self.station.get_calibration_coefficient()
+        # determine the size of the calibration data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        calibration_dict = {}
+        # and decode/store the calibration data
+        # bytes 0 and 1 are reserved (lux to solar radiation conversion
+        # gain (126.7))
+        calibration_dict['uv'] = struct.unpack(">H", data[2:4])[0]/100.0
+        calibration_dict['solar'] = struct.unpack(">H", data[4:6])[0]/100.0
+        calibration_dict['wind'] = struct.unpack(">H", data[6:8])[0]/100.0
+        calibration_dict['rain'] = struct.unpack(">H", data[8:10])[0]/100.0
+        # obtain the offset calibration data via the API
+        response = self.station.get_offset_calibration()
+        # determine the size of the calibration data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # and decode/store the offset calibration data
+        calibration_dict['intemp'] = struct.unpack(">h", data[0:2])[0]/10.0
+        try:
+            calibration_dict['inhum'] = struct.unpack("b", data[2])[0]
+        except TypeError:
+            calibration_dict['inhum'] = struct.unpack("b", six.int2byte(data[2]))[0]
+        calibration_dict['abs'] = struct.unpack(">l", data[3:7])[0]/10.0
+        calibration_dict['rel'] = struct.unpack(">l", data[7:11])[0]/10.0
+        calibration_dict['outtemp'] = struct.unpack(">h", data[11:13])[0]/10.0
+        try:
+            calibration_dict['outhum'] = struct.unpack("b", data[13])[0]
+        except TypeError:
+            calibration_dict['outhum'] = struct.unpack("b", six.int2byte(data[13]))[0]
+        calibration_dict['dir'] = struct.unpack(">h", data[14:16])[0]
+        return calibration_dict
+
+    @property
+    def soil_calibration(self):
+        """Obtain GW1000 soil moisture sensor calibration data.
+
+        """
+
+        # obtain the soil moisture calibration data via the API
+        response = self.station.get_soil_calibration()
+        # determine the size of the calibration data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        calibration_dict = {}
+        # initialise a counter
+        index = 0
+        # initialise a dict to hold our final data
+        calibration_dict = {}
+        # iterate over the data
+        while index < len(data):
+            try:
+                channel = six.byte2int(data[index])
+            except TypeError:
+                channel = data[index]
+            calibration_dict[channel] = {}
+            try:
+                humidity = six.byte2int(data[index + 1])
+            except TypeError:
+                humidity = data[index + 1]
+            calibration_dict[channel]['humidity'] = humidity
+            calibration_dict[channel]['ad'] = struct.unpack(">h", data[index+2:index+4])[0]
+            try:
+                ad_select = six.byte2int(data[index + 4])
+            except TypeError:
+                ad_select = data[index + 4]
+            calibration_dict[channel]['ad_select'] = ad_select
+            try:
+                min_ad = six.byte2int(data[index + 5])
+            except TypeError:
+                min_ad = data[index + 5]
+            calibration_dict[channel]['adj_min'] = min_ad
+            calibration_dict[channel]['adj_max'] = struct.unpack(">h", data[index+6:index+8])[0]
+            index += 8
+        return calibration_dict
+
+    @property
     def system_parameters(self):
         """Obtain GW1000 system parameters."""
 
@@ -2037,6 +2430,175 @@ class Gw1000Collector(Collector):
         data_dict['utc'] = self.parser.decode_utc(data[2:6])
         data_dict['timezone_index'] = six.indexbytes(data, 6)
         data_dict['dst_status'] = six.indexbytes(data, 7) != 0
+        return data_dict
+
+    @property
+    def ecowitt_net(self):
+        """Obtain GW1000 Ecowitt.net service parameters.
+
+        Obtain the GW1000 Ecowitt.net service settings.
+
+        Returns a dictionary of settings.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_ecowitt_net_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        data_dict['interval'] = six.indexbytes(data, 0)
+        # obtain the GW1000 MAC address
+        data_dict['mac'] = self.mac_address
+        return data_dict
+
+    @property
+    def wunderground(self):
+        """Obtain GW1000 Weather Underground service parameters.
+
+        Obtain the GW1000 Weather Underground service settings.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_wunderground_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # return data
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        id_size = six.indexbytes(data, 0)
+        data_dict['id'] = data[1:1+id_size].decode()
+        password_size = six.indexbytes(data, 1+id_size)
+        data_dict['password'] = data[2+id_size:2+id_size+password_size].decode()
+        return data_dict
+
+    @property
+    def weathercloud(self):
+        """Obtain GW1000 Weathercloud service parameters.
+
+        Obtain the GW1000 Weathercloud service settings.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_weathercloud_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        id_size = six.indexbytes(data, 0)
+        data_dict['id'] = data[1:1+id_size].decode()
+        key_size = six.indexbytes(data, 1+id_size)
+        data_dict['key'] = data[2+id_size:2+id_size+key_size].decode()
+        return data_dict
+
+    @property
+    def wow(self):
+        """Obtain GW1000 Weather Observations Website service parameters.
+
+        Obtain the GW1000 Weather Observations Website service settings.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_wow_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        id_size = six.indexbytes(data, 0)
+        data_dict['id'] = data[1:1+id_size].decode()
+        password_size = six.indexbytes(data, 1+id_size)
+        data_dict['password'] = data[2+id_size:2+id_size+password_size].decode()
+        station_num_size = six.indexbytes(data, 1+id_size)
+        data_dict['station_num'] = data[3+id_size+password_size:3+id_size+password_size+station_num_size].decode()
+        return data_dict
+
+    @property
+    def custom(self):
+        """Obtain GW1000 custom server parameters.
+
+        Obtain the GW1000 settings used for uploading data to a remote server.
+
+        Returns a dictionary of settings with string data in unicode format.
+        """
+
+        # obtain the system parameters data via the API
+        response = self.station.get_custom_params()
+        # determine the size of the system parameters data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        # obtain the required data from the response decoding any bytestrings
+        index = 0
+        id_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['id'] = data[index:index+id_size].decode()
+        index += id_size
+        password_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['password'] = data[index:index+password_size].decode()
+        index += password_size
+        server_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['server'] = data[index:index+server_size].decode()
+        index += server_size
+        data_dict['port'] = struct.unpack(">h", data[index:index + 2])[0]
+        index += 2
+        data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
+        index += 2
+        data_dict['type'] = six.indexbytes(data, index)
+        index += 1
+        data_dict['active'] = six.indexbytes(data, index)
+        # the user path is obtained separately, get the user path and add it to
+        # our response
+        data_dict.update(self.usr_path)
+        return data_dict
+
+    @property
+    def usr_path(self):
+        """Obtain the GW1000 user defined custom paths.
+
+        The GW1000 allows definition of remote server customs paths for use
+        when uploading to a custom service using Ecowitt or Weather Underground
+        format. Different paths may be specified for each protocol.
+
+        Returns a dictionary with each path as a unicode text string.
+        """
+
+        # return the GW1000 user defined custom path
+        response = self.station.get_usr_path()
+        # determine the size of the user path data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual system parameters data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        data_dict = dict()
+        index = 0
+        ecowitt_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['ecowitt_path'] = data[index:index+ecowitt_size].decode()
+        index += ecowitt_size
+        wu_size = six.indexbytes(data, index)
+        index += 1
+        data_dict['wu_path'] = data[index:index+wu_size].decode()
         return data_dict
 
     @property
@@ -2225,7 +2787,7 @@ class Gw1000Collector(Collector):
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
                      socket_timeout=None, max_tries=default_max_tries,
-                     retry_wait=default_retry_wait):
+                     retry_wait=default_retry_wait, mac=None):
 
             # network broadcast address
             self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -2287,7 +2849,10 @@ class Gw1000Collector(Collector):
             # start off logging failures
             self.log_failures = True
             # get my GW1000 MAC address to use later if we have to rediscover
-            self.mac = self.get_mac_address()
+            if mac is not None:
+                self.mac = mac
+            else:
+                self.mac = self.get_mac_address()
 
         def discover(self):
             """Discover any GW1000s on the local network.
@@ -2408,6 +2973,84 @@ class Gw1000Collector(Collector):
 
             return self.send_cmd_with_retries('CMD_READ_SSSS')
 
+        def get_ecowitt_net_params(self):
+            """Get GW1000 Ecowitt.net parameters.
+
+            Sends the command to obtain the GW1000 Ecowitt.net parameters to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_ecowitt_net_params(). Any code
+            calling get_ecowitt_net_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_ECOWITT')
+
+        def get_wunderground_params(self):
+            """Get GW1000 Weather Underground parameters.
+
+            Sends the command to obtain the GW1000 Weather Underground
+            parameters to the API with retries. If the GW1000 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_wunderground_params(). Any code calling
+            get_wunderground_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
+
+        def get_weathercloud_params(self):
+            """Get GW1000 Weathercloud parameters.
+
+            Sends the command to obtain the GW1000 Weathercloud parameters to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_weathercloud_params(). Any code
+            calling get_weathercloud_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
+
+        def get_wow_params(self):
+            """Get GW1000 Weather Observations Website parameters.
+
+            Sends the command to obtain the GW1000 Weather Observations Website
+            parameters to the API with retries. If the GW1000 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_wow_params(). Any code calling get_wow_params() should be
+            prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_WOW')
+
+        def get_custom_params(self):
+            """Get GW1000 custom server parameters.
+
+            Sends the command to obtain the GW1000 custom server parameters to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_custom_params(). Any code
+            calling get_custom_params() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
+
+        def get_usr_path(self):
+            """Get GW1000 user defined custom path.
+
+            Sends the command to obtain the GW1000 user defined custom path to
+            the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_usr_path(). Any code calling
+            get_usr_path() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_USR_PATH')
+
         def get_mac_address(self):
             """Get GW1000 MAC address.
 
@@ -2458,6 +3101,70 @@ class Gw1000Collector(Collector):
                     # we did rediscover successfully so try again, if it fails
                     # we get another GW1000IOError exception which will be raised
                     return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
+
+        def get_mulch_offset(self):
+            """Get multi-channel temperature and humidity offset data.
+
+            Sends the command to obtain the multi-channel temperature and
+            humidity offset data to the API with retries. If the GW1000 cannot
+            be contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_mulch_offset(). Any code calling get_mulch_offset() should be
+            prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
+
+        def get_pm25_offset(self):
+            """Get PM2.5 offset data.
+
+            Sends the command to obtain the PM2.5 sensor offset data to the API
+            with retries. If the GW1000 cannot be contacted a GW1000IOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_pm25_offset(). Any code calling
+            get_pm25_offset() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
+
+        def get_calibration_coefficient(self):
+            """Get calibration coefficient data.
+
+            Sends the command to obtain the calibration coefficient data to the
+            API with retries. If the GW1000 cannot be contacted a GW1000IOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_calibration_coefficient(). Any code calling
+            get_calibration_coefficient() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_GAIN')
+
+        def get_soil_calibration(self):
+            """Get soil moisture sensor calibration data.
+
+            Sends the command to obtain the soil moisture sensor calibration
+            data to the API with retries. If the GW1000 cannot be contacted a
+            GW1000IOError will have been raised by send_cmd_with_retries()
+            which will be passed through by get_soil_calibration(). Any code
+            calling get_soil_calibration() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
+
+        def get_offset_calibration(self):
+            """Get offset calibration data.
+
+            Sends the command to obtain the offset calibration data to the API
+            with retries. If the GW1000 cannot be contacted a GW1000IOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_offset_calibration(). Any code calling
+            get_offset_calibration() should be prepared to handle this
+            exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_CALIBRATION')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000 API with retries and return the
@@ -2731,110 +3438,6 @@ class Gw1000Collector(Collector):
     class Parser(object):
         """Class to parse GW1000 sensor data."""
 
-        # Dictionary keyed by GW1000 response element containing various
-        # parameters for each response 'field'. Dictionary tuple format
-        # is (decode function name, size of data in bytes, GW1000 field name)
-        response_struct = {
-            b'\x01': ('decode_temp', 2, 'intemp'),
-            b'\x02': ('decode_temp', 2, 'outtemp'),
-            b'\x03': ('decode_temp', 2, 'dewpoint'),
-            b'\x04': ('decode_temp', 2, 'windchill'),
-            b'\x05': ('decode_temp', 2, 'heatindex'),
-            b'\x06': ('decode_humid', 1, 'inhumid'),
-            b'\x07': ('decode_humid', 1, 'outhumid'),
-            b'\x08': ('decode_press', 2, 'absbarometer'),
-            b'\x09': ('decode_press', 2, 'relbarometer'),
-            b'\x0A': ('decode_dir', 2, 'winddir'),
-            b'\x0B': ('decode_speed', 2, 'windspeed'),
-            b'\x0C': ('decode_speed', 2, 'gustspeed'),
-            b'\x0D': ('decode_rain', 2, 'rainevent'),
-            b'\x0E': ('decode_rainrate', 2, 'rainrate'),
-            b'\x0F': ('decode_rain', 2, 'rainhour'),
-            b'\x10': ('decode_rain', 2, 'rainday'),
-            b'\x11': ('decode_rain', 2, 'rainweek'),
-            b'\x12': ('decode_big_rain', 4, 'rainmonth'),
-            b'\x13': ('decode_big_rain', 4, 'rainyear'),
-            b'\x14': ('decode_big_rain', 4, 'raintotals'),
-            b'\x15': ('decode_light', 4, 'light'),
-            b'\x16': ('decode_uv', 2, 'uv'),
-            b'\x17': ('decode_uvi', 1, 'uvi'),
-            b'\x18': ('decode_datetime', 6, 'datetime'),
-            b'\x19': ('decode_speed', 2, 'daymaxwind'),
-            b'\x1A': ('decode_temp', 2, 'temp1'),
-            b'\x1B': ('decode_temp', 2, 'temp2'),
-            b'\x1C': ('decode_temp', 2, 'temp3'),
-            b'\x1D': ('decode_temp', 2, 'temp4'),
-            b'\x1E': ('decode_temp', 2, 'temp5'),
-            b'\x1F': ('decode_temp', 2, 'temp6'),
-            b'\x20': ('decode_temp', 2, 'temp7'),
-            b'\x21': ('decode_temp', 2, 'temp8'),
-            b'\x22': ('decode_humid', 1, 'humid1'),
-            b'\x23': ('decode_humid', 1, 'humid2'),
-            b'\x24': ('decode_humid', 1, 'humid3'),
-            b'\x25': ('decode_humid', 1, 'humid4'),
-            b'\x26': ('decode_humid', 1, 'humid5'),
-            b'\x27': ('decode_humid', 1, 'humid6'),
-            b'\x28': ('decode_humid', 1, 'humid7'),
-            b'\x29': ('decode_humid', 1, 'humid8'),
-            b'\x2A': ('decode_aq', 2, 'pm251'),
-            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
-            b'\x2C': ('decode_moist', 1, 'soilmoist1'),
-            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
-            b'\x2E': ('decode_moist', 1, 'soilmoist2'),
-            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
-            b'\x30': ('decode_moist', 1, 'soilmoist3'),
-            b'\x31': ('decode_temp', 2, 'soiltemp4'),
-            b'\x32': ('decode_moist', 1, 'soilmoist4'),
-            b'\x33': ('decode_temp', 2, 'soiltemp5'),
-            b'\x34': ('decode_moist', 1, 'soilmoist5'),
-            b'\x35': ('decode_temp', 2, 'soiltemp6'),
-            b'\x36': ('decode_moist', 1, 'soilmoist6'),
-            b'\x37': ('decode_temp', 2, 'soiltemp7'),
-            b'\x38': ('decode_moist', 1, 'soilmoist7'),
-            b'\x39': ('decode_temp', 2, 'soiltemp8'),
-            b'\x3A': ('decode_moist', 1, 'soilmoist8'),
-            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
-            b'\x3C': ('decode_moist', 1, 'soilmoist9'),
-            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
-            b'\x3E': ('decode_moist', 1, 'soilmoist10'),
-            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
-            b'\x40': ('decode_moist', 1, 'soilmoist11'),
-            b'\x41': ('decode_temp', 2, 'soiltemp12'),
-            b'\x42': ('decode_moist', 1, 'soilmoist12'),
-            b'\x43': ('decode_temp', 2, 'soiltemp13'),
-            b'\x44': ('decode_moist', 1, 'soilmoist13'),
-            b'\x45': ('decode_temp', 2, 'soiltemp14'),
-            b'\x46': ('decode_moist', 1, 'soilmoist14'),
-            b'\x47': ('decode_temp', 2, 'soiltemp15'),
-            b'\x48': ('decode_moist', 1, 'soilmoist15'),
-            b'\x49': ('decode_temp', 2, 'soiltemp16'),
-            b'\x4A': ('decode_moist', 1, 'soilmoist16'),
-            b'\x4C': ('decode_batt', 16, 'lowbatt'),
-            b'\x4D': ('decode_aq', 2, 'pm251_24hav'),
-            b'\x4E': ('decode_aq', 2, 'pm252_24hav'),
-            b'\x4F': ('decode_aq', 2, 'pm253_24hav'),
-            b'\x50': ('decode_aq', 2, 'pm254_24hav'),
-            b'\x51': ('decode_aq', 2, 'pm252'),
-            b'\x52': ('decode_aq', 2, 'pm253'),
-            b'\x53': ('decode_aq', 2, 'pm254'),
-            b'\x58': ('decode_leak', 1, 'leak1'),
-            b'\x59': ('decode_leak', 1, 'leak2'),
-            b'\x5A': ('decode_leak', 1, 'leak3'),
-            b'\x5B': ('decode_leak', 1, 'leak4'),
-            b'\x60': ('decode_distance', 1, 'lightningdist'),
-            b'\x61': ('decode_utc', 4, 'lightningdettime'),
-            b'\x62': ('decode_count', 4, 'lightningcount'),
-            b'\x63': ('decode_temp_batt', 3, 'usertemp1'),
-            b'\x64': ('decode_temp_batt', 3, 'usertemp2'),
-            b'\x65': ('decode_temp_batt', 3, 'usertemp3'),
-            b'\x66': ('decode_temp_batt', 3, 'usertemp4'),
-            b'\x67': ('decode_temp_batt', 3, 'usertemp5'),
-            b'\x68': ('decode_temp_batt', 3, 'usertemp6'),
-            b'\x69': ('decode_temp_batt', 3, 'usertemp7'),
-            b'\x6A': ('decode_temp_batt', 3, 'usertemp8'),
-            b'\x70': ('decode_co2', 3, 'usertemp8')
-        }
-
         multi_batt = {'wh40': {'mask': 1 << 4},
                       'wh26': {'mask': 1 << 5},
                       'wh25': {'mask': 1 << 6},
@@ -2907,6 +3510,154 @@ class Gw1000Collector(Collector):
                               'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
+        # WH34 fields
+        wh34_ch1_fields = {'wh34_ch1_temp': ('decode_temp', 2),
+                           'wh34_ch1_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch2_fields = {'wh34_ch2_temp': ('decode_temp', 2),
+                           'wh34_ch2_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch3_fields = {'wh34_ch3_temp': ('decode_temp', 2),
+                           'wh34_ch3_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch4_fields = {'wh34_ch4_temp': ('decode_temp', 2),
+                           'wh34_ch4_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch5_fields = {'wh34_ch5_temp': ('decode_temp', 2),
+                           'wh34_ch5_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch6_fields = {'wh34_ch6_temp': ('decode_temp', 2),
+                           'wh34_ch6_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch7_fields = {'wh34_ch7_temp': ('decode_temp', 2),
+                           'wh34_ch7_batt': ('battery_voltage', 1)
+                      }
+        # WH34 fields
+        wh34_ch8_fields = {'wh34_ch8_temp': ('decode_temp', 2),
+                           'wh34_ch8_batt': ('battery_voltage', 1)
+                      }
+        # CO2 sensor 'gw1000' fields
+        wh45_fields = {'co2_temp': ('decode_temp', 2),
+                      'co2_humid': ('decode_humid', 1),
+                      'co2_pm10': ('decode_pm10', 2),
+                      'co2_pm10_24hav': ('decode_pm10', 2),
+                      'co2_pm25': ('decode_pm25', 2),
+                      'co2_pm25_24hav': ('decode_pm25', 2),
+                      'co2': ('decode_co2', 2),
+                      'co2_24hav': ('decode_co2', 2),
+                      'co2_batt': ('battery_value', 1)
+                       }
+
+        # Dictionary keyed by GW1000 response element containing various
+        # parameters for each response 'field'. Dictionary tuple format
+        # is (decode function name, size of data in bytes, GW1000 field name)
+        response_struct = {
+            b'\x01': ('decode_temp', 2, 'intemp'),
+            b'\x02': ('decode_temp', 2, 'outtemp'),
+            b'\x03': ('decode_temp', 2, 'dewpoint'),
+            b'\x04': ('decode_temp', 2, 'windchill'),
+            b'\x05': ('decode_temp', 2, 'heatindex'),
+            b'\x06': ('decode_humid', 1, 'inhumid'),
+            b'\x07': ('decode_humid', 1, 'outhumid'),
+            b'\x08': ('decode_press', 2, 'absbarometer'),
+            b'\x09': ('decode_press', 2, 'relbarometer'),
+            b'\x0A': ('decode_dir', 2, 'winddir'),
+            b'\x0B': ('decode_speed', 2, 'windspeed'),
+            b'\x0C': ('decode_speed', 2, 'gustspeed'),
+            b'\x0D': ('decode_rain', 2, 'rainevent'),
+            b'\x0E': ('decode_rainrate', 2, 'rainrate'),
+            b'\x0F': ('decode_rain', 2, 'rainhour'),
+            b'\x10': ('decode_rain', 2, 'rainday'),
+            b'\x11': ('decode_rain', 2, 'rainweek'),
+            b'\x12': ('decode_big_rain', 4, 'rainmonth'),
+            b'\x13': ('decode_big_rain', 4, 'rainyear'),
+            b'\x14': ('decode_big_rain', 4, 'raintotals'),
+            b'\x15': ('decode_light', 4, 'light'),
+            b'\x16': ('decode_uv', 2, 'uv'),
+            b'\x17': ('decode_uvi', 1, 'uvi'),
+            b'\x18': ('decode_datetime', 6, 'datetime'),
+            b'\x19': ('decode_speed', 2, 'daymaxwind'),
+            b'\x1A': ('decode_temp', 2, 'temp1'),
+            b'\x1B': ('decode_temp', 2, 'temp2'),
+            b'\x1C': ('decode_temp', 2, 'temp3'),
+            b'\x1D': ('decode_temp', 2, 'temp4'),
+            b'\x1E': ('decode_temp', 2, 'temp5'),
+            b'\x1F': ('decode_temp', 2, 'temp6'),
+            b'\x20': ('decode_temp', 2, 'temp7'),
+            b'\x21': ('decode_temp', 2, 'temp8'),
+            b'\x22': ('decode_humid', 1, 'humid1'),
+            b'\x23': ('decode_humid', 1, 'humid2'),
+            b'\x24': ('decode_humid', 1, 'humid3'),
+            b'\x25': ('decode_humid', 1, 'humid4'),
+            b'\x26': ('decode_humid', 1, 'humid5'),
+            b'\x27': ('decode_humid', 1, 'humid6'),
+            b'\x28': ('decode_humid', 1, 'humid7'),
+            b'\x29': ('decode_humid', 1, 'humid8'),
+            b'\x2A': ('decode_pm25', 2, 'pm251'),
+            b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+            b'\x2C': ('decode_moist', 1, 'soilmoist1'),
+            b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+            b'\x2E': ('decode_moist', 1, 'soilmoist2'),
+            b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+            b'\x30': ('decode_moist', 1, 'soilmoist3'),
+            b'\x31': ('decode_temp', 2, 'soiltemp4'),
+            b'\x32': ('decode_moist', 1, 'soilmoist4'),
+            b'\x33': ('decode_temp', 2, 'soiltemp5'),
+            b'\x34': ('decode_moist', 1, 'soilmoist5'),
+            b'\x35': ('decode_temp', 2, 'soiltemp6'),
+            b'\x36': ('decode_moist', 1, 'soilmoist6'),
+            b'\x37': ('decode_temp', 2, 'soiltemp7'),
+            b'\x38': ('decode_moist', 1, 'soilmoist7'),
+            b'\x39': ('decode_temp', 2, 'soiltemp8'),
+            b'\x3A': ('decode_moist', 1, 'soilmoist8'),
+            b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+            b'\x3C': ('decode_moist', 1, 'soilmoist9'),
+            b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+            b'\x3E': ('decode_moist', 1, 'soilmoist10'),
+            b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+            b'\x40': ('decode_moist', 1, 'soilmoist11'),
+            b'\x41': ('decode_temp', 2, 'soiltemp12'),
+            b'\x42': ('decode_moist', 1, 'soilmoist12'),
+            b'\x43': ('decode_temp', 2, 'soiltemp13'),
+            b'\x44': ('decode_moist', 1, 'soilmoist13'),
+            b'\x45': ('decode_temp', 2, 'soiltemp14'),
+            b'\x46': ('decode_moist', 1, 'soilmoist14'),
+            b'\x47': ('decode_temp', 2, 'soiltemp15'),
+            b'\x48': ('decode_moist', 1, 'soilmoist15'),
+            b'\x49': ('decode_temp', 2, 'soiltemp16'),
+            b'\x4A': ('decode_moist', 1, 'soilmoist16'),
+            b'\x4C': ('decode_batt', 16, 'lowbatt'),
+            b'\x4D': ('decode_pm25', 2, 'pm251_24hav'),
+            b'\x4E': ('decode_pm25', 2, 'pm252_24hav'),
+            b'\x4F': ('decode_pm25', 2, 'pm253_24hav'),
+            b'\x50': ('decode_pm25', 2, 'pm254_24hav'),
+            b'\x51': ('decode_pm25', 2, 'pm252'),
+            b'\x52': ('decode_pm25', 2, 'pm253'),
+            b'\x53': ('decode_pm25', 2, 'pm254'),
+            b'\x58': ('decode_leak', 1, 'leak1'),
+            b'\x59': ('decode_leak', 1, 'leak2'),
+            b'\x5A': ('decode_leak', 1, 'leak3'),
+            b'\x5B': ('decode_leak', 1, 'leak4'),
+            b'\x60': ('decode_distance', 1, 'lightningdist'),
+            b'\x61': ('decode_utc', 4, 'lightningdettime'),
+            b'\x62': ('decode_count', 4, 'lightningcount'),
+            b'\x63': ('decode_wh34', 3, wh34_ch1_fields),
+            b'\x64': ('decode_wh34', 3, wh34_ch2_fields),
+            b'\x65': ('decode_wh34', 3, wh34_ch3_fields),
+            b'\x66': ('decode_wh34', 3, wh34_ch4_fields),
+            b'\x67': ('decode_wh34', 3, wh34_ch5_fields),
+            b'\x68': ('decode_wh34', 3, wh34_ch6_fields),
+            b'\x69': ('decode_wh34', 3, wh34_ch7_fields),
+            b'\x6A': ('decode_wh34', 3, wh34_ch8_fields),
+            b'\x70': ('decode_wh45', 3, wh45_fields),
+        }
+
         # tuple of field codes for rain related fields in the GW1000 live data
         # so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
@@ -2959,9 +3710,9 @@ class Gw1000Collector(Collector):
             # log the actual sensor data as a sequence of bytes in hex
             if weewx.debug >= 3:
                 logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
+            data = {}
             if len(resp) > 0:
                 index = 0
-                data = {}
                 while index < len(resp) - 1:
                     decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
                     _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
@@ -3085,35 +3836,22 @@ class Gw1000Collector(Collector):
             else:
                 return value
 
-        def decode_temp_batt(self, data, field=None):
-            """Decode combined temperature and battery status data.
+        def decode_wh34(self, data, fields=None):
+            """Decode WH34 sensor data.
 
             Data consists of three bytes; bytes 0 and 1 are normal temperature data
             and byte 3 is battery status data.
             """
 
             # do we have valid data
-            if len(data) == 3:
-                # yes, decode temperature from bytes 0 and 1
-                temp = self.decode_temp(data[0:2], field)
-                # decode battery voltage from byte 2
-                batt = self.battery_voltage(data[2])
-                # were we given a field to use for the return
-                if field is not None:
-                    # we have a field, 'temp' will be a dict so add the battery
-                    # state data and return the resulting dict
-                    temp['%s_batt' % field] = batt
-                    return temp
-                else:
-                    # No field provided, so 'temp' will just be a value.
-                    # Package temperature and battery state data in a generic
-                    # dict and return
-                    return {'temperature': temp,
-                            'battery': batt
-                            }
-            else:
-                # invalid data assumed, return None
-                return None
+            if len(data) == 3 and hasattr(fields, 'keys'):
+                results = dict()
+                index = 0
+                for field, (decode_fn, size) in six.iteritems(fields):
+                    results[field] = getattr(self, decode_fn)(data[index:index + size])
+                    index += size
+                return results
+            return {}
 
         @staticmethod
         def decode_distance(data, field=None):
@@ -3198,8 +3936,10 @@ class Gw1000Collector(Collector):
         decode_uv = decode_press
         decode_uvi = decode_humid
         decode_moist = decode_humid
-        decode_aq = decode_press
+        decode_pm25 = decode_press
         decode_leak = decode_humid
+        decode_pm10 = decode_press
+        decode_co2 = decode_dir
 
         def decode_batt(self, data, field):
             """Decode battery status data.
@@ -3304,28 +4044,62 @@ class Gw1000Collector(Collector):
 
         @staticmethod
         def binary_desc(value):
-            if value == 0:
-                return "OK"
-            elif value == 1:
-                return "low"
-            else:
-                return None
+            if value is not None:
+                if value == 0:
+                    return "OK"
+                elif value == 1:
+                    return "low"
+                else:
+                    return None
+            return None
 
         @staticmethod
         def voltage_desc(value):
-            if value <= 1.2:
-                return "low"
-            else:
-                return "OK"
+            if value is not None:
+                if value <= 1.2:
+                    return "low"
+                else:
+                    return "OK"
+            return None
 
         @staticmethod
         def level_desc(value):
-            if value <= 1:
-                return "low"
-            elif value == 6:
-                return "DC"
-            else:
-                return "OK"
+            if value is not None:
+                if value <= 1:
+                    return "low"
+                elif value == 6:
+                    return "DC"
+                else:
+                    return "OK"
+            return None
+
+        def decode_wh45(self, data, fields=None):
+            """Decode WH45 sensor data.
+
+            CO2 sensor data includes various sensor values, 24 hour aggregates
+            and battery state data in 16 bytes.
+
+            The 16 bytes of CO2 sensor data is allocated as follows:
+            Byte(s) #      Data               Format          Comments
+            bytes   1-2    temperature        short           C x10
+                    3      humidity           unsigned byte   percent
+                    4-5    PM10               unsigned short  ug/m3 x10
+                    6-7    PM10 24hour avg    unsigned short  ug/m3 x10
+                    8-9    PM2.5              unsigned short  ug/m3 x10
+                    10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
+                    12-13  CO2                unsigned short  ppm
+                    14-15  CO2 24 our avg     unsigned short  ppm
+                    16     battery state      unsigned byte   0-5 <=1 is low
+            """
+
+            if len(data) == 16 and hasattr(fields, 'keys'):
+                results = dict()
+                index = 0
+                for field, (decode_fn, size) in six.iteritems(fields):
+                    results[field] = getattr(self, decode_fn)(data[index:index + size])
+                    index += size
+                return results
+            return {}
 
 
 # ============================================================================
@@ -3384,11 +4158,40 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     format_str = "{:02X}" if caps else "{:02x}"
     try:
         return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, AttributeError):
         # ValueError - cannot format c as {:02X}
         # TypeError - 'iterable' is not iterable
+        # AttributeError - likely cause separator is None
         # either way we can't represent as a string of hex bytes
         return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
+
+
+def obfuscate(plain, obf_char='*'):
+    """Obfuscate all but the last x characters in a string.
+
+    Obfuscate all but (at most) the last four characters of a string. Always
+    reveal no more than 50% of the characters. The obfuscation character
+    defaults to '*' but can be set when the function is called.
+    """
+
+    if plain is not None and len(plain) > 0:
+        # obtain the number of the characters to be retained
+        stem = 4
+        stem = 3 if len(plain) < 8 else stem
+        stem = 2 if len(plain) < 6 else stem
+        stem = 1 if len(plain) < 4 else stem
+        stem = 0 if len(plain) < 3 else stem
+        if stem > 0:
+            # we are retaining some characters so do a little string
+            # manipulation
+            obfuscated = obf_char * (len(plain) - stem) + plain[-stem:]
+        else:
+            # we are obfuscating everything
+            obfuscated = obf_char * len(plain)
+        return obfuscated
+    else:
+        # if we received None or a zero length string then return it
+        return plain
 
 
 # To use this driver in standalone mode for testing or development, use one of
@@ -3562,7 +4365,7 @@ def main():
             print("GW1000 timezone index: %s" % (sys_params_dict['timezone_index'],))
             print("GW1000 DST status: %s" % (sys_params_dict['dst_status'],))
 
-    def rain_data(opts, stn_dict):
+    def get_rain_data(opts, stn_dict):
         """Display the GW1000 rain data.
 
         Obtain and display the GW1000 rain data. GW1000 IP address and port are
@@ -3584,7 +4387,7 @@ def main():
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
                                                      collector.station.port))
-            # get the collector objects rain_data property
+            # get the collector objects get_rain_data property
             rain_data = collector.rain_data
         except GW1000IOError as e:
             print()
@@ -3599,6 +4402,359 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
+
+    def get_mulch_offset(opts, stn_dict):
+        """Display the multi-channel temperature and humidity offset data from
+        a GW1000.
+
+        Obtain and display the multi-channel temperature and humidity offset
+        data from the selected GW1000. GW1000 IP address and port are derived
+        (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the mulch offset data from the collector object's mulch_offset
+            # property
+            mulch_offset_data = collector.mulch_offset
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any mulch offset data
+            if mulch_offset_data is not None:
+                # now format and display the data
+                print()
+                print("Multi-channel Temperature and Humidity Calibration")
+                # iterate over each channel for which we have data
+                for channel in mulch_offset_data:
+                    # print the channel and offset data
+                    mulch_str = "Channel %d: Temperature offset: %5s Humidity offset: %3s"
+                    # the API returns channels starting at 0, but the WS View
+                    # app displays channels starting at 1, so add 1 to our
+                    # channel number
+                    print(mulch_str % (channel+1,
+                                       "%2.1f" % mulch_offset_data[channel]['temp'],
+                                       "%d" % mulch_offset_data[channel]['hum']))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
+    def get_pm25_offset(opts, stn_dict):
+        """Display the PM2.5 offset data from a GW1000.
+
+        Obtain and display the PM2.5 offset data from the selected GW1000.
+        GW1000 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the PM2.5 offset data from the collector object's pm25_offset
+            # property
+            pm25_offset_data = collector.pm25_offset
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any PM2.5 offset data
+            if pm25_offset_data is not None:
+                # now format and display the data
+                print()
+                print("PM2.5 Calibration")
+                # iterate over each channel for which we have data
+                for channel in pm25_offset_data:
+                    # print the channel and offset data
+                    print("Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
+    def get_calibration(opts, stn_dict):
+        """Display the calibration data from a GW1000.
+
+        Obtain and display the calibration data from the selected GW1000.
+        GW1000 IP address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the calibration data from the collector object's calibration
+            # property
+            calibration_data = collector.calibration
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any calibration data
+            if calibration_data is not None:
+                # now format and display the data
+                print()
+                print("Calibration")
+                print("%26s: %4.1f" % ("Solar radiation gain", calibration_data['solar']))
+                print("%26s: %4.1f" % ("UV gain", calibration_data['uv']))
+                print("%26s: %4.1f" % ("Wind gain", calibration_data['wind']))
+                print("%26s: %4.1f" % ("Rain gain", calibration_data['rain']))
+                print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['intemp'], u'\xb0'))
+                print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['inhum']))
+                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
+                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
+                print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['outtemp'], u'\xb0'))
+                print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['outhum']))
+                print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
+    def get_soil_calibration(opts, stn_dict):
+        """Display the soil moisture sensor calibration data from a GW1000.
+
+        Obtain and display the soil moisture sensor calibration data from the
+        selected GW1000. GW1000 IP address and port are derived (in order) as
+        follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the calibration data from the collector object's
+            # soil_calibration property
+            calibration_data = collector.soil_calibration
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any calibration data
+            if calibration_data is not None:
+                # now format and display the data
+                # first get a list of channels for which we have data, since
+                # this is the keys to a dict we need to sort them
+                channels = sorted(calibration_data.keys())
+                print()
+                print("Soil Calibration")
+                # iterate over each channel printing the channel data
+                for channel in channels:
+                    channel_dict = calibration_data[channel]
+                    # the API returns channels starting at 0, but the WS View
+                    # app displays channels starting at 1, so add 1 to our
+                    # channel number
+                    print("Channel %d (%d%%)" % (channel+1, channel_dict['humidity']))
+                    print("%12s: %d" % ("Now AD", channel_dict['ad']))
+                    print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
+                    print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
+    def get_services(opts, stn_dict):
+        """Display the GW1000 Weather Services settings.
+
+        Obtain and display the settings for the various weather services
+        supported by the GW1000. GW1000 IP address and port are derived (in
+        order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # each weather service uses different parameters so define individual
+        # functions to print each services settings
+
+        def print_ecowitt_net(data_dict=None):
+            """Print Ecowitt.net settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # upload interval, 0 means disabled
+                if data_dict['interval'] == 0:
+                    print("%22s: %s" % ("Upload Interval",
+                                        "Upload to Ecowitt.net is disabled"))
+                elif data_dict['interval'] > 1:
+                    print("%22s: %d minutes" % ("Upload Interval",
+                                                data_dict['interval']))
+                else:
+                    print("%22s: %d minute" % ("Upload Interval",
+                                               data_dict['interval']))
+                # GW1000 MAC
+                print("%22s: %s" % ("MAC", data_dict['mac']))
+
+        def print_wunderground(data_dict=None):
+            """Print Weather Underground settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Station ID
+                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Station ID", id))
+                # Station key
+                key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                print("%22s: %s" % ("Station Key", key))
+
+        def print_weathercloud(data_dict=None):
+            """Print Weathercloud settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Weathercloud ID
+                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Weathercloud ID", id))
+                # Weathercloud key
+                key = data_dict['key'] if opts.unmask else obfuscate(data_dict['key'])
+                print("%22s: %s" % ("Weathercloud Key", key))
+
+        def print_wow(data_dict=None):
+            """Print Weather Observations Website settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Station ID
+                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Station ID", id))
+                # Station key
+                key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                print("%22s: %s" % ("Station Key", key))
+
+        def print_custom(data_dict=None):
+            """Print Custom server settings."""
+
+            # do we have any settings?
+            if data_dict is not None:
+                # Is upload enabled, API specifies 1=enabled and 0=disabled, if
+                # we have anything else use 'Unknown'
+                if data_dict['active'] == 1:
+                    print("%22s: %s" % ("Upload", "Enabled"))
+                elif data_dict['active'] == 0:
+                    print("%22s: %s" % ("Upload", "Disabled"))
+                else:
+                    print("%22s: %s" % ("Upload", "Unknown"))
+                # upload protocol, API specifies 1=wundeground and 0=ecowitt,
+                # if we have anything else use 'Unknown'
+                if data_dict['type'] == 0:
+                    print("%22s: %s" % ("Upload Protocol", "Ecowitt"))
+                elif data_dict['type'] == 1:
+                    print("%22s: %s" % ("Upload Protocol", "Wunderground"))
+                else:
+                    print("%22s: %s" % ("Upload Protocol", "Unknown"))
+                # remote server IP address
+                print("%22s: %s" % ("Server IP/Hostname", data_dict['server']))
+                # remote server path, if using wunderground protocol we have
+                # Station ID and Station key as well
+                if data_dict['type'] == 0:
+                    print("%22s: %s" % ("Path", data_dict['ecowitt_path']))
+                elif data_dict['type'] == 1:
+                    print("%22s: %s" % ("Path", data_dict['wu_path']))
+                    id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                    print("%22s: %s" % ("Station ID", id))
+                    key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                    print("%22s: %s" % ("Station Key", key))
+                # port
+                print("%22s: %d" % ("Port", data_dict['port']))
+                # upload interval in seconds
+                print("%22s: %d seconds" % ("Upload Interval", data_dict['interval']))
+
+        # look table of functions to use to print weather service settings
+        print_fns = {'ecowitt_net': print_ecowitt_net,
+                     'wunderground': print_wunderground,
+                     'weathercloud': print_weathercloud,
+                     'wow': print_wow,
+                     'custom': print_custom}
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a GW1000 Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address,
+                                        port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the settings for each service know to the GW1000, store them
+            # in a dict keyed by the service name
+            services_data = dict()
+            for service in collector.services:
+                services_data[service['name']] = getattr(collector, service['name'])
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any service data
+            if len(services_data) > 0:
+                # now format and display the data
+                print()
+                print("Weather Services")
+                # iterate over the weather services we know about and call the
+                # relevant function to print the services settings
+                for service in collector.services:
+                    print()
+                    print("  %s" % (service['long_name'],))
+                    print_fns[service['name']](services_data[service['name']])
+            else:
+                print()
+                print("GW1000 did not respond.")
 
     def station_mac(opts, stn_dict):
         """Display the GW1000 hardware MAC address.
@@ -3803,6 +4959,8 @@ def main():
         field_map = dict(Gw1000.default_field_map)
         # now add in the battery state field map
         field_map.update(Gw1000.battery_field_map)
+        # now add in the sensor signal field map
+        field_map.update(Gw1000.sensor_signal_field_map)
         print()
         print("GW1000 driver/service default field map:")
         print("(format is WeeWX field name: GW1000 field name)")
@@ -3946,27 +5104,12 @@ def main():
 
     usage = """Usage: python -m user.gw1000 --help
        python -m user.gw1000 --version
-       python -m user.gw1000 --test-driver
+       python -m user.gw1000 --test-driver|--test-service
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--poll-interval=INTERVAL]
             [--max-tries=MAX_TRIES]
             [--retry-wait=RETRY_WAIT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --test-service
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--poll-interval=INTERVAL]
-            [--max-tries=MAX_TRIES]
-            [--retry-wait=RETRY_WAIT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --firmware-version
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
-       python -m user.gw1000 --mac-address
-            [CONFIG_FILE|--config=CONFIG_FILE]  
-            [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --sensors
             [CONFIG_FILE|--config=CONFIG_FILE]
@@ -3976,14 +5119,20 @@ def main():
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
-       python -m user.gw1000 --system-params
+       python -m user.gw1000 --firmware-version|--mac-address|
+            --system-params|--get-rain-data
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
-       python -m user.gw1000 --rain-data
+       python -m user.gw1000 --get-mulch-offset|--get-pm25-offset|
+            --get-calibration|--get-soil-calibration
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
+       python -m user.gw1000 --get-services
+            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [--ip-address=IP_ADDRESS] [--port=PORT]
+            [--unmask] [--debug=0|1|2|3]     
        python -m user.gw1000 --discover
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--debug=0|1|2|3]"""
@@ -3998,7 +5147,8 @@ def main():
     parser.add_option('--discover', dest='discover', action='store_true',
                       help='discover GW1000 and display its IP address '
                            'and port')
-    parser.add_option('--firmware-version', dest='firmware', action='store_true',
+    parser.add_option('--firmware-version', dest='firmware',
+                      action='store_true',
                       help='display GW1000 firmware version')
     parser.add_option('--mac-address', dest='mac', action='store_true',
                       help='display GW1000 station MAC address')
@@ -4008,13 +5158,30 @@ def main():
                       help='display GW1000 sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
                       help='display GW1000 sensor data')
-    parser.add_option('--rain-data', dest='rain', action='store_true',
+    parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
                       help='display GW1000 rain data')
+    parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
+                      action='store_true',
+                      help='display GW1000 multi-channel temperature and '
+                      'humidity offset data')
+    parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
+                      action='store_true',
+                      help='display GW1000 PM2.5 offset data')
+    parser.add_option('--get-calibration', dest='get_calibration',
+                      action='store_true',
+                      help='display GW1000 calibration data')
+    parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
+                      action='store_true',
+                      help='display GW1000 soil moisture calibration data')
+    parser.add_option('--get-services', dest='get_services',
+                      action='store_true',
+                      help='display GW1000 weather services configuration data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
                       metavar='TEST_DRIVER', help='test the GW1000 driver')
-    parser.add_option('--test-service', dest='test_service', action='store_true',
+    parser.add_option('--test-service', dest='test_service',
+                      action='store_true',
                       metavar='TEST_SERVICE', help='test the GW1000 service')
     parser.add_option('--ip-address', dest='ip_address',
                       help='GW1000 IP address to use')
@@ -4026,6 +5193,8 @@ def main():
                       help='GW1000 port to use')
     parser.add_option('--retry-wait', dest='retry_wait', type=int,
                       help='GW1000 port to use')
+    parser.add_option('--unmask', dest='unmask', action='store_true',
+                      help='unmask sensitive settings')
     (opts, args) = parser.parse_args()
 
     # display driver version number
@@ -4075,8 +5244,28 @@ def main():
         system_params(opts, stn_dict)
         exit(0)
 
-    if opts.rain:
-        rain_data(opts, stn_dict)
+    if opts.get_rain:
+        get_rain_data(opts, stn_dict)
+        exit(0)
+
+    if opts.get_mulch_offset:
+        get_mulch_offset(opts, stn_dict)
+        exit(0)
+
+    if opts.get_pm25_offset:
+        get_pm25_offset(opts, stn_dict)
+        exit(0)
+
+    if opts.get_calibration:
+        get_calibration(opts, stn_dict)
+        exit(0)
+
+    if opts.get_soil_calibration:
+        get_soil_calibration(opts, stn_dict)
+        exit(0)
+
+    if opts.get_services:
+        get_services(opts, stn_dict)
         exit(0)
 
     if opts.mac:
