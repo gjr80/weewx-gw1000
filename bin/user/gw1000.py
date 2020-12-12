@@ -644,6 +644,7 @@ class Gw1000(object):
         'wh41_ch2_batt': 'wh41_ch2_batt',
         'wh41_ch3_batt': 'wh41_ch3_batt',
         'wh41_ch4_batt': 'wh41_ch4_batt',
+        'wh45_batt': 'wh45_batt',
         'wh51_ch1_batt': 'wh51_ch1_batt',
         'wh51_ch2_batt': 'wh51_ch2_batt',
         'wh51_ch3_batt': 'wh51_ch3_batt',
@@ -687,6 +688,7 @@ class Gw1000(object):
         'wh41_ch2_sig': 'wh41_ch2_sig',
         'wh41_ch3_sig': 'wh41_ch3_sig',
         'wh41_ch4_sig': 'wh41_ch4_sig',
+        'wh45_sig': 'wh45_sig',
         'wh51_ch1_sig': 'wh51_ch1_sig',
         'wh51_ch2_sig': 'wh51_ch2_sig',
         'wh51_ch3_sig': 'wh51_ch3_sig',
@@ -3544,16 +3546,18 @@ class Gw1000Collector(Collector):
         wh34_ch8_fields = {'wh34_ch8_temp': ('decode_temp', 2),
                            'wh34_ch8_batt': ('battery_voltage', 1)
                            }
-        # CO2 sensor 'gw1000' fields
+        # WH45 5in1 sensor fields
+        # TODO. Are temp and humid field names appropriate
         wh45_fields = {'co2_temp': ('decode_temp', 2),
                        'co2_humid': ('decode_humid', 1),
-                       'co2_pm10': ('decode_pm10', 2),
-                       'co2_pm10_24hav': ('decode_pm10', 2),
-                       'co2_pm25': ('decode_pm25', 2),
-                       'co2_pm25_24hav': ('decode_pm25', 2),
+                       'pm10': ('decode_pm10', 2),
+                       'pm10_24hav': ('decode_pm10', 2),
+                       # TODO. Need to come up with appropriate field names for pm25 fields
+                       'wh45_pm25': ('decode_pm25', 2),
+                       'wh45_pm25_24hav': ('decode_pm25', 2),
                        'co2': ('decode_co2', 2),
                        'co2_24hav': ('decode_co2', 2),
-                       'co2_batt': ('battery_value', 1)
+                       'wh45_batt': ('battery_value', 1)
                        }
 
         # Dictionary keyed by GW1000 response element containing various
@@ -3657,7 +3661,7 @@ class Gw1000Collector(Collector):
             b'\x68': ('decode_wh34', 3, wh34_ch6_fields),
             b'\x69': ('decode_wh34', 3, wh34_ch7_fields),
             b'\x6A': ('decode_wh34', 3, wh34_ch8_fields),
-            b'\x70': ('decode_wh45', 3, wh45_fields),
+            b'\x70': ('decode_wh45', 16, wh45_fields),
         }
 
         # tuple of field codes for rain related fields in the GW1000 live data
@@ -3921,15 +3925,6 @@ class Gw1000Collector(Collector):
             else:
                 return value
 
-        @staticmethod
-        def decode_co2(data, field=None):
-            """Decode CO2.
-
-            ?
-            """
-
-            return None
-
         # alias' for other decodes
         decode_speed = decode_press
         decode_rain = decode_press
@@ -4078,10 +4073,10 @@ class Gw1000Collector(Collector):
         def decode_wh45(self, data, fields=None):
             """Decode WH45 sensor data.
 
-            CO2 sensor data includes various sensor values, 24 hour aggregates
-            and battery state data in 16 bytes.
+            WH45 sensor data includes TH sensor values, CO2/PM2.5/PM10 sensor
+            values and 24 hour aggregates and battery state data in 16 bytes.
 
-            The 16 bytes of CO2 sensor data is allocated as follows:
+            The 16 bytes of WH45 sensor data is allocated as follows:
             Byte(s) #      Data               Format          Comments
             bytes   1-2    temperature        short           C x10
                     3      humidity           unsigned byte   percent
