@@ -2330,6 +2330,24 @@ class Gw1000Collector(Collector):
         return offset_dict
 
     @property
+    def co2_offset(self):
+        """Obtain GW1000 WH45 CO2, PM10 and PM2.5 offset data."""
+
+        # obtain the WH45 offset data via the API
+        response = self.station.get_co2_offset()
+        # determine the size of the WH45 offset data
+        raw_data_size = six.indexbytes(response, 3)
+        # extract the actual data
+        data = response[4:4 + raw_data_size - 3]
+        # initialise a dict to hold our final data
+        offset_dict = dict()
+        # and decode/store the offset data
+        offset_dict['co2'] = struct.unpack(">h", data[1:3])[0]
+        offset_dict['pm25'] = struct.unpack(">h", data[4:6])[0]/10.0
+        offset_dict['pm10'] = struct.unpack(">h", data[7:9])[0]/10.0
+        return offset_dict
+
+    @property
     def calibration(self):
         """Obtain GW1000 calibration data.
 
@@ -3169,6 +3187,19 @@ class Gw1000Collector(Collector):
             """
 
             return self.send_cmd_with_retries('CMD_READ_CALIBRATION')
+
+        def get_co2_offset(self):
+            """Get WH45 CO2, PM10 and PM2.5 offset data.
+
+            Sends the command to obtain the WH45 CO2, PM10 and PM2.5 sensor
+            offset data to the API with retries. If the GW1000 cannot be
+            contacted a GW1000IOError will have been raised by
+            send_cmd_with_retries() which will be passed through by
+            get_offset_calibration(). Any code calling get_offset_calibration()
+            should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000 API with retries and return the
@@ -4496,6 +4527,50 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
+    def get_co2_offset(opts, stn_dict):
+        """Display the WH45 CO2, PM10 and PM2.5 offset data from a GW1000.
+
+        Obtain and display the WH45 CO2, PM10 and PM2.5 offset data from the
+        selected GW1000. GW1000 IP address and port are derived (in order) as
+        follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # obtain the IP address and port number to use
+        ip_address = ip_from_config_opts(opts, stn_dict)
+        port = port_from_config_opts(opts, stn_dict)
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            # identify the GW1000 being used
+            print()
+            print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
+                                                     collector.station.port))
+            # get the offset data from the collector object's co2_offset
+            # property
+            co2_offset_data = collector.co2_offset
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to GW1000: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. GW1000 did not respond.")
+        else:
+            # did we get any offset data
+            if co2_offset_data is not None:
+                # now format and display the data
+                print()
+                print("CO2 Calibration")
+                print("CO2 offset: %5s" % ("%2.1f" % co2_offset_data['co2']))
+                print("PM10 offset: %5s" % ("%2.1f" % co2_offset_data['pm10']))
+                print("PM2.5 offset: %5s" % ("%2.1f" % co2_offset_data['pm25']))
+            else:
+                print()
+                print("GW1000 did not respond.")
+
     def get_calibration(opts, stn_dict):
         """Display the calibration data from a GW1000.
 
@@ -5122,7 +5197,7 @@ def main():
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --get-mulch-offset|--get-pm25-offset|
-            --get-calibration|--get-soil-calibration
+            --get-calibration|--get-soil-calibration|--get-co2-offset
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
@@ -5164,6 +5239,9 @@ def main():
     parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
                       action='store_true',
                       help='display GW1000 PM2.5 offset data')
+    parser.add_option('--get-co2-offset', dest='get_co2_offset',
+                      action='store_true',
+                      help='display GW1000 CO2 (WH45) offset data')
     parser.add_option('--get-calibration', dest='get_calibration',
                       action='store_true',
                       help='display GW1000 calibration data')
@@ -5251,6 +5329,10 @@ def main():
 
     if opts.get_pm25_offset:
         get_pm25_offset(opts, stn_dict)
+        exit(0)
+
+    if opts.get_co2_offset:
+        get_co2_offset(opts, stn_dict)
         exit(0)
 
     if opts.get_calibration:
