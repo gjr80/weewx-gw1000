@@ -26,6 +26,19 @@ To run the test suite:
 import unittest
 import user.gw1000
 
+# TODO. Check speed_data data and result are correct
+# TODO. Check rain_data data and result are correct
+# TODO. Check rainrate_data data and result are correct
+# TODO. Check big_rain_data data and result are correct
+# TODO. Check light_data data and result are correct
+# TODO. Check uv_data data and result are correct
+# TODO. Check uvi_data data and result are correct
+# TODO. Check datetime_data data and result are correct
+# TODO. Check leak_data data and result are correct
+# TODO. Check batt_data data and result are correct
+# TODO. Check distance_data data and result are correct
+# TODO. Check utc_data data and result are correct
+# TODO. Check count_data data and result are correct
 
 class ParseTestCase(unittest.TestCase):
 
@@ -88,25 +101,36 @@ class ParseTestCase(unittest.TestCase):
                       'lightningdettime': None,
                       'lightningdist': None,
                       'datetime': 1599021263}
-    dir_data = '00 70'      # 112
-    # speed_data = ''
-    # rain_data =''
-    # rainrate_data = ''
-    # big_rain_data = ''
-    # light_data = ''
-    # uv_data = ''
-    # uvi_data = ''
-    # datetime_data = ''
-    # leak_data = ''
-    # distance_data = ''
-    # utc_data = ''
-    # count_data = ''
-    # temp_batt_data = ''
+    temp_data = {'hex': '00 EA', 'value': 23.4}
+    humid_data = {'hex': '48', 'value': 72}
+    press_data = {'hex': '27 4C', 'value': 1006.0}
+    dir_data = {'hex': '00 70', 'value': 112}
+    speed_data = {'hex': '00 70', 'value': 11.2}
+    rain_data = {'hex': '01 70', 'value': 36.8}
+    rainrate_data = {'hex': '00 34', 'value': 5.2}
+    big_rain_data = {'hex': '01 70 37 21', 'value': 2413136.1}
+    light_data = {'hex': '02 40 72 51', 'value': 3777800.1}
+    uv_data = {'hex': '32 70', 'value': 1291.2}
+    uvi_data = {'hex': '0C', 'value': 12}
+    datetime_data = {'hex': '0C AB 23 41 56 37', 'value': (12, 171, 35, 65, 86, 55)}
+    pm25_data = {'hex': '00 39', 'value': 5.7}
+    moist_data = {'hex': '3A', 'value': 58}
+    batt_data = {'hex': '06 00 00 00 04 FF FF FF F6 FF FF FF FF FF FF FF', 'value': 58}
+    leak_data = {'hex': '3A', 'value': 58}
+    distance_data = {'hex': '1A', 'value': 26}
+    utc_data = {'hex': '5F 40 72 51', 'value': 1598059089}
+    count_data = {'hex': '00 40 72 51', 'value': 4223569}
+    wh34_data = {'hex': '00 EA 48',
+                 'field': {'t': ('decode_temp', 2), 'b': ('battery_voltage', 1)},
+                 'value': 4223569}
+    wh45_data = {'hex': '00 EA 48',
+                 'field': {'t': ('decode_temp', 2), 'b': ('battery_voltage', 1)},
+                 'value': 4223569}
 
     def setUp(self):
 
         # get a Parser object
-        self. parser = user.gw1000.Gw1000Collector.Parser()
+        self.parser = user.gw1000.Gw1000Collector.Parser()
 
     def tearDown(self):
 
@@ -114,21 +138,141 @@ class ParseTestCase(unittest.TestCase):
 
     def test_decode(self):
 
-        # test temperature decode correctly handles too few and too many bytes
+        # test temperature decode
+        self.assertEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['hex'])),
+                         self.temp_data['value'])
+        # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(3))), None)
+
+        # test humidity decode
+        self.assertEqual(self.parser.decode_humid(hex_to_bytes(self.humid_data['hex'])),
+                         self.humid_data['value'])
+        # test correct handling of too few and too many bytes
         # self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
-        # test pressure decode correctly handles too few and too many bytes
+
+        # test pressure decode
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['hex'])),
+                         self.press_data['value'])
+        # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(3))), None)
-        self.assertEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data)), 112)
-        # test direction decode correctly handles too few and too many bytes
+
+        # test direction decode
+        self.assertEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data['hex'])),
+                         self.dir_data['value'])
+        # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(3))), None)
-        # test air quality decode correctly handles too few and too many bytes
-        self.assertEqual(self.parser.decode_aq(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_aq(hex_to_bytes(xbytes(3))), None)
+
+        # test speed decode
+        self.assertEqual(self.parser.decode_speed(hex_to_bytes(self.speed_data['hex'])),
+                         self.speed_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(3))), None)
+
+        # test rain decode
+        self.assertEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['hex'])),
+                         self.rain_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(3))), None)
+
+        # test rain rate decode
+        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['hex'])),
+                         self.rainrate_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(3))), None)
+
+        # test big rain decode
+        self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(self.big_rain_data['hex'])),
+                         self.big_rain_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(5))), None)
+
+        # test light decode
+        self.assertEqual(self.parser.decode_light(hex_to_bytes(self.light_data['hex'])),
+                         self.light_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(5))), None)
+
+        # test uv decode
+        self.assertEqual(self.parser.decode_uv(hex_to_bytes(self.uv_data['hex'])),
+                         self.uv_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(3))), None)
+
+        # test uvi decode
+        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
+                         self.uvi_data['value'])
+        # test correct handling of too few and too many bytes
+        # self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
+
+        # test datetime decode
+        self.assertEqual(self.parser.decode_datetime(hex_to_bytes(self.datetime_data['hex'])),
+                         self.datetime_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(7))), None)
+
+        # test pm25 decode
+        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(self.pm25_data['hex'])),
+                         self.pm25_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(3))), None)
+
+        # test moisture decode
+        self.assertEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['hex'])),
+                         self.moist_data['value'])
+        # test correct handling of too few and too many bytes
         # self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
+
+        # test battery decode
+#        self.assertEqual(self.parser.decode_batt(hex_to_bytes(self.batt_data['hex'])),
+#                         self.batt_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(1))), {})
+        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(17))), {})
+
+        # test leak decode
+        self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['hex'])),
+                         self.leak_data['value'])
+        # test correct handling of too few and too many bytes
+        # self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
+
+        # test distance decode
+        self.assertEqual(self.parser.decode_distance(hex_to_bytes(self.distance_data['hex'])),
+                         self.distance_data['value'])
+        # test correct handling of too few and too many bytes
+        # self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
+
+        # test utc decode
+        self.assertEqual(self.parser.decode_utc(hex_to_bytes(self.utc_data['hex'])),
+                         self.utc_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(5))), None)
+
+        # test count decode
+        self.assertEqual(self.parser.decode_count(hex_to_bytes(self.count_data['hex'])),
+                         self.count_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(5))), None)
+
+        # test wh34 decode
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']),fields=self.wh34_data['field']),
+                         self.wh34_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)),fields=self.wh34_data['field']), None)
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)),fields=self.wh34_data['field']), None)
+
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data),timestamp=1599021263),
                              self.parsed_response)

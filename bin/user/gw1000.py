@@ -2809,7 +2809,8 @@ class Gw1000Collector(Collector):
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
                      socket_timeout=None, max_tries=default_max_tries,
-                     retry_wait=default_retry_wait, mac=None):
+                     retry_wait=default_retry_wait, mac=None,
+                     lost_contact_log_period=None):
 
             # network broadcast address
             self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -3848,7 +3849,7 @@ class Gw1000Collector(Collector):
             tenths of a unit.
             """
 
-            if len(data) >= 4:
+            if len(data) == 4:
                 value = struct.unpack(">L", data)[0] / 10.0
             else:
                 value = None
@@ -3864,7 +3865,7 @@ class Gw1000Collector(Collector):
             Unknown format but length is six bytes.
             """
 
-            if len(data) >= 6:
+            if len(data) == 6:
                 value = struct.unpack("BBBBBB", data)
             else:
                 value = None
@@ -3898,7 +3899,7 @@ class Gw1000Collector(Collector):
             from 0 to 40km.
             """
 
-            if len(data) >= 1:
+            if len(data) == 1:
                 value = struct.unpack("B", data)[0]
                 value = value if value <= 40 else None
             else:
@@ -3927,7 +3928,7 @@ class Gw1000Collector(Collector):
             offset into account when using the timestamp.
             """
 
-            if len(data) >= 4:
+            if len(data) == 4:
                 # unpack the 4 byte int
                 value = struct.unpack(">L", data)[0]
                 # when processing the last lightning strike time if the value
@@ -3947,7 +3948,7 @@ class Gw1000Collector(Collector):
 
             Count is an integer stored in a 4 byte big endian integer."""
 
-            if len(data) >= 4:
+            if len(data) == 4:
                 value = struct.unpack(">L", data)[0]
             else:
                 value = None
@@ -3969,7 +3970,7 @@ class Gw1000Collector(Collector):
         decode_pm10 = decode_press
         decode_co2 = decode_dir
 
-        def decode_batt(self, data, field):
+        def decode_batt(self, data, field=None):
             """Decode battery status data.
 
             Battery status data is provided in 16 bytes using a variety of
@@ -4030,8 +4031,8 @@ class Gw1000Collector(Collector):
                 b_dict = {}
                 batt_t = struct.unpack(self.battery_state_format, data)
                 batt_dict = dict(six.moves.zip(self.batt_fields, batt_t))
-                for field in self.batt_fields:
-                    elements, decode_str = self.batt[field]
+                for batt_field in self.batt_fields:
+                    elements, decode_str = self.batt[batt_field]
                     for elm in elements.keys():
                         # construct the field name for our battery value, how
                         # we construct the field name will depend if we have a
@@ -4042,9 +4043,9 @@ class Gw1000Collector(Collector):
                         except TypeError:
                             # if we strike a TypeError it will be because we
                             # have a numeric channel number
-                            field_name = ''.join([field, '_ch', str(elm), '_batt'])
+                            field_name = ''.join([batt_field, '_ch', str(elm), '_batt'])
                         # now add the battery value to the result dict
-                        b_dict[field_name] = getattr(self, decode_str)(batt_dict[field],
+                        b_dict[field_name] = getattr(self, decode_str)(batt_dict[batt_field],
                                                                        **elements[elm])
                 return b_dict
             return {}
@@ -4068,6 +4069,7 @@ class Gw1000Collector(Collector):
 
         @staticmethod
         def battery_voltage(data):
+#            print("data=%s" % (data,))
             return 0.02 * data
 
         @staticmethod
