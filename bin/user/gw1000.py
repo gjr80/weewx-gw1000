@@ -546,6 +546,15 @@ class Gw1000(object):
         'extraTemp6': 'temp6',
         'extraTemp7': 'temp7',
         'extraTemp8': 'temp8',
+        'extraTemp9': 'temp9',
+        'extraTemp10': 'temp10',
+        'extraTemp11': 'temp11',
+        'extraTemp12': 'temp12',
+        'extraTemp13': 'temp13',
+        'extraTemp14': 'temp14',
+        'extraTemp15': 'temp15',
+        'extraTemp16': 'temp16',
+        'extraTemp17': 'temp17',
         'extraHumid1': 'humid1',
         'extraHumid2': 'humid2',
         'extraHumid3': 'humid3',
@@ -554,10 +563,14 @@ class Gw1000(object):
         'extraHumid6': 'humid6',
         'extraHumid7': 'humid7',
         'extraHumid8': 'humid8',
+        'extraHumid17': 'humid17',
         'pm2_5': 'pm251',
         'pm2_52': 'pm252',
         'pm2_53': 'pm253',
         'pm2_54': 'pm254',
+        'pm2_55': 'pm255',
+        'pm10': 'pm10',
+        'co2': 'co2',
         'soilTemp1': 'soiltemp1',
         'soilMoist1': 'soilmoist1',
         'soilTemp2': 'soiltemp2',
@@ -594,6 +607,9 @@ class Gw1000(object):
         'pm2_52_24hav': 'pm252_24hav',
         'pm2_53_24hav': 'pm253_24hav',
         'pm2_54_24hav': 'pm254_24hav',
+        'pm2_55_24hav': 'pm255_24hav',
+        'pm10_24hav': 'pm10_24_hav',
+        'co2_24hav': 'co2_24hav',
         'leak1': 'leak1',
         'leak2': 'leak2',
         'leak3': 'leak3',
@@ -3547,46 +3563,44 @@ class Gw1000Collector(Collector):
                               'ws80': 'voltage_desc',
                               }
         # WH34 fields
-        wh34_ch1_fields = {'wh34_ch1_temp': ('decode_temp', 2),
+        wh34_ch1_fields = {'temp9': ('decode_temp', 2),
                            'wh34_ch1_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch2_fields = {'wh34_ch2_temp': ('decode_temp', 2),
+        wh34_ch2_fields = {'temp10': ('decode_temp', 2),
                            'wh34_ch2_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch3_fields = {'wh34_ch3_temp': ('decode_temp', 2),
+        wh34_ch3_fields = {'temp11': ('decode_temp', 2),
                            'wh34_ch3_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch4_fields = {'wh34_ch4_temp': ('decode_temp', 2),
+        wh34_ch4_fields = {'temp12': ('decode_temp', 2),
                            'wh34_ch4_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch5_fields = {'wh34_ch5_temp': ('decode_temp', 2),
+        wh34_ch5_fields = {'temp13': ('decode_temp', 2),
                            'wh34_ch5_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch6_fields = {'wh34_ch6_temp': ('decode_temp', 2),
+        wh34_ch6_fields = {'temp14': ('decode_temp', 2),
                            'wh34_ch6_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch7_fields = {'wh34_ch7_temp': ('decode_temp', 2),
+        wh34_ch7_fields = {'temp15': ('decode_temp', 2),
                            'wh34_ch7_batt': ('battery_voltage', 1)
                            }
         # WH34 fields
-        wh34_ch8_fields = {'wh34_ch8_temp': ('decode_temp', 2),
+        wh34_ch8_fields = {'temp16': ('decode_temp', 2),
                            'wh34_ch8_batt': ('battery_voltage', 1)
                            }
         # WH45 5in1 sensor fields
-        # TODO. Are temp and humid field names appropriate
-        wh45_fields = {'co2_temp': ('decode_temp', 2),
-                       'co2_humid': ('decode_humid', 1),
+        wh45_fields = {'temp17': ('decode_temp', 2),
+                       'humid17': ('decode_humid', 1),
                        'pm10': ('decode_pm10', 2),
                        'pm10_24hav': ('decode_pm10', 2),
-                       # TODO. Need to come up with appropriate field names for pm25 fields
-                       'wh45_pm25': ('decode_pm25', 2),
-                       'wh45_pm25_24hav': ('decode_pm25', 2),
+                       'pm255': ('decode_pm25', 2),
+                       'pm255_24hav': ('decode_pm25', 2),
                        'co2': ('decode_co2', 2),
                        'co2_24hav': ('decode_co2', 2),
                        'wh45_batt': ('battery_value', 1)
