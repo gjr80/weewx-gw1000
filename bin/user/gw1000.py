@@ -3562,20 +3562,6 @@ class Gw1000Collector(Collector):
                               'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
-        # WH45 5in1 sensor fields
-        # TODO. Are temp and humid field names appropriate
-        wh45_fields = {'co2_temp': ('decode_temp', 2),
-                       'co2_humid': ('decode_humid', 1),
-                       'pm10': ('decode_pm10', 2),
-                       'pm10_24hav': ('decode_pm10', 2),
-                       # TODO. Need to come up with appropriate field names for pm25 fields
-                       'wh45_pm25': ('decode_pm25', 2),
-                       'wh45_pm25_24hav': ('decode_pm25', 2),
-                       'co2': ('decode_co2', 2),
-                       'co2_24hav': ('decode_co2', 2),
-                       'wh45_batt': ('battery_value', 1)
-                       }
-
         # Dictionary keyed by GW1000 response element containing various
         # parameters for each response 'field'. Dictionary tuple format
         # is (decode function name, size of data in bytes, GW1000 field name)
