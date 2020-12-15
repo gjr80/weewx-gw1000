@@ -3546,38 +3546,6 @@ class Gw1000Collector(Collector):
                               'wh68': 'voltage_desc',
                               'ws80': 'voltage_desc',
                               }
-        # WH34 fields
-        wh34_ch1_fields = {'wh34_ch1_temp': ('decode_temp', 2),
-                           'wh34_ch1_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch2_fields = {'wh34_ch2_temp': ('decode_temp', 2),
-                           'wh34_ch2_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch3_fields = {'wh34_ch3_temp': ('decode_temp', 2),
-                           'wh34_ch3_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch4_fields = {'wh34_ch4_temp': ('decode_temp', 2),
-                           'wh34_ch4_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch5_fields = {'wh34_ch5_temp': ('decode_temp', 2),
-                           'wh34_ch5_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch6_fields = {'wh34_ch6_temp': ('decode_temp', 2),
-                           'wh34_ch6_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch7_fields = {'wh34_ch7_temp': ('decode_temp', 2),
-                           'wh34_ch7_batt': ('battery_voltage', 1)
-                           }
-        # WH34 fields
-        wh34_ch8_fields = {'wh34_ch8_temp': ('decode_temp', 2),
-                           'wh34_ch8_batt': ('battery_voltage', 1)
-                           }
         # WH45 5in1 sensor fields
         # TODO. Are temp and humid field names appropriate
         wh45_fields = {'co2_temp': ('decode_temp', 2),
@@ -3685,15 +3653,17 @@ class Gw1000Collector(Collector):
             b'\x60': ('decode_distance', 1, 'lightningdist'),
             b'\x61': ('decode_utc', 4, 'lightningdettime'),
             b'\x62': ('decode_count', 4, 'lightningcount'),
-            b'\x63': ('decode_wh34', 3, wh34_ch1_fields),
-            b'\x64': ('decode_wh34', 3, wh34_ch2_fields),
-            b'\x65': ('decode_wh34', 3, wh34_ch3_fields),
-            b'\x66': ('decode_wh34', 3, wh34_ch4_fields),
-            b'\x67': ('decode_wh34', 3, wh34_ch5_fields),
-            b'\x68': ('decode_wh34', 3, wh34_ch6_fields),
-            b'\x69': ('decode_wh34', 3, wh34_ch7_fields),
-            b'\x6A': ('decode_wh34', 3, wh34_ch8_fields),
-            b'\x70': ('decode_wh45', 16, wh45_fields),
+            b'\x63': ('decode_wh34', 3, ('temp9', 'wh34_ch1_batt')),
+            b'\x64': ('decode_wh34', 3, ('temp10', 'wh34_ch2_batt')),
+            b'\x65': ('decode_wh34', 3, ('temp11', 'wh34_ch3_batt')),
+            b'\x66': ('decode_wh34', 3, ('temp12', 'wh34_ch4_batt')),
+            b'\x67': ('decode_wh34', 3, ('temp13', 'wh34_ch5_batt')),
+            b'\x68': ('decode_wh34', 3, ('temp14', 'wh34_ch6_batt')),
+            b'\x69': ('decode_wh34', 3, ('temp15', 'wh34_ch7_batt')),
+            b'\x6A': ('decode_wh34', 3, ('temp16', 'wh34_ch8_batt')),
+            b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
+                                          'pm10_24hav', 'pm255', 'pm255_24hav',
+                                          'co2', 'co2_24hav', 'wh45_batt'))
         }
 
         # tuple of field codes for rain related fields in the GW1000 live data
@@ -3798,7 +3768,7 @@ class Gw1000Collector(Collector):
             Data is contained in a single unsigned byte and represents whole units.
             """
 
-            if len(data) > 0:
+            if len(data) == 1:
                 value = struct.unpack("B", data)[0]
             else:
                 value = None
@@ -3873,23 +3843,6 @@ class Gw1000Collector(Collector):
                 return {field: value}
             else:
                 return value
-
-        def decode_wh34(self, data, fields=None):
-            """Decode WH34 sensor data.
-
-            Data consists of three bytes; bytes 0 and 1 are normal temperature data
-            and byte 3 is battery status data.
-            """
-
-            # do we have valid data
-            if len(data) == 3 and hasattr(fields, 'keys'):
-                results = dict()
-                index = 0
-                for field, (decode_fn, size) in six.iteritems(fields):
-                    results[field] = getattr(self, decode_fn)(data[index:index + size])
-                    index += size
-                return results
-            return {}
 
         @staticmethod
         def decode_distance(data, field=None):
@@ -3969,6 +3922,64 @@ class Gw1000Collector(Collector):
         decode_leak = decode_humid
         decode_pm10 = decode_press
         decode_co2 = decode_dir
+
+        def decode_wh34(self, data, fields=None):
+            """Decode WH34 sensor data.
+
+            Data consists of three bytes:
+
+            Byte    Field               Comments
+            1-2     temperature         standard Ecowitt temperature data, two
+                                        byte big endian signed integer
+                                        representing tenths of a degree
+            3       battery voltage     0.02 * value Volts
+            """
+
+            if len(data) == 3 and fields is not None:
+                results = dict()
+                results[fields[0]] = self.decode_temp(data[0:2])
+                # the battery_voltage method needs a number not a byte string
+                # so we need to unpack the battery state data first
+                batt_data = struct.unpack('B', data[2:3])[0]
+                results[fields[1]] = self.battery_voltage(batt_data)
+                return results
+            return {}
+
+        def decode_wh45(self, data, fields=None):
+            """Decode WH45 sensor data.
+
+            WH45 sensor data includes TH sensor values, CO2/PM2.5/PM10 sensor
+            values and 24 hour aggregates and battery state data in 16 bytes.
+
+            The 16 bytes of WH45 sensor data is allocated as follows:
+            Byte(s) #      Data               Format          Comments
+            bytes   1-2    temperature        short           C x10
+                    3      humidity           unsigned byte   percent
+                    4-5    PM10               unsigned short  ug/m3 x10
+                    6-7    PM10 24hour avg    unsigned short  ug/m3 x10
+                    8-9    PM2.5              unsigned short  ug/m3 x10
+                    10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
+                    12-13  CO2                unsigned short  ppm
+                    14-15  CO2 24 our avg     unsigned short  ppm
+                    16     battery state      unsigned byte   0-5 <=1 is low
+            """
+
+            if len(data) == 16 and fields is not None:
+                results = dict()
+                results[fields[0]] = self.decode_temp(data[0:2])
+                results[fields[1]] = self.decode_humid(data[2:3])
+                results[fields[2]] = self.decode_pm10(data[3:5])
+                results[fields[3]] = self.decode_pm10(data[5:7])
+                results[fields[4]] = self.decode_pm25(data[7:9])
+                results[fields[5]] = self.decode_pm25(data[9:11])
+                results[fields[6]] = self.decode_co2(data[11:13])
+                results[fields[7]] = self.decode_co2(data[13:15])
+                # the battery_voltage method needs a number not a byte string
+                # so we need to unpack the battery state data first
+                batt_data = struct.unpack('B', data[15:16])[0]
+                results[fields[8]] = self.battery_value(batt_data)
+                return results
+            return {}
 
         def decode_batt(self, data, field=None):
             """Decode battery status data.
@@ -4069,7 +4080,6 @@ class Gw1000Collector(Collector):
 
         @staticmethod
         def battery_voltage(data):
-#            print("data=%s" % (data,))
             return 0.02 * data
 
         @staticmethod
@@ -4102,34 +4112,6 @@ class Gw1000Collector(Collector):
                 else:
                     return "OK"
             return None
-
-        def decode_wh45(self, data, fields=None):
-            """Decode WH45 sensor data.
-
-            WH45 sensor data includes TH sensor values, CO2/PM2.5/PM10 sensor
-            values and 24 hour aggregates and battery state data in 16 bytes.
-
-            The 16 bytes of WH45 sensor data is allocated as follows:
-            Byte(s) #      Data               Format          Comments
-            bytes   1-2    temperature        short           C x10
-                    3      humidity           unsigned byte   percent
-                    4-5    PM10               unsigned short  ug/m3 x10
-                    6-7    PM10 24hour avg    unsigned short  ug/m3 x10
-                    8-9    PM2.5              unsigned short  ug/m3 x10
-                    10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
-                    12-13  CO2                unsigned short  ppm
-                    14-15  CO2 24 our avg     unsigned short  ppm
-                    16     battery state      unsigned byte   0-5 <=1 is low
-            """
-
-            if len(data) == 16 and hasattr(fields, 'keys'):
-                results = dict()
-                index = 0
-                for field, (decode_fn, size) in six.iteritems(fields):
-                    results[field] = getattr(self, decode_fn)(data[index:index + size])
-                    index += size
-                return results
-            return {}
 
 
 # ============================================================================
