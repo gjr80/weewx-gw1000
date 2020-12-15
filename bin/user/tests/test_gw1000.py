@@ -115,22 +115,40 @@ class ParseTestCase(unittest.TestCase):
     datetime_data = {'hex': '0C AB 23 41 56 37', 'value': (12, 171, 35, 65, 86, 55)}
     pm25_data = {'hex': '00 39', 'value': 5.7}
     moist_data = {'hex': '3A', 'value': 58}
-    batt_data = {'hex': '06 00 00 00 04 FF FF FF F6 FF FF FF FF FF FF FF', 'value': 58}
+    batt_data = {'hex': '06 00 00 00 04 FF FF FF F6 FF FF FF FF FF FF FF',
+                 'value': {'wh40_batt': 0, 'wh26_batt': 0, 'wh25_batt': 0, 'wh65_batt': 0,
+                           'wh31_ch1_batt': 0, 'wh31_ch2_batt': 0, 'wh31_ch3_batt': 0,
+                           'wh31_ch4_batt': 0, 'wh31_ch5_batt': 0, 'wh31_ch6_batt': 0,
+                           'wh31_ch7_batt': 0, 'wh31_ch8_batt': 0, 'wh51_ch1_batt': 0,
+                           'wh51_ch2_batt': 0, 'wh51_ch3_batt': 0, 'wh51_ch4_batt': 0,
+                           'wh51_ch5_batt': 0, 'wh51_ch6_batt': 0, 'wh51_ch7_batt': 0,
+                           'wh51_ch8_batt': 0, 'wh51_ch9_batt': 0, 'wh51_ch10_batt': 0,
+                           'wh51_ch11_batt': 0, 'wh51_ch12_batt': 0, 'wh51_ch13_batt': 0,
+                           'wh51_ch14_batt': 0, 'wh51_ch15_batt': 0, 'wh51_ch16_batt': 0,
+                           'wh57_batt': 4, 'wh68_batt': 5.1000000000000005,
+                           'ws80_batt': 5.1000000000000005, 'wh41_ch1_batt': 6,
+                           'wh41_ch2_batt': None, 'wh41_ch3_batt': None, 'wh41_ch4_batt': None,
+                           'wh55_ch1_batt': None, 'wh55_ch2_batt': None, 'wh55_ch3_batt': None,
+                           'wh55_ch4_batt': None}}
     leak_data = {'hex': '3A', 'value': 58}
     distance_data = {'hex': '1A', 'value': 26}
     utc_data = {'hex': '5F 40 72 51', 'value': 1598059089}
     count_data = {'hex': '00 40 72 51', 'value': 4223569}
-    wh34_data = {'hex': '00 EA 48',
-                 'field': {'t': ('decode_temp', 2), 'b': ('battery_voltage', 1)},
-                 'value': 4223569}
-    wh45_data = {'hex': '00 EA 48',
-                 'field': {'t': ('decode_temp', 2), 'b': ('battery_voltage', 1)},
-                 'value': 4223569}
+    wh34_data = {'hex': '00 EA 4D',
+                 'field': ('t', 'b'),
+                 'value': {'t': 23.4, 'b': 1.54}
+                 }
+    wh45_data = {'hex': '00 EA 4D 35 6D 28 78 34 3D 62 7E 8D 2A 39 9F 04',
+                 'field': ('t', 'h', 'p10', 'p10_24', 'p25', 'p25_24', 'c', 'c_24', 'b'),
+                 'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
+                           'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751, 'b': 4}
+                 }
 
     def setUp(self):
 
         # get a Parser object
         self.parser = user.gw1000.Gw1000Collector.Parser()
+        self.maxDiff = None
 
     def tearDown(self):
 
@@ -149,7 +167,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(self.humid_data['hex'])),
                          self.humid_data['value'])
         # test correct handling of too few and too many bytes
-        # self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
 
         # test pressure decode
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['hex'])),
@@ -211,7 +230,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
                          self.uvi_data['value'])
         # test correct handling of too few and too many bytes
-        # self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
 
         # test datetime decode
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(self.datetime_data['hex'])),
@@ -231,11 +251,12 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['hex'])),
                          self.moist_data['value'])
         # test correct handling of too few and too many bytes
-        # self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
 
         # test battery decode
-#        self.assertEqual(self.parser.decode_batt(hex_to_bytes(self.batt_data['hex'])),
-#                         self.batt_data['value'])
+        self.assertEqual(self.parser.decode_batt(hex_to_bytes(self.batt_data['hex'])),
+                         self.batt_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(1))), {})
         self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(17))), {})
@@ -244,13 +265,15 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['hex'])),
                          self.leak_data['value'])
         # test correct handling of too few and too many bytes
-        # self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
 
         # test distance decode
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(self.distance_data['hex'])),
                          self.distance_data['value'])
         # test correct handling of too few and too many bytes
-        # self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
+        self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
 
         # test utc decode
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(self.utc_data['hex'])),
@@ -270,8 +293,15 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']),fields=self.wh34_data['field']),
                          self.wh34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)),fields=self.wh34_data['field']), None)
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)),fields=self.wh34_data['field']), None)
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)),fields=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)),fields=self.wh34_data['field']), {})
+
+        # test wh45 decode
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']),fields=self.wh45_data['field']),
+                         self.wh45_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)),fields=self.wh45_data['field']), {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)),fields=self.wh45_data['field']), {})
 
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data),timestamp=1599021263),
