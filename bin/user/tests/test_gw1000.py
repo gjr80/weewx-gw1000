@@ -23,6 +23,7 @@ To run the test suite:
 
     $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000
 """
+import struct
 import unittest
 import user.gw1000
 
@@ -40,67 +41,68 @@ import user.gw1000
 # TODO. Check utc_data data and result are correct
 # TODO. Check count_data data and result are correct
 
+
 class ParseTestCase(unittest.TestCase):
 
     response_data = 'FF FF 27 00 40 01 01 40 06 26 08 27 D2 09 27 D2 2A 00 5A ' \
                     '4D 00 65 2C 27 2E 14 1A 00 ED 22 3A 1B 01 0B 23 3A 4C 06 ' \
                     '00 00 00 05 FF FF 00 F6 FF FF FF FF FF FF FF 62 00 00 00 ' \
                     '00 61 FF FF FF FF 60 FF EC'
-    parsed_response= {'intemp': 32.0,
-                      'inhumid': 38,
-                      'absbarometer': 1019.4,
-                      'relbarometer': 1019.4,
-                      'pm251': 9.0,
-                      'pm251_24hav': 10.1,
-                      'soilmoist1': 39,
-                      'soilmoist2': 20,
-                      'temp1': 23.7,
-                      'humid1': 58,
-                      'temp2': 26.7,
-                      'humid2': 58,
-                      'wh40_batt': 0,
-                      'wh26_batt': 0,
-                      'wh25_batt': 0,
-                      'wh65_batt': 0,
-                      'wh31_ch1_batt': 0,
-                      'wh31_ch2_batt': 0,
-                      'wh31_ch3_batt': 0,
-                      'wh31_ch4_batt': 0,
-                      'wh31_ch5_batt': 0,
-                      'wh31_ch6_batt': 0,
-                      'wh31_ch7_batt': 0,
-                      'wh31_ch8_batt': 0,
-                      'wh51_ch1_batt': 0,
-                      'wh51_ch2_batt': 0,
-                      'wh51_ch3_batt': 0,
-                      'wh51_ch4_batt': 0,
-                      'wh51_ch5_batt': 0,
-                      'wh51_ch6_batt': 0,
-                      'wh51_ch7_batt': 0,
-                      'wh51_ch8_batt': 0,
-                      'wh51_ch9_batt': 0,
-                      'wh51_ch10_batt': 0,
-                      'wh51_ch11_batt': 0,
-                      'wh51_ch12_batt': 0,
-                      'wh51_ch13_batt': 0,
-                      'wh51_ch14_batt': 0,
-                      'wh51_ch15_batt': 0,
-                      'wh51_ch16_batt': 0,
-                      'wh57_batt': 5,
-                      'wh68_batt': 5.1000000000000005,
-                      'ws80_batt': 5.1000000000000005,
-                      'wh41_ch1_batt': 6,
-                      'wh41_ch2_batt': None,
-                      'wh41_ch3_batt': None,
-                      'wh41_ch4_batt': None,
-                      'wh55_ch1_batt': None,
-                      'wh55_ch2_batt': None,
-                      'wh55_ch3_batt': None,
-                      'wh55_ch4_batt': None,
-                      'lightningcount': 0,
-                      'lightningdettime': None,
-                      'lightningdist': None,
-                      'datetime': 1599021263}
+    parsed_response = {'intemp': 32.0,
+                       'inhumid': 38,
+                       'absbarometer': 1019.4,
+                       'relbarometer': 1019.4,
+                       'pm251': 9.0,
+                       'pm251_24hav': 10.1,
+                       'soilmoist1': 39,
+                       'soilmoist2': 20,
+                       'temp1': 23.7,
+                       'humid1': 58,
+                       'temp2': 26.7,
+                       'humid2': 58,
+                       'wh40_batt': 0,
+                       'wh26_batt': 0,
+                       'wh25_batt': 0,
+                       'wh65_batt': 0,
+                       'wh31_ch1_batt': 0,
+                       'wh31_ch2_batt': 0,
+                       'wh31_ch3_batt': 0,
+                       'wh31_ch4_batt': 0,
+                       'wh31_ch5_batt': 0,
+                       'wh31_ch6_batt': 0,
+                       'wh31_ch7_batt': 0,
+                       'wh31_ch8_batt': 0,
+                       'wh51_ch1_batt': 0,
+                       'wh51_ch2_batt': 0,
+                       'wh51_ch3_batt': 0,
+                       'wh51_ch4_batt': 0,
+                       'wh51_ch5_batt': 0,
+                       'wh51_ch6_batt': 0,
+                       'wh51_ch7_batt': 0,
+                       'wh51_ch8_batt': 0,
+                       'wh51_ch9_batt': 0,
+                       'wh51_ch10_batt': 0,
+                       'wh51_ch11_batt': 0,
+                       'wh51_ch12_batt': 0,
+                       'wh51_ch13_batt': 0,
+                       'wh51_ch14_batt': 0,
+                       'wh51_ch15_batt': 0,
+                       'wh51_ch16_batt': 0,
+                       'wh57_batt': 5,
+                       'wh68_batt': 5.1000000000000005,
+                       'ws80_batt': 5.1000000000000005,
+                       'wh41_ch1_batt': 6,
+                       'wh41_ch2_batt': None,
+                       'wh41_ch3_batt': None,
+                       'wh41_ch4_batt': None,
+                       'wh55_ch1_batt': None,
+                       'wh55_ch2_batt': None,
+                       'wh55_ch3_batt': None,
+                       'wh55_ch4_batt': None,
+                       'lightningcount': 0,
+                       'lightningdettime': None,
+                       'lightningdist': None,
+                       'datetime': 1599021263}
     temp_data = {'hex': '00 EA', 'value': 23.4}
     humid_data = {'hex': '48', 'value': 72}
     press_data = {'hex': '27 4C', 'value': 1006.0}
@@ -290,21 +292,21 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(5))), None)
 
         # test wh34 decode
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']),fields=self.wh34_data['field']),
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']), fields=self.wh34_data['field']),
                          self.wh34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)),fields=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)),fields=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), fields=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), fields=self.wh34_data['field']), {})
 
         # test wh45 decode
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']),fields=self.wh45_data['field']),
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
                          self.wh45_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)),fields=self.wh45_data['field']), {})
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)),fields=self.wh45_data['field']), {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
 
         # test parsing of all possible sensors
-        self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data),timestamp=1599021263),
+        self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
                              self.parsed_response)
 
     def test_battery(self):
@@ -366,24 +368,20 @@ class UtilitiesTestCase(unittest.TestCase):
                          self.sorted_dict_str)
 
         # test bytes_to_hex()
-        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2')),
+        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2')),
                          'FF 00 66 B2')
-        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2'), separator=':'),
+        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=':'),
                          'FF:00:66:B2')
-        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2'), caps=False),
+        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), caps=False),
                          'ff 00 66 b2')
-        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2'), separator=':', caps=False),
+        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=':', caps=False),
                          'ff:00:66:b2')
         # and check exceptions raised
-        # ValueError
-        self.assertEqual(user.gw1000.bytes_to_hex('gh'),
-                         self.bytes_to_hex_fail_str % 'gh')
         # TypeError
-        self.assertEqual(user.gw1000.bytes_to_hex(22),
-                         self.bytes_to_hex_fail_str % 22)
+        self.assertEqual(user.gw1000.bytes_to_hex(22), self.bytes_to_hex_fail_str % 22)
         # AttributeError
-        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff0066b2'), separator=None),
-                         self.bytes_to_hex_fail_str % hex_to_bytes('ff0066b2'))
+        self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=None),
+                         self.bytes_to_hex_fail_str % hex_to_bytes('ff 00 66 b2'))
 
         # test obfuscate
         # > 8 character string, should see trailing 4 characters
@@ -458,13 +456,30 @@ class Gw1000TestCase(unittest.TestCase):
 
 
 def hex_to_bytes(hex_string):
+    """Takes a string of hex character pairs and returns a string of bytes.
 
-    return bytes.fromhex(hex_string)
+    Allows us to specify a byte string in a little more human readable format.
+    Takes a space delimited string of hex pairs and converts to a string of
+    bytes. hex_string pairs must be spaced delimited, eg 'AB 2E 3B'.
+
+    If we only ran under python3 we could use bytes.fromhex(), but we need to
+    cater for python2 as well so use struct.pack.
+    """
+
+    # first get our hex string as a list of integers
+    dec_list = [int(a, 16) for a in hex_string.split()]
+    # now pack them in a sequence of bytes
+    return struct.pack('B' * len(dec_list), *dec_list)
 
 
-def xbytes(num):
+def xbytes(num, hex_string='00', separator=' '):
+    """Construct a string of delimited repeated hex pairs.
 
-    return ('00 ' * num).strip()
+    Resulting string contains num occurrences of hex_string separated by
+    separator.
+    """
+
+    return separator.join([hex_string] * num)
 
 
 if __name__ == '__main__':

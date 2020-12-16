@@ -4172,10 +4172,13 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     format_str = "{:02X}" if caps else "{:02x}"
     try:
         return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-    except (TypeError, ValueError, AttributeError):
-        # ValueError - cannot format c as {:02X}
+    except ValueError:
+        # most likely we are running python3 and iterable is not a bytestring,
+        # try again coercing iterbale to a bytestring
+        return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
+    except (TypeError, AttributeError):
         # TypeError - 'iterable' is not iterable
-        # AttributeError - likely cause separator is None
+        # AttributeError - likely because separator is None
         # either way we can't represent as a string of hex bytes
         return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
 
