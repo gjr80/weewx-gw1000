@@ -15,17 +15,40 @@ Version: 0.2.0b1                                      Date: 3 October 2020
 Revision History
     3 October 2010      v0.2.0
         - added extractor for sensor signal level fields
+        - use multiline string for [GW1000] config to allow comments to be
+          included
     1 September 2020    v0.1.0b1
         - initial implementation
 """
 
-import weewx
-
+# python imports
+import configobj
 from distutils.version import StrictVersion
 from setup import ExtensionInstaller
+try:
+    # python 3
+    from io import StringIO
+except ImportError:
+    # python 2
+    from StringIO import StringIO
+
+# WeeWX imports
+import weewx
+
 
 REQUIRED_VERSION = "3.7.0"
 GW1000_VERSION = "0.2.0b1"
+# define our config as a multiline string so we can preserve comments
+gw1000_config = """
+[GW1000]
+    # This section is for the GW1000 WiFi gateway driver.
+
+    # The driver to use:
+    driver = user.gw1000
+"""
+
+# construct our config dict
+gw1000_dict = configobj.ConfigObj(StringIO(gw1000_config))
 
 
 def loader():
