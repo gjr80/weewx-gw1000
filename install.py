@@ -44,7 +44,7 @@ gw1000_config = """
     # This section is for the GW1000 API driver.
 
     # How often to poll the GW1000 API, default is every 20 seconds:
-    # poll_interval = 20
+    poll_interval = 20
 
     # The driver to use:
     driver = user.gw1000
