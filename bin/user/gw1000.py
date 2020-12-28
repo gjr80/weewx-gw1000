@@ -190,6 +190,8 @@ method):
                 extractor = last
             [[wh41_ch4_batt]]
                 extractor = last
+            [[wh45_batt]]
+                extractor = last
             [[wh51_ch1_batt]]
                 extractor = last
             [[wh51_ch2_batt]]
@@ -1491,6 +1493,9 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         'wh41_ch4_batt': {
             'extractor': 'last'
         },
+        'wh45_batt': {
+            'extractor': 'last'
+        },
         'wh51_ch1_batt': {
             'extractor': 'last'
         },
@@ -1606,6 +1611,9 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             'extractor': 'last'
         },
         'wh41_ch4_sig': {
+            'extractor': 'last'
+        },
+        'wh45_sig': {
             'extractor': 'last'
         },
         'wh51_ch1_sig': {
