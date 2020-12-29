@@ -361,7 +361,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-
+import configobj
 import re
 import socket
 import struct
@@ -369,8 +369,9 @@ import threading
 import time
 from operator import itemgetter
 
-# Python 2/3 compatibility shim
+# Python 2/3 compatibility shims
 import six
+from six.moves import StringIO
 
 # WeeWX imports
 import weecfg
@@ -378,7 +379,6 @@ import weeutil.weeutil
 import weewx.drivers
 import weewx.engine
 import weewx.wxformulas
-# import user.gw1000
 from weeutil.weeutil import timestamp_to_string
 
 # import/setup logging, WeeWX v3 is syslog based but WeeWX v4 is logging based,
@@ -1728,6 +1728,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
         import weecfg
 
+        loop_on_init_config = """loop_on_init = %d"""
         dflt = config_dict.get('loop_on_init', '1')
         label = """The GW1000 driver requires a network connection to the 
 GW1000. Consequently, the absence of a network connection 
@@ -1737,7 +1738,12 @@ can be used to mitigate such problems by having WeeWX
 retry startup indefinitely. Set to '0' to attempt startup 
 once only or '1' to attempt startup indefinitely."""
         print()
-        config_dict['loop_on_init'] = weecfg.prompt_with_options(label, dflt, ['0', '1'])
+#        config_dict['loop_on_init'] = weecfg.prompt_with_options(label, dflt, ['0', '1'])
+        loop_on_init = weecfg.prompt_with_options(label, dflt, ['0', '1'])
+        loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init, )))
+        config_dict.merge(loop_on_init_dict)
+        if len(config_dict.comments['loop_on_init']) == 0:
+            config_dict.comments['loop_on_init'] = ['', '# Whether to try indefinitely to load the driver']
         print()
         print("""Setting record_generation to software.""")
         config_dict['StdArchive']['record_generation'] = 'software'
