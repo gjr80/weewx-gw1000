@@ -25,12 +25,9 @@ Revision History
 import configobj
 from distutils.version import StrictVersion
 from setup import ExtensionInstaller
-try:
-    # python 3
-    from io import StringIO
-except ImportError:
-    # python 2
-    from StringIO import StringIO
+
+# import StringIO, use six.moves due to python2/python3 differences
+from six.moves import StringIO
 
 # WeeWX imports
 import weewx
