@@ -79,6 +79,8 @@ gw1000_config = """
         extractor = last
     [[24havpm254]]
         extractor = last
+    [[24havpm255]]
+        extractor = last
     [[wh40_batt]]
         extractor = last
     [[wh26_batt]]
