@@ -292,7 +292,7 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     or
 
-        $ sudo systemctl start reweewx
+        $ sudo systemctl restart weewx
 
 9.  You may wish to refer to the [GW1000 driver wiki](https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on customising the operation of the GW1000 driver and integrating GW1000 data into WeeWX generated reports. 
 
