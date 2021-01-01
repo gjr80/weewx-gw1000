@@ -28,10 +28,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.2.0b1                                  Date: 19 October 2020
+Version: 0.2.0b1                                  Date: 1 January 2021
 
 Revision History
-    19 October 2020          v0.2.0
+    1 January 2021          v0.2.0
+        -   added support for WH45 sensor
+        -   improved comments in installer/wee_config inserted config
+            stanzas/entries
         -   added basic test suite
         -   sensor signal levels added to loop packet
         -   added --get-services command line option to display GW1000
