@@ -13,5 +13,6 @@ v0.2.0
 *   added --get-calibration command line option to display GW1000 sensor
     calibration settings when driver is run directly
 *   renamed --rain-data command line option to --get-rain-data
+*   renamed various 24 hour average particulate concentration fields
 v0.1.0
 *   initial release
