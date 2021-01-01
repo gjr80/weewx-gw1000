@@ -49,6 +49,8 @@ Revision History
             sensor calibration settings
         -   renamed --rain-data command line option to --get-rain-data
         -   renamed various 24 hour average particulate concentration fields
+        -   added a check for unknown field addresses when processing sensor
+            data
     1 September 2020        v0.1.0b13
         - initial release
 
@@ -340,15 +342,15 @@ include GW1000 data.
 8.  Once satisfied that the GW1000 service is operating correctly you can start
 the WeeWX daemon:
 
-    $ sudo /etc/init.d/weewx start
+    $ sudo /etc/init.d/weewx restart
 
     or
 
-    $ sudo service weewx start
+    $ sudo service weewx restart
 
     or
 
-    $ sudo systemctl start weewx
+    $ sudo systemctl restart weewx
 """
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
@@ -3756,23 +3758,41 @@ class Gw1000Collector(Collector):
             if len(resp) > 0:
                 index = 0
                 while index < len(resp) - 1:
-                    decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
-                    _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
-                                                            field)
-                    data.update(_field_data)
-                    if self.debug_rain and resp[index:index + 1] in self.rain_field_codes:
-                        loginf("parse: raw rain data: field:%s and "
-                               "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
-                                                             bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                             field,
-                                                             _field_data[field]))
-                    if self.debug_wind and resp[index:index + 1] in self.wind_field_codes:
-                        loginf("parse: raw wind data: field:%s and "
-                               "data:%s decoded as %s=%s" % (resp[index:index + 1],
-                                                             bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                             field,
-                                                             _field_data[field]))
-                    index += field_size + 1
+                    try:
+                        decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
+                    except KeyError:
+                        # We struck a field 'address' we do not know how to
+                        # process. Ideally we would like to skip and move onto
+                        # the next field (if there is one) but the problem is
+                        # we do not know how long the data of this unknown
+                        # field is. We could go on guessing the field data size
+                        # by looking for the next field address but we won't
+                        # know if we do find a valid field address is it a
+                        # field address or data from this field? Of course this
+                        # could also be corrupt data (unlikely though as it was
+                        # decoded using a checksum). So all we can really do is
+                        # accept the data we have so far, log the issue and
+                        # ignore the remaining data.
+                        logerr("Unknown field address '%s' detected. "
+                               "Remaining sensor data ignored." % (bytes_to_hex(resp[index:index + 1]),))
+                        break
+                    else:
+                        _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
+                                                                field)
+                        data.update(_field_data)
+                        if self.debug_rain and resp[index:index + 1] in self.rain_field_codes:
+                            loginf("parse: raw rain data: field:%s and "
+                                   "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
+                                                                 bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                                 field,
+                                                                 _field_data[field]))
+                        if self.debug_wind and resp[index:index + 1] in self.wind_field_codes:
+                            loginf("parse: raw wind data: field:%s and "
+                                   "data:%s decoded as %s=%s" % (resp[index:index + 1],
+                                                                 bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                                 field,
+                                                                 _field_data[field]))
+                        index += field_size + 1
             # if it does not exist add a datetime field with the current epoch timestamp
             if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
                 data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
