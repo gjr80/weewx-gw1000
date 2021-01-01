@@ -10,10 +10,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.2.0b1                                      Date: 3 October 2020
+Version: 0.2.0b1                                      Date: 1 January 2021
 
 Revision History
-    3 October 2010      v0.2.0
+    1 January 2021      v0.2.0
+        - GW1000 config used by installer is now derived from a multiline
+          string so as to allow embedded comments in installed config stanzas
         - added extractors for sensor signal level fields
         - use multiline string for [GW1000] config to allow comments to be
           included
@@ -71,15 +73,15 @@ gw1000_config = """
         extractor = last
     [[totalRain]]
         extractor = last
-    [[24havpm251]]
+    [[pm2_51_24hav]]
         extractor = last
-    [[24havpm252]]
+    [[pm2_52_24hav]]
         extractor = last
-    [[24havpm253]]
+    [[pm2_53_24hav]]
         extractor = last
-    [[24havpm254]]
+    [[pm2_54_24hav]]
         extractor = last
-    [[24havpm255]]
+    [[pm2_55_24hav]]
         extractor = last
     [[wh40_batt]]
         extractor = last
