@@ -14,13 +14,14 @@ Version: 0.2.0b1                                      Date: 1 January 2021
 
 Revision History
     1 January 2021      v0.2.0
-        - GW1000 config used by installer is now derived from a multiline
-          string so as to allow embedded comments in installed config stanzas
-        - added extractors for sensor signal level fields
-        - use multiline string for [GW1000] config to allow comments to be
-          included
+        -   GW1000 config used by installer is now derived from a multiline
+            string so as to allow embedded comments in installed config stanzas
+        -   added extractors for sensor signal level fields
+        -   use multiline string for [GW1000] config to allow comments to be
+            included
+        -   renamed various 24 hour average particulate concentration fields
     1 September 2020    v0.1.0b1
-        - initial implementation
+        -   initial implementation
 """
 
 # python imports
@@ -73,15 +74,19 @@ gw1000_config = """
         extractor = last
     [[totalRain]]
         extractor = last
-    [[pm2_51_24hav]]
+    [[pm2_51_24h_avg]]
         extractor = last
-    [[pm2_52_24hav]]
+    [[pm2_52_24h_avg]]
         extractor = last
-    [[pm2_53_24hav]]
+    [[pm2_53_24h_avg]]
         extractor = last
-    [[pm2_54_24hav]]
+    [[pm2_54_24h_avg]]
         extractor = last
-    [[pm2_55_24hav]]
+    [[pm2_55_24h_avg]]
+        extractor = last
+    [[pm10_24h_avg]]
+        extractor = last
+    [[co2_24h_avg]]
         extractor = last
     [[wh40_batt]]
         extractor = last
