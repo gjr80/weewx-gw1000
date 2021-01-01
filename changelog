@@ -1,2 +1,17 @@
+v0.2.0
+*   added support for WH45 sensor
+*   improved comments in installer/wee_config inserted config stanzas/entries
+*   sensor signal levels added to loop packet
+*   added --get-services command line option to display the GW1000 supported
+    weather services settings when driver is run directly
+*   added --get-pm25-offset command line option to display GW1000 PM2.5 sensor
+    offset settings when driver is run directly
+*   added --get-mulch-offset command line option to display GW1000
+    multi-channel TH sensor calibration settings when driver is run directly
+*   added --get-soil-calibration command line option to display GW1000 soil
+    moisture sensor calibration settings when driver is run directly
+*   added --get-calibration command line option to display GW1000 sensor
+    calibration settings when driver is run directly
+*   renamed --rain-data command line option to --get-rain-data
 v0.1.0
 *   initial release
