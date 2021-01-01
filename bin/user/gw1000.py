@@ -1435,16 +1435,19 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         'totalRain': {
             'extractor': 'last'
         },
-        '24havpm251': {
+        'pm2_51_24hav': {
             'extractor': 'last'
         },
-        '24havpm252': {
+        'pm2_52_24hav': {
             'extractor': 'last'
         },
-        '24havpm253': {
+        'pm2_53_24hav': {
             'extractor': 'last'
         },
-        '24havpm254': {
+        'pm2_54_24hav': {
+            'extractor': 'last'
+        },
+        'pm2_55_24hav': {
             'extractor': 'last'
         },
         'wh40_batt': {
@@ -1740,8 +1743,7 @@ can be used to mitigate such problems by having WeeWX
 retry startup indefinitely. Set to '0' to attempt startup 
 once only or '1' to attempt startup indefinitely."""
         print()
-#        config_dict['loop_on_init'] = weecfg.prompt_with_options(label, dflt, ['0', '1'])
-        loop_on_init = weecfg.prompt_with_options(label, dflt, ['0', '1'])
+        loop_on_init = int(weecfg.prompt_with_options(label, dflt, ['0', '1']))
         loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init, )))
         config_dict.merge(loop_on_init_dict)
         if len(config_dict.comments['loop_on_init']) == 0:
