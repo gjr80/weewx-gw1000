@@ -48,6 +48,7 @@ Revision History
         -   added --get-calibration command line option to display GW1000
             sensor calibration settings
         -   renamed --rain-data command line option to --get-rain-data
+        -   renamed various 24 hour average particulate concentration fields
     1 September 2020        v0.1.0b13
         - initial release
 
@@ -153,15 +154,19 @@ method):
                 extractor = last
             [[totalRain]]
                 extractor = last
-            [[pm2_51_24hav]]
+            [[pm2_51_24h_avg]]
                 extractor = last
-            [[pm2_52_24hav]]
+            [[pm2_52_24h_avg]]
                 extractor = last
-            [[pm2_53_24hav]]
+            [[pm2_53_24h_avg]]
                 extractor = last
-            [[pm2_54_24hav]]
+            [[pm2_54_24h_avg]]
                 extractor = last
-            [[pm2_55_24hav]]
+            [[pm2_55_24h_avg]]
+                extractor = last
+            [[pm10_24h_avg]]
+                extractor = last
+            [[co2_24h_avg]]
                 extractor = last
             [[wh40_batt]]
                 extractor = last
@@ -610,13 +615,13 @@ class Gw1000(object):
         'soilMoist15': 'soilmoist15',
         'soilTemp16': 'soiltemp16',
         'soilMoist16': 'soilmoist16',
-        'pm2_51_24hav': 'pm251_24hav',
-        'pm2_52_24hav': 'pm252_24hav',
-        'pm2_53_24hav': 'pm253_24hav',
-        'pm2_54_24hav': 'pm254_24hav',
-        'pm2_55_24hav': 'pm255_24hav',
-        'pm10_24hav': 'pm10_24_hav',
-        'co2_24hav': 'co2_24hav',
+        'pm2_51_24h_avg': 'pm251_24h_avg',
+        'pm2_52_24h_avg': 'pm252_24h_avg',
+        'pm2_53_24h_avg': 'pm253_24h_avg',
+        'pm2_54_24h_avg': 'pm254_24h_avg',
+        'pm2_55_24h_avg': 'pm255_24h_avg',
+        'pm10_24h_avg': 'pm10_24h_avg',
+        'co2_24h_avg': 'co2_24h_avg',
         'leak1': 'leak1',
         'leak2': 'leak2',
         'leak3': 'leak3',
@@ -828,7 +833,7 @@ class Gw1000(object):
         # seconds
         self.retry_wait = int(gw1000_config.get('retry_wait',
                                                 default_retry_wait))
-        # how often (in seconds) we should poll the API, default is 60 seconds
+        # how often (in seconds) we should poll the API, use a default
         self.poll_interval = int(gw1000_config.get('poll_interval',
                                                    default_poll_interval))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
@@ -1099,7 +1104,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         super(weewx.engine.StdService, self).__init__(**gw1000_config_dict)
 
         # age (in seconds) before API data is considered too old to use,
-        # default is 60 seconds
+        # use a default
         self.max_age = int(gw1000_config_dict.get('max_age', default_max_age))
         # minimum period in seconds between 'lost contact' log entries during
         # an extended lost contact period
@@ -1438,19 +1443,25 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         'totalRain': {
             'extractor': 'last'
         },
-        'pm2_51_24hav': {
+        'pm2_51_24h_avg': {
             'extractor': 'last'
         },
-        'pm2_52_24hav': {
+        'pm2_52_24h_avg': {
             'extractor': 'last'
         },
-        'pm2_53_24hav': {
+        'pm2_53_24h_avg': {
             'extractor': 'last'
         },
-        'pm2_54_24hav': {
+        'pm2_54_24h_avg': {
             'extractor': 'last'
         },
-        'pm2_55_24hav': {
+        'pm2_55_24h_avg': {
+            'extractor': 'last'
+        },
+        'pm10_24h_avg': {
+            'extractor': 'last'
+        },
+        'co2_24h_avg': {
             'extractor': 'last'
         },
         'wh40_batt': {
@@ -2093,7 +2104,7 @@ class Gw1000Collector(Collector):
         # initialize my base class:
         super(Gw1000Collector, self).__init__()
 
-        # interval between polls of the API, default is 60 seconds
+        # interval between polls of the API, use a default
         self.poll_interval = poll_interval
         # how many times to poll the API before giving up, default is
         # default_max_tries
@@ -3662,10 +3673,10 @@ class Gw1000Collector(Collector):
             b'\x49': ('decode_temp', 2, 'soiltemp16'),
             b'\x4A': ('decode_moist', 1, 'soilmoist16'),
             b'\x4C': ('decode_batt', 16, 'lowbatt'),
-            b'\x4D': ('decode_pm25', 2, 'pm251_24hav'),
-            b'\x4E': ('decode_pm25', 2, 'pm252_24hav'),
-            b'\x4F': ('decode_pm25', 2, 'pm253_24hav'),
-            b'\x50': ('decode_pm25', 2, 'pm254_24hav'),
+            b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg'),
+            b'\x4E': ('decode_pm25', 2, 'pm252_24h_avg'),
+            b'\x4F': ('decode_pm25', 2, 'pm253_24h_avg'),
+            b'\x50': ('decode_pm25', 2, 'pm254_24h_avg'),
             b'\x51': ('decode_pm25', 2, 'pm252'),
             b'\x52': ('decode_pm25', 2, 'pm253'),
             b'\x53': ('decode_pm25', 2, 'pm254'),
@@ -3685,8 +3696,8 @@ class Gw1000Collector(Collector):
             b'\x69': ('decode_wh34', 3, ('temp15', 'wh34_ch7_batt')),
             b'\x6A': ('decode_wh34', 3, ('temp16', 'wh34_ch8_batt')),
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
-                                          'pm10_24hav', 'pm255', 'pm255_24hav',
-                                          'co2', 'co2_24hav', 'wh45_batt'))
+                                          'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
+                                          'co2', 'co2_24h_avg', 'wh45_batt'))
         }
 
         # tuple of field codes for rain related fields in the GW1000 live data
