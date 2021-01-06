@@ -352,6 +352,11 @@ the WeeWX daemon:
 
     $ sudo systemctl restart weewx
 """
+# Pre-release TODOs:
+# TODO. Review against latest
+# TODO. readme.md needs updating - WH45 inclusion for one
+
+# Standing TODOs:
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm sensor ID signal value meaning
