@@ -20,7 +20,7 @@ Revision History
         -   use multiline string for [GW1000] config to allow comments to be
             included
         -   renamed various 24 hour average particulate concentration fields
-    1 September 2020    v0.1.0 (b1-b13)
+    1 September 2020    v0.1.0 (b1-b12)
         -   initial implementation
 """
 
