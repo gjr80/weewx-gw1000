@@ -28,10 +28,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.2.0b1                                  Date: 1 January 2021
+Version: 0.2.0                                    Date: 7 January 2021
 
 Revision History
-    1 January 2021          v0.2.0
+    7 January 2021          v0.2.0
         -   added support for WH45 sensor
         -   improved comments in installer/wee_config inserted config
             stanzas/entries
@@ -51,7 +51,7 @@ Revision History
         -   renamed various 24 hour average particulate concentration fields
         -   added a check for unknown field addresses when processing sensor
             data
-    1 September 2020        v0.1.0b13
+    1 September 2020        v0.1.0 (b1-b13)
         - initial release
 
 
@@ -250,6 +250,86 @@ method):
                 extractor = last
             [[ws80_batt]]
                 extractor = last
+            [[wh40_sig]]
+                extractor = last
+            [[wh26_sig]]
+                extractor = last
+            [[wh25_sig]]
+                extractor = last
+            [[wh65_sig]]
+                extractor = last
+            [[wh31_ch1_sig]]
+                extractor = last
+            [[wh31_ch2_sig]]
+                extractor = last
+            [[wh31_ch3_sig]]
+                extractor = last
+            [[wh31_ch4_sig]]
+                extractor = last
+            [[wh31_ch5_sig]]
+                extractor = last
+            [[wh31_ch6_sig]]
+                extractor = last
+            [[wh31_ch7_sig]]
+                extractor = last
+            [[wh31_ch8_sig]]
+                extractor = last
+            [[wh41_ch1_sig]]
+                extractor = last
+            [[wh41_ch2_sig]]
+                extractor = last
+            [[wh41_ch3_sig]]
+                extractor = last
+            [[wh41_ch4_sig]]
+                extractor = last
+            [[wh45_sig]]
+                extractor = last
+            [[wh51_ch1_sig]]
+                extractor = last
+            [[wh51_ch2_sig]]
+                extractor = last
+            [[wh51_ch3_sig]]
+                extractor = last
+            [[wh51_ch4_sig]]
+                extractor = last
+            [[wh51_ch5_sig]]
+                extractor = last
+            [[wh51_ch6_sig]]
+                extractor = last
+            [[wh51_ch7_sig]]
+                extractor = last
+            [[wh51_ch8_sig]]
+                extractor = last
+            [[wh51_ch9_sig]]
+                extractor = last
+            [[wh51_ch10_sig]]
+                extractor = last
+            [[wh51_ch11_sig]]
+                extractor = last
+            [[wh51_ch12_sig]]
+                extractor = last
+            [[wh51_ch13_sig]]
+                extractor = last
+            [[wh51_ch14_sig]]
+                extractor = last
+            [[wh51_ch15_sig]]
+                extractor = last
+            [[wh51_ch16_sig]]
+                extractor = last
+            [[wh55_ch1_sig]]
+                extractor = last
+            [[wh55_ch2_sig]]
+                extractor = last
+            [[wh55_ch3_sig]]
+                extractor = last
+            [[wh55_ch4_sig]]
+                extractor = last
+            [[wh57_sig]]
+                extractor = last
+            [[wh68_sig]]
+                extractor = last
+            [[ws80_sig]]
+                extractor = last
 
 4.  Confirm that WeeWX is set to use software record generation
 (refer http://weewx.com/docs/usersguide.htm#record_generation). In weewx.conf
@@ -352,8 +432,6 @@ the WeeWX daemon:
 
     $ sudo systemctl restart weewx
 """
-# Pre-release TODOs:
-# TODO. readme.md needs updating - WH45 inclusion for one
 
 # Standing TODOs:
 # TODO. Review against latest
@@ -474,7 +552,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.2.0b1'
+DRIVER_VERSION = '0.2.0'
 
 # various defaults used throughout
 # default port used by GW1000

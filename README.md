@@ -26,11 +26,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.2.0b1/gw1000-0.2.0b1.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.2.0/gw1000-0.2.0.tar.gz
 
     -   install the GW1000 driver extension:
 
-            $ wee_extension --install=/var/tmp/gw1000-0.2.0b1.tar.gz
+            $ wee_extension --install=/var/tmp/gw1000-0.2.0.tar.gz
             
         **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -40,11 +40,11 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
 
     -   download the GW1000 driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.2.0b1/gw1000-0.2.0b1.tar.gz
+            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.2.0/gw1000-0.2.0.tar.gz
 
     -   extract the contents of the GW1000 driver extension package:
     
-            $ tar -xzf /var/tmp/gw1000-0.2.0b1.tar.gz -C /var/tmp
+            $ tar -xzf /var/tmp/gw1000-0.2.0.tar.gz -C /var/tmp
      
     -   copy the file *gw1000.py* to the *$BIN_ROOT/user* directory:
     
@@ -83,13 +83,19 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                     extractor = last
                 [[totalRain]]
                     extractor = last
-                [[pm2_51_24hav]]
+                [[pm2_51_24h_avg]]
                     extractor = last
-                [[pm2_52_24hav]]
+                [[pm2_52_24h_avg]]
                     extractor = last
-                [[pm2_53_24hav]]
+                [[pm2_53_24h_avg]]
                     extractor = last
-                [[pm2_54_24hav]]
+                [[pm2_54_24h_avg]]
+                    extractor = last
+                [[pm2_55_24h_avg]]
+                    extractor = last
+                [[pm10_24h_avg]]
+                    extractor = last
+                [[co2_24h_avg]]
                     extractor = last
                 [[wh40_batt]]
                     extractor = last
@@ -122,6 +128,8 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                 [[wh41_ch3_batt]]
                     extractor = last
                 [[wh41_ch4_batt]]
+                    extractor = last
+                [[wh45_batt]]
                     extractor = last
                 [[wh51_ch1_batt]]
                     extractor = last
@@ -200,6 +208,8 @@ The GW1000 driver requires WeeWX v3.7.0 or greater and will operate under Python
                 [[wh41_ch3_sig]]
                     extractor = last
                 [[wh41_ch4_sig]]
+                    extractor = last
+                [[wh45_sig]]
                     extractor = last
                 [[wh51_ch1_sig]]
                     extractor = last
