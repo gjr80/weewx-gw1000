@@ -353,9 +353,7 @@ the WeeWX daemon:
     $ sudo systemctl restart weewx
 """
 # Pre-release TODOs:
-# TODO. Review against latest
 # TODO. readme.md needs updating - WH45 inclusion for one
-# TODO. extension install, reconfigure to gw1000, reconfigure to sim seems to leave [GW1000] under [Station], but this seems not to be the case after reconfigure gw1000?
 
 # Standing TODOs:
 # TODO. Review against latest
@@ -1632,7 +1630,26 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         poll_interval = %d
     """ % (default_poll_interval,)
 
+    def get_conf(self, orig_stanza=None):
+        """Given a configuration stanza, return a possibly modified copy
+        that will work with the current version of the device driver.
+
+        The default behavior is to return the original stanza, unmodified.
+
+        Derived classes should override this if they need to modify previous
+        configuration options or warn about deprecated or harmful options.
+
+        The return value should be a long string. See default_stanza above
+        for an example string stanza."""
+        return self.default_stanza if orig_stanza is None else orig_stanza
+
     def prompt_for_settings(self):
+        """Prompt for settings required for proper operation of this driver.
+
+        Returns a dict of setting, value key pairs for settings to be included
+        in the driver stanza. The _prompt() method may be used to prompt the
+        user for input with a default.
+        """
 
         # obtain IP address
         print()
