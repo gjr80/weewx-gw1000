@@ -355,6 +355,7 @@ the WeeWX daemon:
 # Pre-release TODOs:
 # TODO. Review against latest
 # TODO. readme.md needs updating - WH45 inclusion for one
+# TODO. extension install, reconfigure to gw1000, reconfigure to sim seems to leave [GW1000] under [Station], but this seems not to be the case after reconfigure gw1000?
 
 # Standing TODOs:
 # TODO. Review against latest
@@ -1415,303 +1416,208 @@ def confeditor_loader():
 
 
 class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
-
-    accumulator_config = {
-        'daymaxwind': {
-            'extractor': 'last'
-        },
-        'lightning_distance': {
-            'extractor': 'last'
-        },
-        'lightning_strike_count': {
-            'extractor': 'sum'
-        },
-        'lightning_last_det_time': {
-            'extractor': 'last'
-        },
-        'stormRain': {
-            'extractor': 'last'
-        },
-        'hourRain': {
-            'extractor': 'last'
-        },
-        'dayRain': {
-            'extractor': 'last'
-        },
-        'weekRain': {
-            'extractor': 'last'
-        },
-        'monthRain': {
-            'extractor': 'last'
-        },
-        'yearRain': {
-            'extractor': 'last'
-        },
-        'totalRain': {
-            'extractor': 'last'
-        },
-        'pm2_51_24h_avg': {
-            'extractor': 'last'
-        },
-        'pm2_52_24h_avg': {
-            'extractor': 'last'
-        },
-        'pm2_53_24h_avg': {
-            'extractor': 'last'
-        },
-        'pm2_54_24h_avg': {
-            'extractor': 'last'
-        },
-        'pm2_55_24h_avg': {
-            'extractor': 'last'
-        },
-        'pm10_24h_avg': {
-            'extractor': 'last'
-        },
-        'co2_24h_avg': {
-            'extractor': 'last'
-        },
-        'wh40_batt': {
-            'extractor': 'last'
-        },
-        'wh26_batt': {
-            'extractor': 'last'
-        },
-        'wh25_batt': {
-            'extractor': 'last'
-        },
-        'wh65_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch1_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch2_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch3_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch4_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch5_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch6_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch7_batt': {
-            'extractor': 'last'
-        },
-        'wh31_ch8_batt': {
-            'extractor': 'last'
-        },
-        'wh41_ch1_batt': {
-            'extractor': 'last'
-        },
-        'wh41_ch2_batt': {
-            'extractor': 'last'
-        },
-        'wh41_ch3_batt': {
-            'extractor': 'last'
-        },
-        'wh41_ch4_batt': {
-            'extractor': 'last'
-        },
-        'wh45_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch1_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch2_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch3_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch4_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch5_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch6_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch7_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch8_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch9_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch10_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch11_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch12_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch13_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch14_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch15_batt': {
-            'extractor': 'last'
-        },
-        'wh51_ch16_batt': {
-            'extractor': 'last'
-        },
-        'wh55_ch1_batt': {
-            'extractor': 'last'
-        },
-        'wh55_ch2_batt': {
-            'extractor': 'last'
-        },
-        'wh55_ch3_batt': {
-            'extractor': 'last'
-        },
-        'wh55_ch4_batt': {
-            'extractor': 'last'
-        },
-        'wh57_batt': {
-            'extractor': 'last'
-        },
-        'wh68_batt': {
-            'extractor': 'last'
-        },
-        'ws80_batt': {
-            'extractor': 'last'
-        },
-        'wh40_sig': {
-            'extractor': 'last'
-        },
-        'wh26_sig': {
-            'extractor': 'last'
-        },
-        'wh25_sig': {
-            'extractor': 'last'
-        },
-        'wh65_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch1_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch2_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch3_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch4_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch5_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch6_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch7_sig': {
-            'extractor': 'last'
-        },
-        'wh31_ch8_sig': {
-            'extractor': 'last'
-        },
-        'wh41_ch1_sig': {
-            'extractor': 'last'
-        },
-        'wh41_ch2_sig': {
-            'extractor': 'last'
-        },
-        'wh41_ch3_sig': {
-            'extractor': 'last'
-        },
-        'wh41_ch4_sig': {
-            'extractor': 'last'
-        },
-        'wh45_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch1_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch2_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch3_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch4_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch5_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch6_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch7_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch8_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch9_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch10_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch11_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch12_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch13_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch14_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch15_sig': {
-            'extractor': 'last'
-        },
-        'wh51_ch16_sig': {
-            'extractor': 'last'
-        },
-        'wh55_ch1_sig': {
-            'extractor': 'last'
-        },
-        'wh55_ch2_sig': {
-            'extractor': 'last'
-        },
-        'wh55_ch3_sig': {
-            'extractor': 'last'
-        },
-        'wh55_ch4_sig': {
-            'extractor': 'last'
-        },
-        'wh57_sig': {
-            'extractor': 'last'
-        },
-        'wh68_sig': {
-            'extractor': 'last'
-        },
-        'ws80_sig': {
-            'extractor': 'last'
-        }
-    }
+    # define our config as a multiline string so we can preserve comments
+    accum_config = """
+    [Accumulator]
+        # Start GW1000 driver extractors
+        [[daymaxwind]]
+            extractor = last
+        [[lightning_distance]]
+            extractor = last
+        [[lightning_strike_count]]
+            extractor = sum
+        [[lightning_last_det_time]]
+            extractor = last
+        [[stormRain]]
+            extractor = last
+        [[hourRain]]
+            extractor = last
+        [[dayRain]]
+            extractor = last
+        [[weekRain]]
+            extractor = last
+        [[monthRain]]
+            extractor = last
+        [[yearRain]]
+            extractor = last
+        [[totalRain]]
+            extractor = last
+        [[pm2_51_24h_avg]]
+            extractor = last
+        [[pm2_52_24h_avg]]
+            extractor = last
+        [[pm2_53_24h_avg]]
+            extractor = last
+        [[pm2_54_24h_avg]]
+            extractor = last
+        [[pm2_55_24h_avg]]
+            extractor = last
+        [[pm10_24h_avg]]
+            extractor = last
+        [[co2_24h_avg]]
+            extractor = last
+        [[wh40_batt]]
+            extractor = last
+        [[wh26_batt]]
+            extractor = last
+        [[wh25_batt]]
+            extractor = last
+        [[wh65_batt]]
+            extractor = last
+        [[wh31_ch1_batt]]
+            extractor = last
+        [[wh31_ch2_batt]]
+            extractor = last
+        [[wh31_ch3_batt]]
+            extractor = last
+        [[wh31_ch4_batt]]
+            extractor = last
+        [[wh31_ch5_batt]]
+            extractor = last
+        [[wh31_ch6_batt]]
+            extractor = last
+        [[wh31_ch7_batt]]
+            extractor = last
+        [[wh31_ch8_batt]]
+            extractor = last
+        [[wh41_ch1_batt]]
+            extractor = last
+        [[wh41_ch2_batt]]
+            extractor = last
+        [[wh41_ch3_batt]]
+            extractor = last
+        [[wh41_ch4_batt]]
+            extractor = last
+        [[wh45_batt]]
+            extractor = last
+        [[wh51_ch1_batt]]
+            extractor = last
+        [[wh51_ch2_batt]]
+            extractor = last
+        [[wh51_ch3_batt]]
+            extractor = last
+        [[wh51_ch4_batt]]
+            extractor = last
+        [[wh51_ch5_batt]]
+            extractor = last
+        [[wh51_ch6_batt]]
+            extractor = last
+        [[wh51_ch7_batt]]
+            extractor = last
+        [[wh51_ch8_batt]]
+            extractor = last
+        [[wh51_ch9_batt]]
+            extractor = last
+        [[wh51_ch10_batt]]
+            extractor = last
+        [[wh51_ch11_batt]]
+            extractor = last
+        [[wh51_ch12_batt]]
+            extractor = last
+        [[wh51_ch13_batt]]
+            extractor = last
+        [[wh51_ch14_batt]]
+            extractor = last
+        [[wh51_ch15_batt]]
+            extractor = last
+        [[wh51_ch16_batt]]
+            extractor = last
+        [[wh55_ch1_batt]]
+            extractor = last
+        [[wh55_ch2_batt]]
+            extractor = last
+        [[wh55_ch3_batt]]
+            extractor = last
+        [[wh55_ch4_batt]]
+            extractor = last
+        [[wh57_batt]]
+            extractor = last
+        [[wh68_batt]]
+            extractor = last
+        [[ws80_batt]]
+            extractor = last
+        [[wh40_sig]]
+            extractor = last
+        [[wh26_sig]]
+            extractor = last
+        [[wh25_sig]]
+            extractor = last
+        [[wh65_sig]]
+            extractor = last
+        [[wh31_ch1_sig]]
+            extractor = last
+        [[wh31_ch2_sig]]
+            extractor = last
+        [[wh31_ch3_sig]]
+            extractor = last
+        [[wh31_ch4_sig]]
+            extractor = last
+        [[wh31_ch5_sig]]
+            extractor = last
+        [[wh31_ch6_sig]]
+            extractor = last
+        [[wh31_ch7_sig]]
+            extractor = last
+        [[wh31_ch8_sig]]
+            extractor = last
+        [[wh41_ch1_sig]]
+            extractor = last
+        [[wh41_ch2_sig]]
+            extractor = last
+        [[wh41_ch3_sig]]
+            extractor = last
+        [[wh41_ch4_sig]]
+            extractor = last
+        [[wh45_sig]]
+            extractor = last
+        [[wh51_ch1_sig]]
+            extractor = last
+        [[wh51_ch2_sig]]
+            extractor = last
+        [[wh51_ch3_sig]]
+            extractor = last
+        [[wh51_ch4_sig]]
+            extractor = last
+        [[wh51_ch5_sig]]
+            extractor = last
+        [[wh51_ch6_sig]]
+            extractor = last
+        [[wh51_ch7_sig]]
+            extractor = last
+        [[wh51_ch8_sig]]
+            extractor = last
+        [[wh51_ch9_sig]]
+            extractor = last
+        [[wh51_ch10_sig]]
+            extractor = last
+        [[wh51_ch11_sig]]
+            extractor = last
+        [[wh51_ch12_sig]]
+            extractor = last
+        [[wh51_ch13_sig]]
+            extractor = last
+        [[wh51_ch14_sig]]
+            extractor = last
+        [[wh51_ch15_sig]]
+            extractor = last
+        [[wh51_ch16_sig]]
+            extractor = last
+        [[wh55_ch1_sig]]
+            extractor = last
+        [[wh55_ch2_sig]]
+            extractor = last
+        [[wh55_ch3_sig]]
+            extractor = last
+        [[wh55_ch4_sig]]
+            extractor = last
+        [[wh57_sig]]
+            extractor = last
+        [[wh68_sig]]
+            extractor = last
+        [[ws80_sig]]
+            extractor = last
+        # End GW1000 driver extractors
+    """
 
     @property
     def default_stanza(self):
@@ -1754,6 +1660,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
         import weecfg
 
+        # set loop_on_init
         loop_on_init_config = """loop_on_init = %d"""
         dflt = config_dict.get('loop_on_init', '1')
         label = """The GW1000 driver requires a network connection to the 
@@ -1770,14 +1677,23 @@ once only or '1' to attempt startup indefinitely."""
         if len(config_dict.comments['loop_on_init']) == 0:
             config_dict.comments['loop_on_init'] = ['', '# Whether to try indefinitely to load the driver']
         print()
+
+        # set record generation to software
         print("""Setting record_generation to software.""")
         config_dict['StdArchive']['record_generation'] = 'software'
         print()
+
+        # set the accumulator extractor functions
         print("""Setting accumulator extractor functions.""")
-        if 'Accumulator' in config_dict:
-            config_dict['Accumulator'].update(Gw1000ConfEditor.accumulator_config)
-        else:
-            config_dict['Accumulator'] = Gw1000ConfEditor.accumulator_config
+        # construct our default accumulator config dict
+        accum_config_dict = configobj.ConfigObj(StringIO(Gw1000ConfEditor.accum_config))
+        # merge the existing config dict into our default accumulator config
+        # dict so that we keep any changes made to [Accumulator] by the user
+        accum_config_dict.merge(config_dict)
+        # now make our updated accumulator config the config dict
+        config_dict = configobj.ConfigObj(accum_config_dict)
+
+        # we don't need weecfg any more so remove it from memory
         del weecfg
         print()
 
