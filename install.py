@@ -10,10 +10,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.2.0                                        Date: 7 January 2021
+Version: 0.2.0                                        Date: 9 January 2021
 
 Revision History
-    7 January 2021      v0.2.0
+    9 January 2021      v0.2.0
         -   GW1000 config used by installer is now derived from a multiline
             string so as to allow embedded comments in installed config stanzas
         -   added extractors for sensor signal level fields
