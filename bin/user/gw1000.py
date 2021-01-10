@@ -598,6 +598,194 @@ default_poll_interval = 20
 # default period between lost contact log entries during an extended period of
 # lost contact when run as a Service
 default_lost_contact_log_period = 21600
+# GW1000 observation group dict
+gw1000_obs_group_dict = {
+    'intemp': 'group_temperature',
+    'outtemp': 'group_temperature',
+    'dewpoint': 'group_temperature',
+    'windchill': 'group_temperature',
+    'heatindex': 'group_temperature',
+    'inhumid': 'group_percent',
+    'outhumid': 'group_percent',
+    'absbarometer': 'group_pressure',
+    'relbarometer': 'group_pressure',
+    'light': 'group_illuminance',
+    'uv': 'group_radiation',
+    'uvi': 'group_uv',
+    'datetime': 'group_time',
+    'temp1': 'group_temperature',
+    'temp2': 'group_temperature',
+    'temp3': 'group_temperature',
+    'temp4': 'group_temperature',
+    'temp5': 'group_temperature',
+    'temp6': 'group_temperature',
+    'temp7': 'group_temperature',
+    'temp8': 'group_temperature',
+    'temp9': 'group_temperature',
+    'temp10': 'group_temperature',
+    'temp11': 'group_temperature',
+    'temp12': 'group_temperature',
+    'temp13': 'group_temperature',
+    'temp14': 'group_temperature',
+    'temp15': 'group_temperature',
+    'temp16': 'group_temperature',
+    'temp17': 'group_temperature',
+    'humid1': 'group_percent',
+    'humid2': 'group_percent',
+    'humid3': 'group_percent',
+    'humid4': 'group_percent',
+    'humid5': 'group_percent',
+    'humid6': 'group_percent',
+    'humid7': 'group_percent',
+    'humid8': 'group_percent',
+    'humid17': 'group_percent',
+    'pm251': 'group_concentration',
+    'pm252': 'group_concentration',
+    'pm253': 'group_concentration',
+    'pm254': 'group_concentration',
+    'pm255': 'group_concentration',
+    'pm10': 'group_concentration',
+    'co2': 'group_fraction',
+    'soiltemp1': 'group_temperature',
+    'soilmoist1': 'group_percent',
+    'soiltemp2': 'group_temperature',
+    'soilmoist2': 'group_percent',
+    'soiltemp3': 'group_temperature',
+    'soilmoist3': 'group_percent',
+    'soiltemp4': 'group_temperature',
+    'soilmoist4': 'group_percent',
+    'soiltemp5': 'group_temperature',
+    'soilmoist5': 'group_percent',
+    'soiltemp6': 'group_temperature',
+    'soilmoist6': 'group_percent',
+    'soiltemp7': 'group_temperature',
+    'soilmoist7': 'group_percent',
+    'soiltemp8': 'group_temperature',
+    'soilmoist8': 'group_percent',
+    'soiltemp9': 'group_temperature',
+    'soilmoist9': 'group_percent',
+    'soiltemp10': 'group_temperature',
+    'soilmoist10': 'group_percent',
+    'soiltemp11': 'group_temperature',
+    'soilmoist11': 'group_percent',
+    'soiltemp12': 'group_temperature',
+    'soilmoist12': 'group_percent',
+    'soiltemp13': 'group_temperature',
+    'soilmoist13': 'group_percent',
+    'soiltemp14': 'group_temperature',
+    'soilmoist14': 'group_percent',
+    'soiltemp15': 'group_temperature',
+    'soilmoist15': 'group_percent',
+    'soiltemp16': 'group_temperature',
+    'soilmoist16': 'group_percent',
+    'pm251_24h_avg': 'group_concentration',
+    'pm252_24h_avg': 'group_concentration',
+    'pm253_24h_avg': 'group_concentration',
+    'pm254_24h_avg': 'group_concentration',
+    'pm255_24h_avg': 'group_concentration',
+    'pm10_24h_avg': 'group_concentration',
+    'co2_24h_avg': 'group_fraction',
+    'leak1': 'group_count',
+    'leak2': 'group_count',
+    'leak3': 'group_count',
+    'leak4': 'group_count',
+    'lightningdist': 'group_distance',
+    'lightningdettime': 'group_time',
+    'lightning_strike_count': 'group_count',
+    'rain': 'group_rain',
+    'rainevent': 'group_rain',
+    'rainrate': 'group_rainrate',
+    'rainhour': 'group_rain',
+    'rainday': 'group_rain',
+    'rainweek': 'group_rain',
+    'rainmonth': 'group_rain',
+    'rainyear': 'group_rain',
+    'raintotals': 'group_rain',
+    'winddir': 'group_direction',
+    'windspeed': 'group_speed',
+    'gustspeed': 'group_speed',
+    'daymaxwind': 'group_speed',
+    'wh40_batt': 'group_count',
+    'wh26_batt': 'group_count',
+    'wh25_batt': 'group_count',
+    'wh65_batt': 'group_count',
+    'wh31_ch1_batt': 'group_count',
+    'wh31_ch2_batt': 'group_count',
+    'wh31_ch3_batt': 'group_count',
+    'wh31_ch4_batt': 'group_count',
+    'wh31_ch5_batt': 'group_count',
+    'wh31_ch6_batt': 'group_count',
+    'wh31_ch7_batt': 'group_count',
+    'wh31_ch8_batt': 'group_count',
+    'wh41_ch1_batt': 'group_count',
+    'wh41_ch2_batt': 'group_count',
+    'wh41_ch3_batt': 'group_count',
+    'wh41_ch4_batt': 'group_count',
+    'wh45_batt': 'group_count',
+    'wh51_ch1_batt': 'group_count',
+    'wh51_ch2_batt': 'group_count',
+    'wh51_ch3_batt': 'group_count',
+    'wh51_ch4_batt': 'group_count',
+    'wh51_ch5_batt': 'group_count',
+    'wh51_ch6_batt': 'group_count',
+    'wh51_ch7_batt': 'group_count',
+    'wh51_ch8_batt': 'group_count',
+    'wh51_ch9_batt': 'group_count',
+    'wh51_ch10_batt': 'group_count',
+    'wh51_ch11_batt': 'group_count',
+    'wh51_ch12_batt': 'group_count',
+    'wh51_ch13_batt': 'group_count',
+    'wh51_ch14_batt': 'group_count',
+    'wh51_ch15_batt': 'group_count',
+    'wh51_ch16_batt': 'group_count',
+    'wh55_ch1_batt': 'group_count',
+    'wh55_ch2_batt': 'group_count',
+    'wh55_ch3_batt': 'group_count',
+    'wh55_ch4_batt': 'group_count',
+    'wh57_batt': 'group_count',
+    'wh68_batt': 'group_volt',
+    'ws80_batt': 'group_volt',
+    'wh40_sig': 'group_count',
+    'wh26_sig': 'group_count',
+    'wh25_sig': 'group_count',
+    'wh65_sig': 'group_count',
+    'wh31_ch1_sig': 'group_count',
+    'wh31_ch2_sig': 'group_count',
+    'wh31_ch3_sig': 'group_count',
+    'wh31_ch4_sig': 'group_count',
+    'wh31_ch5_sig': 'group_count',
+    'wh31_ch6_sig': 'group_count',
+    'wh31_ch7_sig': 'group_count',
+    'wh31_ch8_sig': 'group_count',
+    'wh41_ch1_sig': 'group_count',
+    'wh41_ch2_sig': 'group_count',
+    'wh41_ch3_sig': 'group_count',
+    'wh41_ch4_sig': 'group_count',
+    'wh45_sig': 'group_count',
+    'wh51_ch1_sig': 'group_count',
+    'wh51_ch2_sig': 'group_count',
+    'wh51_ch3_sig': 'group_count',
+    'wh51_ch4_sig': 'group_count',
+    'wh51_ch5_sig': 'group_count',
+    'wh51_ch6_sig': 'group_count',
+    'wh51_ch7_sig': 'group_count',
+    'wh51_ch8_sig': 'group_count',
+    'wh51_ch9_sig': 'group_count',
+    'wh51_ch10_sig': 'group_count',
+    'wh51_ch11_sig': 'group_count',
+    'wh51_ch12_sig': 'group_count',
+    'wh51_ch13_sig': 'group_count',
+    'wh51_ch14_sig': 'group_count',
+    'wh51_ch15_sig': 'group_count',
+    'wh51_ch16_sig': 'group_count',
+    'wh55_ch1_sig': 'group_count',
+    'wh55_ch2_sig': 'group_count',
+    'wh55_ch3_sig': 'group_count',
+    'wh55_ch4_sig': 'group_count',
+    'wh57_sig': 'group_count',
+    'wh68_sig': 'group_count',
+    'ws80_sig': 'group_count'
+}
 
 
 # ============================================================================
@@ -5061,6 +5249,16 @@ def main():
             print()
             print("Timeout. GW1000 did not respond.")
         else:
+            # the live data is in MetricWX units, do we need to convert to US?
+            if opts.units.lower() == 'us':
+                import weewx.units
+                weewx.units.obs_group_dict.update(gw1000_obs_group_dict)
+                live_sensor_data_dict['usUnits'] = weewx.METRICWX
+                converted_dict = weewx.units.to_US(live_sensor_data_dict)
+            else:
+                converted_dict = live_sensor_data_dict
+            print()
+            print("GW1000 live sensor data: %s" % weeutil.weeutil.to_sorted_string(converted_dict))
             print()
             print("GW1000 live sensor data: %s" % weeutil.weeutil.to_sorted_string(live_sensor_data_dict))
 
@@ -5265,7 +5463,8 @@ def main():
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --live-data
-            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [CONFIG_FILE|--config=CONFIG_FILE]
+            [units=us|metric]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --firmware-version|--mac-address|
@@ -5306,7 +5505,7 @@ def main():
     parser.add_option('--sensors', dest='sensors', action='store_true',
                       help='display GW1000 sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
-                      help='display GW1000 sensor data')
+                      help='display GW1000 live sensor data')
     parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
                       help='display GW1000 rain data')
     parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
@@ -5347,6 +5546,8 @@ def main():
                       help='GW1000 port to use')
     parser.add_option('--unmask', dest='unmask', action='store_true',
                       help='unmask sensitive settings')
+    parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
+                      help='Units to use when displaying live data')
     (opts, args) = parser.parse_args()
 
     # display driver version number
