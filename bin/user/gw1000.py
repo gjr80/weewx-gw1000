@@ -456,6 +456,7 @@ the WeeWX daemon:
 """
 
 # Standing TODOs:
+# TODO. Check lightning count for correct gw1000 field name and default map
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm sensor ID signal value meaning
@@ -691,7 +692,7 @@ gw1000_obs_group_dict = {
     'leak4': 'group_count',
     'lightningdist': 'group_distance',
     'lightningdettime': 'group_time',
-    'lightning_strike_count': 'group_count',
+    'lightningcount': 'group_count',
     'rain': 'group_rain',
     'rainevent': 'group_rain',
     'rainrate': 'group_rainrate',
@@ -922,7 +923,8 @@ class Gw1000(object):
         'leak4': 'leak4',
         'lightning_distance': 'lightningdist',
         'lightning_last_det_time': 'lightningdettime',
-        'lightning_strike_count': 'lightning_strike_count'
+#        'lightning_strike_count': 'lightning_strike_count'
+        'lightning_strike_count': 'lightningcount'
     }
     # Rain related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
@@ -4486,6 +4488,115 @@ def obfuscate(plain, obf_char='*'):
         # if we received None or a zero length string then return it
         return plain
 
+# GW1000 live data unit labels
+gw1000_unit_label_dict = {
+    "degree_C"          : u"°C",
+    "degree_F"          : u"°F",
+    "degree_compass"    : u"°",
+    "foot"              : u"feet",
+    "hPa"               : u"hPa",
+    "inHg"              : u"inHg",
+    "inch"              : u"in",
+    "inch_per_hour"     : u"in/h",
+    "km"                : u"km",
+    "km_per_hour"       : u"kph",
+    "km_per_hour2"      : u"kph",
+    "knot"              : u"knots",
+    "knot2"             : u"knots",
+    "kPa"               : u"kPa",
+    "liter"             : u"l",
+    "litre"             : u"l",
+    "lux"               : u"lx",
+    "mbar"              : u"mbar",
+    "meter"             : u"meters",
+    "meter_per_second"  : u"m/s",
+    "meter_per_second2" : u"m/s",
+    "microgram_per_meter_cubed": u"µg/m³",
+    "mile"              : u"mile",
+    "mile_per_hour"     : u"mph",
+    "mile_per_hour2"    : u"mph",
+    "mm"                : u"mm",
+    "mmHg"              : u"mmHg",
+    "mm_per_hour"       : u"mm/h",
+    "percent"           : u"%",
+    "uv_index"          : u"",
+    "volt"              : u"V",
+    "watt"              : u"W",
+    "watt_hour"         : u"Wh",
+    "watt_per_meter_squared" : u"W/m²",
+    "NONE"              : u""
+}
+# This dictionary maps unit groups to a standard unit type in the
+# US customary unit system:
+gw1000_us_units = weeutil.weeutil.ListOfDicts({
+    "group_altitude"    : "foot",
+    "group_amp"         : "amp",
+    "group_concentration": "microgram_per_meter_cubed",
+    "group_count"       : "count",
+    "group_data"        : "byte",
+    "group_db"          : "dB",
+    "group_degree_day"  : "degree_F_day",
+    "group_deltatime"   : "second",
+    "group_direction"   : "degree_compass",
+    "group_distance"    : "mile",
+    "group_elapsed"     : "second",
+    "group_energy"      : "watt_hour",
+    "group_energy2"     : "watt_second",
+    "group_fraction"    : "ppm",
+    "group_illuminance" : "lux",
+    "group_interval"    : "minute",
+    "group_length"      : "inch",
+    "group_moisture"    : "centibar",
+    "group_percent"     : "percent",
+    "group_power"       : "watt",
+    "group_pressure"    : "inHg",
+    "group_pressurerate": "inHg_per_hour",
+    "group_radiation"   : "watt_per_meter_squared",
+    "group_rain"        : "inch",
+    "group_rainrate"    : "inch_per_hour",
+    "group_speed"       : "mile_per_hour",
+    "group_speed2"      : "mile_per_hour2",
+    "group_temperature" : "degree_F",
+    "group_time"        : "unix_epoch",
+    "group_uv"          : "uv_index",
+    "group_volt"        : "volt",
+    "group_volume"      : "gallon"
+})
+gw1000_metric_units = weeutil.weeutil.ListOfDicts({
+    "group_altitude"    : "meter",
+    "group_amp"         : "amp",
+    "group_concentration": "microgram_per_meter_cubed",
+    "group_count"       : "count",
+    "group_data"        : "byte",
+    "group_db"          : "dB",
+    "group_degree_day"  : "degree_C_day",
+    "group_deltatime"   : "second",
+    "group_direction"   : "degree_compass",
+    "group_distance"    : "km",
+    "group_elapsed"     : "second",
+    "group_energy"      : "watt_hour",
+    "group_energy2"     : "watt_second",
+    "group_fraction"    : "ppm",
+    "group_illuminance" : "lux",
+    "group_interval"    : "minute",
+    "group_length"      : "cm",
+    "group_moisture"    : "centibar",
+    "group_percent"     : "percent",
+    "group_power"       : "watt",
+    "group_pressure"    : "hPa",
+    "group_pressurerate": "hPa_per_hour",
+    "group_radiation"   : "watt_per_meter_squared",
+    "group_rain"        : "mm",
+    "group_rainrate"    : "mm_per_hour",
+    "group_speed"       : "km_per_hour",
+    "group_speed2"      : "km_per_hour2",
+    "group_temperature" : "degree_C",
+    "group_time"        : "unix_epoch",
+    "group_uv"          : "uv_index",
+    "group_volt"        : "volt",
+    "group_volume"      : "liter"
+})
+
 
 # To use this driver in standalone mode for testing or development, use one of
 # the following commands (depending on your WeeWX install). For setup.py
@@ -5249,18 +5360,38 @@ def main():
             print()
             print("Timeout. GW1000 did not respond.")
         else:
-            # the live data is in MetricWX units, do we need to convert to US?
+            # we have a data dict to work with, but we need to format the
+            # values and may need to convert units
+            import weewx.units
+            live_sensor_data_dict['usUnits'] = weewx.METRICWX
+            datetime = live_sensor_data_dict.pop('datetime')
+            weewx.units.obs_group_dict.update(gw1000_obs_group_dict)
+            # the live data is in MetricWX units, get a suitable converter
+            # based on our output units
             if opts.units.lower() == 'us':
-                import weewx.units
-                weewx.units.obs_group_dict.update(gw1000_obs_group_dict)
-                live_sensor_data_dict['usUnits'] = weewx.METRICWX
-                converted_dict = weewx.units.to_US(live_sensor_data_dict)
+                c = weewx.units.Converter(group_unit_dict=gw1000_us_units)
             else:
-                converted_dict = live_sensor_data_dict
+                c = weewx.units.Converter(group_unit_dict=gw1000_metric_units)
+            # now get a formatter
+            f = weewx.units.Formatter(unit_label_dict=gw1000_unit_label_dict)
+            # now build a new data dict with our converted and formatted data
+            result = {}
+            # iterate over the fields in our original data dict
+            for key, value in six.iteritems(live_sensor_data_dict):
+                # we don't need usUnits in the result so skip it
+                if key == 'usUnits':
+                    continue
+                # get our key as a ValueTuple
+                key_vt = weewx.units.as_value_tuple(live_sensor_data_dict, key)
+                # now get a ValueHelper which will do the conversion and
+                # formatting
+                key_vh = weewx.units.ValueHelper(key_vt, formatter=f, converter=c)
+                # and add the converted and formatted value to our dict
+                result[key] = key_vh.toString(None_string='None')
+            # finally sort our dict by key and print the data
             print()
-            print("GW1000 live sensor data: %s" % weeutil.weeutil.to_sorted_string(converted_dict))
-            print()
-            print("GW1000 live sensor data: %s" % weeutil.weeutil.to_sorted_string(live_sensor_data_dict))
+            print("GW1000 live sensor data (%s): %s" % (weeutil.weeutil.timestamp_to_string(datetime),
+                                                       weeutil.weeutil.to_sorted_string(result)))
 
     def discover():
         """Display IP address and port data of GW1000s on the local network."""
