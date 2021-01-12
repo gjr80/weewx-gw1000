@@ -4302,28 +4302,311 @@ def obfuscate(plain, obf_char='*'):
         return plain
 
 
-# To use this driver in standalone mode for testing or development, use one of
-# the following commands (depending on your WeeWX install). For setup.py
-# installs use:
-#
-#   $ PYTHONPATH=/home/weewx/bin python -m user.gw1000
-#
-# or for package installs use:
-#
-#   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
-#
-# The above commands will display details of available command line options.
-#
-# Note. Whilst the driver may be run independently of WeeWX the driver still
-# requires WeeWX and it's dependencies be installed. Consequently, if
-# WeeWX 4.0.0 or later is installed the driver must be run under the same
-# Python version as WeeWX uses. This means that on some systems 'python' in the
-# above commands may need to be changed to 'python2' or 'python3'.
+# ============================================================================
+#                             class DirectGw1000
+# ============================================================================
 
-def main():
-    import optparse
 
-    def ip_from_config_opts(opts, stn_dict):
+class DirectGw1000(object):
+    """Class to interact with GW1000 driver when run directly."""
+
+    # GW1000 observation group dict, this maps all GW1000 'fields' to a
+    # WeeWX unit group
+    gw1000_obs_group_dict = {
+        'intemp': 'group_temperature',
+        'outtemp': 'group_temperature',
+        'dewpoint': 'group_temperature',
+        'windchill': 'group_temperature',
+        'heatindex': 'group_temperature',
+        'inhumid': 'group_percent',
+        'outhumid': 'group_percent',
+        'absbarometer': 'group_pressure',
+        'relbarometer': 'group_pressure',
+        'light': 'group_illuminance',
+        'uv': 'group_radiation',
+        'uvi': 'group_uv',
+        'datetime': 'group_time',
+        'temp1': 'group_temperature',
+        'temp2': 'group_temperature',
+        'temp3': 'group_temperature',
+        'temp4': 'group_temperature',
+        'temp5': 'group_temperature',
+        'temp6': 'group_temperature',
+        'temp7': 'group_temperature',
+        'temp8': 'group_temperature',
+        'temp9': 'group_temperature',
+        'temp10': 'group_temperature',
+        'temp11': 'group_temperature',
+        'temp12': 'group_temperature',
+        'temp13': 'group_temperature',
+        'temp14': 'group_temperature',
+        'temp15': 'group_temperature',
+        'temp16': 'group_temperature',
+        'temp17': 'group_temperature',
+        'humid1': 'group_percent',
+        'humid2': 'group_percent',
+        'humid3': 'group_percent',
+        'humid4': 'group_percent',
+        'humid5': 'group_percent',
+        'humid6': 'group_percent',
+        'humid7': 'group_percent',
+        'humid8': 'group_percent',
+        'humid17': 'group_percent',
+        'pm251': 'group_concentration',
+        'pm252': 'group_concentration',
+        'pm253': 'group_concentration',
+        'pm254': 'group_concentration',
+        'pm255': 'group_concentration',
+        'pm10': 'group_concentration',
+        'co2': 'group_fraction',
+        'soiltemp1': 'group_temperature',
+        'soilmoist1': 'group_percent',
+        'soiltemp2': 'group_temperature',
+        'soilmoist2': 'group_percent',
+        'soiltemp3': 'group_temperature',
+        'soilmoist3': 'group_percent',
+        'soiltemp4': 'group_temperature',
+        'soilmoist4': 'group_percent',
+        'soiltemp5': 'group_temperature',
+        'soilmoist5': 'group_percent',
+        'soiltemp6': 'group_temperature',
+        'soilmoist6': 'group_percent',
+        'soiltemp7': 'group_temperature',
+        'soilmoist7': 'group_percent',
+        'soiltemp8': 'group_temperature',
+        'soilmoist8': 'group_percent',
+        'soiltemp9': 'group_temperature',
+        'soilmoist9': 'group_percent',
+        'soiltemp10': 'group_temperature',
+        'soilmoist10': 'group_percent',
+        'soiltemp11': 'group_temperature',
+        'soilmoist11': 'group_percent',
+        'soiltemp12': 'group_temperature',
+        'soilmoist12': 'group_percent',
+        'soiltemp13': 'group_temperature',
+        'soilmoist13': 'group_percent',
+        'soiltemp14': 'group_temperature',
+        'soilmoist14': 'group_percent',
+        'soiltemp15': 'group_temperature',
+        'soilmoist15': 'group_percent',
+        'soiltemp16': 'group_temperature',
+        'soilmoist16': 'group_percent',
+        'pm251_24h_avg': 'group_concentration',
+        'pm252_24h_avg': 'group_concentration',
+        'pm253_24h_avg': 'group_concentration',
+        'pm254_24h_avg': 'group_concentration',
+        'pm255_24h_avg': 'group_concentration',
+        'pm10_24h_avg': 'group_concentration',
+        'co2_24h_avg': 'group_fraction',
+        'leak1': 'group_count',
+        'leak2': 'group_count',
+        'leak3': 'group_count',
+        'leak4': 'group_count',
+        'lightningdist': 'group_distance',
+        'lightningdettime': 'group_time',
+        'lightningcount': 'group_count',
+        'rain': 'group_rain',
+        'rainevent': 'group_rain',
+        'rainrate': 'group_rainrate',
+        'rainhour': 'group_rain',
+        'rainday': 'group_rain',
+        'rainweek': 'group_rain',
+        'rainmonth': 'group_rain',
+        'rainyear': 'group_rain',
+        'raintotals': 'group_rain',
+        'winddir': 'group_direction',
+        'windspeed': 'group_speed',
+        'gustspeed': 'group_speed',
+        'daymaxwind': 'group_speed',
+        'wh40_batt': 'group_count',
+        'wh26_batt': 'group_count',
+        'wh25_batt': 'group_count',
+        'wh65_batt': 'group_count',
+        'wh31_ch1_batt': 'group_count',
+        'wh31_ch2_batt': 'group_count',
+        'wh31_ch3_batt': 'group_count',
+        'wh31_ch4_batt': 'group_count',
+        'wh31_ch5_batt': 'group_count',
+        'wh31_ch6_batt': 'group_count',
+        'wh31_ch7_batt': 'group_count',
+        'wh31_ch8_batt': 'group_count',
+        'wh41_ch1_batt': 'group_count',
+        'wh41_ch2_batt': 'group_count',
+        'wh41_ch3_batt': 'group_count',
+        'wh41_ch4_batt': 'group_count',
+        'wh45_batt': 'group_count',
+        'wh51_ch1_batt': 'group_count',
+        'wh51_ch2_batt': 'group_count',
+        'wh51_ch3_batt': 'group_count',
+        'wh51_ch4_batt': 'group_count',
+        'wh51_ch5_batt': 'group_count',
+        'wh51_ch6_batt': 'group_count',
+        'wh51_ch7_batt': 'group_count',
+        'wh51_ch8_batt': 'group_count',
+        'wh51_ch9_batt': 'group_count',
+        'wh51_ch10_batt': 'group_count',
+        'wh51_ch11_batt': 'group_count',
+        'wh51_ch12_batt': 'group_count',
+        'wh51_ch13_batt': 'group_count',
+        'wh51_ch14_batt': 'group_count',
+        'wh51_ch15_batt': 'group_count',
+        'wh51_ch16_batt': 'group_count',
+        'wh55_ch1_batt': 'group_count',
+        'wh55_ch2_batt': 'group_count',
+        'wh55_ch3_batt': 'group_count',
+        'wh55_ch4_batt': 'group_count',
+        'wh57_batt': 'group_count',
+        'wh68_batt': 'group_volt',
+        'ws80_batt': 'group_volt',
+        'wh40_sig': 'group_count',
+        'wh26_sig': 'group_count',
+        'wh25_sig': 'group_count',
+        'wh65_sig': 'group_count',
+        'wh31_ch1_sig': 'group_count',
+        'wh31_ch2_sig': 'group_count',
+        'wh31_ch3_sig': 'group_count',
+        'wh31_ch4_sig': 'group_count',
+        'wh31_ch5_sig': 'group_count',
+        'wh31_ch6_sig': 'group_count',
+        'wh31_ch7_sig': 'group_count',
+        'wh31_ch8_sig': 'group_count',
+        'wh41_ch1_sig': 'group_count',
+        'wh41_ch2_sig': 'group_count',
+        'wh41_ch3_sig': 'group_count',
+        'wh41_ch4_sig': 'group_count',
+        'wh45_sig': 'group_count',
+        'wh51_ch1_sig': 'group_count',
+        'wh51_ch2_sig': 'group_count',
+        'wh51_ch3_sig': 'group_count',
+        'wh51_ch4_sig': 'group_count',
+        'wh51_ch5_sig': 'group_count',
+        'wh51_ch6_sig': 'group_count',
+        'wh51_ch7_sig': 'group_count',
+        'wh51_ch8_sig': 'group_count',
+        'wh51_ch9_sig': 'group_count',
+        'wh51_ch10_sig': 'group_count',
+        'wh51_ch11_sig': 'group_count',
+        'wh51_ch12_sig': 'group_count',
+        'wh51_ch13_sig': 'group_count',
+        'wh51_ch14_sig': 'group_count',
+        'wh51_ch15_sig': 'group_count',
+        'wh51_ch16_sig': 'group_count',
+        'wh55_ch1_sig': 'group_count',
+        'wh55_ch2_sig': 'group_count',
+        'wh55_ch3_sig': 'group_count',
+        'wh55_ch4_sig': 'group_count',
+        'wh57_sig': 'group_count',
+        'wh68_sig': 'group_count',
+        'ws80_sig': 'group_count'
+    }
+    # GW1000 live data unit labels
+    gw1000_unit_label_dict = {
+        "degree_C": u"°C",
+        "degree_F": u"°F",
+        "degree_compass": u"°",
+        "foot": u"feet",
+        "hPa": u"hPa",
+        "inHg": u"inHg",
+        "inch": u"in",
+        "inch_per_hour": u"in/h",
+        "km": u"km",
+        "km_per_hour": u"kph",
+        "km_per_hour2": u"kph",
+        "knot": u"knots",
+        "knot2": u"knots",
+        "kPa": u"kPa",
+        "liter": u"l",
+        "litre": u"l",
+        "lux": u"lx",
+        "mbar": u"mbar",
+        "meter": u"meters",
+        "meter_per_second": u"m/s",
+        "meter_per_second2": u"m/s",
+        "microgram_per_meter_cubed": u"µg/m³",
+        "mile": u"mile",
+        "mile_per_hour": u"mph",
+        "mile_per_hour2": u"mph",
+        "mm": u"mm",
+        "mmHg": u"mmHg",
+        "mm_per_hour": u"mm/h",
+        "percent": u"%",
+        "uv_index": u"",
+        "volt": u"V",
+        "watt": u"W",
+        "watt_hour": u"Wh",
+        "watt_per_meter_squared": u"W/m²",
+        "NONE": u""
+    }
+    # GW1000 live data US customary display units. Note this is a limited
+    # list, only unit groups used by GW1000 are included
+    gw1000_us_units = weeutil.weeutil.ListOfDicts({
+        "group_altitude": "foot",
+        "group_concentration": "microgram_per_meter_cubed",
+        "group_count": "count",
+        "group_direction": "degree_compass",
+        "group_distance": "mile",
+        "group_elapsed": "second",
+        "group_energy": "watt_hour",
+        "group_energy2": "watt_second",
+        "group_fraction": "ppm",
+        "group_illuminance": "lux",
+        "group_interval": "minute",
+        "group_length": "inch",
+        "group_moisture": "centibar",
+        "group_percent": "percent",
+        "group_power": "watt",
+        "group_pressure": "inHg",
+        "group_radiation": "watt_per_meter_squared",
+        "group_rain": "inch",
+        "group_rainrate": "inch_per_hour",
+        "group_speed": "mile_per_hour",
+        "group_speed2": "mile_per_hour2",
+        "group_temperature": "degree_F",
+        "group_time": "unix_epoch",
+        "group_uv": "uv_index",
+        "group_volt": "volt"
+    })
+    # GW1000 live data Metric display units. Note this is a limited list,
+    # only unit groups used by GW1000 are included
+    gw1000_metric_units = weeutil.weeutil.ListOfDicts({
+        "group_altitude": "meter",
+        "group_concentration": "microgram_per_meter_cubed",
+        "group_count": "count",
+        "group_direction": "degree_compass",
+        "group_distance": "km",
+        "group_elapsed": "second",
+        "group_energy": "watt_hour",
+        "group_energy2": "watt_second",
+        "group_fraction": "ppm",
+        "group_illuminance": "lux",
+        "group_interval": "minute",
+        "group_length": "cm",
+        "group_moisture": "centibar",
+        "group_percent": "percent",
+        "group_power": "watt",
+        "group_pressure": "hPa",
+        "group_radiation": "watt_per_meter_squared",
+        "group_rain": "mm",
+        "group_rainrate": "mm_per_hour",
+        "group_speed": "km_per_hour",
+        "group_speed2": "km_per_hour2",
+        "group_temperature": "degree_C",
+        "group_time": "unix_epoch",
+        "group_uv": "uv_index",
+        "group_volt": "volt"
+    })
+
+    def __init__(self,opts, stn_dict):
+        """Initialise a DirectGw1000 object."""
+
+        # save the optparse options and station dict
+        self.opts=opts
+        self.stn_dict = stn_dict
+        # obtain the IP address and port number to use
+        self.ip_address = self.ip_from_config_opts()
+        self.port = self.port_from_config_opts()
+
+    def ip_from_config_opts(self):
         """Obtain the IP address from station config or command line options.
 
         Determine the IP address to use given a station config dict and command
@@ -4336,11 +4619,11 @@ def main():
         """
 
         # obtain an ip address from the command line options
-        ip_address = opts.ip_address if opts.ip_address else None
+        ip_address = self.opts.ip_address if self.opts.ip_address else None
         # if we didn't get an ip address check the station config dict
         if ip_address is None:
             # obtain the ip address from the station config dict
-            ip_address = stn_dict.get('ip_address')
+            ip_address = self.stn_dict.get('ip_address')
             # if the station config dict specifies some variation of 'auto'
             # then we need to return None to force device discovery
             if ip_address is not None:
@@ -4365,7 +4648,7 @@ def main():
                 print("IP address obtained from command line options")
         return ip_address
 
-    def port_from_config_opts(opts, stn_dict):
+    def port_from_config_opts(self):
         """Obtain the port from station config or command line options.
 
         Determine the port to use given a station config dict and command
@@ -4378,11 +4661,11 @@ def main():
         """
 
         # obtain a port number from the command line options
-        port = opts.port if opts.port else None
+        port = self.opts.port if self.opts.port else None
         # if we didn't get a port number check the station config dict
         if port is None:
             # obtain the port number from the station config dict
-            port = stn_dict.get('port')
+            port = self.stn_dict.get('port')
             # if a port number was specified it needs to be an integer not a
             # string so try to do the conversion
             try:
@@ -4404,7 +4687,48 @@ def main():
                 print("Port number obtained from command line options")
         return port
 
-    def system_params(opts, stn_dict):
+    def process_options(self):
+        """Call the appropriate method based on the optparse options."""
+
+        # run the driver
+        if self.opts.test_driver:
+            self.test_driver()
+        # run the service with simulator
+        elif self.opts.test_service:
+            self.test_service()
+        elif self.opts.sys_params:
+            self.system_params()
+        elif self.opts.get_rain:
+            self.get_rain_data()
+        elif self.opts.get_mulch_offset:
+            self.get_mulch_offset()
+        elif self.opts.get_pm25_offset:
+            self.get_pm25_offset()
+        elif self.opts.get_co2_offset:
+            self.get_co2_offset()
+        elif self.opts.get_calibration:
+            self.get_calibration()
+        elif self.opts.get_soil_calibration:
+            self.get_soil_calibration()
+        elif self.opts.get_services:
+            self.get_services()
+        elif self.opts.mac:
+            self.station_mac()
+        elif self.opts.firmware:
+            self.firmware()
+        elif self.opts.sensors:
+            self.sensors()
+        elif self.opts.live:
+            self.live_data()
+        elif self.opts.discover:
+            self.discover()
+        elif self.opts.map:
+            self.field_map()
+        else:
+            return
+        exit(0)
+
+    def system_params(self):
         """Display system parameters.
 
         Obtain and display the GW1000 system parameters. GW1000 IP address and
@@ -4422,14 +4746,11 @@ def main():
             2: '915MHz',
             3: '920MHz'
         }
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a GW1000 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address,
-                                        port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4473,7 +4794,7 @@ def main():
             print("GW1000 timezone index: %s" % (sys_params_dict['timezone_index'],))
             print("GW1000 DST status: %s" % (sys_params_dict['dst_status'],))
 
-    def get_rain_data(opts, stn_dict):
+    def get_rain_data(self):
         """Display the GW1000 rain data.
 
         Obtain and display the GW1000 rain data. GW1000 IP address and port are
@@ -4483,14 +4804,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a GW1000 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address,
-                                        port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4511,7 +4829,7 @@ def main():
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
-    def get_mulch_offset(opts, stn_dict):
+    def get_mulch_offset(self):
         """Display the multi-channel temperature and humidity offset data from
         a GW1000.
 
@@ -4523,13 +4841,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4563,7 +4879,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_pm25_offset(opts, stn_dict):
+    def get_pm25_offset(self):
         """Display the PM2.5 offset data from a GW1000.
 
         Obtain and display the PM2.5 offset data from the selected GW1000.
@@ -4573,13 +4889,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4607,7 +4921,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_co2_offset(opts, stn_dict):
+    def get_co2_offset(self):
         """Display the WH45 CO2, PM10 and PM2.5 offset data from a GW1000.
 
         Obtain and display the WH45 CO2, PM10 and PM2.5 offset data from the
@@ -4618,13 +4932,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4651,7 +4963,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_calibration(opts, stn_dict):
+    def get_calibration(self):
         """Display the calibration data from a GW1000.
 
         Obtain and display the calibration data from the selected GW1000.
@@ -4661,13 +4973,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4702,7 +5012,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_soil_calibration(opts, stn_dict):
+    def get_soil_calibration(self):
         """Display the soil moisture sensor calibration data from a GW1000.
 
         Obtain and display the soil moisture sensor calibration data from the
@@ -4713,13 +5023,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4756,7 +5064,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def get_services(opts, stn_dict):
+    def get_services(self):
         """Display the GW1000 Weather Services settings.
 
         Obtain and display the settings for the various weather services
@@ -4794,10 +5102,10 @@ def main():
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Station ID", id))
                 # Station key
-                key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Station Key", key))
 
         def print_weathercloud(data_dict=None):
@@ -4806,10 +5114,10 @@ def main():
             # do we have any settings?
             if data_dict is not None:
                 # Weathercloud ID
-                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Weathercloud ID", id))
                 # Weathercloud key
-                key = data_dict['key'] if opts.unmask else obfuscate(data_dict['key'])
+                key = data_dict['key'] if self.opts.unmask else obfuscate(data_dict['key'])
                 print("%22s: %s" % ("Weathercloud Key", key))
 
         def print_wow(data_dict=None):
@@ -4818,10 +5126,10 @@ def main():
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Station ID", id))
                 # Station key
-                key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Station Key", key))
 
         def print_custom(data_dict=None):
@@ -4853,9 +5161,9 @@ def main():
                     print("%22s: %s" % ("Path", data_dict['ecowitt_path']))
                 elif data_dict['type'] == 1:
                     print("%22s: %s" % ("Path", data_dict['wu_path']))
-                    id = data_dict['id'] if opts.unmask else obfuscate(data_dict['id'])
+                    id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
                     print("%22s: %s" % ("Station ID", id))
-                    key = data_dict['password'] if opts.unmask else obfuscate(data_dict['password'])
+                    key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
                     print("%22s: %s" % ("Station Key", key))
                 # port
                 print("%22s: %d" % ("Port", data_dict['port']))
@@ -4869,14 +5177,11 @@ def main():
                      'wow': print_wow,
                      'custom': print_custom}
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a GW1000 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address,
-                                        port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4908,7 +5213,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def station_mac(opts, stn_dict):
+    def station_mac(self):
         """Display the GW1000 hardware MAC address.
 
         Obtain and display the hardware MAC address of the selected GW1000.
@@ -4918,14 +5223,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a GW1000 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address,
-                                        port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4940,7 +5242,7 @@ def main():
             print()
             print("Timeout. GW1000 did not respond.")
 
-    def firmware(opts, stn_dict):
+    def firmware(self):
         """Display the firmware version string from a GW1000.
 
         Obtain and display the firmware version string from the selected
@@ -4950,13 +5252,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address, port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -4971,7 +5271,7 @@ def main():
             print()
             print("Timeout. GW1000 did not respond.")
 
-    def sensors(opts, stn_dict):
+    def sensors(self):
         """Display the sensor ID information from a GW1000.
 
         Obtain and display the sensor ID information from the selected GW1000.
@@ -4981,14 +5281,11 @@ def main():
         3. by discovery
         """
 
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address,
-                                        port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -5033,7 +5330,7 @@ def main():
                 print()
                 print("GW1000 did not respond.")
 
-    def live_data(opts, stn_dict):
+    def live_data(self):
         """Display live sensor data from a GW1000.
 
         Obtain and display live sensor data from the selected GW1000. Data is
@@ -5046,300 +5343,11 @@ def main():
         3. by discovery
         """
 
-        # GW1000 observation group dict, this maps all GW1000 'fields' to a
-        # WeeWX unit group
-        gw1000_obs_group_dict = {
-            'intemp': 'group_temperature',
-            'outtemp': 'group_temperature',
-            'dewpoint': 'group_temperature',
-            'windchill': 'group_temperature',
-            'heatindex': 'group_temperature',
-            'inhumid': 'group_percent',
-            'outhumid': 'group_percent',
-            'absbarometer': 'group_pressure',
-            'relbarometer': 'group_pressure',
-            'light': 'group_illuminance',
-            'uv': 'group_radiation',
-            'uvi': 'group_uv',
-            'datetime': 'group_time',
-            'temp1': 'group_temperature',
-            'temp2': 'group_temperature',
-            'temp3': 'group_temperature',
-            'temp4': 'group_temperature',
-            'temp5': 'group_temperature',
-            'temp6': 'group_temperature',
-            'temp7': 'group_temperature',
-            'temp8': 'group_temperature',
-            'temp9': 'group_temperature',
-            'temp10': 'group_temperature',
-            'temp11': 'group_temperature',
-            'temp12': 'group_temperature',
-            'temp13': 'group_temperature',
-            'temp14': 'group_temperature',
-            'temp15': 'group_temperature',
-            'temp16': 'group_temperature',
-            'temp17': 'group_temperature',
-            'humid1': 'group_percent',
-            'humid2': 'group_percent',
-            'humid3': 'group_percent',
-            'humid4': 'group_percent',
-            'humid5': 'group_percent',
-            'humid6': 'group_percent',
-            'humid7': 'group_percent',
-            'humid8': 'group_percent',
-            'humid17': 'group_percent',
-            'pm251': 'group_concentration',
-            'pm252': 'group_concentration',
-            'pm253': 'group_concentration',
-            'pm254': 'group_concentration',
-            'pm255': 'group_concentration',
-            'pm10': 'group_concentration',
-            'co2': 'group_fraction',
-            'soiltemp1': 'group_temperature',
-            'soilmoist1': 'group_percent',
-            'soiltemp2': 'group_temperature',
-            'soilmoist2': 'group_percent',
-            'soiltemp3': 'group_temperature',
-            'soilmoist3': 'group_percent',
-            'soiltemp4': 'group_temperature',
-            'soilmoist4': 'group_percent',
-            'soiltemp5': 'group_temperature',
-            'soilmoist5': 'group_percent',
-            'soiltemp6': 'group_temperature',
-            'soilmoist6': 'group_percent',
-            'soiltemp7': 'group_temperature',
-            'soilmoist7': 'group_percent',
-            'soiltemp8': 'group_temperature',
-            'soilmoist8': 'group_percent',
-            'soiltemp9': 'group_temperature',
-            'soilmoist9': 'group_percent',
-            'soiltemp10': 'group_temperature',
-            'soilmoist10': 'group_percent',
-            'soiltemp11': 'group_temperature',
-            'soilmoist11': 'group_percent',
-            'soiltemp12': 'group_temperature',
-            'soilmoist12': 'group_percent',
-            'soiltemp13': 'group_temperature',
-            'soilmoist13': 'group_percent',
-            'soiltemp14': 'group_temperature',
-            'soilmoist14': 'group_percent',
-            'soiltemp15': 'group_temperature',
-            'soilmoist15': 'group_percent',
-            'soiltemp16': 'group_temperature',
-            'soilmoist16': 'group_percent',
-            'pm251_24h_avg': 'group_concentration',
-            'pm252_24h_avg': 'group_concentration',
-            'pm253_24h_avg': 'group_concentration',
-            'pm254_24h_avg': 'group_concentration',
-            'pm255_24h_avg': 'group_concentration',
-            'pm10_24h_avg': 'group_concentration',
-            'co2_24h_avg': 'group_fraction',
-            'leak1': 'group_count',
-            'leak2': 'group_count',
-            'leak3': 'group_count',
-            'leak4': 'group_count',
-            'lightningdist': 'group_distance',
-            'lightningdettime': 'group_time',
-            'lightningcount': 'group_count',
-            'rain': 'group_rain',
-            'rainevent': 'group_rain',
-            'rainrate': 'group_rainrate',
-            'rainhour': 'group_rain',
-            'rainday': 'group_rain',
-            'rainweek': 'group_rain',
-            'rainmonth': 'group_rain',
-            'rainyear': 'group_rain',
-            'raintotals': 'group_rain',
-            'winddir': 'group_direction',
-            'windspeed': 'group_speed',
-            'gustspeed': 'group_speed',
-            'daymaxwind': 'group_speed',
-            'wh40_batt': 'group_count',
-            'wh26_batt': 'group_count',
-            'wh25_batt': 'group_count',
-            'wh65_batt': 'group_count',
-            'wh31_ch1_batt': 'group_count',
-            'wh31_ch2_batt': 'group_count',
-            'wh31_ch3_batt': 'group_count',
-            'wh31_ch4_batt': 'group_count',
-            'wh31_ch5_batt': 'group_count',
-            'wh31_ch6_batt': 'group_count',
-            'wh31_ch7_batt': 'group_count',
-            'wh31_ch8_batt': 'group_count',
-            'wh41_ch1_batt': 'group_count',
-            'wh41_ch2_batt': 'group_count',
-            'wh41_ch3_batt': 'group_count',
-            'wh41_ch4_batt': 'group_count',
-            'wh45_batt': 'group_count',
-            'wh51_ch1_batt': 'group_count',
-            'wh51_ch2_batt': 'group_count',
-            'wh51_ch3_batt': 'group_count',
-            'wh51_ch4_batt': 'group_count',
-            'wh51_ch5_batt': 'group_count',
-            'wh51_ch6_batt': 'group_count',
-            'wh51_ch7_batt': 'group_count',
-            'wh51_ch8_batt': 'group_count',
-            'wh51_ch9_batt': 'group_count',
-            'wh51_ch10_batt': 'group_count',
-            'wh51_ch11_batt': 'group_count',
-            'wh51_ch12_batt': 'group_count',
-            'wh51_ch13_batt': 'group_count',
-            'wh51_ch14_batt': 'group_count',
-            'wh51_ch15_batt': 'group_count',
-            'wh51_ch16_batt': 'group_count',
-            'wh55_ch1_batt': 'group_count',
-            'wh55_ch2_batt': 'group_count',
-            'wh55_ch3_batt': 'group_count',
-            'wh55_ch4_batt': 'group_count',
-            'wh57_batt': 'group_count',
-            'wh68_batt': 'group_volt',
-            'ws80_batt': 'group_volt',
-            'wh40_sig': 'group_count',
-            'wh26_sig': 'group_count',
-            'wh25_sig': 'group_count',
-            'wh65_sig': 'group_count',
-            'wh31_ch1_sig': 'group_count',
-            'wh31_ch2_sig': 'group_count',
-            'wh31_ch3_sig': 'group_count',
-            'wh31_ch4_sig': 'group_count',
-            'wh31_ch5_sig': 'group_count',
-            'wh31_ch6_sig': 'group_count',
-            'wh31_ch7_sig': 'group_count',
-            'wh31_ch8_sig': 'group_count',
-            'wh41_ch1_sig': 'group_count',
-            'wh41_ch2_sig': 'group_count',
-            'wh41_ch3_sig': 'group_count',
-            'wh41_ch4_sig': 'group_count',
-            'wh45_sig': 'group_count',
-            'wh51_ch1_sig': 'group_count',
-            'wh51_ch2_sig': 'group_count',
-            'wh51_ch3_sig': 'group_count',
-            'wh51_ch4_sig': 'group_count',
-            'wh51_ch5_sig': 'group_count',
-            'wh51_ch6_sig': 'group_count',
-            'wh51_ch7_sig': 'group_count',
-            'wh51_ch8_sig': 'group_count',
-            'wh51_ch9_sig': 'group_count',
-            'wh51_ch10_sig': 'group_count',
-            'wh51_ch11_sig': 'group_count',
-            'wh51_ch12_sig': 'group_count',
-            'wh51_ch13_sig': 'group_count',
-            'wh51_ch14_sig': 'group_count',
-            'wh51_ch15_sig': 'group_count',
-            'wh51_ch16_sig': 'group_count',
-            'wh55_ch1_sig': 'group_count',
-            'wh55_ch2_sig': 'group_count',
-            'wh55_ch3_sig': 'group_count',
-            'wh55_ch4_sig': 'group_count',
-            'wh57_sig': 'group_count',
-            'wh68_sig': 'group_count',
-            'ws80_sig': 'group_count'
-        }
-        # GW1000 live data unit labels
-        gw1000_unit_label_dict = {
-            "degree_C": u"°C",
-            "degree_F": u"°F",
-            "degree_compass": u"°",
-            "foot": u"feet",
-            "hPa": u"hPa",
-            "inHg": u"inHg",
-            "inch": u"in",
-            "inch_per_hour": u"in/h",
-            "km": u"km",
-            "km_per_hour": u"kph",
-            "km_per_hour2": u"kph",
-            "knot": u"knots",
-            "knot2": u"knots",
-            "kPa": u"kPa",
-            "liter": u"l",
-            "litre": u"l",
-            "lux": u"lx",
-            "mbar": u"mbar",
-            "meter": u"meters",
-            "meter_per_second": u"m/s",
-            "meter_per_second2": u"m/s",
-            "microgram_per_meter_cubed": u"µg/m³",
-            "mile": u"mile",
-            "mile_per_hour": u"mph",
-            "mile_per_hour2": u"mph",
-            "mm": u"mm",
-            "mmHg": u"mmHg",
-            "mm_per_hour": u"mm/h",
-            "percent": u"%",
-            "uv_index": u"",
-            "volt": u"V",
-            "watt": u"W",
-            "watt_hour": u"Wh",
-            "watt_per_meter_squared": u"W/m²",
-            "NONE": u""
-        }
-        # GW1000 live data US customary display units. Note this is a limited
-        # list, only unit groups used by GW1000 are included
-        gw1000_us_units = weeutil.weeutil.ListOfDicts({
-            "group_altitude": "foot",
-            "group_concentration": "microgram_per_meter_cubed",
-            "group_count": "count",
-            "group_direction": "degree_compass",
-            "group_distance": "mile",
-            "group_elapsed": "second",
-            "group_energy": "watt_hour",
-            "group_energy2": "watt_second",
-            "group_fraction": "ppm",
-            "group_illuminance": "lux",
-            "group_interval": "minute",
-            "group_length": "inch",
-            "group_moisture": "centibar",
-            "group_percent": "percent",
-            "group_power": "watt",
-            "group_pressure": "inHg",
-            "group_radiation": "watt_per_meter_squared",
-            "group_rain": "inch",
-            "group_rainrate": "inch_per_hour",
-            "group_speed": "mile_per_hour",
-            "group_speed2": "mile_per_hour2",
-            "group_temperature": "degree_F",
-            "group_time": "unix_epoch",
-            "group_uv": "uv_index",
-            "group_volt": "volt"
-        })
-        # GW1000 live data Metric display units. Note this is a limited list,
-        # only unit groups used by GW1000 are included
-        gw1000_metric_units = weeutil.weeutil.ListOfDicts({
-            "group_altitude": "meter",
-            "group_concentration": "microgram_per_meter_cubed",
-            "group_count": "count",
-            "group_direction": "degree_compass",
-            "group_distance": "km",
-            "group_elapsed": "second",
-            "group_energy": "watt_hour",
-            "group_energy2": "watt_second",
-            "group_fraction": "ppm",
-            "group_illuminance": "lux",
-            "group_interval": "minute",
-            "group_length": "cm",
-            "group_moisture": "centibar",
-            "group_percent": "percent",
-            "group_power": "watt",
-            "group_pressure": "hPa",
-            "group_radiation": "watt_per_meter_squared",
-            "group_rain": "mm",
-            "group_rainrate": "mm_per_hour",
-            "group_speed": "km_per_hour",
-            "group_speed2": "km_per_hour2",
-            "group_temperature": "degree_C",
-            "group_time": "unix_epoch",
-            "group_uv": "uv_index",
-            "group_volt": "volt"
-        })
-
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=ip_address,
-                                        port=port)
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -5369,15 +5377,15 @@ def main():
             # save for later
             datetime = live_sensor_data_dict.pop('datetime')
 
-            weewx.units.obs_group_dict.update(gw1000_obs_group_dict)
+            weewx.units.obs_group_dict.update(DirectGw1000.gw1000_obs_group_dict)
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
-            if opts.units.lower() == 'us':
-                c = weewx.units.Converter(group_unit_dict=gw1000_us_units)
+            if self.opts.units.lower() == 'us':
+                c = weewx.units.Converter(group_unit_dict=DirectGw1000.gw1000_us_units)
             else:
-                c = weewx.units.Converter(group_unit_dict=gw1000_metric_units)
+                c = weewx.units.Converter(group_unit_dict=DirectGw1000.gw1000_metric_units)
             # now get a formatter
-            f = weewx.units.Formatter(unit_label_dict=gw1000_unit_label_dict)
+            f = weewx.units.Formatter(unit_label_dict=DirectGw1000.gw1000_unit_label_dict)
             # now build a new data dict with our converted and formatted data
             result = {}
             # iterate over the fields in our original data dict
@@ -5397,6 +5405,7 @@ def main():
             print("GW1000 live sensor data (%s): %s" % (weeutil.weeutil.timestamp_to_string(datetime),
                                                        weeutil.weeutil.to_sorted_string(result)))
 
+    @staticmethod
     def discover():
         """Display IP address and port data of GW1000s on the local network."""
 
@@ -5433,6 +5442,7 @@ def main():
                 # we have no results
                 print("No GW1000 was discovered.")
 
+    @staticmethod
     def field_map():
         """Display the default field map."""
 
@@ -5454,7 +5464,7 @@ def main():
         for key in keys_list:
             print("    %23s: %s" % (key, field_map[key]))
 
-    def test_driver(opts, stn_dict):
+    def test_driver(self):
         """Run the GW1000 driver.
 
         Exercises the GW1000 driver only. Loop packets, but no archive records,
@@ -5465,22 +5475,19 @@ def main():
         """
 
         loginf("Testing GW1000 driver...")
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # set the IP address and port in the station config dict
-        stn_dict['ip_address'] = ip_address
-        stn_dict['port'] = port
-        if opts.poll_interval:
-            stn_dict['poll_interval'] = opts.poll_interval
-        if opts.max_tries:
-            stn_dict['max_tries'] = opts.max_tries
-        if opts.retry_wait:
-            stn_dict['retry_wait'] = opts.retry_wait
+        self.stn_dict['ip_address'] = self.ip_address
+        self.stn_dict['port'] = self.port
+        if self.opts.poll_interval:
+            self.stn_dict['poll_interval'] = self.opts.poll_interval
+        if self.opts.max_tries:
+            self.stn_dict['max_tries'] = self.opts.max_tries
+        if self.opts.retry_wait:
+            self.stn_dict['retry_wait'] = self.opts.retry_wait
         # wrap in a try..except in case there is an error
         try:
             # get a Gw1000Driver object
-            driver = Gw1000Driver(**stn_dict)
+            driver = Gw1000Driver(**self.stn_dict)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (driver.collector.station.ip_address.decode(),
@@ -5498,7 +5505,7 @@ def main():
             driver.closePort()
         loginf("GW1000 driver testing complete")
 
-    def test_service(opts, stn_dict):
+    def test_service(self):
         """Test the GW1000 service.
 
         Uses a dummy engine/simulator to generate arbitrary loop packets for
@@ -5525,19 +5532,16 @@ def main():
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service',
                     'report_services': 'weewx.engine.StdPrint'}}}
-        # obtain the IP address and port number to use
-        ip_address = ip_from_config_opts(opts, stn_dict)
-        port = port_from_config_opts(opts, stn_dict)
         # set the IP address and port in the dummy config
-        config['GW1000']['ip_address'] = ip_address
-        config['GW1000']['port'] = port
+        config['GW1000']['ip_address'] = self.ip_address
+        config['GW1000']['port'] = self.port
         # these command line options should only be added if they exist
-        if opts.poll_interval:
-            config['GW1000']['poll_interval'] = opts.poll_interval
-        if opts.max_tries:
-            config['GW1000']['max_tries'] = opts.max_tries
-        if opts.retry_wait:
-            config['GW1000']['retry_wait'] = opts.retry_wait
+        if self.opts.poll_interval:
+            config['GW1000']['poll_interval'] = self.opts.poll_interval
+        if self.opts.max_tries:
+            config['GW1000']['max_tries'] = self.opts.max_tries
+        if self.opts.retry_wait:
+            config['GW1000']['retry_wait'] = self.opts.retry_wait
         # assign our dummyTemp field to a unit group so unit conversion works
         # properly
         weewx.units.obs_group_dict['dummyTemp'] = 'group_temperature'
@@ -5583,6 +5587,28 @@ def main():
         except KeyboardInterrupt:
             engine.shutDown()
         loginf("GW1000 service testing complete")
+
+
+# To use this driver in standalone mode for testing or development, use one of
+# the following commands (depending on your WeeWX install). For setup.py
+# installs use:
+#
+#   $ PYTHONPATH=/home/weewx/bin python -m user.gw1000
+#
+# or for package installs use:
+#
+#   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
+#
+# The above commands will display details of available command line options.
+#
+# Note. Whilst the driver may be run independently of WeeWX the driver still
+# requires WeeWX and it's dependencies be installed. Consequently, if
+# WeeWX 4.0.0 or later is installed the driver must be run under the same
+# Python version as WeeWX uses. This means that on some systems 'python' in the
+# above commands may need to be changed to 'python2' or 'python3'.
+
+def main():
+    import optparse
 
     usage = """Usage: python -m user.gw1000 --help
        python -m user.gw1000 --version
@@ -5718,72 +5744,10 @@ def main():
         if weewx.debug > 0:
             syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
 
-    # run the driver
-    if opts.test_driver:
-        test_driver(opts, stn_dict)
-        exit(0)
-
-    # run the service with simulator
-    if opts.test_service:
-        test_service(opts, stn_dict)
-        exit(0)
-
-    if opts.sys_params:
-        system_params(opts, stn_dict)
-        exit(0)
-
-    if opts.get_rain:
-        get_rain_data(opts, stn_dict)
-        exit(0)
-
-    if opts.get_mulch_offset:
-        get_mulch_offset(opts, stn_dict)
-        exit(0)
-
-    if opts.get_pm25_offset:
-        get_pm25_offset(opts, stn_dict)
-        exit(0)
-
-    if opts.get_co2_offset:
-        get_co2_offset(opts, stn_dict)
-        exit(0)
-
-    if opts.get_calibration:
-        get_calibration(opts, stn_dict)
-        exit(0)
-
-    if opts.get_soil_calibration:
-        get_soil_calibration(opts, stn_dict)
-        exit(0)
-
-    if opts.get_services:
-        get_services(opts, stn_dict)
-        exit(0)
-
-    if opts.mac:
-        station_mac(opts, stn_dict)
-        exit(0)
-
-    if opts.firmware:
-        firmware(opts, stn_dict)
-        exit(0)
-
-    if opts.sensors:
-        sensors(opts, stn_dict)
-        exit(0)
-
-    if opts.live:
-        live_data(opts, stn_dict)
-        exit(0)
-
-    if opts.discover:
-        discover()
-        exit(0)
-
-    if opts.map:
-        field_map()
-        exit(0)
-
+    # get a DirectGw1000 object
+    direct_gw100 = DirectGw1000(opts, stn_dict)
+    # now let the DirectGw1000 object process the options
+    direct_gw100.process_options()
     # if we made it here no option was selected so display our help
     parser.print_help()
 
