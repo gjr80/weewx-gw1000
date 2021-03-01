@@ -2115,6 +2115,15 @@ class Gw1000Collector(Collector):
         b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6'},
         b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7'},
         b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8'}
+        b'\x27': {'name': 'wh45', 'long_name': 'WH45'},
+        b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1'},
+        b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2'},
+        b'\x2a': {'name': 'wh35_ch3', 'long_name': 'WH35 ch3'},
+        b'\x2b': {'name': 'wh35_ch4', 'long_name': 'WH35 ch4'},
+        b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5'},
+        b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6'},
+        b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7'},
+        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8'}
     }
     # tuple of values for sensors that are not registered with the GW1000
     not_registered = ('fffffffe', 'ffffffff')
@@ -3738,7 +3747,16 @@ class Gw1000Collector(Collector):
             b'\x6A': ('decode_wh34', 3, ('temp16', 'wh34_ch8_batt')),
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                           'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
-                                          'co2', 'co2_24h_avg', 'wh45_batt'))
+                                          'co2', 'co2_24h_avg', 'wh45_batt')),
+            b'\x71': (None, None, None),
+            b'\x72': ('decode_wet', 1, 'leafwet1'),
+            b'\x73': ('decode_wet', 1, 'leafwet2'),
+            b'\x74': ('decode_wet', 1, 'leafwet3'),
+            b'\x75': ('decode_wet', 1, 'leafwet4'),
+            b'\x76': ('decode_wet', 1, 'leafwet5'),
+            b'\x77': ('decode_wet', 1, 'leafwet6'),
+            b'\x78': ('decode_wet', 1, 'leafwet7'),
+            b'\x79': ('decode_wet', 1, 'leafwet8')
         }
 
         # tuple of field codes for rain related fields in the GW1000 live data
@@ -4015,6 +4033,7 @@ class Gw1000Collector(Collector):
         decode_leak = decode_humid
         decode_pm10 = decode_press
         decode_co2 = decode_dir
+        decode_wet = decode_humid
 
         def decode_wh34(self, data, fields=None):
             """Decode WH34 sensor data.
@@ -4429,6 +4448,14 @@ class DirectGw1000(object):
         'windspeed': 'group_speed',
         'gustspeed': 'group_speed',
         'daymaxwind': 'group_speed',
+        'leafwet1': 'group_percent',
+        'leafwet2': 'group_percent',
+        'leafwet3': 'group_percent',
+        'leafwet4': 'group_percent',
+        'leafwet5': 'group_percent',
+        'leafwet6': 'group_percent',
+        'leafwet7': 'group_percent',
+        'leafwet8': 'group_percent',
         'wh40_batt': 'group_count',
         'wh26_batt': 'group_count',
         'wh25_batt': 'group_count',
