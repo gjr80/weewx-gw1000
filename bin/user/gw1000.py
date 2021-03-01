@@ -4308,7 +4308,18 @@ def obfuscate(plain, obf_char='*'):
 
 
 class DirectGw1000(object):
-    """Class to interact with GW1000 driver when run directly."""
+    """Class to interact with GW1000 driver when run directly.
+
+    Would normally the direct running of a driver from main() only but when run
+    directly the GW1000 driver has many options so pushing the detail into its
+    own class/object makes sense. Also simplifies some of the test suite
+    routines/calls.
+
+    A DirectGw1000 object is created with just an optparse options dict and a
+    standard WeeWX station dict. Once created the DirectGw1000()
+    process_options() method is called to process the respective command line
+    options.
+    """
 
     # GW1000 observation group dict, this maps all GW1000 'fields' to a
     # WeeWX unit group
@@ -4499,7 +4510,8 @@ class DirectGw1000(object):
         'wh68_sig': 'group_count',
         'ws80_sig': 'group_count'
     }
-    # GW1000 live data unit labels
+    # GW1000 live data unit labels, this is a subset of the standard WeeWX unit
+    # labels
     gw1000_unit_label_dict = {
         "degree_C": u"°C",
         "degree_F": u"°F",
@@ -4596,11 +4608,11 @@ class DirectGw1000(object):
         "group_volt": "volt"
     })
 
-    def __init__(self,opts, stn_dict):
+    def __init__(self, opts, stn_dict):
         """Initialise a DirectGw1000 object."""
 
         # save the optparse options and station dict
-        self.opts=opts
+        self.opts = opts
         self.stn_dict = stn_dict
         # obtain the IP address and port number to use
         self.ip_address = self.ip_from_config_opts()

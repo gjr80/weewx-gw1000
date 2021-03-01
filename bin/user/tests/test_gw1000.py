@@ -49,6 +49,140 @@ import user.gw1000
 
 
 class ParseTestCase(unittest.TestCase):
+    """Test the Gw1000Collector Parser class."""
+
+    # batt = {
+    #     'multi': (multi_batt, 'battery_mask'),
+    #     'wh31': (wh31_batt, 'battery_mask'),
+    #     'wh51': (wh51_batt, 'battery_mask'),
+    #     'wh41': (wh41_batt, 'battery_value'),
+    #     'wh57': (wh57_batt, 'battery_value'),
+    #     'wh68': (wh68_batt, 'battery_voltage'),
+    #     'ws80': (ws80_batt, 'battery_voltage'),
+    #     'wh55': (wh55_batt, 'battery_value'),
+    #     'unused': ({}, 'battery_mask')
+    # }
+    batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
+                   'unused', 'wh41', 'wh55')
+    battery_state_desc = {'wh24': 'binary_desc',
+                          'wh25': 'binary_desc',
+                          'wh26': 'binary_desc',
+                          'wh31': 'binary_desc',
+                          'wh32': 'binary_desc',
+                          'wh40': 'binary_desc',
+                          'wh41': 'level_desc',
+                          'wh51': 'binary_desc',
+                          'wh55': 'level_desc',
+                          'wh57': 'level_desc',
+                          'wh65': 'binary_desc',
+                          'wh68': 'voltage_desc',
+                          'ws80': 'voltage_desc',
+                          }
+    response_struct = {
+        b'\x01': ('decode_temp', 2, 'intemp'),
+        b'\x02': ('decode_temp', 2, 'outtemp'),
+        b'\x03': ('decode_temp', 2, 'dewpoint'),
+        b'\x04': ('decode_temp', 2, 'windchill'),
+        b'\x05': ('decode_temp', 2, 'heatindex'),
+        b'\x06': ('decode_humid', 1, 'inhumid'),
+        b'\x07': ('decode_humid', 1, 'outhumid'),
+        b'\x08': ('decode_press', 2, 'absbarometer'),
+        b'\x09': ('decode_press', 2, 'relbarometer'),
+        b'\x0A': ('decode_dir', 2, 'winddir'),
+        b'\x0B': ('decode_speed', 2, 'windspeed'),
+        b'\x0C': ('decode_speed', 2, 'gustspeed'),
+        b'\x0D': ('decode_rain', 2, 'rainevent'),
+        b'\x0E': ('decode_rainrate', 2, 'rainrate'),
+        b'\x0F': ('decode_rain', 2, 'rainhour'),
+        b'\x10': ('decode_rain', 2, 'rainday'),
+        b'\x11': ('decode_rain', 2, 'rainweek'),
+        b'\x12': ('decode_big_rain', 4, 'rainmonth'),
+        b'\x13': ('decode_big_rain', 4, 'rainyear'),
+        b'\x14': ('decode_big_rain', 4, 'raintotals'),
+        b'\x15': ('decode_light', 4, 'light'),
+        b'\x16': ('decode_uv', 2, 'uv'),
+        b'\x17': ('decode_uvi', 1, 'uvi'),
+        b'\x18': ('decode_datetime', 6, 'datetime'),
+        b'\x19': ('decode_speed', 2, 'daymaxwind'),
+        b'\x1A': ('decode_temp', 2, 'temp1'),
+        b'\x1B': ('decode_temp', 2, 'temp2'),
+        b'\x1C': ('decode_temp', 2, 'temp3'),
+        b'\x1D': ('decode_temp', 2, 'temp4'),
+        b'\x1E': ('decode_temp', 2, 'temp5'),
+        b'\x1F': ('decode_temp', 2, 'temp6'),
+        b'\x20': ('decode_temp', 2, 'temp7'),
+        b'\x21': ('decode_temp', 2, 'temp8'),
+        b'\x22': ('decode_humid', 1, 'humid1'),
+        b'\x23': ('decode_humid', 1, 'humid2'),
+        b'\x24': ('decode_humid', 1, 'humid3'),
+        b'\x25': ('decode_humid', 1, 'humid4'),
+        b'\x26': ('decode_humid', 1, 'humid5'),
+        b'\x27': ('decode_humid', 1, 'humid6'),
+        b'\x28': ('decode_humid', 1, 'humid7'),
+        b'\x29': ('decode_humid', 1, 'humid8'),
+        b'\x2A': ('decode_pm25', 2, 'pm251'),
+        b'\x2B': ('decode_temp', 2, 'soiltemp1'),
+        b'\x2C': ('decode_moist', 1, 'soilmoist1'),
+        b'\x2D': ('decode_temp', 2, 'soiltemp2'),
+        b'\x2E': ('decode_moist', 1, 'soilmoist2'),
+        b'\x2F': ('decode_temp', 2, 'soiltemp3'),
+        b'\x30': ('decode_moist', 1, 'soilmoist3'),
+        b'\x31': ('decode_temp', 2, 'soiltemp4'),
+        b'\x32': ('decode_moist', 1, 'soilmoist4'),
+        b'\x33': ('decode_temp', 2, 'soiltemp5'),
+        b'\x34': ('decode_moist', 1, 'soilmoist5'),
+        b'\x35': ('decode_temp', 2, 'soiltemp6'),
+        b'\x36': ('decode_moist', 1, 'soilmoist6'),
+        b'\x37': ('decode_temp', 2, 'soiltemp7'),
+        b'\x38': ('decode_moist', 1, 'soilmoist7'),
+        b'\x39': ('decode_temp', 2, 'soiltemp8'),
+        b'\x3A': ('decode_moist', 1, 'soilmoist8'),
+        b'\x3B': ('decode_temp', 2, 'soiltemp9'),
+        b'\x3C': ('decode_moist', 1, 'soilmoist9'),
+        b'\x3D': ('decode_temp', 2, 'soiltemp10'),
+        b'\x3E': ('decode_moist', 1, 'soilmoist10'),
+        b'\x3F': ('decode_temp', 2, 'soiltemp11'),
+        b'\x40': ('decode_moist', 1, 'soilmoist11'),
+        b'\x41': ('decode_temp', 2, 'soiltemp12'),
+        b'\x42': ('decode_moist', 1, 'soilmoist12'),
+        b'\x43': ('decode_temp', 2, 'soiltemp13'),
+        b'\x44': ('decode_moist', 1, 'soilmoist13'),
+        b'\x45': ('decode_temp', 2, 'soiltemp14'),
+        b'\x46': ('decode_moist', 1, 'soilmoist14'),
+        b'\x47': ('decode_temp', 2, 'soiltemp15'),
+        b'\x48': ('decode_moist', 1, 'soilmoist15'),
+        b'\x49': ('decode_temp', 2, 'soiltemp16'),
+        b'\x4A': ('decode_moist', 1, 'soilmoist16'),
+        b'\x4C': ('decode_batt', 16, 'lowbatt'),
+        b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg'),
+        b'\x4E': ('decode_pm25', 2, 'pm252_24h_avg'),
+        b'\x4F': ('decode_pm25', 2, 'pm253_24h_avg'),
+        b'\x50': ('decode_pm25', 2, 'pm254_24h_avg'),
+        b'\x51': ('decode_pm25', 2, 'pm252'),
+        b'\x52': ('decode_pm25', 2, 'pm253'),
+        b'\x53': ('decode_pm25', 2, 'pm254'),
+        b'\x58': ('decode_leak', 1, 'leak1'),
+        b'\x59': ('decode_leak', 1, 'leak2'),
+        b'\x5A': ('decode_leak', 1, 'leak3'),
+        b'\x5B': ('decode_leak', 1, 'leak4'),
+        b'\x60': ('decode_distance', 1, 'lightningdist'),
+        b'\x61': ('decode_utc', 4, 'lightningdettime'),
+        b'\x62': ('decode_count', 4, 'lightningcount'),
+        b'\x63': ('decode_wh34', 3, ('temp9', 'wh34_ch1_batt')),
+        b'\x64': ('decode_wh34', 3, ('temp10', 'wh34_ch2_batt')),
+        b'\x65': ('decode_wh34', 3, ('temp11', 'wh34_ch3_batt')),
+        b'\x66': ('decode_wh34', 3, ('temp12', 'wh34_ch4_batt')),
+        b'\x67': ('decode_wh34', 3, ('temp13', 'wh34_ch5_batt')),
+        b'\x68': ('decode_wh34', 3, ('temp14', 'wh34_ch6_batt')),
+        b'\x69': ('decode_wh34', 3, ('temp15', 'wh34_ch7_batt')),
+        b'\x6A': ('decode_wh34', 3, ('temp16', 'wh34_ch8_batt')),
+        b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
+                                      'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
+                                      'co2', 'co2_24h_avg', 'wh45_batt'))
+    }
+    rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
+                        b'\x11', b'\x12', b'\x13', b'\x14')
+    wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
     response_data = 'FF FF 27 00 40 01 01 40 06 26 08 27 D2 09 27 D2 2A 00 5A ' \
                     '4D 00 65 2C 27 2E 14 1A 00 ED 22 3A 1B 01 0B 23 3A 4C 06 ' \
@@ -162,182 +296,254 @@ class ParseTestCase(unittest.TestCase):
 
         pass
 
-    def test_decode(self):
+    def test_constants(self):
+        """Test constants used by class Parser()."""
 
-        # test temperature decode
+        # test battery mask dicts
+
+        # multi_batt
+        self.assertEqual(self.parser.multi_batt['wh40']['mask'], 1 << 4)
+        self.assertEqual(self.parser.multi_batt['wh26']['mask'], 1 << 5)
+        self.assertEqual(self.parser.multi_batt['wh25']['mask'], 1 << 6)
+        self.assertEqual(self.parser.multi_batt['wh65']['mask'], 1 << 7)
+
+        # wh31_batt
+        for bit in range(8):
+            self.assertEqual(self.parser.wh31_batt[bit + 1]['mask'], 1 << bit)
+
+        # wh41_batt
+        for bit in range(4):
+            self.assertEqual(self.parser.wh41_batt[bit + 1]['shift'], bit * 4)
+            self.assertEqual(self.parser.wh41_batt[bit + 1]['mask'], 0x0F)
+
+        # wh51_batt
+        for bit in range(16):
+            self.assertEqual(self.parser.wh51_batt[bit + 1]['mask'], 1 << bit)
+
+        # wh55_batt
+        for bit in range(4):
+            self.assertEqual(self.parser.wh55_batt[bit + 1]['shift'], bit * 8)
+            self.assertEqual(self.parser.wh55_batt[bit + 1]['mask'], 0xFF)
+
+        # wh57_batt
+        self.assertEqual(self.parser.wh57_batt['wh57'], {})
+
+        # wh68_batt
+        self.assertEqual(self.parser.wh68_batt['wh68'], {})
+
+        # ws80_batt
+        self.assertEqual(self.parser.ws80_batt['ws80'], {})
+
+        # batt
+#        self.assertEqual(self.parser.batt, self.batt)
+
+        # batt_fields
+        self.assertEqual(self.parser.batt_fields, self.batt_fields)
+        
+        # battery_state_format
+        self.assertEqual(self.parser.battery_state_format, "<BBHBBBBHLBB")
+
+        # battery_state_desc
+        self.assertEqual(self.parser.battery_state_desc,
+                         self.battery_state_desc)
+
+        # response_struct
+        self.assertEqual(self.parser.response_struct, self.response_struct)
+
+        # rain_field_codes
+        self.assertEqual(self.parser.rain_field_codes, self.rain_field_codes)
+
+        # wind_field_codes
+        self.assertEqual(self.parser.wind_field_codes, self.wind_field_codes)
+
+    def test_decode(self):
+        """Test class Parser() methods used to decode obs bytes."""
+
+        # test temperature decode (method decode_temp())
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['hex'])),
                          self.temp_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(3))), None)
 
-        # test humidity decode
+        # test humidity decode (method decode_humid())
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(self.humid_data['hex'])),
                          self.humid_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
 
-        # test pressure decode
+        # test pressure decode (method decode_press())
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['hex'])),
                          self.press_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(3))), None)
 
-        # test direction decode
+        # test direction decode (method decode_dir())
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data['hex'])),
                          self.dir_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(3))), None)
 
-        # test speed decode
-        self.assertEqual(self.parser.decode_speed(hex_to_bytes(self.speed_data['hex'])),
-                         self.speed_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(3))), None)
-
-        # test rain decode
-        self.assertEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['hex'])),
-                         self.rain_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(3))), None)
-
-        # test rain rate decode
-        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['hex'])),
-                         self.rainrate_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(3))), None)
-
-        # test big rain decode
+        # test big rain decode (method decode_big_rain())
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(self.big_rain_data['hex'])),
                          self.big_rain_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(5))), None)
 
-        # test light decode
-        self.assertEqual(self.parser.decode_light(hex_to_bytes(self.light_data['hex'])),
-                         self.light_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(5))), None)
-
-        # test uv decode
-        self.assertEqual(self.parser.decode_uv(hex_to_bytes(self.uv_data['hex'])),
-                         self.uv_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(3))), None)
-
-        # test uvi decode
-        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
-                         self.uvi_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
-
-        # test datetime decode
+        # test datetime decode (method decode_datetime())
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(self.datetime_data['hex'])),
                          self.datetime_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(7))), None)
 
-        # test pm25 decode
-        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(self.pm25_data['hex'])),
-                         self.pm25_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(3))), None)
-
-        # test moisture decode
-        self.assertEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['hex'])),
-                         self.moist_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
-
-        # test battery decode
-        self.assertEqual(self.parser.decode_batt(hex_to_bytes(self.batt_data['hex'])),
-                         self.batt_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(1))), {})
-        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(17))), {})
-
-        # test leak decode
-        self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['hex'])),
-                         self.leak_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
-
-        # test distance decode
+        # test distance decode (method decode_distance())
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(self.distance_data['hex'])),
                          self.distance_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
 
-        # test utc decode
+        # test utc decode (method decode_utc())
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(self.utc_data['hex'])),
                          self.utc_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(5))), None)
 
-        # test count decode
+        # test count decode (method decode_count())
         self.assertEqual(self.parser.decode_count(hex_to_bytes(self.count_data['hex'])),
                          self.count_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(5))), None)
 
-        # test wh34 decode
+        # test speed decode (method decode_speed())
+        self.assertEqual(self.parser.decode_speed(hex_to_bytes(self.speed_data['hex'])),
+                         self.speed_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(3))), None)
+
+        # test rain decode (method decode_rain())
+        self.assertEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['hex'])),
+                         self.rain_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(3))), None)
+
+        # test rain rate decode (method decode_rainrate())
+        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['hex'])),
+                         self.rainrate_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(3))), None)
+
+        # test light decode (method decode_light())
+        self.assertEqual(self.parser.decode_light(hex_to_bytes(self.light_data['hex'])),
+                         self.light_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(5))), None)
+
+        # test uv decode (method decode_uv())
+        self.assertEqual(self.parser.decode_uv(hex_to_bytes(self.uv_data['hex'])),
+                         self.uv_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(3))), None)
+
+        # test uvi decode (method decode_uvi())
+        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
+                         self.uvi_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
+
+        # test moisture decode (method decode_moist())
+        self.assertEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['hex'])),
+                         self.moist_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
+
+        # test pm25 decode (method decode_pm25())
+        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(self.pm25_data['hex'])),
+                         self.pm25_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(1))), None)
+        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(3))), None)
+
+        # test leak decode (method decode_leak())
+        self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['hex'])),
+                         self.leak_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
+
+        # test wh34 decode (method decode_pm10())
+        pass
+
+        # test wh34 decode (method decode_co2())
+        pass
+
+        # test wh34 decode (method decode_wh34())
         self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']), fields=self.wh34_data['field']),
                          self.wh34_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), fields=self.wh34_data['field']), {})
         self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), fields=self.wh34_data['field']), {})
 
-        # test wh45 decode
+        # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
                          self.wh45_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
 
+        # test battery decode (method decode_batt())
+        self.assertEqual(self.parser.decode_batt(hex_to_bytes(self.batt_data['hex'])),
+                         self.batt_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(1))), {})
+        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(17))), {})
+
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
                              self.parsed_response)
 
     def test_battery(self):
+        """Test methods used to parse battery states."""
 
-        # test battery state methods
-        # battery mask
+        # battery mask (method battery_mask())
         self.assertEqual(self.parser.battery_mask(255, 1 << 3), 1)
         self.assertEqual(self.parser.battery_mask(4, 1 << 3), 0)
-        # battery value
+
+        # battery value (method battery_value())
         self.assertEqual(self.parser.battery_value(0x65, mask=0x0F, shift=4), 6)
         self.assertEqual(self.parser.battery_value(0x01020304, mask=0xFF, shift=8), 3)
         self.assertEqual(self.parser.battery_value(5), 5)
-        # battery voltage
+
+        # battery voltage (method battery_voltage())
         self.assertEqual(self.parser.battery_voltage(100), 2)
-        # binary description
+
+        # binary description (method binary_desc())
         self.assertEqual(self.parser.binary_desc(0), 'OK')
         self.assertEqual(self.parser.binary_desc(1), 'low')
         self.assertEqual(self.parser.binary_desc(2), None)
         self.assertEqual(self.parser.binary_desc(None), None)
-        # voltage description
+
+        # voltage description (method voltage_desc())
         self.assertEqual(self.parser.voltage_desc(0), 'low')
         self.assertEqual(self.parser.voltage_desc(1.2), 'low')
         self.assertEqual(self.parser.voltage_desc(1.5), 'OK')
         self.assertEqual(self.parser.voltage_desc(None), None)
-        # level description
+
+        # level description (method level_desc())
         self.assertEqual(self.parser.level_desc(0), 'low')
         self.assertEqual(self.parser.level_desc(1), 'low')
         self.assertEqual(self.parser.level_desc(4), 'OK')
@@ -346,6 +552,7 @@ class ParseTestCase(unittest.TestCase):
 
 
 class UtilitiesTestCase(unittest.TestCase):
+    """Unit tests for utility functions."""
 
     unsorted_dict = {'leak2': 'leak2',
                      'inHumidity': 'inhumid',
@@ -365,7 +572,7 @@ class UtilitiesTestCase(unittest.TestCase):
 
     def test_utilities(self):
 
-        # test natural_sort_keys
+        # test natural_sort_keys()
         self.assertEqual(user.gw1000.natural_sort_keys(self.unsorted_dict),
                          self.sorted_keys)
 
@@ -389,7 +596,7 @@ class UtilitiesTestCase(unittest.TestCase):
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=None),
                          self.bytes_to_hex_fail_str % hex_to_bytes('ff 00 66 b2'))
 
-        # test obfuscate
+        # test obfuscate()
         # > 8 character string, should see trailing 4 characters
         self.assertEqual(user.gw1000.obfuscate('1234567890'), '******7890')
         # 7 character string, should see trailing 3 characters
