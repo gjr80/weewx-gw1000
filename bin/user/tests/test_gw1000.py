@@ -23,8 +23,14 @@ To run the test suite:
 
     $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000
 """
+# python imports
 import struct
 import unittest
+
+# Python 2/3 compatibility shims
+import six
+
+# WeeWX imports
 import user.gw1000
 
 # TODO. Check speed_data data and result are correct
@@ -53,7 +59,7 @@ class ParseTestCase(unittest.TestCase):
                        'absbarometer': 1019.4,
                        'relbarometer': 1019.4,
                        'pm251': 9.0,
-                       'pm251_24hav': 10.1,
+                       'pm251_24h_avg': 10.1,
                        'soilmoist1': 39,
                        'soilmoist2': 20,
                        'temp1': 23.7,
@@ -397,6 +403,24 @@ class UtilitiesTestCase(unittest.TestCase):
         # check obfuscation character
         self.assertEqual(user.gw1000.obfuscate('1234567890', obf_char='#'),
                          '######7890')
+
+
+class ListsAndDictsTestCase(unittest.TestCase):
+    """Test case to test list and dict consistency."""
+
+    def test_dicts(self):
+        """Test dicts for consistency."""
+
+        for w_field, g_field in six.iteritems(user.gw1000.Gw1000.default_field_map):
+            self.assertIn(g_field,
+                          user.gw1000.DirectGw1000.gw1000_obs_group_dict.keys(),
+                          msg="A field from the GW1000 default field map is missing from the observation group dictionary")
+        for g_field, group in six.iteritems(user.gw1000.DirectGw1000.gw1000_obs_group_dict):
+            self.assertIn(g_field,
+                          user.gw1000.Gw1000.default_field_map.values(),
+                          msg="A key from the observation group dictionary is missing from the GW1000 default field map")
+
+
 
 
 class StationTestCase(unittest.TestCase):
