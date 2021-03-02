@@ -2114,7 +2114,7 @@ class Gw1000Collector(Collector):
         b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5'},
         b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6'},
         b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7'},
-        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8'}
+        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8'},
         b'\x27': {'name': 'wh45', 'long_name': 'WH45'},
         b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1'},
         b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2'},
@@ -2747,32 +2747,18 @@ class Gw1000Collector(Collector):
     def sensor_id_data(self):
         """Get sensor id data.
 
-        The GW1000 clearly shows the position of the 'signal' and
-        'battery state' data in the CMD_READ_SENSOR_ID response. However, when
-        decoded as per the API the CMD_READ_SENSOR_ID 'battery state' data
-        does not agree with the battery battery state data obtained from
-        CMD_GW1000_LIVEDATA response. However, observations of a live system
-        containing a number of different sensor types shows that the
-        CMD_READ_SENSOR_ID sensor 'signal' data matches the
-        CMD_GW1000_LIVEDATA battery data precisely. Further observations reveal
-        the CMD_READ_SENSOR_ID sensor battery states match the sensor signal
-        levels shown in the WS View app.
-
-        The inference is that the CMD_READ_SENSOR_ID 'signal' and
-        'battery state' bytes are in fact transposed. No other PWS software
-        developers seem to have noticed this so for the time being the
-        CMD_READ_SENSOR_ID 'signal' and 'battery state' bytes have been
-        swapped.
+        # TODO. Need to comment this
         """
 
         # obtain the sensor id data via the API, we may get a GW1000IOError
         # exception, if we do let it bubble up
         response = self.station.get_sensor_id()
         # if we made it here our response was validated by checksum
-        # determine the size of the sensor id data
-        raw_data_size = six.indexbytes(response, 3)
+        # determine the size of the sensor id data, it's a big endian short
+        # (two byte) integer at bytes 4 and 5
+        raw_data_size = struct.unpack(">H", response[3:5])[0]
         # extract the actual sensor id data
-        data = response[4:4 + raw_data_size - 3]
+        data = response[5:5 + raw_data_size - 4]
         # initialise a counter
         index = 0
         # initialise a list to hold our final data
@@ -2782,9 +2768,7 @@ class Gw1000Collector(Collector):
             sensor_id = bytes_to_hex(data[index + 1: index + 5],
                                      separator='',
                                      caps=False)
-            # As per method comments above swap signal and battery state bytes,
-            # the GW1000 API says signal should be byte 5 and battery byte 6,
-            # we will use signal as byte 6 and battery as byte 5.
+            # Add the sensor to our list
             sensor_id_list.append({'address': data[index:index + 1],
                                    'id': sensor_id,
                                    'battery': six.indexbytes(data, index + 5),
@@ -3211,7 +3195,7 @@ class Gw1000Collector(Collector):
             # prepared to catch the exception raised if the GW1000 cannot be
             # contacted
             try:
-                return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
+                return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
             except GW1000IOError:
                 # there was a problem contacting the GW1000, it could be it
                 # has changed IP address so attempt to rediscover
@@ -3221,7 +3205,7 @@ class Gw1000Collector(Collector):
                 else:
                     # we did rediscover successfully so try again, if it fails
                     # we get another GW1000IOError exception which will be raised
-                    return self.send_cmd_with_retries('CMD_READ_SENSOR_ID')
+                    return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
 
         def get_mulch_offset(self):
             """Get multi-channel temperature and humidity offset data.
@@ -3635,6 +3619,7 @@ class Gw1000Collector(Collector):
                               'wh26': 'binary_desc',
                               'wh31': 'binary_desc',
                               'wh32': 'binary_desc',
+                              'wh35': 'binary_desc',
                               'wh40': 'binary_desc',
                               'wh41': 'level_desc',
                               'wh51': 'binary_desc',
@@ -5339,7 +5324,7 @@ class DirectGw1000(object):
             print("Timeout. GW1000 did not respond.")
         else:
             # did we get any sensor ID data
-            if sensor_id_data is not None:
+            if sensor_id_data is not None and len(sensor_id_data) > 0:
                 # now format and display the data
                 print()
                 print("%-10s %s" % ("Sensor", "Status"))
@@ -5365,6 +5350,9 @@ class DirectGw1000(object):
                                                                             battery_str)
                         # print the formatted data
                     print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
+            elif len(sensor_id_data) == 0:
+                print()
+                print("GW1000 did not return any sensor data.")
             else:
                 print()
                 print("GW1000 did not respond.")
