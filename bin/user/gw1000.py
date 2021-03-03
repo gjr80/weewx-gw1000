@@ -28,9 +28,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.2.0                                    Date: 9 January 2021
+Version: 0.3.0a1                                    Date: xx xxxxxx 2021
 
 Revision History
+    xx xxxxxxx 2021         v0.3.0
+        -
     9 January 2021          v0.2.0
         -   added support for WH45 sensor
         -   improved comments in installer/wee_config inserted config
@@ -575,7 +577,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.2.0'
+DRIVER_VERSION = '0.3.0a1'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -599,7 +601,6 @@ default_poll_interval = 20
 # default period between lost contact log entries during an extended period of
 # lost contact when run as a Service
 default_lost_contact_log_period = 21600
-
 
 
 # ============================================================================
@@ -2074,56 +2075,57 @@ class Collector(object):
 class Gw1000Collector(Collector):
     """Class to poll the GW1000 API then decode and return data to the driver."""
 
-    # map of sensor ids to short and long names
+    # map of sensor ids to short name, long name and battery byte decode
+    # function
     sensor_ids = {
-        b'\x00': {'name': 'wh65', 'long_name': 'WH65'},
-        b'\x01': {'name': 'wh68', 'long_name': 'WH68'},
-        b'\x02': {'name': 'ws80', 'long_name': 'WS80'},
-        b'\x03': {'name': 'wh40', 'long_name': 'WH40'},
-        b'\x04': {'name': 'wh25', 'long_name': 'WH25'},
-        b'\x05': {'name': 'wh26', 'long_name': 'WH26'},
-        b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1'},
-        b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2'},
-        b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3'},
-        b'\x09': {'name': 'wh31_ch4', 'long_name': 'WH31 ch4'},
-        b'\x0a': {'name': 'wh31_ch5', 'long_name': 'WH31 ch5'},
-        b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6'},
-        b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7'},
-        b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8'},
-        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1'},
-        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2'},
-        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3'},
-        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4'},
-        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5'},
-        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6'},
-        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7'},
-        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8'},
-        b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1'},
-        b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2'},
-        b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3'},
-        b'\x19': {'name': 'wh41_ch4', 'long_name': 'WH41 ch4'},
-        b'\x1a': {'name': 'wh57', 'long_name': 'WH57'},
-        b'\x1b': {'name': 'wh55_ch1', 'long_name': 'WH55 ch1'},
-        b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2'},
-        b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3'},
-        b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4'},
-        b'\x1f': {'name': 'wh34_ch1', 'long_name': 'WH34 ch1'},
-        b'\x20': {'name': 'wh34_ch2', 'long_name': 'WH34 ch2'},
-        b'\x21': {'name': 'wh34_ch3', 'long_name': 'WH34 ch3'},
-        b'\x22': {'name': 'wh34_ch4', 'long_name': 'WH34 ch4'},
-        b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5'},
-        b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6'},
-        b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7'},
-        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8'},
-        b'\x27': {'name': 'wh45', 'long_name': 'WH45'},
-        b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1'},
-        b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2'},
-        b'\x2a': {'name': 'wh35_ch3', 'long_name': 'WH35 ch3'},
-        b'\x2b': {'name': 'wh35_ch4', 'long_name': 'WH35 ch4'},
-        b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5'},
-        b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6'},
-        b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7'},
-        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8'}
+        b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
+        b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
+        b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_binary'},
+        b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
+        b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
+        b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
+        b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2', 'batt_fn': 'batt_binary'},
+        b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3', 'batt_fn': 'batt_binary'},
+        b'\x09': {'name': 'wh31_ch4', 'long_name': 'WH31 ch4', 'batt_fn': 'batt_binary'},
+        b'\x0a': {'name': 'wh31_ch5', 'long_name': 'WH31 ch5', 'batt_fn': 'batt_binary'},
+        b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6', 'batt_fn': 'batt_binary'},
+        b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7', 'batt_fn': 'batt_binary'},
+        b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8', 'batt_fn': 'batt_binary'},
+        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_binary'},
+        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_binary'},
+        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_binary'},
+        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_binary'},
+        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_binary'},
+        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_binary'},
+        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_binary'},
+        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_binary'},
+        b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
+        b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
+        b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
+        b'\x19': {'name': 'wh41_ch4', 'long_name': 'WH41 ch4', 'batt_fn': 'batt_int'},
+        b'\x1a': {'name': 'wh57', 'long_name': 'WH57', 'batt_fn': 'batt_int'},
+        b'\x1b': {'name': 'wh55_ch1', 'long_name': 'WH55 ch1', 'batt_fn': 'batt_int'},
+        b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
+        b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
+        b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
+        b'\x1f': {'name': 'wh34_ch1', 'long_name': 'WH34 ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wh34_ch2', 'long_name': 'WH34 ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wh34_ch3', 'long_name': 'WH34 ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wh34_ch4', 'long_name': 'WH34 ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
+        b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1', 'batt_fn': 'batt_volt'},
+        b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2', 'batt_fn': 'batt_volt'},
+        b'\x2a': {'name': 'wh35_ch3', 'long_name': 'WH35 ch3', 'batt_fn': 'batt_volt'},
+        b'\x2b': {'name': 'wh35_ch4', 'long_name': 'WH35 ch4', 'batt_fn': 'batt_volt'},
+        b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5', 'batt_fn': 'batt_volt'},
+        b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6', 'batt_fn': 'batt_volt'},
+        b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
+        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'}
     }
     # tuple of values for sensors that are not registered with the GW1000
     not_registered = ('fffffffe', 'ffffffff')
@@ -2247,43 +2249,43 @@ class Gw1000Collector(Collector):
 
         # obtain the raw data via the GW1000 API, we may get a GW1000IOError
         # exception, if we do let it bubble up
+        # the raw data is the data returned from the GW1000 inclusive of
+        # the fixed header, command, payload length, payload and checksum bytes
         raw_data = self.station.get_livedata()
         # if we made it here our raw data was validated by checksum
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
         # parse the raw data
+        # the parsed data is a dict on internal GW1000 field names and the
+        # decoded raw data
         parsed_data = self.parser.parse(raw_data, _timestamp)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
-        # The nature of the GW1000 API means that the parsed live data will
-        # likely contain battery state information for sensors that do not
-        # exist. The parsed live data also does not contain any sensor signal
-        # level data. The GW1000 API does provide details on what sensors are
-        # connected to the GW1000 and their signal levels via the
-        # CMD_READ_SENSOR_ID command. The data received from the
-        # CMD_READ_SENSOR_ID command can be used to filter sensor battery state
-        # fields for sensors that are not registered and to add sensor signal
-        # level fields to the live data.
-        parsed_data = self.process_sensor_id_data(parsed_data)
+        # The parsed live data does not contain any sensor battery state or
+        # signal level data. The GW1000 API does provide details on sensor
+        # battery state and signal level via the CMD_READ_SENSOR_ID and
+        # CMD_READ_SENSOR_ID_NEW commands (The CMD_READ_SENSOR_ID_NEW command
+        # should be used as it supports all of the sensors supported by the
+        # CMD_READ_SENSOR_ID command as well as a number of additional
+        # sensors). Add any sensor battery state and signal level data to the
+        # parsed data.
+        self.add_sensor_id_data(parsed_data)
         # log the processed parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Processed parsed data: %s" % parsed_data)
         return parsed_data
 
-    def process_sensor_id_data(self, parsed_data):
-        """Use sensor ID data to update live sensor data.
+    def add_sensor_id_data(self, parsed_data):
+        """Add sensor battery state and signal level data to a dict.
 
-        The CMD_READ_SENSOR_ID API command returns address, id, signal and
-        battery state information for sensors registered with the GW1000.
-        Whilst the CMD_GW1000_LIVEDATA API command returns sensor data and
-        sensor battery state data it is not possible to tell from the
-        CMD_GW1000_LIVEDATA response which sensors are in fact registered with
-        the GW1000. The CMD_GW1000_LIVEDATA response does not include sensor
-        signal level data. The CMD_READ_SENSOR_ID data can be used to filter
-        battery state data from the live sensor data for sensors that are not
-        registered with the GW1000. The CMD_READ_SENSOR_ID data can also be
-        used to add sensor signal level data to the live sensor data.
+        The CMD_READ_SENSOR_ID and CMD_READ_SENSOR_ID_NEW API commands return
+        address, id, signal and battery state information for sensors
+        registered with the GW1000 (The CMD_READ_SENSOR_ID_NEW command should be
+        used as it supports all of the sensors supported by the
+        CMD_READ_SENSOR_ID command as well as a number of additional sensors).
+        By iterating over the connected sensors the battery state and signal
+        level data for each connected sensor can be added to the data packet.
 
         parsed_data: dict of parsed GW1000 live sensor data
         """
@@ -2295,64 +2297,34 @@ class Gw1000Collector(Collector):
         # a filtered list of registered sensors, these are the sensors we are
         # interested in.
         registered_sensors = [s for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
-        # first filter the battery state fields
-        processed_data = self.filter_battery_data(parsed_data,
-                                                  registered_sensors)
-        # now add any sensor signal levels
-        processed_data.update(self.get_signal_level_data(registered_sensors))
-        # return our processed data
-        return processed_data
+        # now add any battery state and signal level data
+        parsed_data.update(self.get_battery_and_signal_data(registered_sensors))
+        # we have updated the parsed data so return
+        return
 
     @staticmethod
-    def filter_battery_data(data, registered_sensors):
-        """Filter battery data for unused sensors.
-
-        The battery status data returned by the GW1000 API does not allow the
-        discrimination of all used/unused sensors (it does for some but not for
-        others). Some further processing of the battery status data is required
-        to ensure that battery status is only provided for sensors that
-        actually exist.
-
-        data: dict of parsed GW1000 API data
-        """
-
-        # obtain a list of registered sensor names
-        reg_sensor_names = [Gw1000Collector.sensor_ids[a['address']]['name'] for a in registered_sensors]
-        # obtain a copy of our parsed data as we are going to alter it
-        filtered = dict(data)
-        # iterate over the parsed data
-        for key, data in six.iteritems(data):
-            # obtain the sensor name from any any battery fields
-            stripped = key[:-5] if key.endswith('_batt') else key
-            # if field is a battery state field, and the field pertains to an
-            # unregistered sensor, remove the field from the parsed data
-            if '_batt' in key and stripped not in reg_sensor_names:
-                del filtered[key]
-        # return our parsed data with battery state information fo unregistered
-        # sensors removed
-        return filtered
-
-    @staticmethod
-    def get_signal_level_data(registered_sensors):
-        """Add sensor signal level data to a sensor data packet.
+    def get_battery_and_signal_data(registered_sensors):
+        """Obtain a dict of sensor battery state and signal level data.
 
         Iterate over the list of registered sensors and obtain a dict of sensor
-        signal level data for each registered sensor.
+        battery state data for each registered sensor.
 
         registered_sensors: list of dicts of sensor ID data for each registered
                             sensor
         """
 
-        # initialise a dict to hold the sensor signal level data
-        signal_level_data = {}
+        # initialise a dict to hold the battery state data
+        data = {}
         # iterate over our registered sensors
         for sensor in registered_sensors:
             # get the sensor name
             sensor_name = Gw1000Collector.sensor_ids[sensor['address']]['name']
+            # create the sensor battery state field for this sensor
+            data[''.join([sensor_name, '_batt'])] = sensor['battery']
             # create the sensor signal level field for this sensor
-            signal_level_data[''.join([sensor_name, '_sig'])] = sensor['signal']
-        # return our sensor signal level data
-        return signal_level_data
+            data[''.join([sensor_name, '_sig'])] = sensor['signal']
+        # return our data
+        return data
 
     @property
     def rain_data(self):
@@ -2768,14 +2740,37 @@ class Gw1000Collector(Collector):
             sensor_id = bytes_to_hex(data[index + 1: index + 5],
                                      separator='',
                                      caps=False)
+            batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
+            batt = six.indexbytes(data, index + 5)
+            batt_state = getattr(self, batt_fn)(batt)
             # Add the sensor to our list
             sensor_id_list.append({'address': data[index:index + 1],
                                    'id': sensor_id,
-                                   'battery': six.indexbytes(data, index + 5),
+                                   'battery': batt_state,
                                    'signal': six.indexbytes(data, index + 6)
                                    })
             index += 7
         return sensor_id_list
+
+    @staticmethod
+    def batt_binary(batt):
+        """Decode a binary battery state."""
+
+        if (batt & 1 << 0) == 1 << 0:
+            return 1
+        return 0
+
+    @staticmethod
+    def batt_int(batt):
+        """Decode a integer battery state"""
+
+        return batt
+
+    @staticmethod
+    def batt_volt(batt):
+        """Decode a voltage battery state."""
+
+        return round(0.02 * batt, 2)
 
     def startup(self):
         """Start a thread that collects data from the GW1000 API."""
@@ -3556,64 +3551,13 @@ class Gw1000Collector(Collector):
     class Parser(object):
         """Class to parse GW1000 sensor data."""
 
+        # TODO. Would be good to get rid of this too, but it is presently used elsewhere
         multi_batt = {'wh40': {'mask': 1 << 4},
                       'wh26': {'mask': 1 << 5},
                       'wh25': {'mask': 1 << 6},
                       'wh65': {'mask': 1 << 7}
                       }
-        wh31_batt = {1: {'mask': 1 << 0},
-                     2: {'mask': 1 << 1},
-                     3: {'mask': 1 << 2},
-                     4: {'mask': 1 << 3},
-                     5: {'mask': 1 << 4},
-                     6: {'mask': 1 << 5},
-                     7: {'mask': 1 << 6},
-                     8: {'mask': 1 << 7}
-                     }
-        wh41_batt = {1: {'shift': 0, 'mask': 0x0F},
-                     2: {'shift': 4, 'mask': 0x0F},
-                     3: {'shift': 8, 'mask': 0x0F},
-                     4: {'shift': 12, 'mask': 0x0F}
-                     }
-        wh51_batt = {1: {'mask': 1 << 0},
-                     2: {'mask': 1 << 1},
-                     3: {'mask': 1 << 2},
-                     4: {'mask': 1 << 3},
-                     5: {'mask': 1 << 4},
-                     6: {'mask': 1 << 5},
-                     7: {'mask': 1 << 6},
-                     8: {'mask': 1 << 7},
-                     9: {'mask': 1 << 8},
-                     10: {'mask': 1 << 9},
-                     11: {'mask': 1 << 10},
-                     12: {'mask': 1 << 11},
-                     13: {'mask': 1 << 12},
-                     14: {'mask': 1 << 13},
-                     15: {'mask': 1 << 14},
-                     16: {'mask': 1 << 15}
-                     }
-        wh55_batt = {1: {'shift': 0, 'mask': 0xFF},
-                     2: {'shift': 8, 'mask': 0xFF},
-                     3: {'shift': 16, 'mask': 0xFF},
-                     4: {'shift': 24, 'mask': 0xFF}
-                     }
-        wh57_batt = {'wh57': {}}
-        wh68_batt = {'wh68': {}}
-        ws80_batt = {'ws80': {}}
-        batt = {
-            'multi': (multi_batt, 'battery_mask'),
-            'wh31': (wh31_batt, 'battery_mask'),
-            'wh51': (wh51_batt, 'battery_mask'),
-            'wh41': (wh41_batt, 'battery_value'),
-            'wh57': (wh57_batt, 'battery_value'),
-            'wh68': (wh68_batt, 'battery_voltage'),
-            'ws80': (ws80_batt, 'battery_voltage'),
-            'wh55': (wh55_batt, 'battery_value'),
-            'unused': ({}, 'battery_mask')
-        }
-        batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
-                       'unused', 'wh41', 'wh55')
-        battery_state_format = "<BBHBBBBHLBB"
+        # TODO. Is this needed, here or elsewhere and is it complete
         battery_state_desc = {'wh24': 'binary_desc',
                               'wh25': 'binary_desc',
                               'wh26': 'binary_desc',
@@ -3821,19 +3765,20 @@ class Gw1000Collector(Collector):
                     else:
                         _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
                                                                 field)
-                        data.update(_field_data)
-                        if self.debug_rain and resp[index:index + 1] in self.rain_field_codes:
-                            loginf("parse: raw rain data: field:%s and "
-                                   "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
-                                                                 bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                                 field,
-                                                                 _field_data[field]))
-                        if self.debug_wind and resp[index:index + 1] in self.wind_field_codes:
-                            loginf("parse: raw wind data: field:%s and "
-                                   "data:%s decoded as %s=%s" % (resp[index:index + 1],
-                                                                 bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                                 field,
-                                                                 _field_data[field]))
+                        if _field_data is not None:
+                            data.update(_field_data)
+                            if self.debug_rain and resp[index:index + 1] in self.rain_field_codes:
+                                loginf("parse: raw rain data: field:%s and "
+                                       "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
+                                                                     bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                                     field,
+                                                                     _field_data[field]))
+                            if self.debug_wind and resp[index:index + 1] in self.wind_field_codes:
+                                loginf("parse: raw wind data: field:%s and "
+                                       "data:%s decoded as %s=%s" % (resp[index:index + 1],
+                                                                     bytes_to_hex(resp[index + 1:index + 1 + field_size]),
+                                                                     field,
+                                                                     _field_data[field]))
                         index += field_size + 1
             # if it does not exist add a datetime field with the current epoch timestamp
             if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
@@ -4035,10 +3980,9 @@ class Gw1000Collector(Collector):
             if len(data) == 3 and fields is not None:
                 results = dict()
                 results[fields[0]] = self.decode_temp(data[0:2])
-                # the battery_voltage method needs a number not a byte string
-                # so we need to unpack the battery state data first
-                batt_data = struct.unpack('B', data[2:3])[0]
-                results[fields[1]] = self.battery_voltage(batt_data)
+                # we could decode the battery voltage but we will be obtaining
+                # battery voltage data from the sensor IDs in a later step so
+                # we can skip it here
                 return results
             return {}
 
@@ -4071,113 +4015,34 @@ class Gw1000Collector(Collector):
                 results[fields[5]] = self.decode_pm25(data[9:11])
                 results[fields[6]] = self.decode_co2(data[11:13])
                 results[fields[7]] = self.decode_co2(data[13:15])
-                # the battery_voltage method needs a number not a byte string
-                # so we need to unpack the battery state data first
-                batt_data = struct.unpack('B', data[15:16])[0]
-                results[fields[8]] = self.battery_value(batt_data)
+                # we could decode the battery state but we will be obtaining
+                # battery state data from the sensor IDs in a later step so
+                # we can skip it here
                 return results
             return {}
 
         def decode_batt(self, data, field=None):
             """Decode battery status data.
 
-            Battery status data is provided in 16 bytes using a variety of
-            representations. Different representations include:
-            -   use of a single bit to indicate low/OK
-            -   use of a nibble to indicate battery level
-            -   use of a byte to indicate battery voltage
+            GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
+            battery state data at response field x4C for the following
+            sensors:
+                WH24, WH25, WH26(WH32), WH31 ch1-8, WH40, WH41/WH43 ch1-4,
+                WH51 ch1-8, WH55 ch1-4, WH57, WH68 and WS80
 
-            WH24, WH25, WH26(WH32), WH31, WH40, WH41 and WH51
-            stations/sensors use a single bit per station/sensor to indicate OK or
-            low battery. WH55 and WH57 sensors use a single byte per sensor to
-            indicate OK or low battery. WH68 and WS80 sensors use a single byte to
-            store battery voltage.
+            As of firmware version 1.6.5 the 16 bytes of battery state data is
+            no longer returned at all. CMD_READ_SENSOR_ID_NEW or
+            CMD_READ_SENSOR_ID must be used to obtain battery state information
+            for connected sensors. The decode_batt() method has been retained
+            to support devices using firmware version 1.6.4 and earlier.
 
-            The battery status data is allocated as follows
-            Byte #  Sensor          Value               Comments
-            byte 1  WH40(b4)        0/1                 1=low, 0=normal
-                    WH26(WH32?)(b5) 0/1                 1=low, 0=normal
-                    WH25(b6)        0/1                 1=low, 0=normal
-                    WH24(b7)        0/1                 may be WH65, 1=low, 0=normal
-                 2  WH31 ch1(b0)    0/1                 1=low, 0=normal, 8 channels b0..b7
-                         ...
-                         ch8(b7)    0/1                 1=low, 0=normal
-                 3  WH51 ch1(b0)    0/1                 1=low, 0=normal, 16 channels b0..b7 over 2 bytes
-                         ...
-                         ch8(b7)    0/1                 1=low, 0=normal
-                 4       ch9(b0)    0/1                 1=low, 0=normal
-                         ...
-                         ch16(b7)   0/1                 1=low, 0=normal
-                 5  WH57            0-5                 <=1 is low
-                 6  WH68            0.02*value Volts
-                 7  WS80            0.02*value Volts
-                 8  Unused
-                 9  WH41 ch1(b0-b3) 0-5                 <=1 is low
-                         ch2(b4-b7) 0-5                 <=1 is low
-                 10      ch3(b0-b3) 0-5                 <=1 is low
-                         ch4(b4-b7) 0-5                 <=1 is low
-                 11 WH55 ch1        0-5                 <=1 is low
-                 12 WH55 ch2        0-5                 <=1 is low
-                 13 WH55 ch3        0-5                 <=1 is low
-                 14 WH55 ch4        0-5                 <=1 is low
-                 15 Unused
-                 16 Unused
-
-            For stations/sensors using a single bit for battery status 0=OK and
-            1=low. For stations/sensors using a single byte for battery
-            status >1=OK and <=1=low. For stations/sensors using a single byte for
-            battery voltage the voltage is 0.02 * the byte value.
-
-                # WH24 F/O THWR sensor station
-                # WH25 THP sensor
-                # WH26(WH32) TH sensor
-                # WH40 rain gauge sensor
+            Since the GW1000 driver now obtains battery state information via
+            CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
+            method now returns None so that firmware versions before 1.6.5
+            continue to be supported.
             """
 
-            if len(data) == 16:
-                # first break out the bytes
-                b_dict = {}
-                batt_t = struct.unpack(self.battery_state_format, data)
-                batt_dict = dict(six.moves.zip(self.batt_fields, batt_t))
-                for batt_field in self.batt_fields:
-                    elements, decode_str = self.batt[batt_field]
-                    for elm in elements.keys():
-                        # construct the field name for our battery value, how
-                        # we construct the field name will depend if we have a
-                        # numeric channel or not
-                        # assume no numeric channel
-                        try:
-                            field_name = "".join([elm, '_batt'])
-                        except TypeError:
-                            # if we strike a TypeError it will be because we
-                            # have a numeric channel number
-                            field_name = ''.join([batt_field, '_ch', str(elm), '_batt'])
-                        # now add the battery value to the result dict
-                        b_dict[field_name] = getattr(self, decode_str)(batt_dict[batt_field],
-                                                                       **elements[elm])
-                return b_dict
-            return {}
-
-        @staticmethod
-        def battery_mask(data, mask):
-            if (data & mask) == mask:
-                return 1
-            return 0
-
-        @staticmethod
-        def battery_value(data, mask=None, shift=None):
-            _data = data if shift is None else data >> shift
-            if mask is not None:
-                _value = _data & mask
-                if _value == mask:
-                    _value = None
-            else:
-                _value = _data
-            return _value
-
-        @staticmethod
-        def battery_voltage(data):
-            return 0.02 * data
+            return None
 
         @staticmethod
         def binary_desc(value):
@@ -5430,7 +5295,7 @@ class DirectGw1000(object):
             # finally sort our dict by key and print the data
             print()
             print("GW1000 live sensor data (%s): %s" % (weeutil.weeutil.timestamp_to_string(datetime),
-                                                       weeutil.weeutil.to_sorted_string(result)))
+                                                        weeutil.weeutil.to_sorted_string(result)))
 
     @staticmethod
     def discover():
