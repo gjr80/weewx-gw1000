@@ -2035,9 +2035,13 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
 
     @property
     def sensor_id_data(self):
-        """Return the GW1000 sensor identification data."""
+        """Return the GW1000 sensor identification data.
 
-        return self.collector.sensor_id_data
+        The sensor ID data is available via the data property of the Collector
+        objects' sensors property.
+        """
+
+        return self.collector.sensors.data
 
     def closePort(self):
         """Close down the driver port."""
@@ -2127,8 +2131,6 @@ class Gw1000Collector(Collector):
         b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'}
     }
-    # tuple of values for sensors that are not registered with the GW1000
-    not_registered = ('fffffffe', 'ffffffff')
     # list of dicts of weather services that I know about
     services = [{'name': 'ecowitt_net',
                  'long_name': 'Ecowitt.net'
@@ -2192,6 +2194,8 @@ class Gw1000Collector(Collector):
         self.log_failures = True
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
+        # get a sensors object to handle sensor ID data
+        self.sensors_obj = Gw1000Collector.Sensors()
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -2237,94 +2241,48 @@ class Gw1000Collector(Collector):
             time.sleep(1)
 
     def get_live_sensor_data(self):
-        """Get sensor data.
+        """Get all current sensor data.
 
-        Obtain live sensor data from the GW1000 API. Parse the API response.
-        The parsed battery data is then further processed to filter battery
-        state data for sensors that are not registered and to include sensor
-        signal level data for registered sensors. The processed data is
-        returned as a dict. If no data was obtained from the API the value None
-        is returned.
+        Obtain live sensor data from the GW1000 API then parse the API response
+        to create a timestamped data dict keyed by internal GW1000 field name.
+        Add current sensor battery state and signal level data to the data
+        dict. If no data was obtained from the API the value None is returned.
         """
 
         # obtain the raw data via the GW1000 API, we may get a GW1000IOError
-        # exception, if we do let it bubble up
-        # the raw data is the data returned from the GW1000 inclusive of
-        # the fixed header, command, payload length, payload and checksum bytes
+        # exception, if we do let it bubble up (the raw data is the data
+        # returned from the GW1000 inclusive of the fixed header, command,
+        # payload length, payload and checksum bytes)
         raw_data = self.station.get_livedata()
         # if we made it here our raw data was validated by checksum
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
-        # parse the raw data
-        # the parsed data is a dict on internal GW1000 field names and the
-        # decoded raw data
+        # parse the raw data (the parsed data is a dict keyed by internal
+        # GW1000 field names and containing the decoded raw sensor data)
         parsed_data = self.parser.parse(raw_data, _timestamp)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
         # The parsed live data does not contain any sensor battery state or
-        # signal level data. The GW1000 API does provide details on sensor
-        # battery state and signal level via the CMD_READ_SENSOR_ID and
-        # CMD_READ_SENSOR_ID_NEW commands (The CMD_READ_SENSOR_ID_NEW command
-        # should be used as it supports all of the sensors supported by the
-        # CMD_READ_SENSOR_ID command as well as a number of additional
-        # sensors). Add any sensor battery state and signal level data to the
-        # parsed data.
-        self.add_sensor_id_data(parsed_data)
+        # signal level data. The battery state and signal level data for each
+        # sensor can be obtained from the GW1000 API via our Sensors object.
+        # first we need to update our Sensors object with current sensor ID data
+        self.update_sensor_id_data()
+        # now add any sensor battery state and signal level data to the parsed
+        # data
+        parsed_data.update(self.sensors_obj.battery_and_signal_data)
         # log the processed parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Processed parsed data: %s" % parsed_data)
         return parsed_data
 
-    def add_sensor_id_data(self, parsed_data):
-        """Add sensor battery state and signal level data to a dict.
+    def update_sensor_id_data(self):
+        """Update the Sensors object with current sensor ID data."""
 
-        The CMD_READ_SENSOR_ID and CMD_READ_SENSOR_ID_NEW API commands return
-        address, id, signal and battery state information for sensors
-        registered with the GW1000 (The CMD_READ_SENSOR_ID_NEW command should be
-        used as it supports all of the sensors supported by the
-        CMD_READ_SENSOR_ID command as well as a number of additional sensors).
-        By iterating over the connected sensors the battery state and signal
-        level data for each connected sensor can be added to the data packet.
-
-        parsed_data: dict of parsed GW1000 live sensor data
-        """
-
-        # obtain details of the sensors from the GW1000 API, we may get a
-        # GW1000IOError exception, but let it bubble up
-        sensor_list = self.sensor_id_data
-        # If we made it here our response was validated by checksum. Now create
-        # a filtered list of registered sensors, these are the sensors we are
-        # interested in.
-        registered_sensors = [s for s in sensor_list if s['id'] not in Gw1000Collector.not_registered]
-        # now add any battery state and signal level data
-        parsed_data.update(self.get_battery_and_signal_data(registered_sensors))
-        # we have updated the parsed data so return
-        return
-
-    @staticmethod
-    def get_battery_and_signal_data(registered_sensors):
-        """Obtain a dict of sensor battery state and signal level data.
-
-        Iterate over the list of registered sensors and obtain a dict of sensor
-        battery state data for each registered sensor.
-
-        registered_sensors: list of dicts of sensor ID data for each registered
-                            sensor
-        """
-
-        # initialise a dict to hold the battery state data
-        data = {}
-        # iterate over our registered sensors
-        for sensor in registered_sensors:
-            # get the sensor name
-            sensor_name = Gw1000Collector.sensor_ids[sensor['address']]['name']
-            # create the sensor battery state field for this sensor
-            data[''.join([sensor_name, '_batt'])] = sensor['battery']
-            # create the sensor signal level field for this sensor
-            data[''.join([sensor_name, '_sig'])] = sensor['signal']
-        # return our data
-        return data
+        # get the current sensor ID data
+        sensor_id_data = self.station.get_sensor_id()
+        # now use the sensor ID data to re-initialise our sensors object
+        self.sensors_obj.set_sensor_id_data(sensor_id_data)
 
     @property
     def rain_data(self):
@@ -2716,61 +2674,27 @@ class Gw1000Collector(Collector):
         return "".join([chr(x) for x in firmware_t[5:18]])
 
     @property
-    def sensor_id_data(self):
-        """Get sensor id data.
+    def sensors(self):
+        """Get the current Sensors object.
 
-        # TODO. Need to comment this
+        A Sensors object holds the address, id, battery state and signal level
+        data sensors known to the GW1000. The sensor id value can be used to
+        discriminate between connected sensors, connecting sensors and disabled
+        sensor addresses.
+
+        Before using the Gw1000Collector's Sensors object it shoudl be updated
+        with recent sensor ID data via the GW1000 API
         """
 
-        # obtain the sensor id data via the API, we may get a GW1000IOError
+        # obtain current sensor id data via the API, we may get a GW1000IOError
         # exception, if we do let it bubble up
         response = self.station.get_sensor_id()
         # if we made it here our response was validated by checksum
-        # determine the size of the sensor id data, it's a big endian short
-        # (two byte) integer at bytes 4 and 5
-        raw_data_size = struct.unpack(">H", response[3:5])[0]
-        # extract the actual sensor id data
-        data = response[5:5 + raw_data_size - 4]
-        # initialise a counter
-        index = 0
-        # initialise a list to hold our final data
-        sensor_id_list = []
-        # iterate over the data
-        while index < len(data):
-            sensor_id = bytes_to_hex(data[index + 1: index + 5],
-                                     separator='',
-                                     caps=False)
-            batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
-            batt = six.indexbytes(data, index + 5)
-            batt_state = getattr(self, batt_fn)(batt)
-            # Add the sensor to our list
-            sensor_id_list.append({'address': data[index:index + 1],
-                                   'id': sensor_id,
-                                   'battery': batt_state,
-                                   'signal': six.indexbytes(data, index + 6)
-                                   })
-            index += 7
-        return sensor_id_list
-
-    @staticmethod
-    def batt_binary(batt):
-        """Decode a binary battery state."""
-
-        if (batt & 1 << 0) == 1 << 0:
-            return 1
-        return 0
-
-    @staticmethod
-    def batt_int(batt):
-        """Decode a integer battery state"""
-
-        return batt
-
-    @staticmethod
-    def batt_volt(batt):
-        """Decode a voltage battery state."""
-
-        return round(0.02 * batt, 2)
+        # re-initialise our sensors object with the sensor ID data we just
+        # obtained
+        self.sensors_obj.set_sensor_id_data(response)
+        # return our Sensors object
+        return self.sensors_obj
 
     def startup(self):
         """Start a thread that collects data from the GW1000 API."""
@@ -3666,17 +3590,21 @@ class Gw1000Collector(Collector):
             b'\x60': ('decode_distance', 1, 'lightningdist'),
             b'\x61': ('decode_utc', 4, 'lightningdettime'),
             b'\x62': ('decode_count', 4, 'lightningcount'),
-            b'\x63': ('decode_wh34', 3, ('temp9', 'wh34_ch1_batt')),
-            b'\x64': ('decode_wh34', 3, ('temp10', 'wh34_ch2_batt')),
-            b'\x65': ('decode_wh34', 3, ('temp11', 'wh34_ch3_batt')),
-            b'\x66': ('decode_wh34', 3, ('temp12', 'wh34_ch4_batt')),
-            b'\x67': ('decode_wh34', 3, ('temp13', 'wh34_ch5_batt')),
-            b'\x68': ('decode_wh34', 3, ('temp14', 'wh34_ch6_batt')),
-            b'\x69': ('decode_wh34', 3, ('temp15', 'wh34_ch7_batt')),
-            b'\x6A': ('decode_wh34', 3, ('temp16', 'wh34_ch8_batt')),
+            # WH34 battery data is not obtained from live data rather it is
+            # obtained from sensor ID data
+            b'\x63': ('decode_wh34', 3, 'temp9'),
+            b'\x64': ('decode_wh34', 3, 'temp10'),
+            b'\x65': ('decode_wh34', 3, 'temp11'),
+            b'\x66': ('decode_wh34', 3, 'temp12'),
+            b'\x67': ('decode_wh34', 3, 'temp13'),
+            b'\x68': ('decode_wh34', 3, 'temp14'),
+            b'\x69': ('decode_wh34', 3, 'temp15'),
+            b'\x6A': ('decode_wh34', 3, 'temp16'),
+            # WH45 battery data is not obtained from live data rather it is
+            # obtained from sensor ID data
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                           'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
-                                          'co2', 'co2_24h_avg', 'wh45_batt')),
+                                          'co2', 'co2_24h_avg')),
             b'\x71': (None, None, None),
             b'\x72': ('decode_wet', 1, 'leafwet1'),
             b'\x73': ('decode_wet', 1, 'leafwet2'),
@@ -3965,7 +3893,7 @@ class Gw1000Collector(Collector):
         decode_co2 = decode_dir
         decode_wet = decode_humid
 
-        def decode_wh34(self, data, fields=None):
+        def decode_wh34(self, data, field=None):
             """Decode WH34 sensor data.
 
             Data consists of three bytes:
@@ -3977,9 +3905,9 @@ class Gw1000Collector(Collector):
             3       battery voltage     0.02 * value Volts
             """
 
-            if len(data) == 3 and fields is not None:
+            if len(data) == 3 and field is not None:
                 results = dict()
-                results[fields[0]] = self.decode_temp(data[0:2])
+                results[field] = self.decode_temp(data[0:2])
                 # we could decode the battery voltage but we will be obtaining
                 # battery voltage data from the sensor IDs in a later step so
                 # we can skip it here
@@ -4044,36 +3972,219 @@ class Gw1000Collector(Collector):
 
             return None
 
-        @staticmethod
-        def binary_desc(value):
-            if value is not None:
-                if value == 0:
-                    return "OK"
-                elif value == 1:
-                    return "low"
-                else:
-                    return None
-            return None
+    class Sensors(object):
+        """Class to manage GW1000 sensor ID data.
+
+        Class Sensors allows access to various elements of sensor ID data via a
+        number of properties and methods when the class is initialised with the
+        GW1000 API response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID
+        command.
+
+        A Sensors object can be initialised with sensor ID data on
+        instantiation or an existing Sensors object can be updated by calling
+        the set_sensor_id_data() method passing the sensor ID data to be used
+        as the only parameter.
+        """
+
+        # Tuple of sensor ID values for sensors that are not registered with
+        # the GW1000. 'fffffffe' means the sensor is disabled, 'ffffffff' means
+        # the sensor is registering.
+        not_registered = ('fffffffe', 'ffffffff')
+
+        def __init__(self, sensor_id_data=None):
+            """Initialise myself"""
+
+            # initialise a dict to hold the parsed sensor data
+            self.sensor_data = dict()
+            # parse the raw sensor ID data and store the results in my parsed
+            # sensor data dict
+            self.set_sensor_id_data(sensor_id_data)
+
+        def set_sensor_id_data(self, id_data):
+            """Parse the raw sensor ID data and store the results."""
+
+            # initialise our parsed sensor ID data dict
+            self.sensor_data = {}
+            # do we have any raw sensor ID data
+            if id_data is not None and len(id_data) > 0:
+                # determine the size of the sensor id data, it's a big endian
+                # short (two byte) integer at bytes 4 and 5
+                data_size = struct.unpack(">H", id_data[3:5])[0]
+                # extract the actual sensor id data
+                data = id_data[5:5 + data_size - 4]
+                # initialise a counter
+                index = 0
+                # iterate over the data
+                while index < len(data):
+                    # get the sensor address
+                    address = data[index:index + 1]
+                    # get the sensor ID
+                    sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                             separator='',
+                                             caps=False)
+                    # get the method to be used to decode the battery state
+                    # data
+                    batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
+                    # get the raw battery state data
+                    batt = six.indexbytes(data, index + 5)
+                    # parse the raw battery state data
+                    batt_state = getattr(self, batt_fn)(batt)
+                    # now add the sensor to our sensor data dict
+                    self.sensor_data[address]={'id': sensor_id,
+                                               'battery': batt_state,
+                                               'signal': six.indexbytes(data, index + 6)
+                                               }
+                    # each sensor entry is seven bytes in length so skip to the
+                    # start of the next sensor
+                    index += 7
+
+        @property
+        def addresses(self):
+            """Obtain a list of sensor addresses.
+
+            This includes all sensor addresses reported by the GW1000, this
+            includes:
+            - sensors that are actually connected to the GW1000
+            - sensors that are attempting to connect to the GW1000
+            - GW1000 sensor addresses that are searching for a sensor
+            - GW1000 sensor addresses that are disabled
+            """
+
+            # this is simply the list of keys to our sensor data dict
+            return self.sensor_data.keys()
+
+        @property
+        def connected_addresses(self):
+            """Obtain a list of sensor addresses for connected sensors only.
+
+            Sometimes we only want a list of addresses for sensors that are
+            actually connected to the GW1000. We can filter out those addresses
+            that do not have connected sensors by looking at the sensor ID. If
+            the sensor ID is 'fffffffe' either the sensor is connecting to the
+            GW1000 or the GW1000 is searching for a sensor for that address. If
+            the sensor ID is 'ffffffff' the GW1000 sensor address is disabled.
+            """
+
+            # initialise a list to hold our connected sensor addresses
+            connected_list = list()
+            # iterate over all sensors
+            for address, data in six.iteritems(self.sensor_data):
+                # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
+                # must be connected
+                if data['id'] not in self.not_registered:
+                    connected_list.append(address)
+            return connected_list
+
+        @property
+        def data(self):
+            """Obtain the data dict for all known sensors."""
+
+            return self.sensor_data
+
+        def id(self, address):
+            """Obtain the sensor ID for a given sensor address."""
+
+            return self.sensor_data[address]['id']
+
+        def battery_state(self, address):
+            """Obtain the sensor battery state for a given sensor address."""
+
+            return self.sensor_data[address]['battery']
+
+        def signal_level(self, address):
+            """Obtain the sensor signal level for a given sensor address."""
+
+            return self.sensor_data[address]['signal']
+
+        @property
+        def battery_and_signal_data(self):
+            """Obtain a dict of sensor battery state and signal level data.
+
+            Iterate over the list of connected sensors and obtain a dict of
+            sensor battery state data for each connected sensor.
+            """
+
+            # initialise a dict to hold the battery state data
+            data = {}
+            # iterate over our connected sensors
+            for sensor in self.connected_addresses:
+                # get the sensor name
+                sensor_name = Gw1000Collector.sensor_ids[sensor]['name']
+                # create the sensor battery state field for this sensor
+                data[''.join([sensor_name, '_batt'])] = self.battery_state(sensor)
+                # create the sensor signal level field for this sensor
+                data[''.join([sensor_name, '_sig'])] = self.signal_level(sensor)
+            # return our data
+            return data
 
         @staticmethod
-        def voltage_desc(value):
+        def battery_desc(address, value):
+            """Determine the battery state description for a given sensor.
+
+            Given the address...
+            """
+
             if value is not None:
-                if value <= 1.2:
-                    return "low"
-                else:
-                    return "OK"
-            return None
+                batt_fn = Gw1000Collector.sensor_ids[address].get('batt_fn')
+                if batt_fn == 'batt_binary':
+                    if value == 0:
+                        return "OK"
+                    elif value == 1:
+                        return "low"
+                    else:
+                        return 'Unknown'
+                elif batt_fn == 'batt_int':
+                    if value <= 1:
+                        return "low"
+                    elif value == 6:
+                        return "DC"
+                    elif value <= 5:
+                        return "OK"
+                    else:
+                        return 'Unknown'
+                elif batt_fn == 'batt_volt':
+                    if value <= 1.2:
+                        return "low"
+                    else:
+                        return "OK"
+            else:
+                return 'Unknown'
 
         @staticmethod
-        def level_desc(value):
-            if value is not None:
-                if value <= 1:
-                    return "low"
-                elif value == 6:
-                    return "DC"
-                else:
-                    return "OK"
-            return None
+        def batt_binary(batt):
+            """Decode a binary battery state.
+
+            Battery state is stored in bit 0 as either 0 or 1. If 1 the battery
+            is low, if 0 the battery is normal. We need to mask off bits 1 to 7 as
+            they are not guaranteed to be set in any particular way.
+            """
+
+            if (batt & 1 << 0) == 1 << 0:
+                return 1
+            return 0
+
+        @staticmethod
+        def batt_int(batt):
+            """Decode a integer battery state.
+
+            According to the API documentation battery state is stored as an
+            integer from 0 to 5 with <=1 being considered low. Experience with
+            WH43 has shown that battery state 6 also exists when the device is
+            run from DC. This does not appear to be documented in the API
+            documentation.
+            """
+
+            return batt
+
+        @staticmethod
+        def batt_volt(batt):
+            """Decode a voltage battery state.
+
+            Battery state is stored as integer values of battery voltage/0.02
+            with <=1.2V considered low.
+            """
+
+            return round(0.02 * batt, 2)
 
 
 # ============================================================================
@@ -5179,8 +5290,8 @@ class DirectGw1000(object):
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
                                                      collector.station.port))
-            # call the driver objects get_sensor_ids() method
-            sensor_id_data = collector.sensor_id_data
+            # first update the colector's sensor ID data
+            collector.update_sensor_id_data()
         except GW1000IOError as e:
             print()
             print("Unable to connect to GW1000: %s" % e)
@@ -5188,34 +5299,33 @@ class DirectGw1000(object):
             print()
             print("Timeout. GW1000 did not respond.")
         else:
-            # did we get any sensor ID data
-            if sensor_id_data is not None and len(sensor_id_data) > 0:
+            # now get the sensors property from the collector
+            sensors = collector.sensors
+            # the sensor ID data is in the sensors data property, did
+            # we get any sensor ID data
+            if sensors.data is not None and len(sensors.data) > 0:
                 # now format and display the data
                 print()
                 print("%-10s %s" % ("Sensor", "Status"))
                 # iterate over each sensor for which we have data
-                for sensor in sensor_id_data:
-                    # sensor address
-                    address = sensor['address']
+                for address, sensor_data in six.iteritems(sensors.data):
                     # the sensor id indicates whether it is disabled, attempting to
                     # register a sensor or already registered
-                    if sensor.get('id') == 'fffffffe':
+                    if sensor_data['id'] == 'fffffffe':
                         state = 'sensor is disabled'
-                    elif sensor.get('id') == 'ffffffff':
+                    elif sensor_data['id'] == 'ffffffff':
                         state = 'sensor is registering...'
                     else:
                         # the sensor is registered so we should have signal and battery
                         # data as well
-                        sensor_model = Gw1000Collector.sensor_ids[address].get('name').split("_")[0]
-                        battery_desc = getattr(collector.parser,
-                                               collector.parser.battery_state_desc[sensor_model])(sensor.get('battery'))
-                        battery_str = "%s (%s)" % (sensor.get('battery'), battery_desc)
-                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor.get('id').strip('0'),
-                                                                            sensor.get('signal'),
+                        battery_desc = sensors.battery_desc(address, sensor_data.get('battery'))
+                        battery_str = "%s (%s)" % (sensor_data.get('battery'), battery_desc)
+                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').strip('0'),
+                                                                            sensor_data.get('signal'),
                                                                             battery_str)
                         # print the formatted data
                     print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
-            elif len(sensor_id_data) == 0:
+            elif len(sensors.data) == 0:
                 print()
                 print("GW1000 did not return any sensor data.")
             else:
