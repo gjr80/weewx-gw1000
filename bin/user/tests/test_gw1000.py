@@ -8,10 +8,10 @@ suite tests correct operation of:
 
 -
 
-Version: 0.1.0b13                                 Date: 1 September 2020
+Version: 0.3.0a1                                 Date: xx xxxxx 2021
 
 Revision History
-    ?? ????? 2020      v0.1.0
+    ?? ????? 2021      v0.1.0
         - initial release
 
 To run the test suite:
@@ -47,37 +47,57 @@ import user.gw1000
 # TODO. Check utc_data data and result are correct
 # TODO. Check count_data data and result are correct
 
+class SensorsTestCase(unittest.TestCase):
+    """Test the Sensors class."""
+
+    def setUp(self):
+
+        # get a Sensors object
+        self.sensors = user.gw1000.Gw1000Collector.Sensors()
+
+    def test_battery_methods(self):
+        """Test methods used to determine battery states."""
+
+        # binary battery states (method batt_binary())
+        self.assertEqual(self.sensors.batt_binary(255), 1)
+        self.assertEqual(self.sensors.batt_binary(4), 0)
+
+        # integer battery states (method batt_int())
+        for int_batt in range(7):
+            self.assertEqual(self.sensors.batt_int(int_batt), int_batt)
+
+        # voltage battery states (method batt_volt())
+        self.assertEqual(self.sensors.batt_volt(0), 0.00)
+        self.assertEqual(self.sensors.batt_volt(100), 2.00)
+        self.assertEqual(self.sensors.batt_volt(101), 2.02)
+        self.assertEqual(self.sensors.batt_volt(255), 5.1)
+
+        # binary description
+        self.assertEqual(self.sensors.battery_desc(b'\x00', 0), 'OK')
+        self.assertEqual(self.sensors.battery_desc(b'\x00', 1), 'low')
+        self.assertEqual(self.sensors.battery_desc(b'\x00', 2), 'Unknown')
+        self.assertEqual(self.sensors.battery_desc(b'\x00', None), 'Unknown')
+
+        # int description
+        self.assertEqual(self.sensors.battery_desc(b'\x16', 0), 'low')
+        self.assertEqual(self.sensors.battery_desc(b'\x16', 1), 'low')
+        self.assertEqual(self.sensors.battery_desc(b'\x16', 4), 'OK')
+        self.assertEqual(self.sensors.battery_desc(b'\x16', 6), 'DC')
+        self.assertEqual(self.sensors.battery_desc(b'\x16', 7), 'Unknown')
+        self.assertEqual(self.sensors.battery_desc(b'\x16', None), 'Unknown')
+
+        # voltage description
+        self.assertEqual(self.sensors.battery_desc(b'\x20', 0), 'low')
+        self.assertEqual(self.sensors.battery_desc(b'\x20', 1.2), 'low')
+        self.assertEqual(self.sensors.battery_desc(b'\x20', 1.5), 'OK')
+        self.assertEqual(self.sensors.battery_desc(b'\x20', None), 'Unknown')
+
 
 class ParseTestCase(unittest.TestCase):
     """Test the Gw1000Collector Parser class."""
 
-    # batt = {
-    #     'multi': (multi_batt, 'battery_mask'),
-    #     'wh31': (wh31_batt, 'battery_mask'),
-    #     'wh51': (wh51_batt, 'battery_mask'),
-    #     'wh41': (wh41_batt, 'battery_value'),
-    #     'wh57': (wh57_batt, 'battery_value'),
-    #     'wh68': (wh68_batt, 'battery_voltage'),
-    #     'ws80': (ws80_batt, 'battery_voltage'),
-    #     'wh55': (wh55_batt, 'battery_value'),
-    #     'unused': ({}, 'battery_mask')
-    # }
     batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
                    'unused', 'wh41', 'wh55')
-    battery_state_desc = {'wh24': 'binary_desc',
-                          'wh25': 'binary_desc',
-                          'wh26': 'binary_desc',
-                          'wh31': 'binary_desc',
-                          'wh32': 'binary_desc',
-                          'wh40': 'binary_desc',
-                          'wh41': 'level_desc',
-                          'wh51': 'binary_desc',
-                          'wh55': 'level_desc',
-                          'wh57': 'level_desc',
-                          'wh65': 'binary_desc',
-                          'wh68': 'voltage_desc',
-                          'ws80': 'voltage_desc',
-                          }
     response_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -168,17 +188,28 @@ class ParseTestCase(unittest.TestCase):
         b'\x60': ('decode_distance', 1, 'lightningdist'),
         b'\x61': ('decode_utc', 4, 'lightningdettime'),
         b'\x62': ('decode_count', 4, 'lightningcount'),
-        b'\x63': ('decode_wh34', 3, ('temp9', 'wh34_ch1_batt')),
-        b'\x64': ('decode_wh34', 3, ('temp10', 'wh34_ch2_batt')),
-        b'\x65': ('decode_wh34', 3, ('temp11', 'wh34_ch3_batt')),
-        b'\x66': ('decode_wh34', 3, ('temp12', 'wh34_ch4_batt')),
-        b'\x67': ('decode_wh34', 3, ('temp13', 'wh34_ch5_batt')),
-        b'\x68': ('decode_wh34', 3, ('temp14', 'wh34_ch6_batt')),
-        b'\x69': ('decode_wh34', 3, ('temp15', 'wh34_ch7_batt')),
-        b'\x6A': ('decode_wh34', 3, ('temp16', 'wh34_ch8_batt')),
+        # WH34 battery data is not obtained from live data rather it is
+        # obtained from sensor ID data
+        b'\x63': ('decode_wh34', 3, 'temp9'),
+        b'\x64': ('decode_wh34', 3, 'temp10'),
+        b'\x65': ('decode_wh34', 3, 'temp11'),
+        b'\x66': ('decode_wh34', 3, 'temp12'),
+        b'\x67': ('decode_wh34', 3, 'temp13'),
+        b'\x68': ('decode_wh34', 3, 'temp14'),
+        b'\x69': ('decode_wh34', 3, 'temp15'),
+        b'\x6A': ('decode_wh34', 3, 'temp16'),
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
-                                      'co2', 'co2_24h_avg', 'wh45_batt'))
+                                      'co2', 'co2_24h_avg')),
+        b'\x71': (None, None, None),
+        b'\x72': ('decode_wet', 1, 'leafwet1'),
+        b'\x73': ('decode_wet', 1, 'leafwet2'),
+        b'\x74': ('decode_wet', 1, 'leafwet3'),
+        b'\x75': ('decode_wet', 1, 'leafwet4'),
+        b'\x76': ('decode_wet', 1, 'leafwet5'),
+        b'\x77': ('decode_wet', 1, 'leafwet6'),
+        b'\x78': ('decode_wet', 1, 'leafwet7'),
+        b'\x79': ('decode_wet', 1, 'leafwet8')
     }
     rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
                         b'\x11', b'\x12', b'\x13', b'\x14')
@@ -200,45 +231,6 @@ class ParseTestCase(unittest.TestCase):
                        'humid1': 58,
                        'temp2': 26.7,
                        'humid2': 58,
-                       'wh40_batt': 0,
-                       'wh26_batt': 0,
-                       'wh25_batt': 0,
-                       'wh65_batt': 0,
-                       'wh31_ch1_batt': 0,
-                       'wh31_ch2_batt': 0,
-                       'wh31_ch3_batt': 0,
-                       'wh31_ch4_batt': 0,
-                       'wh31_ch5_batt': 0,
-                       'wh31_ch6_batt': 0,
-                       'wh31_ch7_batt': 0,
-                       'wh31_ch8_batt': 0,
-                       'wh51_ch1_batt': 0,
-                       'wh51_ch2_batt': 0,
-                       'wh51_ch3_batt': 0,
-                       'wh51_ch4_batt': 0,
-                       'wh51_ch5_batt': 0,
-                       'wh51_ch6_batt': 0,
-                       'wh51_ch7_batt': 0,
-                       'wh51_ch8_batt': 0,
-                       'wh51_ch9_batt': 0,
-                       'wh51_ch10_batt': 0,
-                       'wh51_ch11_batt': 0,
-                       'wh51_ch12_batt': 0,
-                       'wh51_ch13_batt': 0,
-                       'wh51_ch14_batt': 0,
-                       'wh51_ch15_batt': 0,
-                       'wh51_ch16_batt': 0,
-                       'wh57_batt': 5,
-                       'wh68_batt': 5.1000000000000005,
-                       'ws80_batt': 5.1000000000000005,
-                       'wh41_ch1_batt': 6,
-                       'wh41_ch2_batt': None,
-                       'wh41_ch3_batt': None,
-                       'wh41_ch4_batt': None,
-                       'wh55_ch1_batt': None,
-                       'wh55_ch2_batt': None,
-                       'wh55_ch3_batt': None,
-                       'wh55_ch4_batt': None,
                        'lightningcount': 0,
                        'lightningdettime': None,
                        'lightningdist': None,
@@ -257,33 +249,18 @@ class ParseTestCase(unittest.TestCase):
     datetime_data = {'hex': '0C AB 23 41 56 37', 'value': (12, 171, 35, 65, 86, 55)}
     pm25_data = {'hex': '00 39', 'value': 5.7}
     moist_data = {'hex': '3A', 'value': 58}
-    batt_data = {'hex': '06 00 00 00 04 FF FF FF F6 FF FF FF FF FF FF FF',
-                 'value': {'wh40_batt': 0, 'wh26_batt': 0, 'wh25_batt': 0, 'wh65_batt': 0,
-                           'wh31_ch1_batt': 0, 'wh31_ch2_batt': 0, 'wh31_ch3_batt': 0,
-                           'wh31_ch4_batt': 0, 'wh31_ch5_batt': 0, 'wh31_ch6_batt': 0,
-                           'wh31_ch7_batt': 0, 'wh31_ch8_batt': 0, 'wh51_ch1_batt': 0,
-                           'wh51_ch2_batt': 0, 'wh51_ch3_batt': 0, 'wh51_ch4_batt': 0,
-                           'wh51_ch5_batt': 0, 'wh51_ch6_batt': 0, 'wh51_ch7_batt': 0,
-                           'wh51_ch8_batt': 0, 'wh51_ch9_batt': 0, 'wh51_ch10_batt': 0,
-                           'wh51_ch11_batt': 0, 'wh51_ch12_batt': 0, 'wh51_ch13_batt': 0,
-                           'wh51_ch14_batt': 0, 'wh51_ch15_batt': 0, 'wh51_ch16_batt': 0,
-                           'wh57_batt': 4, 'wh68_batt': 5.1000000000000005,
-                           'ws80_batt': 5.1000000000000005, 'wh41_ch1_batt': 6,
-                           'wh41_ch2_batt': None, 'wh41_ch3_batt': None, 'wh41_ch4_batt': None,
-                           'wh55_ch1_batt': None, 'wh55_ch2_batt': None, 'wh55_ch3_batt': None,
-                           'wh55_ch4_batt': None}}
     leak_data = {'hex': '3A', 'value': 58}
     distance_data = {'hex': '1A', 'value': 26}
     utc_data = {'hex': '5F 40 72 51', 'value': 1598059089}
     count_data = {'hex': '00 40 72 51', 'value': 4223569}
     wh34_data = {'hex': '00 EA 4D',
-                 'field': ('t', 'b'),
-                 'value': {'t': 23.4, 'b': 1.54}
+                 'field': 't',
+                 'value': {'t': 23.4}
                  }
     wh45_data = {'hex': '00 EA 4D 35 6D 28 78 34 3D 62 7E 8D 2A 39 9F 04',
-                 'field': ('t', 'h', 'p10', 'p10_24', 'p25', 'p25_24', 'c', 'c_24', 'b'),
+                 'field': ('t', 'h', 'p10', 'p10_24', 'p25', 'p25_24', 'c', 'c_24'),
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
-                           'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751, 'b': 4}
+                           'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751}
                  }
 
     def setUp(self):
@@ -306,46 +283,6 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.multi_batt['wh26']['mask'], 1 << 5)
         self.assertEqual(self.parser.multi_batt['wh25']['mask'], 1 << 6)
         self.assertEqual(self.parser.multi_batt['wh65']['mask'], 1 << 7)
-
-        # wh31_batt
-        for bit in range(8):
-            self.assertEqual(self.parser.wh31_batt[bit + 1]['mask'], 1 << bit)
-
-        # wh41_batt
-        for bit in range(4):
-            self.assertEqual(self.parser.wh41_batt[bit + 1]['shift'], bit * 4)
-            self.assertEqual(self.parser.wh41_batt[bit + 1]['mask'], 0x0F)
-
-        # wh51_batt
-        for bit in range(16):
-            self.assertEqual(self.parser.wh51_batt[bit + 1]['mask'], 1 << bit)
-
-        # wh55_batt
-        for bit in range(4):
-            self.assertEqual(self.parser.wh55_batt[bit + 1]['shift'], bit * 8)
-            self.assertEqual(self.parser.wh55_batt[bit + 1]['mask'], 0xFF)
-
-        # wh57_batt
-        self.assertEqual(self.parser.wh57_batt['wh57'], {})
-
-        # wh68_batt
-        self.assertEqual(self.parser.wh68_batt['wh68'], {})
-
-        # ws80_batt
-        self.assertEqual(self.parser.ws80_batt['ws80'], {})
-
-        # batt
-#        self.assertEqual(self.parser.batt, self.batt)
-
-        # batt_fields
-        self.assertEqual(self.parser.batt_fields, self.batt_fields)
-        
-        # battery_state_format
-        self.assertEqual(self.parser.battery_state_format, "<BBHBBBBHLBB")
-
-        # battery_state_desc
-        self.assertEqual(self.parser.battery_state_desc,
-                         self.battery_state_desc)
 
         # response_struct
         self.assertEqual(self.parser.response_struct, self.response_struct)
@@ -492,11 +429,11 @@ class ParseTestCase(unittest.TestCase):
         pass
 
         # test wh34 decode (method decode_wh34())
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']), fields=self.wh34_data['field']),
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['hex']), field=self.wh34_data['field']),
                          self.wh34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), fields=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), fields=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
 
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
@@ -505,50 +442,9 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
 
-        # test battery decode (method decode_batt())
-        self.assertEqual(self.parser.decode_batt(hex_to_bytes(self.batt_data['hex'])),
-                         self.batt_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(1))), {})
-        self.assertEqual(self.parser.decode_batt(hex_to_bytes(xbytes(17))), {})
-
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
                              self.parsed_response)
-
-    def test_battery(self):
-        """Test methods used to parse battery states."""
-
-        # battery mask (method battery_mask())
-        self.assertEqual(self.parser.battery_mask(255, 1 << 3), 1)
-        self.assertEqual(self.parser.battery_mask(4, 1 << 3), 0)
-
-        # battery value (method battery_value())
-        self.assertEqual(self.parser.battery_value(0x65, mask=0x0F, shift=4), 6)
-        self.assertEqual(self.parser.battery_value(0x01020304, mask=0xFF, shift=8), 3)
-        self.assertEqual(self.parser.battery_value(5), 5)
-
-        # battery voltage (method battery_voltage())
-        self.assertEqual(self.parser.battery_voltage(100), 2)
-
-        # binary description (method binary_desc())
-        self.assertEqual(self.parser.binary_desc(0), 'OK')
-        self.assertEqual(self.parser.binary_desc(1), 'low')
-        self.assertEqual(self.parser.binary_desc(2), None)
-        self.assertEqual(self.parser.binary_desc(None), None)
-
-        # voltage description (method voltage_desc())
-        self.assertEqual(self.parser.voltage_desc(0), 'low')
-        self.assertEqual(self.parser.voltage_desc(1.2), 'low')
-        self.assertEqual(self.parser.voltage_desc(1.5), 'OK')
-        self.assertEqual(self.parser.voltage_desc(None), None)
-
-        # level description (method level_desc())
-        self.assertEqual(self.parser.level_desc(0), 'low')
-        self.assertEqual(self.parser.level_desc(1), 'low')
-        self.assertEqual(self.parser.level_desc(4), 'OK')
-        self.assertEqual(self.parser.level_desc(6), 'DC')
-        self.assertEqual(self.parser.level_desc(None), None)
 
 
 class UtilitiesTestCase(unittest.TestCase):
