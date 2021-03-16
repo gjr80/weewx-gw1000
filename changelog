@@ -11,6 +11,7 @@ v0.3.0
     loop packets as field 'lightningcount' (the default field name). Previously
     this field was used to derive the WeeWX extended schema field
     'lightning_strike_count' and was not included in loop packets.
+*   fixed incomplete --default-map output
 v0.2.0
 *   added support for WH45 sensor
 *   improved comments in installer/wee_config inserted config stanzas/entries

@@ -45,6 +45,7 @@ Revision History
             name). Previously this field was used to derive the WeeWX extended
             schema field 'lightning_strike_count' and was not included in loop
             packets.
+        -   fixed incomplete --default-map output
     9 January 2021          v0.2.0
         -   added support for WH45 sensor
         -   improved comments in installer/wee_config inserted config
