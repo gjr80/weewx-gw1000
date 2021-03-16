@@ -511,19 +511,35 @@ class UtilitiesTestCase(unittest.TestCase):
 class ListsAndDictsTestCase(unittest.TestCase):
     """Test case to test list and dict consistency."""
 
+    def setUp(self):
+
+        # construct the default field map
+        default_field_map = dict(user.gw1000.Gw1000.default_field_map)
+        # now add in the rain field map
+        default_field_map.update(user.gw1000.Gw1000.rain_field_map)
+        # now add in the wind field map
+        default_field_map.update(user.gw1000.Gw1000.wind_field_map)
+        # now add in the battery state field map
+        default_field_map.update(user.gw1000.Gw1000.battery_field_map)
+        # now add in the sensor signal field map
+        default_field_map.update(user.gw1000.Gw1000.sensor_signal_field_map)
+        # and save it for later
+        self.default_field_map = default_field_map
+
     def test_dicts(self):
         """Test dicts for consistency."""
 
-        for w_field, g_field in six.iteritems(user.gw1000.Gw1000.default_field_map):
+        # test that each entry in the GW1000 default field map appears in the observation group dictionary
+        for w_field, g_field in six.iteritems(self.default_field_map):
             self.assertIn(g_field,
                           user.gw1000.DirectGw1000.gw1000_obs_group_dict.keys(),
                           msg="A field from the GW1000 default field map is missing from the observation group dictionary")
+
+        # test that each entry in the observation group dictionary is included in the GW1000 default field map
         for g_field, group in six.iteritems(user.gw1000.DirectGw1000.gw1000_obs_group_dict):
             self.assertIn(g_field,
-                          user.gw1000.Gw1000.default_field_map.values(),
+                          self.default_field_map.values(),
                           msg="A key from the observation group dictionary is missing from the GW1000 default field map")
-
-
 
 
 class StationTestCase(unittest.TestCase):
