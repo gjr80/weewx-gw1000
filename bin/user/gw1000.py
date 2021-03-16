@@ -738,7 +738,7 @@ class Gw1000(object):
         'lightning_distance': 'lightningdist',
         'lightning_last_det_time': 'lightningdettime',
         # 'lightningcount' is the GW1000 lightning count field obtained via the
-        # API. It is safe for the user to chnage this mapping as
+        # API. It is safe for the user to change this mapping as
         # 'lightning_strike_count' is derived before the user mapping is
         # applied.
         'lightningcount': 'lightningcount',
@@ -931,15 +931,15 @@ class Gw1000(object):
             _port = int(_port)
         except TypeError:
             # most likely port somehow ended up being None, in any case force
-            # autodetection by setting port to None
+            # auto detection by setting port to None
             _port = None
         except ValueError:
             # We couldn't convert the port number to an integer. Maybe it was
             # because it was 'auto' (or some variation) or perhaps it was
-            # invalid. Either way we need to set port to None to force
-            # autodetection. If there was an invalid port specified then log it.
+            # invalid. Either way we need to set port to None to force auto
+            # detection. If there was an invalid port specified then log it.
             if _port.lower() != 'auto':
-                loginf("Invalid GW1000 port '%s' specified, port will be autodetected" % (_port,))
+                loginf("Invalid GW1000 port '%s' specified, port will be auto detected" % (_port,))
             _port = None
         # set the port property
         self.port = _port
@@ -954,7 +954,7 @@ class Gw1000(object):
         self.poll_interval = int(gw1000_config.get('poll_interval',
                                                    default_poll_interval))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
-        # to the GW1000. In tems of TH data the process is transparent and we
+        # to the GW1000. In terms of TH data the process is transparent and we
         # do not need to know if a WH32 or other sensor is providing outdoor TH
         # data but in terms of battery state we need to know so the battery
         # state data can be reported against the correct sensor.
@@ -1400,7 +1400,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                         elif self.log_failures:
                             # we are already in a lost contact state, but
                             # failure logging may have been turned on for a
-                            # 'once in a while' log entry so we need to trun it
+                            # 'once in a while' log entry so we need to turn it
                             # off again
                             self.set_failure_logging(False)
                     else:
@@ -2441,8 +2441,6 @@ class Gw1000Collector(Collector):
         calibration_dict = {}
         # initialise a counter
         index = 0
-        # initialise a dict to hold our final data
-        calibration_dict = {}
         # iterate over the data
         while index < len(data):
             try:
@@ -2689,7 +2687,7 @@ class Gw1000Collector(Collector):
         discriminate between connected sensors, connecting sensors and disabled
         sensor addresses.
 
-        Before using the Gw1000Collector's Sensors object it shoudl be updated
+        Before using the Gw1000Collector's Sensors object it should be updated
         with recent sensor ID data via the GW1000 API
         """
 
@@ -4037,10 +4035,10 @@ class Gw1000Collector(Collector):
                     # parse the raw battery state data
                     batt_state = getattr(self, batt_fn)(batt)
                     # now add the sensor to our sensor data dict
-                    self.sensor_data[address]={'id': sensor_id,
-                                               'battery': batt_state,
-                                               'signal': six.indexbytes(data, index + 6)
-                                               }
+                    self.sensor_data[address] = {'id': sensor_id,
+                                                 'battery': batt_state,
+                                                 'signal': six.indexbytes(data, index + 6)
+                                                 }
                     # each sensor entry is seven bytes in length so skip to the
                     # start of the next sensor
                     index += 7
@@ -4252,7 +4250,7 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
         return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
     except ValueError:
         # most likely we are running python3 and iterable is not a bytestring,
-        # try again coercing iterbale to a bytestring
+        # try again coercing iterable to a bytestring
         return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
     except (TypeError, AttributeError):
         # TypeError - 'iterable' is not iterable
@@ -5297,7 +5295,7 @@ class DirectGw1000(object):
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
                                                      collector.station.port))
-            # first update the colector's sensor ID data
+            # first update the collector's sensor ID data
             collector.update_sensor_id_data()
         except GW1000IOError as e:
             print()
