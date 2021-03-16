@@ -1,3 +1,16 @@
+v0.3.0
+*   when run directly with --live-data the --units command line option can now
+    be used to specify output in US customary or Metric units
+*   added support for WH35 sensor
+*   when run directly the driver now distinguishes between no sensor ID
+    response and an empty sensor ID response
+*   reworked battery state, signal level and sensor ID processing to cater for
+    changes to battery state reporting introduced in GW1000 API v1.6.0 (GW1000
+    v1.6.5 firmware)
+*   The GW1000 cumulative daily lightning count field is now included in driver
+    loop packets as field 'lightningcount' (the default field name). Previously
+    this field was used to derive the WeeWX extended schema field
+    'lightning_strike_count' and was not included in loop packets.
 v0.2.0
 *   added support for WH45 sensor
 *   improved comments in installer/wee_config inserted config stanzas/entries

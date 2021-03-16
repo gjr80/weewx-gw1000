@@ -28,11 +28,23 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.0a1                                    Date: xx xxxxxx 2021
+Version: 0.3.0b1                                    Date: 16 March 2021
 
 Revision History
     xx xxxxxxx 2021         v0.3.0
-        -
+        -   when run directly with --live-data the --units command line option
+            can now be used to specify output in US customary or Metric units
+        -   added support for WH35 sensor
+        -   when run directly the driver now distinguishes between no sensor ID
+            response and an empty sensor ID response
+        -   reworked battery state, signal level and sensor ID processing to
+            cater for changes to battery state reporting introduced in GW1000
+            API v1.6.0 (GW1000 v1.6.5 firmware)
+        -   The GW1000 cumulative daily lightning count field is now included
+            in driver loop packets as field 'lightningcount' (the default field
+            name). Previously this field was used to derive the WeeWX extended
+            schema field 'lightning_strike_count' and was not included in loop
+            packets.
     9 January 2021          v0.2.0
         -   added support for WH45 sensor
         -   improved comments in installer/wee_config inserted config
@@ -147,6 +159,8 @@ method):
         [Accumulator]
             [[lightning_strike_count]]
                 extractor = sum
+            [[lightningcount]]
+                extractor = last
             [[lightning_last_det_time]]
                 extractor = last
             [[daymaxwind]]
@@ -577,7 +591,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.3.0a1'
+DRIVER_VERSION = '0.3.0b1'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -5632,7 +5646,7 @@ def main():
             [--debug=0|1|2|3]     
        python -m user.gw1000 --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
-            [units=us|metric]  
+            [--units=us|metric]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --firmware-version|--mac-address|

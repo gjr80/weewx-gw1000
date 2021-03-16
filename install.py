@@ -10,9 +10,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.2.0                                        Date: 9 January 2021
+Version: 0.3.0b1                                      Date: 16 March 2021
 
 Revision History
+    xx xxxxxx 2021      v0.3.0
+        -   added field lightningcount to the extractor definitions
     9 January 2021      v0.2.0
         -   GW1000 config used by installer is now derived from a multiline
             string so as to allow embedded comments in installed config stanzas
@@ -37,7 +39,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.2.0"
+GW1000_VERSION = "0.3.0b1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -58,6 +60,8 @@ gw1000_config = """
         extractor = last
     [[lightning_strike_count]]
         extractor = sum
+    [[lightningcount]]
+        extractor = last
     [[lightning_last_det_time]]
         extractor = last
     [[stormRain]]
