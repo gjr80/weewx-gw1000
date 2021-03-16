@@ -737,8 +737,15 @@ class Gw1000(object):
         'leak4': 'leak4',
         'lightning_distance': 'lightningdist',
         'lightning_last_det_time': 'lightningdettime',
-#        'lightning_strike_count': 'lightning_strike_count'
-        'lightning_strike_count': 'lightningcount'
+        # 'lightningcount' is the GW1000 lightning count field obtained via the
+        # API. It is safe for the user to chnage this mapping as
+        # 'lightning_strike_count' is derived before the user mapping is
+        # applied.
+        'lightningcount': 'lightningcount',
+        # 'lightning_strike_count' is the WeeWX extended schema per period
+        # lightning count field that is derived from the GW1000 cumulative
+        # 'lightningcount' field
+        'lightning_strike_count': 'lightning_strike_count'
     }
     # Rain related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
