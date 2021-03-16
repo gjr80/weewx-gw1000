@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 gw1000.py
 
@@ -5442,8 +5443,13 @@ class DirectGw1000(object):
             # we will use the timestamp separately so pop it from the dict and
             # save for later
             datetime = live_sensor_data_dict.pop('datetime')
-
-            weewx.units.obs_group_dict.update(DirectGw1000.gw1000_obs_group_dict)
+            # extend the WeeWX obs_group_dict with our GW1000 obs_group_dict,
+            # because weewx.units.obs_group_dict.extend is a ListOfDicts we
+            # need to use .prepend since the synthetic python2 ListOfDicts does
+            # not support .update and we want to use the GW1000 entry should
+            # there already be an entry of the same name in
+            # weewx.units.obs_group_dict (eg 'rain')
+            weewx.units.obs_group_dict.prepend(DirectGw1000.gw1000_obs_group_dict)
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
             if self.opts.units.lower() == 'us':
