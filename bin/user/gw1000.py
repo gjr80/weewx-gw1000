@@ -621,7 +621,6 @@ default_lost_contact_log_period = 21600
 #                          GW1000 API error classes
 # ============================================================================
 
-
 class InvalidApiResponse(Exception):
     """Exception raised when an API call response is invalid."""
 
@@ -643,7 +642,6 @@ class UnknownCommand(Exception):
 # ============================================================================
 #                               class Gw1000
 # ============================================================================
-
 
 class Gw1000(object):
     """Base class for interacting with a GW1000.
@@ -1213,7 +1211,6 @@ class Gw1000(object):
 #                            GW1000 Service class
 # ============================================================================
 
-
 class Gw1000Service(weewx.engine.StdService, Gw1000):
     """GW1000 service class.
 
@@ -1526,7 +1523,6 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
 #                 GW1000 Loader/Configurator/Editor methods
 # ============================================================================
 
-
 def loader(config_dict, engine):
     return Gw1000Driver(**config_dict[DRIVER_NAME])
 
@@ -1544,7 +1540,6 @@ def confeditor_loader():
 # ============================================================================
 #                          class Gw1000ConfEditor
 # ============================================================================
-
 
 class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
     # define our config as a multiline string so we can preserve comments
@@ -1852,7 +1847,6 @@ once only or '1' to attempt startup indefinitely."""
 #                            GW1000 Driver class
 # ============================================================================
 
-
 class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
     """GW1000 driver class.
 
@@ -2083,7 +2077,6 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
 #                              class Collector
 # ============================================================================
 
-
 class Collector(object):
     """Base class for a client that polls an API."""
 
@@ -2103,7 +2096,6 @@ class Collector(object):
 # ============================================================================
 #                              class Gw1000Collector
 # ============================================================================
-
 
 class Gw1000Collector(Collector):
     """Class to poll the GW1000 API then decode and return data to the driver."""
@@ -4312,7 +4304,6 @@ def obfuscate(plain, obf_char='*'):
 # ============================================================================
 #                             class DirectGw1000
 # ============================================================================
-
 
 class DirectGw1000(object):
     """Class to interact with GW1000 driver when run directly.
