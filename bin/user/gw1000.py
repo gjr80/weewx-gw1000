@@ -127,11 +127,11 @@ method):
 
     -   download the GW1000 driver extension package:
 
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.1.0/gw1000-0.1.0.tar.gz
+        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.3.0/gw1000-0.3.0.tar.gz
 
     -   install the GW1000 driver extension:
 
-        $ wee_extension --install=/var/tmp/gw1000-0.1.0.tar.gz
+        $ wee_extension --install=/var/tmp/gw1000-0.3.0.tar.gz
 
         Note: Depending on your system/installation the above command may need
               to be prefixed with sudo.
@@ -477,12 +477,9 @@ the WeeWX daemon:
 # TODO. Check lightning count for correct gw1000 field name and default map
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
-# TODO. Confirm sensor ID signal value meaning
-# TODO. Confirm sensor ID battery meaning
 # TODO. Confirm WH26/WH32 battery status
 # TODO. Confirm WH68 battery status
 # TODO. Confirm WS80 battery status
-# TODO. Confirm WH55 battery status
 # TODO. Confirm WH24 battery status
 # TODO. Confirm WH25 battery status
 # TODO. Confirm WH40 battery status
@@ -525,31 +522,23 @@ try:
 
     log = logging.getLogger(__name__)
 
-
     def logdbg(msg):
         log.debug(msg)
-
 
     def loginf(msg):
         log.info(msg)
 
-
     def logerr(msg):
         log.error(msg)
-
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
     # level so define a suitable wrapper function.
-
-
     def log_traceback_critical(prefix=''):
         log_traceback(log.critical, prefix=prefix)
 
-
     def log_traceback_error(prefix=''):
         log_traceback(log.error, prefix=prefix)
-
 
     def log_traceback_debug(prefix=''):
         log_traceback(log.debug, prefix=prefix)
@@ -559,35 +548,26 @@ except ImportError:
     import syslog
     from weeutil.weeutil import log_traceback
 
-
     def logmsg(level, msg):
         syslog.syslog(level, 'gw1000: %s' % msg)
-
 
     def logdbg(msg):
         logmsg(syslog.LOG_DEBUG, msg)
 
-
     def loginf(msg):
         logmsg(syslog.LOG_INFO, msg)
-
 
     def logerr(msg):
         logmsg(syslog.LOG_ERR, msg)
 
-
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
     # level so define a suitable wrapper function.
-
-
     def log_traceback_critical(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_CRIT)
 
-
     def log_traceback_error(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
-
 
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
