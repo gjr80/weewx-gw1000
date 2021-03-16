@@ -14,7 +14,7 @@ The GW1000 driver can be operated as a traditional WeeWX driver where it is the
 source of loop data or it can be operated as a WeeWX service where it is used
 to augment loop data produced by another driver.
 
-Copyright (C) 2020 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-2021 Gary Roderick                   gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5515,6 +5515,10 @@ class DirectGw1000(object):
         # obtain a copy of the default field map, we need a copy so we can
         # augment it with the battery state map
         field_map = dict(Gw1000.default_field_map)
+        # now add in the rain field map
+        field_map.update(Gw1000.rain_field_map)
+        # now add in the wind field map
+        field_map.update(Gw1000.wind_field_map)
         # now add in the battery state field map
         field_map.update(Gw1000.battery_field_map)
         # now add in the sensor signal field map
