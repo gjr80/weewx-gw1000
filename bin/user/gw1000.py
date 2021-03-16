@@ -2393,9 +2393,12 @@ class Gw1000Collector(Collector):
         # initialise a dict to hold our final data
         offset_dict = dict()
         # and decode/store the offset data
-        offset_dict['co2'] = struct.unpack(">h", data[1:3])[0]
-        offset_dict['pm25'] = struct.unpack(">h", data[4:6])[0]/10.0
-        offset_dict['pm10'] = struct.unpack(">h", data[7:9])[0]/10.0
+        # bytes 0 and 1 hold the CO2 offset
+        offset_dict['co2'] = struct.unpack(">h", data[0:2])[0]
+        # bytes 2 and 3 hold the PM2.5 offset
+        offset_dict['pm25'] = struct.unpack(">h", data[2:4])[0]/10.0
+        # bytes 4 and 5 hold the PM10 offset
+        offset_dict['pm10'] = struct.unpack(">h", data[4:6])[0]/10.0
         return offset_dict
 
     @property
@@ -4517,6 +4520,47 @@ class DirectGw1000(object):
         'wh68_sig': 'group_count',
         'ws80_sig': 'group_count'
     }
+    # GW1000 live data unit formatting, this is a subset of the standard WeeWX
+    # unit formatting
+    gw1000_unit_format_dict = {
+        "count": "%d",
+        "degree_C": "%.1f",
+        "degree_F": "%.1f",
+        "degree_compass": "%.0f",
+        "foot": "%.0f",
+        "hPa": "%.1f",
+        "inHg": "%.3f",
+        "inch": "%.2f",
+        "inch_per_hour": "%.2f",
+        "km": "%.1f",
+        "km_per_hour": "%.0f",
+        "km_per_hour2": "%.1f",
+        "knot": "%.0f",
+        "knot2": "%.1f",
+        "kPa": "%.2f",
+        "liter": "%.1f",
+        "litre": "%.1f",
+        "lux": "%.0f",
+        "mbar": "%.1f",
+        "meter": "%.0f",
+        "meter_per_second": "%.0f",
+        "meter_per_second2": "%.1f",
+        "microgram_per_meter_cubed": "%.1f",
+        "mile": "%.1f",
+        "mile_per_hour": "%.0f",
+        "mile_per_hour2": "%.1f",
+        "mm": "%.1f",
+        "mmHg": "%.1f",
+        "mmHg_per_hour": "%.4f",
+        "mm_per_hour": "%.1f",
+        "percent": "%.0f",
+        "uv_index": "%.1f",
+        "volt": "%.1f",
+        "watt": "%.1f",
+        "watt_hour": "%.1f",
+        "watt_per_meter_squared": "%.0f",
+        "NONE": u"   N/A"
+    }
     # GW1000 live data unit labels, this is a subset of the standard WeeWX unit
     # labels
     gw1000_unit_label_dict = {
@@ -5406,7 +5450,8 @@ class DirectGw1000(object):
             else:
                 c = weewx.units.Converter(group_unit_dict=DirectGw1000.gw1000_metric_units)
             # now get a formatter
-            f = weewx.units.Formatter(unit_label_dict=DirectGw1000.gw1000_unit_label_dict)
+            f = weewx.units.Formatter(unit_format_dict=DirectGw1000.gw1000_unit_format_dict,
+                                      unit_label_dict=DirectGw1000.gw1000_unit_label_dict)
             # now build a new data dict with our converted and formatted data
             result = {}
             # iterate over the fields in our original data dict
