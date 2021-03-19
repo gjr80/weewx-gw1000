@@ -10,11 +10,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.3.0b1                                      Date: 16 March 2021
+Version: 0.3.0                                        Date: 20 March 2021
 
 Revision History
-    xx xxxxxx 2021      v0.3.0
+    20 March 2021       v0.3.0
         -   added field lightningcount to the extractor definitions
+        -   added extractors for WH35 sensor battery state and signal level
+            fields
     9 January 2021      v0.2.0
         -   GW1000 config used by installer is now derived from a multiline
             string so as to allow embedded comments in installed config stanzas
@@ -39,7 +41,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.3.0b1"
+GW1000_VERSION = "0.3.0"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -115,6 +117,22 @@ gw1000_config = """
     [[wh31_ch7_batt]]
         extractor = last
     [[wh31_ch8_batt]]
+        extractor = last
+    [[wh35_ch1_batt]]
+        extractor = last
+    [[wh35_ch2_batt]]
+        extractor = last
+    [[wh35_ch3_batt]]
+        extractor = last
+    [[wh35_ch4_batt]]
+        extractor = last
+    [[wh35_ch5_batt]]
+        extractor = last
+    [[wh35_ch6_batt]]
+        extractor = last
+    [[wh35_ch7_batt]]
+        extractor = last
+    [[wh35_ch8_batt]]
         extractor = last
     [[wh41_ch1_batt]]
         extractor = last
@@ -195,6 +213,22 @@ gw1000_config = """
     [[wh31_ch7_sig]]
         extractor = last
     [[wh31_ch8_sig]]
+        extractor = last
+    [[wh35_ch1_sig]]
+        extractor = last
+    [[wh35_ch2_sig]]
+        extractor = last
+    [[wh35_ch3_sig]]
+        extractor = last
+    [[wh35_ch4_sig]]
+        extractor = last
+    [[wh35_ch5_sig]]
+        extractor = last
+    [[wh35_ch6_sig]]
+        extractor = last
+    [[wh35_ch7_sig]]
+        extractor = last
+    [[wh35_ch8_sig]]
         extractor = last
     [[wh41_ch1_sig]]
         extractor = last
