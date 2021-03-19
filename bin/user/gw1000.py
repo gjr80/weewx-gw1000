@@ -574,7 +574,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.3.0b1'
+DRIVER_VERSION = '0.3.0'
 
 # various defaults used throughout
 # default port used by GW1000
