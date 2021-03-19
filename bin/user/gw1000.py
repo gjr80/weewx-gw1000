@@ -29,12 +29,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.0b1                                    Date: 16 March 2021
+Version: 0.3.0                                      Date: 20 March 2021
 
 Revision History
-    xx xxxxxxx 2021         v0.3.0
-        -   when run directly with --live-data the --units command line option
-            can now be used to specify output in US customary or Metric units
+    20 March 2021           v0.3.0
+        -   added the --units command line option to allow the output of
+            --live-data to be displayed in specified units (US customary or
+            Metric)
         -   added support for WH35 sensor
         -   when run directly the driver now distinguishes between no sensor ID
             response and an empty sensor ID response
@@ -787,6 +788,14 @@ class Gw1000(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
+        'wh35_ch1_batt': 'wh35_ch1_batt',
+        'wh35_ch2_batt': 'wh35_ch2_batt',
+        'wh35_ch3_batt': 'wh35_ch3_batt',
+        'wh35_ch4_batt': 'wh35_ch4_batt',
+        'wh35_ch5_batt': 'wh35_ch5_batt',
+        'wh35_ch6_batt': 'wh35_ch6_batt',
+        'wh35_ch7_batt': 'wh35_ch7_batt',
+        'wh35_ch8_batt': 'wh35_ch8_batt',
         'wh41_ch1_batt': 'wh41_ch1_batt',
         'wh41_ch2_batt': 'wh41_ch2_batt',
         'wh41_ch3_batt': 'wh41_ch3_batt',
@@ -831,6 +840,14 @@ class Gw1000(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
+        'wh35_ch1_sig': 'wh35_ch1_sig',
+        'wh35_ch2_sig': 'wh35_ch2_sig',
+        'wh35_ch3_sig': 'wh35_ch3_sig',
+        'wh35_ch4_sig': 'wh35_ch4_sig',
+        'wh35_ch5_sig': 'wh35_ch5_sig',
+        'wh35_ch6_sig': 'wh35_ch6_sig',
+        'wh35_ch7_sig': 'wh35_ch7_sig',
+        'wh35_ch8_sig': 'wh35_ch8_sig',
         'wh41_ch1_sig': 'wh41_ch1_sig',
         'wh41_ch2_sig': 'wh41_ch2_sig',
         'wh41_ch3_sig': 'wh41_ch3_sig',
@@ -1588,6 +1605,22 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_batt]]
             extractor = last
+        [[wh35_ch1_batt]]
+            extractor = last
+        [[wh35_ch2_batt]]
+            extractor = last
+        [[wh35_ch3_batt]]
+            extractor = last
+        [[wh35_ch4_batt]]
+            extractor = last
+        [[wh35_ch5_batt]]
+            extractor = last
+        [[wh35_ch6_batt]]
+            extractor = last
+        [[wh35_ch7_batt]]
+            extractor = last
+        [[wh35_ch8_batt]]
+            extractor = last
         [[wh41_ch1_batt]]
             extractor = last
         [[wh41_ch2_batt]]
@@ -1667,6 +1700,22 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[wh31_ch7_sig]]
             extractor = last
         [[wh31_ch8_sig]]
+            extractor = last
+        [[wh35_ch1_sig]]
+            extractor = last
+        [[wh35_ch2_sig]]
+            extractor = last
+        [[wh35_ch3_sig]]
+            extractor = last
+        [[wh35_ch4_sig]]
+            extractor = last
+        [[wh35_ch5_sig]]
+            extractor = last
+        [[wh35_ch6_sig]]
+            extractor = last
+        [[wh35_ch7_sig]]
+            extractor = last
+        [[wh35_ch8_sig]]
             extractor = last
         [[wh41_ch1_sig]]
             extractor = last
@@ -3953,7 +4002,8 @@ class Gw1000Collector(Collector):
                 return results
             return {}
 
-        def decode_batt(self, data, field=None):
+        @staticmethod
+        def decode_batt(data, field=None):
             """Decode battery status data.
 
             GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
@@ -4433,6 +4483,14 @@ class DirectGw1000(object):
         'wh31_ch6_batt': 'group_count',
         'wh31_ch7_batt': 'group_count',
         'wh31_ch8_batt': 'group_count',
+        'wh35_ch1_batt': 'group_count',
+        'wh35_ch2_batt': 'group_count',
+        'wh35_ch3_batt': 'group_count',
+        'wh35_ch4_batt': 'group_count',
+        'wh35_ch5_batt': 'group_count',
+        'wh35_ch6_batt': 'group_count',
+        'wh35_ch7_batt': 'group_count',
+        'wh35_ch8_batt': 'group_count',
         'wh41_ch1_batt': 'group_count',
         'wh41_ch2_batt': 'group_count',
         'wh41_ch3_batt': 'group_count',
@@ -4473,6 +4531,14 @@ class DirectGw1000(object):
         'wh31_ch6_sig': 'group_count',
         'wh31_ch7_sig': 'group_count',
         'wh31_ch8_sig': 'group_count',
+        'wh35_ch1_sig': 'group_count',
+        'wh35_ch2_sig': 'group_count',
+        'wh35_ch3_sig': 'group_count',
+        'wh35_ch4_sig': 'group_count',
+        'wh35_ch5_sig': 'group_count',
+        'wh35_ch6_sig': 'group_count',
+        'wh35_ch7_sig': 'group_count',
+        'wh35_ch8_sig': 'group_count',
         'wh41_ch1_sig': 'group_count',
         'wh41_ch2_sig': 'group_count',
         'wh41_ch3_sig': 'group_count',
