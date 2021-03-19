@@ -1,6 +1,6 @@
 v0.3.0
-*   when run directly with --live-data the --units command line option can now
-    be used to specify output in US customary or Metric units
+*   added the --units command line option to allow the output of --live-data to
+    be displayed in specified units (US customary or Metric)
 *   added support for WH35 sensor
 *   when run directly the driver now distinguishes between no sensor ID
     response and an empty sensor ID response
