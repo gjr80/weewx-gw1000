@@ -48,6 +48,8 @@ Revision History
             schema field 'lightning_strike_count' and was not included in loop
             packets.
         -   fixed incomplete --default-map output
+        -   fixes loss of battery state data for some sensors that occurred
+            under firmware release v1.6.5 and later
     9 January 2021          v0.2.0
         -   added support for WH45 sensor
         -   improved comments in installer/wee_config inserted config
