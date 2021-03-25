@@ -29,9 +29,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.0                                      Date: 20 March 2021
+Version: 0.3.1                                      Date: 25 March 2021
 
 Revision History
+    25 March 2021           v0.3.1
+        -   fix error when broadcast port or socket timeout is specified in
+            weewx.conf
     20 March 2021           v0.3.0
         -   added the --units command line option to allow the output of
             --live-data to be displayed in specified units (US customary or
@@ -576,7 +579,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.3.0'
+DRIVER_VERSION = '0.3.1'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -928,10 +931,10 @@ class Gw1000(object):
         # network broadcast address and port
         self.broadcast_address = str.encode(gw1000_config.get('broadcast_address',
                                                               default_broadcast_address))
-        self.broadcast_port = gw1000_config.get('broadcast_port',
-                                                default_broadcast_port)
-        self.socket_timeout = gw1000_config.get('socket_timeout',
-                                                default_socket_timeout)
+        self.broadcast_port = weeutil.weeutil.to_int(gw1000_config.get('broadcast_port',
+                                                     default_broadcast_port))
+        self.socket_timeout = weeutil.weeutil.to_int(gw1000_config.get('socket_timeout',
+                                                     default_socket_timeout))
         # obtain the GW1000 ip address
         _ip_address = gw1000_config.get('ip_address')
         # if the user has specified some variation of 'auto' then we are to
