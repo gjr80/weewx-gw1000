@@ -35,7 +35,7 @@ Revision History
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
-        -   fixed bug when decoding firmware version string that resulted in a
+        -   fixed bug when decoding firmware version string that gives a
             truncated result
     20 March 2021           v0.3.0
         -   added the --units command line option to allow the output of

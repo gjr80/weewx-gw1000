@@ -1,8 +1,8 @@
 c0.3.1
 *   fixed error when broadcast port or socket timeout is specified in
     weewx.conf
-*   fixed bug when decoding firmware version string that resulted in a
-    truncated result
+*   fixed bug when decoding firmware version string that gives a truncated
+    result
 v0.3.0
 *   added the --units command line option to allow the output of --live-data to
     be displayed in specified units (US customary or Metric)
