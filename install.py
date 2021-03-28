@@ -10,9 +10,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.3.0                                        Date: 20 March 2021
+Version: 0.3.1                                        Date: 28 March 2021
 
 Revision History
+    28March 2021       v0.3.1
+        -   no change, version increment only
     20 March 2021       v0.3.0
         -   added field lightningcount to the extractor definitions
         -   added extractors for WH35 sensor battery state and signal level
@@ -41,7 +43,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.3.0"
+GW1000_VERSION = "0.3.1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
