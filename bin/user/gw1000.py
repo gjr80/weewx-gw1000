@@ -32,7 +32,7 @@ this program.  If not, see http://www.gnu.org/licenses/.
 Version: 0.3.1                                      Date: 28 March 2021
 
 Revision History
-    25 March 2021           v0.3.1
+    28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
         -   fixed bug when decoding firmware version string that resulted in a
