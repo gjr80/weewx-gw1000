@@ -29,12 +29,14 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.1                                      Date: 25 March 2021
+Version: 0.3.1                                      Date: 28 March 2021
 
 Revision History
     25 March 2021           v0.3.1
-        -   fix error when broadcast port or socket timeout is specified in
+        -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
+        -   fixed bug when decoding firmware version string that resulted in a
+            truncated result
     20 March 2021           v0.3.0
         -   added the --units command line option to allow the output of
             --live-data to be displayed in specified units (US customary or
@@ -2724,12 +2726,32 @@ class Gw1000Collector(Collector):
 
     @property
     def firmware_version(self):
-        """Obtain the GW1000 firmware version string."""
+        """Obtain the GW1000 firmware version string.
 
+        The firmware version can be obtained from the GW1000 via an API call
+        made by a Station object. The Station object takes care of making the
+        API call and validating the response. What is returned is the raw
+        response as a bytestring. The raw response is unpacked into a sequence
+        of bytes. The length of the firmware string is in byte 4 and the
+        firmware string starts at byte 5. The bytes comprising the firmware are
+        extracted and converted to unicode characters before being reassembled
+        into a string containing the firmware version.
+        """
+
+        # get the firmware bytestring via the API
         firmware_b = self.station.get_firmware_version()
+        # create a format string so the firmware string can be unpacked into
+        # its bytes
         firmware_format = "B" * len(firmware_b)
+        # unpack the firmware response bytestring, we now have a tuple of
+        # integers representing each of the bytes
         firmware_t = struct.unpack(firmware_format, firmware_b)
-        return "".join([chr(x) for x in firmware_t[5:18]])
+        # get the length of the firmware string, it is in byte 4
+        str_length = firmware_t[4]
+        # the firmware string starts at byte 5 and is str_length bytes long,
+        # convert the sequence of bytes to unicode characters and assemble as a
+        # string and return the result
+        return "".join([chr(x) for x in firmware_t[5:5 + str_length]])
 
     @property
     def sensors(self):
