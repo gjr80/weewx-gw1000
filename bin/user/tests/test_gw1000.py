@@ -47,6 +47,7 @@ import user.gw1000
 # TODO. Check distance_data data and result are correct
 # TODO. Check utc_data data and result are correct
 # TODO. Check count_data data and result are correct
+# TODO. Add decode firmware check refer issue #31
 
 class SensorsTestCase(unittest.TestCase):
     """Test the Sensors class."""
