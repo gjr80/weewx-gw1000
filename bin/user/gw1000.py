@@ -29,9 +29,15 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.1                                      Date: 28 March 2021
+Version: 0.3.x                                      Date: xx xxxxx 2021
 
 Revision History
+    xx xxxxx 2021           v0.3.x
+        -   --live-data now displayed using the default units for each WeeWX
+            unit system ie; US customary (--units=us), Metric (--units=metric)
+            and MetricWx (--units=metricwx)
+        -   --live-data now formatted and labelled using WeeWX default formats
+            and labels
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -4595,144 +4601,6 @@ class DirectGw1000(object):
         'wh68_sig': 'group_count',
         'ws80_sig': 'group_count'
     }
-    # GW1000 live data unit formatting, this is a subset of the standard WeeWX
-    # unit formatting
-    gw1000_unit_format_dict = {
-        "count": "%d",
-        "degree_C": "%.1f",
-        "degree_F": "%.1f",
-        "degree_compass": "%.0f",
-        "foot": "%.0f",
-        "hPa": "%.1f",
-        "inHg": "%.3f",
-        "inch": "%.2f",
-        "inch_per_hour": "%.2f",
-        "km": "%.1f",
-        "km_per_hour": "%.0f",
-        "km_per_hour2": "%.1f",
-        "knot": "%.0f",
-        "knot2": "%.1f",
-        "kPa": "%.2f",
-        "liter": "%.1f",
-        "litre": "%.1f",
-        "lux": "%.0f",
-        "mbar": "%.1f",
-        "meter": "%.0f",
-        "meter_per_second": "%.0f",
-        "meter_per_second2": "%.1f",
-        "microgram_per_meter_cubed": "%.1f",
-        "mile": "%.1f",
-        "mile_per_hour": "%.0f",
-        "mile_per_hour2": "%.1f",
-        "mm": "%.1f",
-        "mmHg": "%.1f",
-        "mmHg_per_hour": "%.4f",
-        "mm_per_hour": "%.1f",
-        "percent": "%.0f",
-        "uv_index": "%.1f",
-        "volt": "%.1f",
-        "watt": "%.1f",
-        "watt_hour": "%.1f",
-        "watt_per_meter_squared": "%.0f",
-        "NONE": u"   N/A"
-    }
-    # GW1000 live data unit labels, this is a subset of the standard WeeWX unit
-    # labels
-    gw1000_unit_label_dict = {
-        "degree_C": u"°C",
-        "degree_F": u"°F",
-        "degree_compass": u"°",
-        "foot": u"feet",
-        "hPa": u"hPa",
-        "inHg": u"inHg",
-        "inch": u"in",
-        "inch_per_hour": u"in/h",
-        "km": u"km",
-        "km_per_hour": u"kph",
-        "km_per_hour2": u"kph",
-        "knot": u"knots",
-        "knot2": u"knots",
-        "kPa": u"kPa",
-        "liter": u"l",
-        "litre": u"l",
-        "lux": u"lx",
-        "mbar": u"mbar",
-        "meter": u"meters",
-        "meter_per_second": u"m/s",
-        "meter_per_second2": u"m/s",
-        "microgram_per_meter_cubed": u"µg/m³",
-        "mile": u"mile",
-        "mile_per_hour": u"mph",
-        "mile_per_hour2": u"mph",
-        "mm": u"mm",
-        "mmHg": u"mmHg",
-        "mm_per_hour": u"mm/h",
-        "percent": u"%",
-        "uv_index": u"",
-        "volt": u"V",
-        "watt": u"W",
-        "watt_hour": u"Wh",
-        "watt_per_meter_squared": u"W/m²",
-        "NONE": u""
-    }
-    # GW1000 live data US customary display units. Note this is a limited
-    # list, only unit groups used by GW1000 are included
-    gw1000_us_units = weeutil.weeutil.ListOfDicts({
-        "group_altitude": "foot",
-        "group_concentration": "microgram_per_meter_cubed",
-        "group_count": "count",
-        "group_direction": "degree_compass",
-        "group_distance": "mile",
-        "group_elapsed": "second",
-        "group_energy": "watt_hour",
-        "group_energy2": "watt_second",
-        "group_fraction": "ppm",
-        "group_illuminance": "lux",
-        "group_interval": "minute",
-        "group_length": "inch",
-        "group_moisture": "centibar",
-        "group_percent": "percent",
-        "group_power": "watt",
-        "group_pressure": "inHg",
-        "group_radiation": "watt_per_meter_squared",
-        "group_rain": "inch",
-        "group_rainrate": "inch_per_hour",
-        "group_speed": "mile_per_hour",
-        "group_speed2": "mile_per_hour2",
-        "group_temperature": "degree_F",
-        "group_time": "unix_epoch",
-        "group_uv": "uv_index",
-        "group_volt": "volt"
-    })
-    # GW1000 live data Metric display units. Note this is a limited list,
-    # only unit groups used by GW1000 are included
-    gw1000_metric_units = weeutil.weeutil.ListOfDicts({
-        "group_altitude": "meter",
-        "group_concentration": "microgram_per_meter_cubed",
-        "group_count": "count",
-        "group_direction": "degree_compass",
-        "group_distance": "km",
-        "group_elapsed": "second",
-        "group_energy": "watt_hour",
-        "group_energy2": "watt_second",
-        "group_fraction": "ppm",
-        "group_illuminance": "lux",
-        "group_interval": "minute",
-        "group_length": "cm",
-        "group_moisture": "centibar",
-        "group_percent": "percent",
-        "group_power": "watt",
-        "group_pressure": "hPa",
-        "group_radiation": "watt_per_meter_squared",
-        "group_rain": "mm",
-        "group_rainrate": "mm_per_hour",
-        "group_speed": "km_per_hour",
-        "group_speed2": "km_per_hour2",
-        "group_temperature": "degree_C",
-        "group_time": "unix_epoch",
-        "group_uv": "uv_index",
-        "group_volt": "volt"
-    })
 
     def __init__(self, opts, stn_dict):
         """Initialise a DirectGw1000 object."""
@@ -5526,12 +5394,14 @@ class DirectGw1000(object):
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
             if self.opts.units.lower() == 'us':
-                c = weewx.units.Converter(group_unit_dict=DirectGw1000.gw1000_us_units)
+                c = weewx.units.StdUnitConverters[weewx.US]
+            elif self.opts.units.lower() == 'metricwx':
+                c = weewx.units.StdUnitConverters[weewx.METRICWX]
             else:
-                c = weewx.units.Converter(group_unit_dict=DirectGw1000.gw1000_metric_units)
+                c = weewx.units.StdUnitConverters[weewx.METRIC]
             # now get a formatter
-            f = weewx.units.Formatter(unit_format_dict=DirectGw1000.gw1000_unit_format_dict,
-                                      unit_label_dict=DirectGw1000.gw1000_unit_label_dict)
+            f = weewx.units.Formatter(unit_format_dict=weewx.units.default_unit_format_dict,
+                                      unit_label_dict=weewx.units.default_unit_label_dict)
             # now build a new data dict with our converted and formatted data
             result = {}
             # iterate over the fields in our original data dict
@@ -5775,7 +5645,7 @@ def main():
             [--debug=0|1|2|3]     
        python -m user.gw1000 --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
-            [--units=us|metric]  
+            [--units=us|metric|metricwx]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --firmware-version|--mac-address|
@@ -5858,7 +5728,7 @@ def main():
     parser.add_option('--unmask', dest='unmask', action='store_true',
                       help='unmask sensitive settings')
     parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
-                      help='Units to use when displaying live data')
+                      help='Unit system to use when displaying live data')
     (opts, args) = parser.parse_args()
 
     # display driver version number
