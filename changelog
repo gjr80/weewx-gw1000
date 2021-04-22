@@ -1,3 +1,14 @@
+v0.3.2
+*   battery state data is now set to None for sensors with signal level == 0,
+    can be disabled by setting option show_all_batt = True under [GW1000] in
+    weewx.conf or by use of the --show-all-batt command line option
+*   --live-data now displayed using the default units for each WeeWX unit
+    system ie; US customary (--units=us), Metric (--units=metric) and
+    MetricWx (--units=metricwx)
+*   --live-data now formatted and labelled using WeeWX default formats and
+    labels
+*   fixed some incorrect command line option descriptions
+*   simplified binary battery state calculation
 v0.3.1
 *   fixed error when broadcast port or socket timeout is specified in
     weewx.conf

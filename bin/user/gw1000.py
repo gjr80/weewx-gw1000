@@ -29,15 +29,21 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.x                                      Date: xx xxxxx 2021
+Version: 0.3.2                                      Date: 22 April 2021
 
 Revision History
-    xx xxxxx 2021           v0.3.x
+    22 April 2021           v0.3.2
+        -   battery state data is now set to None for sensors with signal
+            level == 0, can be disabled by setting option
+            show_all_batt = True under [GW1000] in weewx.conf or by use of
+            the --show-all-batt command line option
         -   --live-data now displayed using the default units for each WeeWX
             unit system ie; US customary (--units=us), Metric (--units=metric)
             and MetricWx (--units=metricwx)
         -   --live-data now formatted and labelled using WeeWX default formats
             and labels
+        -   fixed some incorrect command line option descriptions
+        -   simplified binary battery state calculation
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -611,6 +617,8 @@ default_poll_interval = 20
 # default period between lost contact log entries during an extended period of
 # lost contact when run as a Service
 default_lost_contact_log_period = 21600
+# default battery state filtering
+default_show_battery = False
 
 
 # ============================================================================
@@ -991,6 +999,10 @@ class Gw1000(object):
         # data but in terms of battery state we need to know so the battery
         # state data can be reported against the correct sensor.
         use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
+        # do we show all battery state data including nonsense data or do we
+        # filter those sensors with signal state == 0
+        self.show_battery = weeutil.weeutil.tobool(gw1000_config.get('show_all_batt',
+                                                                      False))
         # get any GW1000 specific debug settings
         # rain
         self.debug_rain = weeutil.weeutil.tobool(gw1000_config.get('debug_rain',
@@ -1011,6 +1023,7 @@ class Gw1000(object):
                                          max_tries=self.max_tries,
                                          retry_wait=self.retry_wait,
                                          use_th32=use_th32,
+                                         show_battery=self.show_battery,
                                          debug_rain=self.debug_rain,
                                          debug_wind=self.debug_wind)
         # initialise last lightning count and last rain properties
@@ -2218,8 +2231,8 @@ class Gw1000Collector(Collector):
                  broadcast_port=None, socket_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_th32=False, lost_contact_log_period=0, debug_rain=False,
-                 debug_wind=False):
+                 use_th32=False, lost_contact_log_period=0, show_battery=False,
+                 debug_rain=False, debug_wind=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2260,7 +2273,7 @@ class Gw1000Collector(Collector):
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = Gw1000Collector.Sensors()
+        self.sensors_obj = Gw1000Collector.Sensors(show_battery=show_battery)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -4078,9 +4091,11 @@ class Gw1000Collector(Collector):
         # the sensor is registering.
         not_registered = ('fffffffe', 'ffffffff')
 
-        def __init__(self, sensor_id_data=None):
+        def __init__(self, sensor_id_data=None, show_battery=False):
             """Initialise myself"""
 
+            # set the show_battery property
+            self.show_battery = show_battery
             # initialise a dict to hold the parsed sensor data
             self.sensor_data = dict()
             # parse the raw sensor ID data and store the results in my parsed
@@ -4114,8 +4129,15 @@ class Gw1000Collector(Collector):
                     batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
                     # get the raw battery state data
                     batt = six.indexbytes(data, index + 5)
-                    # parse the raw battery state data
-                    batt_state = getattr(self, batt_fn)(batt)
+                    # if we are not showing all battery state data then the
+                    # battery state for any sensor with signal == 0 must be set
+                    # to None, otherwise parse the raw battery state data as
+                    # applicable
+                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
+                        batt_state = None
+                    else:
+                        # parse the raw battery state data
+                        batt_state = getattr(self, batt_fn)(batt)
                     # now add the sensor to our sensor data dict
                     self.sensor_data[address] = {'id': sensor_id,
                                                  'battery': batt_state,
@@ -4246,9 +4268,7 @@ class Gw1000Collector(Collector):
             they are not guaranteed to be set in any particular way.
             """
 
-            if (batt & 1 << 0) == 1 << 0:
-                return 1
-            return 0
+            return batt & 1
 
         @staticmethod
         def batt_int(batt):
@@ -4611,6 +4631,8 @@ class DirectGw1000(object):
         # obtain the IP address and port number to use
         self.ip_address = self.ip_from_config_opts()
         self.port = self.port_from_config_opts()
+        # do we filter battery state data
+        self.show_battery = self.show_battery_from_config_opts()
 
     def ip_from_config_opts(self):
         """Obtain the IP address from station config or command line options.
@@ -4692,6 +4714,43 @@ class DirectGw1000(object):
             if weewx.debug >= 1:
                 print("Port number obtained from command line options")
         return port
+
+    def show_battery_from_config_opts(self):
+        """Determine whether to filter nonsense battery state data.
+
+        Determine the whether to filter nonsense battery state data given a
+        station config dict and command line options. The decision to filter is
+        made as follows:
+        - if specified use the show_battery option from the command line
+        - if show_battery was not specified on the command line obtain the
+          show_battery option from the station config dict
+        - if the station config dict does not specify show_battery use the
+          default value False
+        """
+
+        # obtain the show_battery value from the command line options if it
+        # exists
+        show_battery = self.opts.show_battery if self.opts.show_battery else None
+        # if we didn't get a show_battery value check the station config dict
+        if show_battery is None:
+            # obtain the show_battery value from the station config dict, try
+            # to convert it to a Boolean, if it fails be prepared to catch the
+            # ValueError from tobool() and use the default
+            try:
+                show_battery = weeutil.weeutil.tobool(self.stn_dict.get('show_battery'))
+            except ValueError:
+                # we could not get show_battery from the stn_dict so use the default
+                show_battery = default_show_battery
+                if weewx.debug >= 1:
+                    print("Battery state filtering ('%s') using the default" % show_battery)
+            else:
+                if weewx.debug >= 1:
+                    print("Port number obtained from station config")
+                    print("Battery state filtering ('%s') obtained from station config" % show_battery)
+        else:
+            if weewx.debug >= 1:
+                print("Battery state filtering ('%s') obtained from command line options" % show_battery)
+        return show_battery
 
     def process_options(self):
         """Call the appropriate method based on the optparse options."""
@@ -5291,7 +5350,8 @@ class DirectGw1000(object):
         try:
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+                                        port=self.port,
+                                        show_battery=self.show_battery)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -5355,7 +5415,8 @@ class DirectGw1000(object):
         try:
             # get a Gw1000Collector object
             collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+                                        port=self.port,
+                                        show_battery=self.show_battery)
             # identify the GW1000 being used
             print()
             print("Interrogating GW1000 at %s:%d" % (collector.station.ip_address.decode(),
@@ -5638,15 +5699,18 @@ def main():
             [--poll-interval=INTERVAL]
             [--max-tries=MAX_TRIES]
             [--retry-wait=RETRY_WAIT]
+            [--show-all-batt]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --sensors
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
+            [--show-all-batt]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--units=us|metric|metricwx]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
+            [--show-all-batt]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --firmware-version|--mac-address|
             --system-params|--get-rain-data
@@ -5720,15 +5784,18 @@ def main():
     parser.add_option('--port', dest='port', type=int,
                       help='GW1000 port to use')
     parser.add_option('--poll-interval', dest='poll_interval', type=int,
-                      help='GW1000 port to use')
+                      help='how often to poll the GW1000 API')
     parser.add_option('--max-tries', dest='max_tries', type=int,
-                      help='GW1000 port to use')
+                      help='max number of attempts to contact the GW1000')
     parser.add_option('--retry-wait', dest='retry_wait', type=int,
-                      help='GW1000 port to use')
+                      help='how long to wait between attempts to contact the GW1000')
+    parser.add_option('--show-all-batt', dest='show_battery',
+                      action='store_true',
+                      help='show all available battery state data regardless of sensor state')
     parser.add_option('--unmask', dest='unmask', action='store_true',
                       help='unmask sensitive settings')
     parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
-                      help='Unit system to use when displaying live data')
+                      help='unit system to use when displaying live data')
     (opts, args) = parser.parse_args()
 
     # display driver version number
