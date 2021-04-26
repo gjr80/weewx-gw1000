@@ -438,3 +438,25 @@ restart the WeeWX daemon:
 8.  You may wish to refer to the GW1000 driver wiki(https://github.com/gjr80/weewx-gw1000/wiki)
 for further guidance on customising the operation of the GW1000 driver and
 integrating GW1000 data into WeeWX generated reports.
+
+
+Upgrade Instructions
+
+To upgrade from an earlier version of the GW1000 driver (installed as either a
+WeeWX driver or a WeeWX service) simply install the GW1000 version you wish to
+upgrade to as per the Installation Instructions above.
+
+Note: The Installation Instructions refer to the current release only. It is
+      recommended that users upgrade to the latest release rather than an
+      earlier release.
+
+
+Downgrade Instructions
+
+To downgrade to an earlier release first uninstall the currently installed
+GW1000 driver and then install the desired release as per the Installation
+Instructions above.
+
+Note: Care should be taken when downgrading to an earlier release as subsequent
+      releases may have entailed enduring changes; for example database schema
+      changes, that are not undone by simply uninstalling the GW1000 driver.

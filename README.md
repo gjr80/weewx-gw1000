@@ -374,6 +374,6 @@ To upgrade from an earlier version of the GW1000 driver (installed as either a W
 
 ## Downgrade Instructions ##
 
-To downgrade to an earlier release first remove the currently installed GW1000 driver and then install the desired release as per the [Installation Instructions](#installation-instructions) above. 
+To downgrade to an earlier release first uninstall the currently installed GW1000 driver and then install the desired release as per the [Installation Instructions](#installation-instructions) above. 
 
 **Note:** Care should be taken when downgrading to an earlier release as subsequent releases may have entailed enduring changes; for example database schema changes, that are not undone by simply uninstalling the GW1000 driver.
