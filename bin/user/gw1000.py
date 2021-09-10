@@ -3296,8 +3296,8 @@ class Gw1000Collector(Collector):
             offset data to the API with retries. If the GW1000 cannot be
             contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
-            get_offset_calibration(). Any code calling get_offset_calibration()
-            should be prepared to handle this exception.
+            get_co2_offset(). Any code calling get_co2_offset() should be
+            prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
