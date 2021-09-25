@@ -29,10 +29,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see http://www.gnu.org/licenses/.
 
-Version: 0.3.2                                      Date: 22 April 2021
+Version: 0.3.2                                      Date: 26 September 2021
 
 Revision History
-    22 April 2021           v0.3.2
+    26 September 2021       v0.3.2
         -   battery state data is now set to None for sensors with signal
             level == 0, can be disabled by setting option
             show_all_batt = True under [GW1000] in weewx.conf or by use of
@@ -44,6 +44,8 @@ Revision History
             and labels
         -   fixed some incorrect command line option descriptions
         -   simplified binary battery state calculation
+        -   fixed bug when operated with GW1100 using firmware v2.0.4
+        -   implemented limited debug_sensors reporting
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -593,7 +595,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.3.1'
+DRIVER_VERSION = '0.3.2'
 
 # various defaults used throughout
 # default port used by GW1000
@@ -1025,7 +1027,8 @@ class Gw1000(object):
                                          use_th32=use_th32,
                                          show_battery=self.show_battery,
                                          debug_rain=self.debug_rain,
-                                         debug_wind=self.debug_wind)
+                                         debug_wind=self.debug_wind,
+                                         debug_sensors=self.debug_sensors)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
@@ -2232,7 +2235,7 @@ class Gw1000Collector(Collector):
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
                  use_th32=False, lost_contact_log_period=0, show_battery=False,
-                 debug_rain=False, debug_wind=False):
+                 debug_rain=False, debug_wind=False, debug_sensors=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2273,7 +2276,7 @@ class Gw1000Collector(Collector):
         # get a parser object to parse any data from the station
         self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = Gw1000Collector.Sensors(show_battery=show_battery)
+        self.sensors_obj = Gw1000Collector.Sensors(show_battery=show_battery, debug_sensors=debug_sensors)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -4091,7 +4094,7 @@ class Gw1000Collector(Collector):
         # the sensor is registering.
         not_registered = ('fffffffe', 'ffffffff')
 
-        def __init__(self, sensor_id_data=None, show_battery=False):
+        def __init__(self, sensor_id_data=None, show_battery=False, debug_sensors=False):
             """Initialise myself"""
 
             # set the show_battery property
@@ -4120,29 +4123,34 @@ class Gw1000Collector(Collector):
                 while index < len(data):
                     # get the sensor address
                     address = data[index:index + 1]
-                    # get the sensor ID
-                    sensor_id = bytes_to_hex(data[index + 1: index + 5],
-                                             separator='',
-                                             caps=False)
-                    # get the method to be used to decode the battery state
-                    # data
-                    batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
-                    # get the raw battery state data
-                    batt = six.indexbytes(data, index + 5)
-                    # if we are not showing all battery state data then the
-                    # battery state for any sensor with signal == 0 must be set
-                    # to None, otherwise parse the raw battery state data as
-                    # applicable
-                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
-                        batt_state = None
+                    # do we know how to decode this address
+                    if address in Gw1000Collector.sensor_ids.keys():
+                        # get the sensor ID
+                        sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                                 separator='',
+                                                 caps=False)
+                        # get the method to be used to decode the battery state
+                        # data
+                        batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
+                        # get the raw battery state data
+                        batt = six.indexbytes(data, index + 5)
+                        # if we are not showing all battery state data then the
+                        # battery state for any sensor with signal == 0 must be set
+                        # to None, otherwise parse the raw battery state data as
+                        # applicable
+                        if not self.show_battery and six.indexbytes(data, index + 6) == 0:
+                            batt_state = None
+                        else:
+                            # parse the raw battery state data
+                            batt_state = getattr(self, batt_fn)(batt)
+                        # now add the sensor to our sensor data dict
+                        self.sensor_data[address] = {'id': sensor_id,
+                                                     'battery': batt_state,
+                                                     'signal': six.indexbytes(data, index + 6)
+                                                     }
                     else:
-                        # parse the raw battery state data
-                        batt_state = getattr(self, batt_fn)(batt)
-                    # now add the sensor to our sensor data dict
-                    self.sensor_data[address] = {'id': sensor_id,
-                                                 'battery': batt_state,
-                                                 'signal': six.indexbytes(data, index + 6)
-                                                 }
+                        if self.debug_sensors:
+                            loginf("Unknown sensor ID '%s'" % bytes_to_hex(address))
                     # each sensor entry is seven bytes in length so skip to the
                     # start of the next sensor
                     index += 7
