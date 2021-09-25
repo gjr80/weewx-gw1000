@@ -9,6 +9,8 @@ v0.3.2
     labels
 *   fixed some incorrect command line option descriptions
 *   simplified binary battery state calculation
+*   fixed bug when operated with GW1100 using firmware v2.0.4
+*   implemented limited debug_sensors reporting
 v0.3.1
 *   fixed error when broadcast port or socket timeout is specified in
     weewx.conf
