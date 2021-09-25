@@ -1015,6 +1015,9 @@ class Gw1000(object):
         # loop data
         self.debug_loop = weeutil.weeutil.tobool(gw1000_config.get('debug_loop',
                                                                    False))
+        # sensors
+        self.debug_sensors = weeutil.weeutil.tobool(gw1000_config.get('debug_sensors',
+                                                                      False))
         # create an Gw1000Collector object to interact with the GW1000 API
         self.collector = Gw1000Collector(ip_address=self.ip_address,
                                          port=self.port,
@@ -4104,6 +4107,8 @@ class Gw1000Collector(Collector):
             # parse the raw sensor ID data and store the results in my parsed
             # sensor data dict
             self.set_sensor_id_data(sensor_id_data)
+            # debug sensors
+            self.debug_sensors = debug_sensors
 
         def set_sensor_id_data(self, id_data):
             """Parse the raw sensor ID data and store the results."""
