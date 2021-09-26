@@ -1,17 +1,20 @@
 """
 Test suite for the GW1000 driver.
 
-Copyright (C) 2020 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-21 Gary Roderick                gjroderick<at>gmail.com
 
 A python unittest based test suite for aspects of the GW1000 driver. The test
 suite tests correct operation of:
 
 -
 
-Version: 0.3.0                                   Date: 20 March 2021
+Version: 0.3.2                                   Date: 26 September 2021
 
 Revision History
-    20 March 2021      v0.3.0
+    26 September 2021   v0.3.2
+        - updated to work with GW1000 driver v0.3.2
+
+    20 March 2021       v0.3.0
         - incomplete but works with release v0.3.0 under python3
         - initial release
 
@@ -22,16 +25,18 @@ To run the test suite:
 
 -   run the test suite using:
 
-    $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000
+    $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000 [-v]
 """
 # python imports
 import struct
+import time
 import unittest
 
 # Python 2/3 compatibility shims
 import six
 
 # WeeWX imports
+import weewx
 import user.gw1000
 
 # TODO. Check speed_data data and result are correct
@@ -49,6 +54,10 @@ import user.gw1000
 # TODO. Check count_data data and result are correct
 # TODO. Add decode firmware check refer issue #31
 
+TEST_SUITE_NAME = "GW1000 driver"
+TEST_SUITE_VERSION = "0.5.0"
+
+
 class SensorsTestCase(unittest.TestCase):
     """Test the Sensors class."""
 
@@ -58,7 +67,7 @@ class SensorsTestCase(unittest.TestCase):
         self.sensors = user.gw1000.Gw1000Collector.Sensors()
 
     def test_battery_methods(self):
-        """Test methods used to determine battery states."""
+        """Test battery state methods"""
 
         # binary battery states (method batt_binary())
         self.assertEqual(self.sensors.batt_binary(255), 1)
@@ -73,6 +82,12 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_volt(100), 2.00)
         self.assertEqual(self.sensors.batt_volt(101), 2.02)
         self.assertEqual(self.sensors.batt_volt(255), 5.1)
+
+        # voltage battery states (method batt_volt_tenth())
+        self.assertEqual(self.sensors.batt_volt_tenth(0), 0.00)
+        self.assertEqual(self.sensors.batt_volt_tenth(15), 1.5)
+        self.assertEqual(self.sensors.batt_volt_tenth(17), 1.7)
+        self.assertEqual(self.sensors.batt_volt_tenth(255), 25.5)
 
         # binary description
         self.assertEqual(self.sensors.battery_desc(b'\x00', 0), 'OK')
@@ -276,7 +291,7 @@ class ParseTestCase(unittest.TestCase):
         pass
 
     def test_constants(self):
-        """Test constants used by class Parser()."""
+        """Test constants"""
 
         # test battery mask dicts
 
@@ -296,7 +311,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.wind_field_codes, self.wind_field_codes)
 
     def test_decode(self):
-        """Test class Parser() methods used to decode obs bytes."""
+        """Test methods used to decode observation byte data"""
 
         # test temperature decode (method decode_temp())
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['hex'])),
@@ -441,8 +456,10 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['hex']), fields=self.wh45_data['field']),
                          self.wh45_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']), {})
-        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']), {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(1)), fields=self.wh45_data['field']),
+                         {})
+        self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']),
+                         {})
 
         # test parsing of all possible sensors
         self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
@@ -469,6 +486,13 @@ class UtilitiesTestCase(unittest.TestCase):
     bytes_to_hex_fail_str = "cannot represent '%s' as hexadecimal bytes"
 
     def test_utilities(self):
+        """Test utility functions
+
+        Tests:
+        1. natural_sort_keys()
+        2. natural_sort_dict()
+        3. bytes_to_hex()
+        """
 
         # test natural_sort_keys()
         self.assertEqual(user.gw1000.natural_sort_keys(self.unsorted_dict),
@@ -479,12 +503,16 @@ class UtilitiesTestCase(unittest.TestCase):
                          self.sorted_dict_str)
 
         # test bytes_to_hex()
+        # with defaults
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2')),
                          'FF 00 66 B2')
+        # with defaults and a separator
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=':'),
                          'FF:00:66:B2')
+        # with defaults using lower case
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), caps=False),
                          'ff 00 66 b2')
+        # with a separator and lower case
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=':', caps=False),
                          'ff:00:66:b2')
         # and check exceptions raised
@@ -529,19 +557,23 @@ class ListsAndDictsTestCase(unittest.TestCase):
         self.default_field_map = default_field_map
 
     def test_dicts(self):
-        """Test dicts for consistency."""
+        """Test dicts for consistency"""
 
-        # test that each entry in the GW1000 default field map appears in the observation group dictionary
+        # test that each entry in the GW1000 default field map appears in the
+        # observation group dictionary
         for w_field, g_field in six.iteritems(self.default_field_map):
             self.assertIn(g_field,
                           user.gw1000.DirectGw1000.gw1000_obs_group_dict.keys(),
-                          msg="A field from the GW1000 default field map is missing from the observation group dictionary")
+                          msg="A field from the GW1000 default field map is "
+                              "missing from the observation group dictionary")
 
-        # test that each entry in the observation group dictionary is included in the GW1000 default field map
+        # test that each entry in the observation group dictionary is included
+        # in the GW1000 default field map
         for g_field, group in six.iteritems(user.gw1000.DirectGw1000.gw1000_obs_group_dict):
             self.assertIn(g_field,
                           self.default_field_map.values(),
-                          msg="A key from the observation group dictionary is missing from the GW1000 default field map")
+                          msg="A key from the observation group dictionary is "
+                              "missing from the GW1000 default field map")
 
 
 class StationTestCase(unittest.TestCase):
@@ -551,6 +583,57 @@ class StationTestCase(unittest.TestCase):
     read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
     read_fware_resp_bad_checksum_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1w'
     read_fware_resp_bad_cmd_bytes = b'\xff\xffQ\x11\rGW1000_V1.6.1v'
+    broadcast_response_data = 'FF FF 12 00 26 50 02 91 E3 FD 32 C0 A8 02 20 AF ' \
+                              'C8 16 47 57 31 30 30 30 2D 57 49 46 49 46 44 33 ' \
+                              '32 20 56 31 2E 36 2E 38 5F'
+    decoded_broadcast_response = {'mac': '50:02:91:E3:FD:32',
+                                  'ip_address': '192.168.2.32',
+                                  'port': 45000,
+                                  'ssid': 'GW1000-WIFIFD32 V1.6.8'}
+    cmd = 'CMD_READ_FIRMWARE_VERSION'
+    cmd_payload = '01 02 FF'
+    cmd_packet = 'FF FF 50 06 01 02 FF 58'
+    commands = {
+        'CMD_WRITE_SSID': 'FF FF 11 03 14',
+        'CMD_BROADCAST': 'FF FF 12 03 15',
+        'CMD_READ_ECOWITT': 'FF FF 1E 03 21',
+        'CMD_WRITE_ECOWITT': 'FF FF 1F 03 22',
+        'CMD_READ_WUNDERGROUND': 'FF FF 20 03 23',
+        'CMD_WRITE_WUNDERGROUND': 'FF FF 21 03 24',
+        'CMD_READ_WOW': 'FF FF 22 03 25',
+        'CMD_WRITE_WOW': 'FF FF 23 03 26',
+        'CMD_READ_WEATHERCLOUD': 'FF FF 24 03 27',
+        'CMD_WRITE_WEATHERCLOUD': 'FF FF 25 03 28',
+        'CMD_READ_STATION_MAC': 'FF FF 26 03 29',
+        'CMD_GW1000_LIVEDATA': 'FF FF 27 03 2A',
+        'CMD_GET_SOILHUMIAD': 'FF FF 28 03 2B',
+        'CMD_SET_SOILHUMIAD': 'FF FF 29 03 2C',
+        'CMD_READ_CUSTOMIZED': 'FF FF 2A 03 2D',
+        'CMD_WRITE_CUSTOMIZED': 'FF FF 2B 03 2E',
+        'CMD_GET_MulCH_OFFSET': 'FF FF 2C 03 2F',
+        'CMD_SET_MulCH_OFFSET': 'FF FF 2D 03 30',
+        'CMD_GET_PM25_OFFSET': 'FF FF 2E 03 31',
+        'CMD_SET_PM25_OFFSET': 'FF FF 2F 03 32',
+        'CMD_READ_SSSS': 'FF FF 30 03 33',
+        'CMD_WRITE_SSSS': 'FF FF 31 03 34',
+        'CMD_READ_RAINDATA': 'FF FF 34 03 37',
+        'CMD_WRITE_RAINDATA': 'FF FF 35 03 38',
+        'CMD_READ_GAIN': 'FF FF 36 03 39',
+        'CMD_WRITE_GAIN': 'FF FF 37 03 3A',
+        'CMD_READ_CALIBRATION': 'FF FF 38 03 3B',
+        'CMD_WRITE_CALIBRATION': 'FF FF 39 03 3C',
+        'CMD_READ_SENSOR_ID': 'FF FF 3A 03 3D',
+        'CMD_WRITE_SENSOR_ID': 'FF FF 3B 03 3E',
+        'CMD_READ_SENSOR_ID_NEW': 'FF FF 3C 03 3F',
+        'CMD_WRITE_REBOOT': 'FF FF 40 03 43',
+        'CMD_WRITE_RESET': 'FF FF 41 03 44',
+        'CMD_WRITE_UPDATE': 'FF FF 43 03 46',
+        'CMD_READ_FIRMWARE_VERSION': 'FF FF 50 03 53',
+        'CMD_READ_USR_PATH': 'FF FF 51 03 54',
+        'CMD_WRITE_USR_PATH': 'FF FF 52 03 55',
+        'CMD_GET_CO2_OFFSET': 'FF FF 53 03 56',
+        'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
+    }
 
     def setUp(self):
 
@@ -560,18 +643,103 @@ class StationTestCase(unittest.TestCase):
                                                            port=1234,
                                                            mac='1:2:3:4:5:6')
 
-    def test_response(self):
+    def test_cmd_vocab(self):
+        """Test command dictionaries for completeness
+
+        Tests:
+        1. Station.commands contains all commands
+        2. the command code for each Station.commands agrees with the test suite
+        3. all Station.commands entries are in the test suite
+        """
+
+        # Check that the class Station command list is complete. This is a
+        # simple check for (1) inclusion of the command and (2) the command
+        # code (byte) is correct.
+        for cmd, response in six.iteritems(self.commands):
+            # check for inclusion of the command
+            self.assertIn(cmd,
+                          self.station.commands.keys(),
+                          msg="Command '%s' not found in Station.commands" % cmd)
+            # check the command code byte is correct
+            self.assertEqual(hex_to_bytes(response)[2:3],
+                             self.station.commands[cmd],
+                             msg="Command code for command '%s' in "
+                                 "Station.commands(0x%s) disagrees with "
+                                 "command code in test suite (0x%s)" % (cmd,
+                                                                        bytes_to_hex(self.station.commands[cmd]),
+                                                                        bytes_to_hex(hex_to_bytes(response)[2:3])))
+
+        # Check that we are testing everything in class Station command list.
+        # This is a simple check that only needs to check for inclusion of the
+        # command, the validity of the command code is checked in the earlier
+        # iteration.
+        for cmd, code in six.iteritems(self.station.commands):
+            # check for inclusion of the command
+            self.assertIn(cmd,
+                          self.commands.keys(),
+                          msg="Command '%s' is in Station.commands but it is not being tested" % cmd)
+
+    def test_calc_checksum(self):
+        """Test checksum calculation
+
+        Tests:
+        1. calculating the checksum of a bytestring
+        """
 
         # test checksum calculation
         self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
+
+    def test_build_cmd_packet(self):
+        """Test construction of an API command packet
+
+        Tests:
+        1. building a command packet for each command in Station.commands
+        2. building a command packet with a payload
+        3. building a command packet for an unknown command
+        """
+
+        # test the command packet built for each API command we know about
+        for cmd, packet in six.iteritems(self.commands):
+            self.assertEqual(self.station.build_cmd_packet(cmd), hex_to_bytes(packet))
+        # test a command packet that has a payload
+        self.assertEqual(self.station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
+                         hex_to_bytes(self.cmd_packet))
+        # test building a command packet for an unknown command, should be an UnknownCommand exception
+        self.assertRaises(user.gw1000.UnknownCommand,
+                          self.station.build_cmd_packet,
+                          cmd='UNKNOWN_COMMAND')
+
+    def test_decode_broadcast_response(self):
+        """Test decoding of a broadcast response
+
+        Tests:
+        1. decode a broadcast response
+        """
+
+        # get the broadcast response test data as a bytestring
+        data = hex_to_bytes(self.broadcast_response_data)
+        # test broadcast response decode
+        self.assertEqual(self.station.decode_broadcast_response(data), self.decoded_broadcast_response)
+
+    def test_api_response_validity_check(self):
+        """Test validity checking of an API response
+
+        Tests:
+        1. checks Station.check_response() with good data
+        2. checks that Station.check_response() raises an InvalidChecksum
+           exception for a response with an invalid checksum
+        3. checks that Station.check_response() raises an InvalidApiResponse
+           exception for a response with an command code
+        """
+
         # test check_response() with good data, should be no exception
         try:
             self.station.check_response(self.read_fware_resp_bytes,
                                         self.cmd_read_fware_ver)
         except user.gw1000.InvalidChecksum:
-            self.fail("check_reponse() raised an InvalidChecksum exception")
+            self.fail("check_response() raised an InvalidChecksum exception")
         except user.gw1000.InvalidApiResponse:
-            self.fail("check_reponse() raised an InvalidApiResponse exception")
+            self.fail("check_response() raised an InvalidApiResponse exception")
         # test check_response() with a bad checksum data, should be an InvalidChecksum exception
         self.assertRaises(user.gw1000.InvalidChecksum,
                           self.station.check_response,
@@ -585,19 +753,206 @@ class StationTestCase(unittest.TestCase):
 
 
 class Gw1000TestCase(unittest.TestCase):
+    """Test the GW1000Service.
 
-    def setUp(self):
+    Note this test class requires that a GW1000 can be successfully discovered
+    on the local network segment. If a GW1000 cannot/is not discovered then the
+    test class is skipped.
+    """
 
-        pass
+    # dummy GW1000 data used to exercise the GW1000 to WeeWX mapping
+    gw1000_data = {'absbarometer': 1009.3,
+                   'datetime': 1632109437,
+                   'inHumidity': 56,
+                   'inTemp': 27.3,
+                   'lightningcount': 32,
+                   'raintotals': 100.3,
+                   'relbarometer': 1014.3,
+                   'usUnits': 17
+                   }
+    # mapped dummy GW1000 data
+    result_data = {'dateTime': 1632109437,
+                   'inHumidity': 56,
+                   'inTemp': 27.3,
+                   'lightningcount': 32,
+                   'pressure': 1009.3,
+                   'relbarometer': 1014.3,
+                   'totalRain': 100.3,
+                   'usUnits': 17
+                   }
+    # amount to increment delta measurements
+    increment = 5.6
+    # IP address to use for contacting GW1000, if None discovery will be
+    # attempted. Can be overridden using --ip-address command line argument.
+    ip_address = None
+    # Port to use for contacting GW1000, if None discovery will be attempted.
+    # Can be overridden using --port command line argument.
+    port = None
+
+    @classmethod
+    def setUpClass(cls):
+
+        # Create a dummy config so we can stand up a dummy engine with a dummy
+        # simulator emitting arbitrary loop packets. Only include the GW1000
+        # service, we don't need the others. This will be a loop packets only
+        # setup, no archive records, but that doesn't matter, we just need to
+        # be able to exercise the GW1000 service.
+        config = {
+            'Station': {
+                'station_type': 'Simulator',
+                'altitude': [0, 'meter'],
+                'latitude': 0,
+                'longitude': 0},
+            'Simulator': {
+                'driver': 'weewx.drivers.simulator',
+                'mode': 'simulator'},
+            'GW1000': {},
+            'Engine': {
+                'Services': {
+                    'archive_services': 'user.gw1000.Gw1000Service'}}}
+        # set the IP address and port to use
+        config['GW1000']['ip_address'] = cls.ip_address
+        config['GW1000']['port'] = cls.port
+        # this could take some time so display a courtesy message
+        if config['GW1000']['ip_address'] is not None and config['GW1000']['port'] is not None:
+            print("Please wait, attempting to contact GW1000 at %s:%d..." % (config['GW1000']['ip_address'],
+                                                                             config['GW1000']['port']))
+        else:
+            print("Please wait, discovering GW1000 on the local network segment...")
+        # wrap in a try..except in case there is an error
+        try:
+            # create a dummy engine
+            cls.engine = weewx.engine.StdEngine(config)
+        except user.gw1000.GW1000IOError as e:
+            # could not communicate with the GW1000, skip the test
+            # if we have an engine try to shut it down
+            if cls.engine:
+                cls.engine.shutDown()
+            # now raise unittest.SkipTest to skip this test class
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (cls.__name__,))
+        else:
+            # Our GW1000 service will have been instantiated by the engine during
+            # its startup. Whilst access to the service is not normally required we
+            # require access here so we can obtain some info about the station we
+            # are using for this test. The engine does not provide a ready means to
+            # access that GW1000 service so we can do a bit of guessing and iterate
+            # over all of the engine's services and select the one that has a
+            # 'collector' property. Unlikely to cause a problem since there are
+            # only two services in the dummy engine.
+            cls.gw1000_svc = None
+            for svc in cls.engine.service_obj:
+                if hasattr(svc, 'collector'):
+                    cls.gw1000_svc = svc
+            if cls.gw1000_svc:
+                print("Using GW1000 at %s:%d" % (cls.gw1000_svc.collector.station.ip_address.decode(),
+                                                 cls.gw1000_svc.collector.station.port))
+                cls.gw1000_svc.rain_total_field = 'raintotals'
+                cls.gw1000_svc.rain_mapping_confirmed = True
+            else:
+                # we could get the GW1000 service for some reason, shutdown the
+                # engine and skip this test class
+                if cls.engine:
+                    cls.engine.shutDown()
+                # now skip this test class
+                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (cls.__name__,))
+
+    @classmethod
+    def tearDown(cls):
+
+        cls.engine.shutDown()
 
     def test_map(self):
-        pass
+        """Test GW1000Service GW1000 to WeeWX mapping
+
+        Tests:
+        1. field dateTime is included in the GW1000 mapped data
+        2. field usUnits is included in the GW1000 mapped data
+        3. GW1000 obs data is correctly mapped to a WeeWX fields
+        """
+
+        # get a mapped  version of our GW1000 test data
+        mapped_gw1000_data = self.gw1000_svc.map_data(self.gw1000_data)
+        # check that our mapped data has a field 'dateTime'
+        self.assertIn('dateTime', mapped_gw1000_data)
+        # check that our mapped data has a field 'usUnits'
+        self.assertIn('usUnits', mapped_gw1000_data)
+        # check that the usUnits field is set to weewx.METRICWX
+        self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
 
     def test_rain(self):
-        pass
+        """Test GW1000Service correctly calculates WeeWX field rain
+
+        Tests:
+        1. field rain is included in the GW1000 data
+        2. field rain is set to None if this is the first packet
+        2. field rain is correctly calculated for a subsequent packet
+        """
+
+        # take a copy of our test data as we will be changing it
+        _gw1000_data = dict(self.gw1000_data)
+        # perform the rain calculation
+        self.gw1000_svc.calculate_rain(_gw1000_data)
+        # check that our data now has field 'rain'
+        self.assertIn('rain', _gw1000_data)
+        # check that the field rain is None as this is the first packet
+        self.assertIsNone(_gw1000_data.get('rain', 1))
+        # increment increase the rainfall in our GW1000 data
+        _gw1000_data['raintotals'] += self.increment
+        # perform the rain calculation
+        self.gw1000_svc.calculate_rain(_gw1000_data)
+        # Check that the field rain is now the increment we used. Use
+        # AlmostEqual as unit conversion could cause assertEqual to fail.
+        self.assertAlmostEqual(_gw1000_data.get('rain'), self.increment, places=3)
+        # check delta_rain calculation
+        # last_rain is None
+        self.assertIsNone(self.gw1000_svc.delta_rain(rain=10.2, last_rain=None))
+        # rain is None
+        self.assertIsNone(self.gw1000_svc.delta_rain(rain=None, last_rain=5.2))
+        # rain < last_rain
+        self.assertEqual(self.gw1000_svc.delta_rain(rain=4.2, last_rain=5.8), 4.2)
+        # rain and last_rain are not None
+        self.assertAlmostEqual(self.gw1000_svc.delta_rain(rain=12.2, last_rain=5.8),
+                               6.4,
+                               places=3)
 
     def test_lightning(self):
-        pass
+        """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
+
+        Tests:
+        1. field lightning_strike_count is included in the GW1000 data
+        2. field lightning_strike_count is set to None if this is the first
+           packet
+        2. field lightning_strike_count is correctly calculated for a
+           subsequent packet
+        """
+
+        # take a copy of our test data as we will be changing it
+        _gw1000_data = dict(self.gw1000_data)
+        # perform the lightning calculation
+        self.gw1000_svc.calculate_lightning_count(_gw1000_data)
+        # check that our data now has field 'lightning_strike_count'
+        self.assertIn('lightning_strike_count', _gw1000_data)
+        # check that the field lightning_strike_count is None as this is the
+        # first packet
+        self.assertIsNone(_gw1000_data.get('lightning_strike_count', 1))
+        # increment increase the lightning count in our GW1000 data
+        _gw1000_data['lightningcount'] += self.increment
+        # perform the lightning calculation
+        self.gw1000_svc.calculate_lightning_count(_gw1000_data)
+        # check that the field lightning_strike_count is now the increment we
+        # used
+        self.assertAlmostEqual(_gw1000_data.get('lightning_strike_count'),
+                               self.increment,
+                               places=1)
+        # check delta_lightning calculation
+        # last_count is None
+        self.assertIsNone(self.gw1000_svc.delta_lightning(count=10, last_count=None))
+        # count is None
+        self.assertIsNone(self.gw1000_svc.delta_lightning(count=None, last_count=5))
+        # count < last_count
+        self.assertEqual(self.gw1000_svc.delta_lightning(count=42, last_count=58), 42)
+        # count and last_count are not None
+        self.assertEqual(self.gw1000_svc.delta_lightning(count=122, last_count=58), 64)
 
 
 def hex_to_bytes(hex_string):
@@ -617,6 +972,25 @@ def hex_to_bytes(hex_string):
     return struct.pack('B' * len(dec_list), *dec_list)
 
 
+def bytes_to_hex(iterable, separator=' ', caps=True):
+    """Produce a hex string representation of a sequence of bytes."""
+
+    # assume 'iterable' can be iterated by iterbytes and the individual
+    # elements can be formatted with {:02X}
+    format_str = "{:02X}" if caps else "{:02x}"
+    try:
+        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
+    except ValueError:
+        # most likely we are running python3 and iterable is not a bytestring,
+        # try again coercing iterable to a bytestring
+        return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
+    except (TypeError, AttributeError):
+        # TypeError - 'iterable' is not iterable
+        # AttributeError - likely because separator is None
+        # either way we can't represent as a string of hex bytes
+        return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
+
+
 def xbytes(num, hex_string='00', separator=' '):
     """Construct a string of delimited repeated hex pairs.
 
@@ -627,5 +1001,76 @@ def xbytes(num, hex_string='00', separator=' '):
     return separator.join([hex_string] * num)
 
 
+def suite(test_cases):
+    """Create a TestSuite object containing the tests we are to perform."""
+
+    # get a test loader
+    loader = unittest.TestLoader()
+    # create an empty test suite
+    suite = unittest.TestSuite()
+    # iterate over the test cases we are to add
+    for test_class in test_cases:
+        # get the tests from the test case
+        tests = loader.loadTestsFromTestCase(test_class)
+        # add the tests to the test suite
+        suite.addTests(tests)
+    # finally return the populated test suite
+    return suite
+
+
+def main():
+    import argparse
+
+    # test cases that are production ready
+    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
+                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
+
+    usage = """python -m user.tests.test_gw1000 --help
+           python -m user.tests.test_gw1000 --version
+           python -m user.tests.test_gw1000 [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
+
+        Arguments:
+
+           VERBOSITY: Path and file name of the WeeWX configuration file to be used.
+                        Default is weewx.conf.
+           IP_ADDRESS: IP address to use to contact GW1000. If omitted discovery is used.
+           PORT: Port to use to contact GW1000. If omitted discovery is used."""
+    description = 'Test the GW1000 driver code.'
+    epilog = """You must ensure the WeeWX modules are in your PYTHONPATH. For example:
+
+    PYTHONPATH=/home/weewx/bin python -m user.tests.test_gw1000 --help
+    """
+
+    parser = argparse.ArgumentParser(usage=usage,
+                                     description=description,
+                                     epilog=epilog,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--version', dest='version', action='store_true',
+                        help='display GW1000 driver test suite version number')
+    parser.add_argument('--verbose', dest='verbosity', type=int, metavar="VERBOSITY",
+                        default=2,
+                        help='How much status to display, 0-2')
+    parser.add_argument('--ip-address', dest='ip_address', metavar="IP_ADDRESS",
+                        help='GW1000 IP address to use')
+    parser.add_argument('--port', dest='port', type=int, metavar="PORT",
+                        help='GW1000 port to use')
+    # parse the arguments
+    args = parser.parse_args()
+
+    # display version number
+    if args.version:
+        print("%s test suite version: %s" % (TEST_SUITE_NAME, TEST_SUITE_VERSION))
+        print("args=%s" % (args,))
+        exit(0)
+    # run the tests
+    # first set the IP address and port to use in Gw1000TestCase
+    Gw1000TestCase.ip_address = args.ip_address
+    Gw1000TestCase.port = args.port
+    # get a test runner with appropriate verbosity
+    runner = unittest.TextTestRunner(verbosity=args.verbosity)
+    # create a test suite and run the included tests
+    runner.run(suite(test_cases))
+
+
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    main()
