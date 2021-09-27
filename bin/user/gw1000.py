@@ -1376,8 +1376,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         loginf('version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
-            loginf("%s IP address and port not specified, attempting to discover %s..." % (self.collector.station.model,
-                                                                                           self.collector.station.model))
+            loginf("%s IP address and port not specified, "
+                   "attempting to discover %s..." % (self.collector.station.model,
+                                                     self.collector.station.model))
         elif self.ip_address is None:
             loginf("%s IP address not specified, attempting to discover %s..." % (self.collector.station.model,
                                                                                   self.collector.station.model))
@@ -2072,8 +2073,9 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
         loginf('driver version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
-            loginf("%s IP address and port not specified, attempting to discover %s..." % (self.collector.station.model,
-                                                                                           self.collector.station.model))
+            loginf("%s IP address and port not specified, "
+                   "attempting to discover %s..." % (self.collector.station.model,
+                                                     self.collector.station.model))
         elif self.ip_address is None:
             loginf("%s IP address not specified, attempting to discover %s..." % (self.collector.station.model,
                                                                                   self.collector.station.model))
@@ -2254,7 +2256,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
         is None use the driver name.
         """
 
-        if self.collector.station.model is not None
+        if self.collector.station.model is not None:
             return self.collector.station.model
         else:
             return DRIVER_NAME
@@ -3070,6 +3072,7 @@ class Gw1000Collector(Collector):
         # known device models
         known_models = ('GW1000', 'GW1100')
 
+        # TODO. Is lost_contact_log_period required in the signature
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
                      socket_timeout=None, broadcast_timeout=None,
