@@ -3084,6 +3084,8 @@ class Gw1000Collector(Collector):
         }
         # header used in each API command and response packet
         header = b'\xff\xff'
+        # known device models
+        known_models = ('GW1000', 'GW1100')
 
         def __init__(self, collector, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
@@ -3169,14 +3171,13 @@ class Gw1000Collector(Collector):
             else:
                 _firmware_t = struct.unpack("B" * len(_firmware_b), _firmware_b)
                 _firmware_str = "".join([chr(x) for x in _firmware_t[5:5 + _firmware_t[4]]])
-                self.model = self.get_model(_firmware_str)
+                self.model = self.get_model_from_firmware(_firmware_str)
 
         def discover(self):
             """Discover any GW1000s on the local network.
 
             Send a UDP broadcast and check for replies. Decode each reply to
-            obtain the IP address and port number of any GW1000s on the local
-            network. Since there may be multiple GW1000s on the network
+            obtain details of any devices on the local network. Create a dict of details for each device including a derived model name. Construct a list of dicts with details of unique (IP address and port) Since there may be multiple GW1000s on the network
             package each IP address and port as a two way tuple and construct a
             list of unique IP address/port tuples. When complete return the
             list of IP address/port tuples found.
@@ -3233,12 +3234,12 @@ class Gw1000Collector(Collector):
                                    "to command '%s': %s" % ('CMD_BROADCAST', e))
                             log_traceback_error('    ****  ')
                         else:
-                            # TODO. The next few lines could be better constructed and commented.
-                            # our response is valid so ?????
+                            # we have a valid response so decode the response
+                            # and obtain a dict of device data
                             device = self.decode_broadcast_response(response)
-                            # if we haven't seen this ip address and port add them to
-                            # our results list
-                            if not any((d['ip_address'] == device['ip_address'] and d['port'] == device['port']) for d in result_list):
+                            # if we haven't seen this MAC before add the device
+                            # to our results list
+                            if not any((d['mac'] == device['mac']) for d in result_list):
                                 result_list.append(device)
             # now return our results
             return result_list
@@ -3313,22 +3314,93 @@ class Gw1000Collector(Collector):
             # return the result dict
             return data_dict
 
-        @staticmethod
-        def get_model(firmware):
-            # TODO. This method needs to be properly commented
-            """Determine the device model.
+        def get_model_from_firmware(self, firmware_string):
+            """Determine the device model from the firmware version.
 
-            I only know about the following models:
+            To date GW1000 and GW1100 firmware versions have included the
+            device model in the firmware version string returned via the device
+            API. Whilst this is not guaranteed to be the case for future
+            firmware releases, in the absence of any other direct means of
+            obtaining the device model number it is a useful means for
+            determining the device model.
 
-            GW1000
-            GW1100
+            The check is a simple check to see if the model name is contained
+            in the firmware version string returned by the device API.
+
+            If a known model is found in the firmware version string the model
+            is returned as a string. None is returned if (1) the firmware
+            string is None or (2) a known model is not found in the firmware
+            version string.
             """
 
-            if 'GW1000' in firmware:
-                return 'GW1000'
-            elif 'GW1100' in firmware:
-                return 'GW1100'
+            # do we have a firmware string
+            if firmware_string is not None:
+                # we have a firmware string so look for a known model in the
+                # string and return the result
+                return self.get_model(firmware_string)
             else:
+                # for some reason we have no firmware string, so return None
+                return None
+
+        def get_model_from_ssid(self, ssid_string):
+            """Determine the device model from the device SSID.
+
+            To date the GW1000 and GW1100 device SSID has included the device
+            model in the SSID returned via the device API. Whilst this is not
+            guaranteed to be the case for future firmware releases, in the
+            absence of any other direct means of obtaining the device model
+            number it is a useful means for determining the device model. This
+            is particularly the case when using UDP broadcast to discover
+            devices on the local network.
+
+            Note that it may be possible to alter the SSID used by the device
+            in which case this method may not provide an accurate result.
+            However, as the device SSID is only used during initial device
+            configuration and since altering the device SSID is not a normal
+            part of the initial device configuration, this method of
+            determining the device model is considered adequate for use during
+            discovery by UDP broadcast.
+
+            The check is a simple check to see if the model name is contained
+            in the SSID returned by the device API.
+
+            If a known model is found in the SSID the model is returned as a
+            string. None is returned if (1) the SSID is None or (2) a known
+            model is not found in the SSID.
+            """
+
+            return self.get_model(ssid_string)
+
+        def get_model(self, t):
+            """Determine the device model from a string.
+
+            To date GW1000 and GW1100 firmware versions have included the
+            device model in the firmware version string or the device SSID.
+            Both the firmware version string and device SSID are available via
+            the device API so checking the firmware version string or SSID
+            provides a de facto method of determining the device model.
+
+            This method uses a simple check to see if a known model name is
+            contained in the string concerned.
+
+            Known model strings are contained in a tuple Station.known_models.
+
+            If a known model is found in the string the model is returned as a
+            string. None is returned if a known model is not found in the
+            string.
+            """
+
+            # do we have a string to check
+            if t is not None:
+                # we have a string, now do we have a know model in the string,
+                # if so return the model string
+                for model in self.known_models:
+                    if model in t.upper():
+                        return model
+                # we don't have a known model so return None
+                return None
+            else:
+                # we have no string so return None
                 return None
 
         def get_livedata(self):
@@ -5831,44 +5903,40 @@ class DirectGw1000(object):
 
     @staticmethod
     def discover():
-        """Display IP address and port data of GW1000s on the local network."""
+        """Display details of GW1000/GW1100 devices on the local network."""
 
         # get an Gw1000Collector object
         collector = Gw1000Collector()
         print()
-        # call the Gw1000Collector object discover() method, wrap in a try so we can
-        # catch any socket timeouts
-        try:
-            ip_port_list = collector.station.discover()
-        except socket.timeout:
-            print("Timeout. %s did not respond." % collector.station.model)
-        else:
-            if len(ip_port_list) > 0:
-                # we have at least one result
-                # first sort our list by IP address
-                # TODO. Need to sort this list by ip_address
-                #    sorted_list = sorted(ip_port_list, key=itemgetter(0))
-                sorted_list = ip_port_list
-                found = False
-                gw1000_found = 0
-                for device in sorted_list:
-                    if device['ip_address'] is not None and device['port'] is not None:
-                        # TODO. GW1000
-                        print("GW1000 discovered at IP address %s on port %d" % (device['ip_address'],
-                                                                                 device['port']))
-                        found = True
-                        gw1000_found += 1
-                else:
-                    if gw1000_found > 1:
-                        print()
-                        print("Multiple devices were found.")
-                        print("If using the GW1000/GW1100 driver consider explicitly specifying the ")
-                        print("IP address and port of the GW1000 to be used under [GW1000] in weewx.conf.")
-                    if not found:
-                        print("No devices were discovered.")
+        # Call the Gw1000Collector object discover() method. Would consider
+        # wrapping in a try..except so we can catch any socket timeout
+        # exceptions but the Station.discover() method should catch any such
+        # exceptions for us.
+        device_list = collector.station.discover()
+        if len(device_list) > 0:
+            # we have at least one result
+            # first sort our list by IP address
+            # TODO. Need to sort this list by ip_address
+            #    sorted_list = sorted(device_list, key=itemgetter(0))
+            sorted_list = device_list
+            num_gw_found = 0
+            for device in sorted_list:
+                if device['ip_address'] is not None and device['port'] is not None:
+                    print("%s discovered at IP address %s on port %d" % (device['model'],
+                                                                         device['ip_address'],
+                                                                         device['port']))
+                    num_gw_found += 1
             else:
-                # we have no results
-                print("No devices were discovered.")
+                if num_gw_found > 1:
+                    print()
+                    print("Multiple devices were found.")
+                    print("If using the GW1000/GW1100 driver consider explicitly specifying the ")
+                    print("IP address and port of the device to be used under [GW1000] in weewx.conf.")
+                elif num_gw_found == 0:
+                    print("No devices were discovered.")
+        else:
+            # we have no results
+            print("No devices were discovered.")
 
     @staticmethod
     def field_map():
