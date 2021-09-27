@@ -3174,73 +3174,81 @@ class Gw1000Collector(Collector):
                 self.model = self.get_model_from_firmware(_firmware_str)
 
         def discover(self):
-            """Discover any GW1000s on the local network.
+            """Discover any GW1000/GW1100 devices on the local network.
 
             Send a UDP broadcast and check for replies. Decode each reply to
-            obtain details of any devices on the local network. Create a dict of details for each device including a derived model name. Construct a list of dicts with details of unique (IP address and port) Since there may be multiple GW1000s on the network
-            package each IP address and port as a two way tuple and construct a
-            list of unique IP address/port tuples. When complete return the
-            list of IP address/port tuples found.
+            obtain details of any devices on the local network. Create a dict
+            of details for each device including a derived model name.
+            Construct a list of dicts with details of unique (MAC address)
+            devices that responded. When complete return the list of devices
+            found.
             """
 
             # create a socket object so we can broadcast to the network via
             # IPv4 UDP
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                # set socket datagram to broadcast
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                # set timeout
-                s.settimeout(self.broadcast_timeout)
-                # set TTL to 1 to so messages do not go past the local network
-                # segment
-                ttl = struct.pack('b', 1)
-                s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-                # construct the packet to broadcast
-                packet = self.build_cmd_packet('CMD_BROADCAST')
-                if weewx.debug >= 3:
-                    logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                                         self.broadcast_address,
-                                                                         self.broadcast_port))
-                # create a list for the results as multiple GW1000/GW1100 may
-                # respond
-                result_list = []
-                # send the Broadcast command
-                s.sendto(packet, (self.broadcast_address, self.broadcast_port))
-                # obtain any responses
-                while True:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # set socket datagram to broadcast
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            # set timeout
+            s.settimeout(self.broadcast_timeout)
+            # set TTL to 1 to so messages do not go past the local network
+            # segment
+            ttl = struct.pack('b', 1)
+            s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+            # construct the packet to broadcast
+            packet = self.build_cmd_packet('CMD_BROADCAST')
+            if weewx.debug >= 3:
+                logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
+                                                                     self.broadcast_address,
+                                                                     self.broadcast_port))
+            # initialise a list for the results as multiple GW1000/GW1100 may
+            # respond
+            result_list = []
+            # send the Broadcast command
+            s.sendto(packet, (self.broadcast_address, self.broadcast_port))
+            # obtain any responses
+            while True:
+                try:
+                    response = s.recv(1024)
+                    # log the response if debug is high enough
+                    if weewx.debug >= 3:
+                        logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
+                except socket.timeout:
+                    # if we timeout then we are done
+                    break
+                except socket.error:
+                    # raise any other socket error
+                    raise
+                else:
+                    # check the response is valid
                     try:
-                        response = s.recv(1024)
-                        # log the response if debug is high enough
-                        if weewx.debug >= 3:
-                            logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
-                    except socket.timeout:
-                        # if we timeout then we are done
-                        break
-                    except socket.error:
-                        # raise any other socket error
-                        raise
+                        self.check_response(response, self.commands['CMD_BROADCAST'])
+                    except (InvalidChecksum, InvalidApiResponse) as e:
+                        # the response was not valid, log it and attempt again
+                        # if we haven't had too many attempts already
+                        logdbg("Invalid response to command '%s': %s" % ('CMD_BROADCAST', e))
+                    except Exception as e:
+                        # Some other error occurred in check_response(),
+                        # perhaps the response was malformed. Log the stack
+                        # trace but continue.
+                        logerr("Unexpected exception occurred while checking response "
+                               "to command '%s': %s" % ('CMD_BROADCAST', e))
+                        log_traceback_error('    ****  ')
                     else:
-                        # check the response is valid
-                        try:
-                            self.check_response(response, self.commands['CMD_BROADCAST'])
-                        except (InvalidChecksum, InvalidApiResponse) as e:
-                            # the response was not valid, log it and attempt again
-                            # if we haven't had too many attempts already
-                            logdbg("Invalid response to command '%s': %s" % ('CMD_BROADCAST', e))
-                        except Exception as e:
-                            # Some other error occurred in check_response(),
-                            # perhaps the response was malformed. Log the stack
-                            # trace but continue.
-                            logerr("Unexpected exception occurred while checking response "
-                                   "to command '%s': %s" % ('CMD_BROADCAST', e))
-                            log_traceback_error('    ****  ')
-                        else:
-                            # we have a valid response so decode the response
-                            # and obtain a dict of device data
-                            device = self.decode_broadcast_response(response)
-                            # if we haven't seen this MAC before add the device
-                            # to our results list
-                            if not any((d['mac'] == device['mac']) for d in result_list):
-                                result_list.append(device)
+                        # we have a valid response so decode the response
+                        # and obtain a dict of device data
+                        device = self.decode_broadcast_response(response)
+                        # if we haven't seen this MAC before attempt to obtain
+                        # and save the device model then add the device to our
+                        # results list
+                        if not any((d['mac'] == device['mac']) for d in result_list):
+                            # determine the device model based on the device
+                            # SSID and add the model to the device dict
+                            device['model'] = self.get_model_from_ssid(device.get('ssid'))
+                            # append the device to our list
+                            result_list.append(device)
+            # close our socket
+            s.close()
             # now return our results
             return result_list
 
@@ -3778,23 +3786,39 @@ class Gw1000Collector(Collector):
             Returns the response as a byte string.
             """
 
-            # create socket objects for sending commands and broadcasting to
-            # the network
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.settimeout(self.socket_timeout)
-                try:
-                    s.connect((self.ip_address, self.port))
-                    if weewx.debug >= 3:
-                        logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                                   self.ip_address.decode(),
-                                                                   self.port))
-                    s.sendall(packet)
-                    response = s.recv(1024)
-                    if weewx.debug >= 3:
-                        logdbg("Received response '%s'" % (bytes_to_hex(response),))
-                    return response
-                except socket.error:
-                    raise
+            # create a socket object for sending commands and broadcasting to
+            # the network, would normally do this using a with statement but
+            # with statement support for socket.socket did not appear until
+            # python 3.
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            # set the socket timeout
+            s.settimeout(self.socket_timeout)
+            # wrap our connect in a try..except so we can catch any socket
+            # related exceptions
+            try:
+                # connect to the device
+                s.connect((self.ip_address, self.port))
+                # if required log the packet we are sending
+                if weewx.debug >= 3:
+                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
+                                                               self.ip_address.decode(),
+                                                               self.port))
+                # send the packet
+                s.sendall(packet)
+                # obtain the response, we assume here the response will be less
+                # than 1024 characters
+                response = s.recv(1024)
+                # if required log the response
+                if weewx.debug >= 3:
+                    logdbg("Received response '%s'" % (bytes_to_hex(response),))
+                # return the response
+                return response
+            except socket.error:
+                # we received a socket error, raise it
+                raise
+            finally:
+                # make sure we close our socket
+                s.close()
 
         def check_response(self, response, cmd_code):
             """Check the validity of a GW1000/GW1100 API response.
@@ -5905,21 +5929,24 @@ class DirectGw1000(object):
     def discover():
         """Display details of GW1000/GW1100 devices on the local network."""
 
+        # this could take a few seconds so warn the user
+        print()
+        print("Discovering devices on the local network. Please wait...")
         # get an Gw1000Collector object
         collector = Gw1000Collector()
-        print()
-        # Call the Gw1000Collector object discover() method. Would consider
-        # wrapping in a try..except so we can catch any socket timeout
-        # exceptions but the Station.discover() method should catch any such
-        # exceptions for us.
+        # Call the Gw1000Collector object discover() method to obtain a list of
+        # unique devices discovered. Would consider wrapping in a try..except
+        # so we can catch any socket timeout exceptions but the
+        # Station.discover() method should catch any such exceptions for us.
         device_list = collector.station.discover()
+        print()
         if len(device_list) > 0:
             # we have at least one result
             # first sort our list by IP address
-            # TODO. Need to sort this list by ip_address
-            #    sorted_list = sorted(device_list, key=itemgetter(0))
-            sorted_list = device_list
+            sorted_list = sorted(device_list, key=itemgetter('ip_address'))
+            # initialise a counter to count the number of valid devices found
             num_gw_found = 0
+            # iterate over the unique devices that were found
             for device in sorted_list:
                 if device['ip_address'] is not None and device['port'] is not None:
                     print("%s discovered at IP address %s on port %d" % (device['model'],
