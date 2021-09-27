@@ -525,7 +525,6 @@ the WeeWX daemon:
 """
 
 # Standing TODOs:
-# TODO. Check lightning count for correct gw1000 field name and default map
 # TODO. Review against latest
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm WH26/WH32 battery status
@@ -988,15 +987,15 @@ class Gw1000(object):
                                                      default_socket_timeout))
         self.broadcast_timeout = weeutil.weeutil.to_int(gw1000_config.get('broadcast_timeout',
                                                         default_broadcast_timeout))
-        # obtain the GW1000/GW1100 ip address
+        # obtain the GW1000/GW1100 IP address
         _ip_address = gw1000_config.get('ip_address')
         # if the user has specified some variation of 'auto' then we are to
         # automatically detect the GW1000/GW1100 IP address, to do that we set
         # the ip_address property to None
         if _ip_address is not None and _ip_address.lower() == 'auto':
-            # we need to autodetect ip address so set to None
+            # we need to autodetect IP address so set to None
             _ip_address = None
-        # set the ip address property
+        # set the IP address property
         self.ip_address = _ip_address
         # obtain the GW1000/GW1100 port from the config dict
         # for port number we have a default value we can use, so if port is not
@@ -2249,9 +2248,16 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
 
     @property
     def hardware_name(self):
-        """Return the hardware name."""
+        """Return the hardware name.
 
-        return DRIVER_NAME
+        Use the device model from our Collector's Station object, but if this
+        is None use the driver name.
+        """
+
+        if self.collector.station.model is not None
+            return self.collector.station.model
+        else:
+            return DRIVER_NAME
 
     @property
     def mac_address(self):
@@ -2402,8 +2408,7 @@ class Gw1000Collector(Collector):
         self.use_th32 = use_th32
         # get a station object to do the handle the interaction with the
         # GW1000/GW1100 API
-        self.station = Gw1000Collector.Station(collector=self,
-                                               ip_address=ip_address,
+        self.station = Gw1000Collector.Station(ip_address=ip_address,
                                                port=port,
                                                broadcast_address=broadcast_address,
                                                broadcast_port=broadcast_port,
@@ -2433,28 +2438,6 @@ class Gw1000Collector(Collector):
         # we start off not collecting data, it will be turned on later when we
         # are threaded
         self.collect_data = False
-
-    def get_device_model(self):
-        # TODO. This method needs to be properly commented
-        """Determine the device model.
-
-        I only know about the following models:
-
-        GW1000
-        GW1100
-        """
-
-        try:
-            firmware = self.firmware_version
-        except GW1000IOError:
-            return 'unknown'
-        else:
-            if 'GW1000' in firmware:
-                return 'GW1000'
-            elif 'GW1100' in firmware:
-                return 'GW1100'
-            else:
-                return 'unknown'
 
     def collect_sensor_data(self):
         """Collect sensor data by polling the API.
@@ -3036,7 +3019,7 @@ class Gw1000Collector(Collector):
         3.  receive a response from the GW1000/GW1100 API
         4.  verify the response as valid
 
-        A Station object needs an ip address and port as well as a network
+        A Station object needs an IP address and port as well as a network
         broadcast address and port.
         """
 
@@ -3087,7 +3070,7 @@ class Gw1000Collector(Collector):
         # known device models
         known_models = ('GW1000', 'GW1100')
 
-        def __init__(self, collector, ip_address=None, port=None,
+        def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
                      socket_timeout=None, broadcast_timeout=None,
                      max_tries=default_max_tries,
@@ -3101,44 +3084,44 @@ class Gw1000Collector(Collector):
             self.socket_timeout = socket_timeout if socket_timeout is not None else default_socket_timeout
             self.broadcast_timeout = broadcast_timeout if broadcast_timeout is not None else default_broadcast_timeout
 
-            # initialise flags to indicate if ip address or port were discovered
+            # initialise flags to indicate if IP address or port were discovered
             self.ip_discovered = ip_address is None
             self.port_discovered = port is None
-            # if ip address or port was not specified (None) then attempt to
+            # if IP address or port was not specified (None) then attempt to
             # discover the GW1000/GW1100 with a UDP broadcast
             if ip_address is None or port is None:
                 for attempt in range(max_tries):
                     try:
-                        # discover() returns a list of (ip address, port) tuples
-                        ip_port_list = self.discover()
+                        # discover devices on the local network, the result is
+                        # a list of dicts in IP address order with each dict
+                        # containing data for a unique discovered device
+                        device_list = self.discover()
                     except socket.error as e:
-                        _msg = "Unable to detect device ip address and port: %s (%s)" % (e, type(e))
+                        _msg = "Unable to detect device IP address and port: %s (%s)" % (e, type(e))
                         logerr(_msg)
                         # signal that we have a critical error
                         raise
                     else:
                         # did we find any GW1000/GW1100
-                        if len(ip_port_list) > 0:
+                        if len(device_list) > 0:
                             # we have at least one, arbitrarily choose the first one
                             # found as the one to use
-                            disc_ip = ip_port_list[0]['ip_address']
-                            disc_port = ip_port_list[0]['port']
+                            disc_ip = device_list[0]['ip_address']
+                            disc_port = device_list[0]['port']
                             # log the fact as well as what we found
                             gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'],
-                                                                         d['port'])]) for d in ip_port_list])
-                            if len(ip_port_list) == 1:
-                                # TODO. Deal with this GW1000 instance
-                                stem = "GW1000 was"
+                                                                         d['port'])]) for d in device_list])
+                            if len(device_list) == 1:
+                                stem = "%s was" % device_list[0]['model']
                             else:
-                                # TODO. Deal with this GW1000 instance
-                                stem = "Multiple GW1000 were"
+                                stem = "Multiple devices were"
                             loginf("%s found at %s" % (stem, gw1000_str))
                             ip_address = disc_ip if ip_address is None else ip_address
                             port = disc_port if port is None else port
                             break
                         else:
                             # did not discover any GW1000/GW1100 so log it
-                            logdbg("Failed attempt %d to detect device ip address and/or port" % (attempt + 1,))
+                            logdbg("Failed attempt %d to detect device IP address and/or port" % (attempt + 1,))
                             # do we try again or raise an exception
                             if attempt < max_tries - 1:
                                 # we still have at least one more try left so sleep
@@ -3146,7 +3129,7 @@ class Gw1000Collector(Collector):
                                 time.sleep(retry_wait)
                             else:
                                 # we've used all our tries, log it and raise an exception
-                                _msg = "Failed to detect device ip address and/or " \
+                                _msg = "Failed to detect device IP address and/or " \
                                        "port after %d attempts" % (attempt + 1,)
                                 logerr(_msg)
                                 raise GW1000IOError(_msg)
@@ -3905,16 +3888,17 @@ class Gw1000Collector(Collector):
             if self.ip_discovered:
                 # log that we are attempting re-discovery
                 if self.log_failures:
-                    # TODO. GW1000
-                    loginf("Attempting to re-discover GW1000...")
+                    loginf("Attempting to re-discover %s..." % self.model)
                 # attempt to discover up to self.max_tries times
                 for attempt in range(self.max_tries):
                     # sleep before our attempt, but not if its the first one
                     if attempt > 0:
                         time.sleep(self.retry_wait)
                     try:
-                        # discover() returns a list of (ip address, port) tuples
-                        ip_port_list = self.discover()
+                        # discover devices on the local network, the result is
+                        # a list of dicts in IP address order with each dict
+                        # containing data for a unique discovered device
+                        device_list = self.discover()
                     except socket.error as e:
                         # log the error
                         logdbg("Failed attempt %d to detect any devices: %s (%s)" % (attempt + 1,
@@ -3922,15 +3906,13 @@ class Gw1000Collector(Collector):
                                                                                      type(e)))
                     else:
                         # did we find any GW1000/GW1100
-                        if len(ip_port_list) > 0:
+                        if len(device_list) > 0:
                             # we have at least one, log the fact as well as what we found
-                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in ip_port_list])
-                            if len(ip_port_list) == 1:
-                                # TODO. GW1000
-                                stem = "GW1000 was"
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in device_list])
+                            if len(device_list) == 1:
+                                stem = "%s was" % device_list[0]['model']
                             else:
-                                # TODO. GW1000
-                                stem = "Multiple GW1000 were"
+                                stem = "Multiple devices were"
                             loginf("%s found at %s" % (stem, gw1000_str))
                             # keep our current IP address and port in case we
                             # don't find a match as we will change our
@@ -3942,15 +3924,15 @@ class Gw1000Collector(Collector):
                             # address against my mac property. This way we know
                             # we are connecting to the GW1000/GW1100 we were
                             # previously using
-                            for _ip, _port in ip_port_list:
-                                self.ip_address = _ip.encode()
-                                self.port = _port
+                            for _ip, _port in device_list:
                                 # do the MACs match, if so we have our old
                                 # device and we can exit the loop
                                 if self.mac == self.get_mac_address():
+                                    self.ip_address = _ip.encode()
+                                    self.port = _port
                                     break
                             else:
-                                # exhausted the ip_port_list without a match,
+                                # exhausted the device_list without a match,
                                 # revert to our old IP address and port
                                 self.ip_address = present_ip
                                 self.port = present_port
@@ -3958,9 +3940,9 @@ class Gw1000Collector(Collector):
                                 # attempts left
                                 continue
                             # log the new IP address and port
-                            # TODO. GW1000
-                            loginf("GW1000 at address %s:%d will be used" % (self.ip_address.decode(),
-                                                                             self.port))
+                            loginf("%s at address %s:%d will be used" % (self.model,
+                                                                         self.ip_address.decode(),
+                                                                         self.port))
                             # return True indicating the re-discovery was successful
                             return True
                         else:
@@ -3970,8 +3952,8 @@ class Gw1000Collector(Collector):
                 else:
                     # we exhausted our attempts at re-discovery so log it
                     if self.log_failures:
-                        # TODO. GW1000
-                        loginf("Failed to detect original GW1000 after %d attempts" % (attempt + 1,))
+                        loginf("Failed to detect original %s after %d attempts" % (self.model,
+                                                                                   attempt + 1))
             else:
                 # an IP address was specified so we cannot go searching, log it
                 if self.log_failures:
@@ -5054,25 +5036,25 @@ class DirectGw1000(object):
 
         Determine the IP address to use given a station config dict and command
         line options. The IP address is chosen as follows:
-        - if specified use the ip address from the command line
+        - if specified use the IP address from the command line
         - if an IP address was not specified on the command line obtain the IP
           address from the station config dict
         - if the station config dict does not specify an IP address, or if it
           is set to 'auto', return None to force device discovery
         """
 
-        # obtain an ip address from the command line options
+        # obtain an IP address from the command line options
         ip_address = self.opts.ip_address if self.opts.ip_address else None
-        # if we didn't get an ip address check the station config dict
+        # if we didn't get an IP address check the station config dict
         if ip_address is None:
-            # obtain the ip address from the station config dict
+            # obtain the IP address from the station config dict
             ip_address = self.stn_dict.get('ip_address')
             # if the station config dict specifies some variation of 'auto'
             # then we need to return None to force device discovery
             if ip_address is not None:
                 # do we have a variation of 'auto'
                 if ip_address.lower() == 'auto':
-                    # we need to autodetect ip address so set to None
+                    # we need to autodetect IP address so set to None
                     ip_address = None
                     if weewx.debug >= 1:
                         print()
