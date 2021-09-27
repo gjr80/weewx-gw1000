@@ -635,13 +635,27 @@ class StationTestCase(unittest.TestCase):
         'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
     }
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
+        """Setup the StationTestCase to perform its tests."""
 
+        if cls.ip_address is not None and cls.port is not None:
+            print("Please wait, attempting to contact device at %s:%d..." % (cls.ip_address,
+                                                                             cls.port))
+        else:
+            print("Please wait, discovering device on the local network segment...")
         # get a Gw1000Collector Station object, specify phony ip, port and mac
         # to prevent the GW1000 driver from actually looking for a GW1000
-        self.station = user.gw1000.Gw1000Collector.Station(ip_address='1.1.1.1',
-                                                           port=1234,
-                                                           mac='1:2:3:4:5:6')
+        cls.station = user.gw1000.Gw1000Collector.Station(ip_address=cls.ip_address,
+                                                          port=cls.port)
+        if cls.station:
+            print("Using %s at %s:%d" % (cls.station.model,
+                                         cls.station.ip_address.decode(),
+                                         cls.station.port))
+        else:
+            # we could get a station object for some reason so skip this test
+            # class
+            raise unittest.SkipTest("%s: Could not obtain Station object" % (cls.__name__,))
 
     def test_cmd_vocab(self):
         """Test command dictionaries for completeness
@@ -791,6 +805,7 @@ class Gw1000TestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        """Setup the Gw1000TestCase to perform its tests."""
 
         # Create a dummy config so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Only include the GW1000
@@ -858,6 +873,7 @@ class Gw1000TestCase(unittest.TestCase):
 
     @classmethod
     def tearDown(cls):
+        """Tear down the Gw1000TestCase."""
 
         cls.engine.shutDown()
 
@@ -1063,7 +1079,10 @@ def main():
         print("args=%s" % (args,))
         exit(0)
     # run the tests
-    # first set the IP address and port to use in Gw1000TestCase
+    # first set the IP address and port to use in StationTestCase and
+    # Gw1000TestCase
+    StationTestCase.ip_address = args.ip_address
+    StationTestCase.port = args.port
     Gw1000TestCase.ip_address = args.ip_address
     Gw1000TestCase.port = args.port
     # get a test runner with appropriate verbosity
