@@ -34,9 +34,9 @@ Version: 0.4.0                                      Date: 27 September 2021
 
 Revision History
     27 September 2021       v0.4.0
-        -   now identifies device model (GW1000/GW1100) so many references to
-            'GW1000' in console and log output should now be replaced with the
-            correct device model
+        -   the device model (GW1000/GW1100) is now identified via the API so
+            many references to 'GW1000' in console and log output should now be
+            replaced with the correct device model
         -   when used as a driver the driver hardware_name property now returns
             the device model instead of the driver name (GW1000)
         -   reworked processing of queued data by class Gw1000Service() to fix
@@ -48,9 +48,10 @@ Revision History
             level == 0, can be disabled by setting option
             show_all_batt = True under [GW1000] in weewx.conf or by use of
             the --show-all-batt command line option
-        -   --live-data now displayed using the default units for each WeeWX
-            unit system ie; US customary (--units=us), Metric (--units=metric)
-            and MetricWx (--units=metricwx)
+        -   implemented the --units command line option to control the units
+            used when displaying --live-data output, available options are US
+            customary (--units=us), Metric (--units=metric) and MetricWx
+            (--units=metricwx)
         -   --live-data now formatted and labelled using WeeWX default formats
             and labels
         -   fixed some incorrect command line option descriptions
@@ -58,13 +59,35 @@ Revision History
         -   socket objects are now managed via the 'with' context manager
         -   fixed bug when operated with GW1100 using firmware v2.0.4
         -   implemented limited debug_sensors reporting
-        -   implemented broadcast_timeout config option to allow an increased
-            socket timeout when broadcasting for GW1000/GW1100 devices, default
-            value is five seconds
-        -   a device is no considered unique if it has a unique MAC address
+        -   implemented a separate broadcast_timeout config option to allow an
+            increased socket timeout when broadcasting for GW1000/GW1100
+            devices, default value is five seconds
+        -   a device is now considered unique if it has a unique MAC address
             (was formerly unique if IP address and port combination were
             unique)
         -   minor reformatting of --discover console output
+        -   WH24 battery and signal state fields are now included in the
+            default field map
+    
+
+*   the device model (GW1000/GW1100) is now identified via the API so many references to 'GW1000' in console and log output should now be replaced with the correct device model
+*   when used as a driver the driver hardware_name property now returns the device model instead of the driver name (GW1000)
+*   reworked processing of queued data by class Gw1000Service() to fix a bug resulting is intermittent missing GW1000 data
+*   implemented debug_wind reporting
+*   re-factored debug_rain reporting to report both 'WeeWX' and 'GW1000' rain related fields
+*   battery state data is now set to None for sensors with signal level == 0, can be disabled by setting option show_all_batt = True under [GW1000] in weewx.conf or by use of the --show-all-batt command line option
+*   implemented the --units command line option to control the units used when displaying --live-data output, available options are US customary (--units=us), Metric (--units=metric) and MetricWx (--units=metricwx)
+*   --live-data now formatted and labelled using WeeWX default formats and labels
+*   fixed some incorrect command line option descriptions
+*   simplified binary battery state calculation
+*   socket objects are now managed via the 'with' context manager
+*   fixed bug when operated with GW1100 using firmware v2.0.4
+*   implemented limited debug_sensors reporting
+*   implemented a separate broadcast_timeout config option to allow an increased socket timeout when broadcasting for GW1000/GW1100 devices, default value is five seconds
+*   a device is now considered unique if it has a unique MAC address (was formerly unique if IP address and port combination were unique)
+*   minor reformatting of --discover console output
+*   WH24 battery and signal state fields are now included in the default field map
+    
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
