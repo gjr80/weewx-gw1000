@@ -30,10 +30,15 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.3.2                                      Date: 26 September 2021
+Version: 0.4.0                                      Date: 27 September 2021
 
 Revision History
-    26 September 2021       v0.3.2
+    27 September 2021       v0.4.0
+        -   now identifies device model (GW1000/GW1100) so many references to
+            'GW1000' in console and log output should now be replaced with the
+            correct device model
+        -   when used as a driver the driver hardware_name property now returns
+            the device model instead of the driver name (GW1000)
         -   reworked processing of queued data by class Gw1000Service() to fix
             a bug resulting is intermittent missing GW1000 data
         -   implemented debug_wind reporting
@@ -56,6 +61,10 @@ Revision History
         -   implemented broadcast_timeout config option to allow an increased
             socket timeout when broadcasting for GW1000/GW1100 devices, default
             value is five seconds
+        -   a device is no considered unique if it has a unique MAC address
+            (was formerly unique if IP address and port combination were
+            unique)
+        -   minor reformatting of --discover console output
     28 March 2021           v0.3.1
         -   fixed error when broadcast port or socket timeout is specified in
             weewx.conf
@@ -622,7 +631,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.3.2'
+DRIVER_VERSION = '0.4.0'
 
 # various defaults used throughout
 # default port used by GW1000/GW1100

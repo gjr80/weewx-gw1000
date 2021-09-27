@@ -8,11 +8,11 @@ suite tests correct operation of:
 
 -
 
-Version: 0.3.2                                   Date: 26 September 2021
+Version: 0.4.0                                   Date: 27 September 2021
 
 Revision History
-    26 September 2021   v0.3.2
-        - updated to work with GW1000 driver v0.3.2
+    27 September 2021   v0.4.0
+        - updated to work with GW1000 driver v0.4.0
 
     20 March 2021       v0.3.0
         - incomplete but works with release v0.3.0 under python3

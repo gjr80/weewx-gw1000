@@ -10,10 +10,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.3.1                                        Date: 28 March 2021
+Version: 0.4.0                                        Date: 27 September 2021
 
 Revision History
-    28March 2021       v0.3.1
+    27 September 2021   v0.4.0
+        -   add wh24_batt and wh24_sig to extractors
+    28 March 2021       v0.3.1
         -   no change, version increment only
     20 March 2021       v0.3.0
         -   added field lightningcount to the extractor definitions
@@ -101,6 +103,8 @@ gw1000_config = """
     [[wh26_batt]]
         extractor = last
     [[wh25_batt]]
+        extractor = last
+    [[wh24_batt]]
         extractor = last
     [[wh65_batt]]
         extractor = last
@@ -197,6 +201,8 @@ gw1000_config = """
     [[wh26_sig]]
         extractor = last
     [[wh25_sig]]
+        extractor = last
+    [[wh24_sig]]
         extractor = last
     [[wh65_sig]]
         extractor = last
@@ -309,7 +315,7 @@ class Gw1000Installer(ExtensionInstaller):
         super(Gw1000Installer, self).__init__(
             version=GW1000_VERSION,
             name='GW1000',
-            description='WeeWX driver for GW1000 WiFi gateway.',
+            description='WeeWX driver for GW1000/GW1100 WiFi gateways.',
             author="Gary Roderick",
             author_email="gjroderick<@>gmail.com",
             files=[('bin/user', ['bin/user/gw1000.py'])],
