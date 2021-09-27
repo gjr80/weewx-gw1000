@@ -55,7 +55,7 @@ import user.gw1000
 # TODO. Add decode firmware check refer issue #31
 
 TEST_SUITE_NAME = "GW1000 driver"
-TEST_SUITE_VERSION = "0.5.0"
+TEST_SUITE_VERSION = "0.4.0"
 
 
 class SensorsTestCase(unittest.TestCase):
