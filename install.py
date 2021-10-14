@@ -10,9 +10,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.4.0                                        Date: 27 September 2021
+Version: 0.4.1                                        Date: 14 October 2021
 
 Revision History
+    14 October 2021     v0.4.1
+        -   fix incorrect installer version number
     27 September 2021   v0.4.0
         -   add wh24_batt and wh24_sig to extractors
     28 March 2021       v0.3.1
@@ -45,7 +47,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.3.1"
+GW1000_VERSION = "0.4.1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
