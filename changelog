@@ -1,3 +1,5 @@
+v0.4.1
+*   fix incorrect installer version number
 v0.4.0
 *   the device model (GW1000/GW1100) is now identified via the API so many
     references to 'GW1000' in console and log output should now be replaced
