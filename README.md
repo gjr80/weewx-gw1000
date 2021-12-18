@@ -377,3 +377,11 @@ To upgrade from an earlier version of the GW1000 driver (installed as either a W
 To downgrade to an earlier release first uninstall the currently installed GW1000 driver and then install the desired release as per the [Installation Instructions](#installation-instructions) above. 
 
 **Note:** Care should be taken when downgrading to an earlier release as subsequent releases may have entailed enduring changes; for example database schema changes, that are not undone by simply uninstalling the GW1000 driver.
+
+## Support ##
+
+General support issues for the GW1000 driver should be raised in the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum"). The GW1000 driver [Issues Page](https://github.com/gjr80/weewx-gw1000/issues "GW1000 driver Issues") should only be used for specific bugs in the GW1000 driver code. It is recommended that even if a GW1000 driver bug is suspected users first post to the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum").
+
+## Licensing ##
+
+The GW1000 driver is licensed under the [GNU Public License v3](https://github.com/gjr80/weewx-gw1000/blob/master/LICENSE "GW1000 Driver License").
