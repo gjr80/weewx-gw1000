@@ -3925,7 +3925,8 @@ class Gw1000Collector(Collector):
                         # did we find any GW1000/GW1100
                         if len(device_list) > 0:
                             # we have at least one, log the fact as well as what we found
-                            gw1000_str = ', '.join([':'.join(['%s:%d' % b]) for b in device_list])
+                            gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'],
+                                                                         d['port'])]) for d in device_list])
                             if len(device_list) == 1:
                                 stem = "%s was" % device_list[0]['model']
                             else:
@@ -3939,22 +3940,19 @@ class Gw1000Collector(Collector):
                             present_port = self.port
                             # iterate over each candidate checking their MAC
                             # address against my mac property. This way we know
-                            # we are connecting to the GW1000/GW1100 we were
-                            # previously using
-                            for _ip, _port in device_list:
+                            # we will be connecting to the GW1000/GW1100 we
+                            # were previously using.
+                            for device in device_list:
                                 # do the MACs match, if so we have our old
                                 # device and we can exit the loop
-                                if self.mac == self.get_mac_address():
-                                    self.ip_address = _ip.encode()
-                                    self.port = _port
+                                if self.mac == device['mac']:
+                                    self.ip_address = device['ip_address'].encode()
+                                    self.port = device['port']
                                     break
                             else:
-                                # exhausted the device_list without a match,
-                                # revert to our old IP address and port
-                                self.ip_address = present_ip
-                                self.port = present_port
-                                # and continue the outer loop if we have any
-                                # attempts left
+                                # we have exhausted the device list without a
+                                # match so continue the outer loop if we have
+                                # any attempts left
                                 continue
                             # log the new IP address and port
                             loginf("%s at address %s:%d will be used" % (self.model,
