@@ -3158,7 +3158,8 @@ class Gw1000Collector(Collector):
             self.retry_wait = retry_wait
             # start off logging failures
             self.log_failures = True
-            # get my GW1000/GW1100 MAC address to use later if we have to rediscover
+            # Get my GW1000/GW1100 MAC address to use later if we have to
+            # rediscover. Within Station MAC address is stored as a bytestring.
             if mac is None:
                 self.mac = self.get_mac_address()
             else:
