@@ -640,19 +640,19 @@ class StationTestCase(unittest.TestCase):
         'CMD_GET_CO2_OFFSET': 'FF FF 53 03 56',
         'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
     }
-    discover_multi_resp = [{'mac': 'E8:68:E7:87:1A:4F',
+    discover_multi_resp = [{'mac': b'\xe8h\xe7\x87\x1aO', #'E8:68:E7:87:1A:4F',
                             'ip_address': '192.168.50.3',
-                            'port': 45000,
+                            'port': 45001,
                             'ssid': 'GW1100C-WIFI1A4F V2.0.9',
                             'model': 'GW1100'},
-                           {'mac': 'DC:4F:22:58:A2:45',
+                           {'mac': b'\xdcO"X\xa2E', #'DC:4F:22:58:A2:45'
                             'ip_address': '192.168.50.6',
                             'port': 45002,
                             'ssid': 'GW1000-WIFIA245 V1.6.7',
                             'model': 'GW1000'},
-                           {'mac': '50:02:91:E3:D3:68',
+                           {'mac': b'P\x02\x91\xe3\xd3h', #'50:02:91:E3:D3:68',
                             'ip_address': '192.168.50.7',
-                            'port': 45001,
+                            'port': 45003,
                             'ssid': 'GW1000-WIFID368 V1.6.8',
                             'model': 'GW1000'}
                            ]
@@ -661,41 +661,52 @@ class StationTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Setup the StationTestCase to perform its tests.
 
-        This test case does not need access to a physical GW1x00, though if IP
-        address and/or port are not specified the Station initialisation will
-        attempt to discover a GW1x00 device on the local network. in such
-        cases failure to locate a device will cause the Station object
-        initialisation and the test to fail. Discovery also takes time.
-        Specifying an IP address and port avoids discovery. The IP address
-        and port may be fictitious and need not be for a real device.
+        Determines the IP address and port to use for the Station tests. A
+        Gw1000Collector.Station object is required to perform some of the
+        StationTestCase tests. If either or both of IP address and port are not
+        specified when instantiating a Station object device discovery will be
+        initiated which may result in delays or failure of the test case if no
+        device is found. To avoid such situations an IP address and port number
+        is always used when instantiating a Station object as part of this test
+        case.
 
-        However, provision does exist for the IP address and port to be
-        specified at test runtime via the --ip-address and --port command line
-        options.
+        the IP address and port number are determined as follows:
+        - if --ip-address and --port were specifeid on the command line then
+          the specified paramaters are used
+        - if --ip-address is specifed on the command line but --port was not
+          then port 45000 is used
+        - if --port is specifeid on the command line but --ip-address was not
+          then a fake IP address is used
+        - if neither --ip-address or --port number is specified on the command
+          line then a fake IP address and port number are used
         """
 
-        # if IP address is not specified (ie None) use a phony IP address
-        _ip = cls.ip_address if cls.ip_address is not None else cls.fake_ip
-        # if port is not specified (ie None) use a phony port
-        _port = cls.port if cls.port is not None else cls.fake_port
+        cls.test_ip = cls.ip_address if cls.ip_address is not None else StationTestCase.fake_ip
+        cls.test_port = cls.port if cls.port is not None else StationTestCase.fake_port
+        # # if IP address is not specified (ie None) use a phony IP address
+        # _ip = cls.ip_address if cls.ip_address is not None else cls.fake_ip
+        # # if port is not specified (ie None) use a phony port
+        # _port = cls.port if cls.port is not None else cls.fake_port
+        #
+        # print("Please wait, attempting to contact device at %s:%d..." % (_ip,
+        #                                                                      _port))
+        # # get a Gw1000Collector Station object, specify phony ip, port and mac
+        # # to prevent the GW1000 driver from actually looking for a GW1000
+        # cls.station = user.gw1000.Gw1000Collector.Station(ip_address=_ip,
+        #                                                   port=_port)
+        # if cls.station:
+        #     print("Using %s at %s:%d" % (cls.station.model,
+        #                                  cls.station.ip_address.decode(),
+        #                                  cls.station.port))
+        # else:
+        #     # we could get a station object for some reason so skip this test
+        #     # class
+        #     raise unittest.SkipTest("%s: Could not obtain Station object" % (cls.__name__,))
 
-        print("Please wait, attempting to contact device at %s:%d..." % (_ip,
-                                                                             _port))
-        # get a Gw1000Collector Station object, specify phony ip, port and mac
-        # to prevent the GW1000 driver from actually looking for a GW1000
-        cls.station = user.gw1000.Gw1000Collector.Station(ip_address=_ip,
-                                                          port=_port)
-        if cls.station:
-            print("Using %s at %s:%d" % (cls.station.model,
-                                         cls.station.ip_address.decode(),
-                                         cls.station.port))
-        else:
-            # we could get a station object for some reason so skip this test
-            # class
-            raise unittest.SkipTest("%s: Could not obtain Station object" % (cls.__name__,))
-
-    def test_cmd_vocab(self):
-        """Test command dictionaries for completeness
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_cmd_vocab(self, mock_get_mac, mock_get_firmware):
+        """Test command dictionaries for completeness.
 
         Tests:
         1. Station.commands contains all commands
@@ -703,104 +714,112 @@ class StationTestCase(unittest.TestCase):
         3. all Station.commands entries are in the test suite
         """
 
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # get our mocked Station object
+        station = user.gw1000.Gw1000Collector.Station(ip_address=self.test_ip,
+                                                      port=self.test_port)
         # Check that the class Station command list is complete. This is a
         # simple check for (1) inclusion of the command and (2) the command
         # code (byte) is correct.
         for cmd, response in six.iteritems(self.commands):
             # check for inclusion of the command
             self.assertIn(cmd,
-                          self.station.commands.keys(),
+                          station.commands.keys(),
                           msg="Command '%s' not found in Station.commands" % cmd)
             # check the command code byte is correct
             self.assertEqual(hex_to_bytes(response)[2:3],
-                             self.station.commands[cmd],
+                             station.commands[cmd],
                              msg="Command code for command '%s' in "
                                  "Station.commands(0x%s) disagrees with "
                                  "command code in test suite (0x%s)" % (cmd,
-                                                                        bytes_to_hex(self.station.commands[cmd]),
+                                                                        bytes_to_hex(station.commands[cmd]),
                                                                         bytes_to_hex(hex_to_bytes(response)[2:3])))
 
         # Check that we are testing everything in class Station command list.
         # This is a simple check that only needs to check for inclusion of the
         # command, the validity of the command code is checked in the earlier
         # iteration.
-        for cmd, code in six.iteritems(self.station.commands):
+        for cmd, code in six.iteritems(station.commands):
             # check for inclusion of the command
             self.assertIn(cmd,
                           self.commands.keys(),
                           msg="Command '%s' is in Station.commands but it is not being tested" % cmd)
 
-    def test_calc_checksum(self):
-        """Test checksum calculation
-
-        Tests:
-        1. calculating the checksum of a bytestring
-        """
-
-        # test checksum calculation
-        self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
-
-    def test_build_cmd_packet(self):
-        """Test construction of an API command packet
-
-        Tests:
-        1. building a command packet for each command in Station.commands
-        2. building a command packet with a payload
-        3. building a command packet for an unknown command
-        """
-
-        # test the command packet built for each API command we know about
-        for cmd, packet in six.iteritems(self.commands):
-            self.assertEqual(self.station.build_cmd_packet(cmd), hex_to_bytes(packet))
-        # test a command packet that has a payload
-        self.assertEqual(self.station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
-                         hex_to_bytes(self.cmd_packet))
-        # test building a command packet for an unknown command, should be an UnknownCommand exception
-        self.assertRaises(user.gw1000.UnknownCommand,
-                          self.station.build_cmd_packet,
-                          cmd='UNKNOWN_COMMAND')
-
-    def test_decode_broadcast_response(self):
-        """Test decoding of a broadcast response
-
-        Tests:
-        1. decode a broadcast response
-        """
-
-        # get the broadcast response test data as a bytestring
-        data = hex_to_bytes(self.broadcast_response_data)
-        # test broadcast response decode
-        self.assertEqual(self.station.decode_broadcast_response(data), self.decoded_broadcast_response)
-
-    def test_api_response_validity_check(self):
-        """Test validity checking of an API response
-
-        Tests:
-        1. checks Station.check_response() with good data
-        2. checks that Station.check_response() raises an InvalidChecksum
-           exception for a response with an invalid checksum
-        3. checks that Station.check_response() raises an InvalidApiResponse
-           exception for a response with an command code
-        """
-
-        # test check_response() with good data, should be no exception
-        try:
-            self.station.check_response(self.read_fware_resp_bytes,
-                                        self.cmd_read_fware_ver)
-        except user.gw1000.InvalidChecksum:
-            self.fail("check_response() raised an InvalidChecksum exception")
-        except user.gw1000.InvalidApiResponse:
-            self.fail("check_response() raised an InvalidApiResponse exception")
-        # test check_response() with a bad checksum data, should be an InvalidChecksum exception
-        self.assertRaises(user.gw1000.InvalidChecksum,
-                          self.station.check_response,
-                          response=self.read_fware_resp_bad_checksum_bytes,
-                          cmd_code=self.cmd_read_fware_ver)
-        # test check_response() with a bad response, should be an InvalidApiResponse exception
-        self.assertRaises(user.gw1000.InvalidApiResponse,
-                          self.station.check_response,
-                          response=self.read_fware_resp_bad_cmd_bytes,
-                          cmd_code=self.cmd_read_fware_ver)
+    # def test_calc_checksum(self):
+    #     """Test checksum calculation
+    #
+    #     Tests:
+    #     1. calculating the checksum of a bytestring
+    #     """
+    #
+    #     # test checksum calculation
+    #     self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
+    #
+    # def test_build_cmd_packet(self):
+    #     """Test construction of an API command packet
+    #
+    #     Tests:
+    #     1. building a command packet for each command in Station.commands
+    #     2. building a command packet with a payload
+    #     3. building a command packet for an unknown command
+    #     """
+    #
+    #     # test the command packet built for each API command we know about
+    #     for cmd, packet in six.iteritems(self.commands):
+    #         self.assertEqual(self.station.build_cmd_packet(cmd), hex_to_bytes(packet))
+    #     # test a command packet that has a payload
+    #     self.assertEqual(self.station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
+    #                      hex_to_bytes(self.cmd_packet))
+    #     # test building a command packet for an unknown command, should be an UnknownCommand exception
+    #     self.assertRaises(user.gw1000.UnknownCommand,
+    #                       self.station.build_cmd_packet,
+    #                       cmd='UNKNOWN_COMMAND')
+    #
+    # def test_decode_broadcast_response(self):
+    #     """Test decoding of a broadcast response
+    #
+    #     Tests:
+    #     1. decode a broadcast response
+    #     """
+    #
+    #     # get the broadcast response test data as a bytestring
+    #     data = hex_to_bytes(self.broadcast_response_data)
+    #     # test broadcast response decode
+    #     self.assertEqual(self.station.decode_broadcast_response(data), self.decoded_broadcast_response)
+    #
+    # def test_api_response_validity_check(self):
+    #     """Test validity checking of an API response
+    #
+    #     Tests:
+    #     1. checks Station.check_response() with good data
+    #     2. checks that Station.check_response() raises an InvalidChecksum
+    #        exception for a response with an invalid checksum
+    #     3. checks that Station.check_response() raises an InvalidApiResponse
+    #        exception for a response with an command code
+    #     """
+    #
+    #     # test check_response() with good data, should be no exception
+    #     try:
+    #         self.station.check_response(self.read_fware_resp_bytes,
+    #                                     self.cmd_read_fware_ver)
+    #     except user.gw1000.InvalidChecksum:
+    #         self.fail("check_response() raised an InvalidChecksum exception")
+    #     except user.gw1000.InvalidApiResponse:
+    #         self.fail("check_response() raised an InvalidApiResponse exception")
+    #     # test check_response() with a bad checksum data, should be an InvalidChecksum exception
+    #     self.assertRaises(user.gw1000.InvalidChecksum,
+    #                       self.station.check_response,
+    #                       response=self.read_fware_resp_bad_checksum_bytes,
+    #                       cmd_code=self.cmd_read_fware_ver)
+    #     # test check_response() with a bad response, should be an InvalidApiResponse exception
+    #     self.assertRaises(user.gw1000.InvalidApiResponse,
+    #                       self.station.check_response,
+    #                       response=self.read_fware_resp_bad_cmd_bytes,
+    #                       cmd_code=self.cmd_read_fware_ver)
 
     @patch.object(user.gw1000.Gw1000Collector.Station, 'discover')
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
@@ -812,16 +831,32 @@ class StationTestCase(unittest.TestCase):
         1.
         """
 
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # discover() - list of discovered devices (list of dicts)
         mock_discover.return_value = StationTestCase.discover_multi_resp
-        station = user.gw1000.Gw1000Collector.Station(ip_address=StationTestCase.fake_ip,
-                                                      port=StationTestCase.fake_port)
+        # get our mocked Station object
+        station = user.gw1000.Gw1000Collector.Station(ip_address=self.test_ip,
+                                                      port=self.test_port)
+        # to use discovery we need to fool the Station object into thinking it
+        # used discovery to obtain the current devices IP address and port
+        station.ip_discovered = True
+        # to speed up testing we can reduce some of the retries and wait times
+        station.max_tries = 1
+        station.retry_wait = 3
+        # force rediscovery
         station.rediscover()
-        self.assertEqual(bytes_to_hex(station.mac, separator=':'),
-                         'DC:4F:22:58:A2:45')
-        self.assertEqual(station.ip_address, b'192.168.50.6')
-        self.assertEqual(station.port, 45002)
+        # test that we retained the original MAC address after rediscovery
+        self.assertEqual(station.mac, StationTestCase.discover_multi_resp[1]['mac'])
+        # test that the new IP address was detected
+        self.assertEqual(station.ip_address.decode(),
+                         StationTestCase.discover_multi_resp[1]['ip_address'])
+        # test that the new port number was detected
+        self.assertEqual(station.port,
+                         StationTestCase.discover_multi_resp[1]['port'])
 
 
 class Gw1000TestCase(unittest.TestCase):
@@ -1096,8 +1131,9 @@ def main():
     import argparse
 
     # test cases that are production ready
-    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
-                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
+#    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
+#                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
+    test_cases = (StationTestCase,)
 
     usage = """python -m user.tests.test_gw1000 --help
            python -m user.tests.test_gw1000 --version
