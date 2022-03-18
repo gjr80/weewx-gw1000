@@ -749,77 +749,117 @@ class StationTestCase(unittest.TestCase):
                           self.commands.keys(),
                           msg="Command '%s' is in Station.commands but it is not being tested" % cmd)
 
-    # def test_calc_checksum(self):
-    #     """Test checksum calculation
-    #
-    #     Tests:
-    #     1. calculating the checksum of a bytestring
-    #     """
-    #
-    #     # test checksum calculation
-    #     self.assertEqual(self.station.calc_checksum(b'00112233bbccddee'), 168)
-    #
-    # def test_build_cmd_packet(self):
-    #     """Test construction of an API command packet
-    #
-    #     Tests:
-    #     1. building a command packet for each command in Station.commands
-    #     2. building a command packet with a payload
-    #     3. building a command packet for an unknown command
-    #     """
-    #
-    #     # test the command packet built for each API command we know about
-    #     for cmd, packet in six.iteritems(self.commands):
-    #         self.assertEqual(self.station.build_cmd_packet(cmd), hex_to_bytes(packet))
-    #     # test a command packet that has a payload
-    #     self.assertEqual(self.station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
-    #                      hex_to_bytes(self.cmd_packet))
-    #     # test building a command packet for an unknown command, should be an UnknownCommand exception
-    #     self.assertRaises(user.gw1000.UnknownCommand,
-    #                       self.station.build_cmd_packet,
-    #                       cmd='UNKNOWN_COMMAND')
-    #
-    # def test_decode_broadcast_response(self):
-    #     """Test decoding of a broadcast response
-    #
-    #     Tests:
-    #     1. decode a broadcast response
-    #     """
-    #
-    #     # get the broadcast response test data as a bytestring
-    #     data = hex_to_bytes(self.broadcast_response_data)
-    #     # test broadcast response decode
-    #     self.assertEqual(self.station.decode_broadcast_response(data), self.decoded_broadcast_response)
-    #
-    # def test_api_response_validity_check(self):
-    #     """Test validity checking of an API response
-    #
-    #     Tests:
-    #     1. checks Station.check_response() with good data
-    #     2. checks that Station.check_response() raises an InvalidChecksum
-    #        exception for a response with an invalid checksum
-    #     3. checks that Station.check_response() raises an InvalidApiResponse
-    #        exception for a response with an command code
-    #     """
-    #
-    #     # test check_response() with good data, should be no exception
-    #     try:
-    #         self.station.check_response(self.read_fware_resp_bytes,
-    #                                     self.cmd_read_fware_ver)
-    #     except user.gw1000.InvalidChecksum:
-    #         self.fail("check_response() raised an InvalidChecksum exception")
-    #     except user.gw1000.InvalidApiResponse:
-    #         self.fail("check_response() raised an InvalidApiResponse exception")
-    #     # test check_response() with a bad checksum data, should be an InvalidChecksum exception
-    #     self.assertRaises(user.gw1000.InvalidChecksum,
-    #                       self.station.check_response,
-    #                       response=self.read_fware_resp_bad_checksum_bytes,
-    #                       cmd_code=self.cmd_read_fware_ver)
-    #     # test check_response() with a bad response, should be an InvalidApiResponse exception
-    #     self.assertRaises(user.gw1000.InvalidApiResponse,
-    #                       self.station.check_response,
-    #                       response=self.read_fware_resp_bad_cmd_bytes,
-    #                       cmd_code=self.cmd_read_fware_ver)
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_calc_checksum(self, mock_get_mac, mock_get_firmware):
+        """Test checksum calculation.
+
+        Tests:
+        1. calculating the checksum of a bytestring
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # get our mocked Station object
+        station = user.gw1000.Gw1000Collector.Station(ip_address=self.test_ip,
+                                                      port=self.test_port)
+        # test checksum calculation
+        self.assertEqual(station.calc_checksum(b'00112233bbccddee'), 168)
+
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_build_cmd_packet(self, mock_get_mac, mock_get_firmware):
+        """Test construction of an API command packet
+
+        Tests:
+        1. building a command packet for each command in Station.commands
+        2. building a command packet with a payload
+        3. building a command packet for an unknown command
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # get our mocked Station object
+        station = user.gw1000.Gw1000Collector.Station(ip_address=self.test_ip,
+                                                      port=self.test_port)
+        # test the command packet built for each API command we know about
+        for cmd, packet in six.iteritems(self.commands):
+            self.assertEqual(station.build_cmd_packet(cmd), hex_to_bytes(packet))
+        # test a command packet that has a payload
+        self.assertEqual(station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
+                         hex_to_bytes(self.cmd_packet))
+        # test building a command packet for an unknown command, should be an UnknownCommand exception
+        self.assertRaises(user.gw1000.UnknownCommand,
+                          station.build_cmd_packet,
+                          cmd='UNKNOWN_COMMAND')
+
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_decode_broadcast_response(self, mock_get_mac, mock_get_firmware):
+        """Test decoding of a broadcast response
+
+        Tests:
+        1. decode a broadcast response
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # get our mocked Station object
+        station = user.gw1000.Gw1000Collector.Station(ip_address=self.test_ip,
+                                                      port=self.test_port)
+        # get the broadcast response test data as a bytestring
+        data = hex_to_bytes(self.broadcast_response_data)
+        # test broadcast response decode
+        self.assertEqual(station.decode_broadcast_response(data), self.decoded_broadcast_response)
+
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_api_response_validity_check(self, mock_get_mac, mock_get_firmware):
+        """Test validity checking of an API response
+
+        Tests:
+        1. checks Station.check_response() with good data
+        2. checks that Station.check_response() raises an InvalidChecksum
+           exception for a response with an invalid checksum
+        3. checks that Station.check_response() raises an InvalidApiResponse
+           exception for a response with an command code
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # get our mocked Station object
+        station = user.gw1000.Gw1000Collector.Station(ip_address=self.test_ip,
+                                                      port=self.test_port)
+        # test check_response() with good data, should be no exception
+        try:
+            station.check_response(self.read_fware_resp_bytes,
+                                   self.cmd_read_fware_ver)
+        except user.gw1000.InvalidChecksum:
+            self.fail("check_response() raised an InvalidChecksum exception")
+        except user.gw1000.InvalidApiResponse:
+            self.fail("check_response() raised an InvalidApiResponse exception")
+        # test check_response() with a bad checksum data, should be an InvalidChecksum exception
+        self.assertRaises(user.gw1000.InvalidChecksum,
+                          station.check_response,
+                          response=self.read_fware_resp_bad_checksum_bytes,
+                          cmd_code=self.cmd_read_fware_ver)
+        # test check_response() with a bad response, should be an InvalidApiResponse exception
+        self.assertRaises(user.gw1000.InvalidApiResponse,
+                          station.check_response,
+                          response=self.read_fware_resp_bad_cmd_bytes,
+                          cmd_code=self.cmd_read_fware_ver)
 
     @patch.object(user.gw1000.Gw1000Collector.Station, 'discover')
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
@@ -1133,7 +1173,8 @@ def main():
     # test cases that are production ready
 #    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
 #                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
-    test_cases = (StationTestCase,)
+    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
+                  ListsAndDictsTestCase, StationTestCase)
 
     usage = """python -m user.tests.test_gw1000 --help
            python -m user.tests.test_gw1000 --version
