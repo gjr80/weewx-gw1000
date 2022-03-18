@@ -33,6 +33,7 @@ To run the test suite:
 import struct
 import time
 import unittest
+from unittest.mock import patch
 
 # Python 2/3 compatibility shims
 import six
@@ -580,6 +581,9 @@ class ListsAndDictsTestCase(unittest.TestCase):
 
 class StationTestCase(unittest.TestCase):
 
+    fake_ip = '192.168.99.99'
+    fake_port = 44444
+    fake_mac = b'\xdcO"X\xa2E'
     cmd_read_fware_ver = b'\x50'
     read_fware_cmd_bytes = b'\xff\xffP\x03S'
     read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
@@ -636,20 +640,51 @@ class StationTestCase(unittest.TestCase):
         'CMD_GET_CO2_OFFSET': 'FF FF 53 03 56',
         'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
     }
+    discover_multi_resp = [{'mac': 'E8:68:E7:87:1A:4F',
+                            'ip_address': '192.168.50.3',
+                            'port': 45000,
+                            'ssid': 'GW1100C-WIFI1A4F V2.0.9',
+                            'model': 'GW1100'},
+                           {'mac': 'DC:4F:22:58:A2:45',
+                            'ip_address': '192.168.50.6',
+                            'port': 45002,
+                            'ssid': 'GW1000-WIFIA245 V1.6.7',
+                            'model': 'GW1000'},
+                           {'mac': '50:02:91:E3:D3:68',
+                            'ip_address': '192.168.50.7',
+                            'port': 45001,
+                            'ssid': 'GW1000-WIFID368 V1.6.8',
+                            'model': 'GW1000'}
+                           ]
 
     @classmethod
     def setUpClass(cls):
-        """Setup the StationTestCase to perform its tests."""
+        """Setup the StationTestCase to perform its tests.
 
-        if cls.ip_address is not None and cls.port is not None:
-            print("Please wait, attempting to contact device at %s:%d..." % (cls.ip_address,
-                                                                             cls.port))
-        else:
-            print("Please wait, discovering device on the local network segment...")
+        This test case does not need access to a physical GW1x00, though if IP
+        address and/or port are not specified the Station initialisation will
+        attempt to discover a GW1x00 device on the local network. in such
+        cases failure to locate a device will cause the Station object
+        initialisation and the test to fail. Discovery also takes time.
+        Specifying an IP address and port avoids discovery. The IP address
+        and port may be fictitious and need not be for a real device.
+
+        However, provision does exist for the IP address and port to be
+        specified at test runtime via the --ip-address and --port command line
+        options.
+        """
+
+        # if IP address is not specified (ie None) use a phony IP address
+        _ip = cls.ip_address if cls.ip_address is not None else cls.fake_ip
+        # if port is not specified (ie None) use a phony port
+        _port = cls.port if cls.port is not None else cls.fake_port
+
+        print("Please wait, attempting to contact device at %s:%d..." % (_ip,
+                                                                             _port))
         # get a Gw1000Collector Station object, specify phony ip, port and mac
         # to prevent the GW1000 driver from actually looking for a GW1000
-        cls.station = user.gw1000.Gw1000Collector.Station(ip_address=cls.ip_address,
-                                                          port=cls.port)
+        cls.station = user.gw1000.Gw1000Collector.Station(ip_address=_ip,
+                                                          port=_port)
         if cls.station:
             print("Using %s at %s:%d" % (cls.station.model,
                                          cls.station.ip_address.decode(),
@@ -766,6 +801,27 @@ class StationTestCase(unittest.TestCase):
                           self.station.check_response,
                           response=self.read_fware_resp_bad_cmd_bytes,
                           cmd_code=self.cmd_read_fware_ver)
+
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'discover')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_discovery(self, mock_get_mac, mock_get_firmware, mock_discover):
+        """Test discovery related methods.
+
+        Tests:
+        1.
+        """
+
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_discover.return_value = StationTestCase.discover_multi_resp
+        station = user.gw1000.Gw1000Collector.Station(ip_address=StationTestCase.fake_ip,
+                                                      port=StationTestCase.fake_port)
+        station.rediscover()
+        self.assertEqual(bytes_to_hex(station.mac, separator=':'),
+                         'DC:4F:22:58:A2:45')
+        self.assertEqual(station.ip_address, b'192.168.50.6')
+        self.assertEqual(station.port, 45002)
 
 
 class Gw1000TestCase(unittest.TestCase):
