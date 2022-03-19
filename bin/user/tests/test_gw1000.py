@@ -952,54 +952,6 @@ class Gw1000TestCase(unittest.TestCase):
 
         cls.gw1000_svc_config = config
         return
-        # # this could take some time so display a courtesy message
-        # if config['GW1000']['ip_address'] is not None and config['GW1000']['port'] is not None:
-        #     print("Please wait, attempting to contact GW1000 at %s:%d..." % (config['GW1000']['ip_address'],
-        #                                                                      config['GW1000']['port']))
-        # else:
-        #     print("Please wait, discovering GW1000 on the local network segment...")
-        # # wrap in a try..except in case there is an error
-        # try:
-        #     # create a dummy engine
-        #     cls.engine = weewx.engine.StdEngine(config)
-        # except user.gw1000.GW1000IOError as e:
-        #     # could not communicate with the GW1000, skip the test
-        #     # if we have an engine try to shut it down
-        #     if cls.engine:
-        #         cls.engine.shutDown()
-        #     # now raise unittest.SkipTest to skip this test class
-        #     raise unittest.SkipTest("%s: Unable to connect to GW1000" % (cls.__name__,))
-        # else:
-        #     # Our GW1000 service will have been instantiated by the engine during
-        #     # its startup. Whilst access to the service is not normally required we
-        #     # require access here so we can obtain some info about the station we
-        #     # are using for this test. The engine does not provide a ready means to
-        #     # access that GW1000 service so we can do a bit of guessing and iterate
-        #     # over all of the engine's services and select the one that has a
-        #     # 'collector' property. Unlikely to cause a problem since there are
-        #     # only two services in the dummy engine.
-        #     cls.gw1000_svc = None
-        #     for svc in cls.engine.service_obj:
-        #         if hasattr(svc, 'collector'):
-        #             cls.gw1000_svc = svc
-        #     if cls.gw1000_svc:
-        #         print("Using GW1000 at %s:%d" % (cls.gw1000_svc.collector.station.ip_address.decode(),
-        #                                          cls.gw1000_svc.collector.station.port))
-        #         cls.gw1000_svc.rain_total_field = 'raintotals'
-        #         cls.gw1000_svc.rain_mapping_confirmed = True
-        #     else:
-        #         # we could get the GW1000 service for some reason, shutdown the
-        #         # engine and skip this test class
-        #         if cls.engine:
-        #             cls.engine.shutDown()
-        #         # now skip this test class
-        #         raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (cls.__name__,))
-
-    # @classmethod
-    # def tearDown(cls):
-    #     """Tear down the Gw1000TestCase."""
-    #
-    #     cls.engine.shutDown()
 
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_system_params')
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
