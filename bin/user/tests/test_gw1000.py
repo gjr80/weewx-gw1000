@@ -42,6 +42,7 @@ import six
 import weewx
 import user.gw1000
 
+# TODO. Get a technically correct value for Gw1000TestCase.mock_sys_params_resp
 # TODO. Check speed_data data and result are correct
 # TODO. Check rain_data data and result are correct
 # TODO. Check rainrate_data data and result are correct
@@ -681,27 +682,10 @@ class StationTestCase(unittest.TestCase):
           line then a fake IP address and port number are used
         """
 
+        # set the IP address we will use
         cls.test_ip = cls.ip_address if cls.ip_address is not None else StationTestCase.fake_ip
+        # set the port number we will use
         cls.test_port = cls.port if cls.port is not None else StationTestCase.fake_port
-        # # if IP address is not specified (ie None) use a phony IP address
-        # _ip = cls.ip_address if cls.ip_address is not None else cls.fake_ip
-        # # if port is not specified (ie None) use a phony port
-        # _port = cls.port if cls.port is not None else cls.fake_port
-        #
-        # print("Please wait, attempting to contact device at %s:%d..." % (_ip,
-        #                                                                      _port))
-        # # get a Gw1000Collector Station object, specify phony ip, port and mac
-        # # to prevent the GW1000 driver from actually looking for a GW1000
-        # cls.station = user.gw1000.Gw1000Collector.Station(ip_address=_ip,
-        #                                                   port=_port)
-        # if cls.station:
-        #     print("Using %s at %s:%d" % (cls.station.model,
-        #                                  cls.station.ip_address.decode(),
-        #                                  cls.station.port))
-        # else:
-        #     # we could get a station object for some reason so skip this test
-        #     # class
-        #     raise unittest.SkipTest("%s: Could not obtain Station object" % (cls.__name__,))
 
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
@@ -935,6 +919,8 @@ class Gw1000TestCase(unittest.TestCase):
     # Port to use for contacting GW1000, if None discovery will be attempted.
     # Can be overridden using --port command line argument.
     port = None
+    mock_sys_params_resp = b'\xff\xff0\t\x00\x00\x01\x02\x03\x04\x01\x00\x08'
+
 
     @classmethod
     def setUpClass(cls):
@@ -959,25 +945,91 @@ class Gw1000TestCase(unittest.TestCase):
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service'}}}
         # set the IP address and port to use
-        config['GW1000']['ip_address'] = cls.ip_address
-        config['GW1000']['port'] = cls.port
-        # this could take some time so display a courtesy message
-        if config['GW1000']['ip_address'] is not None and config['GW1000']['port'] is not None:
-            print("Please wait, attempting to contact GW1000 at %s:%d..." % (config['GW1000']['ip_address'],
-                                                                             config['GW1000']['port']))
-        else:
-            print("Please wait, discovering GW1000 on the local network segment...")
+        # set the IP address we will use
+        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else StationTestCase.fake_ip
+        # set the port number we will use
+        config['GW1000']['port'] = cls.port if cls.port is not None else StationTestCase.fake_port
+
+        cls.gw1000_svc_config = config
+        return
+        # # this could take some time so display a courtesy message
+        # if config['GW1000']['ip_address'] is not None and config['GW1000']['port'] is not None:
+        #     print("Please wait, attempting to contact GW1000 at %s:%d..." % (config['GW1000']['ip_address'],
+        #                                                                      config['GW1000']['port']))
+        # else:
+        #     print("Please wait, discovering GW1000 on the local network segment...")
+        # # wrap in a try..except in case there is an error
+        # try:
+        #     # create a dummy engine
+        #     cls.engine = weewx.engine.StdEngine(config)
+        # except user.gw1000.GW1000IOError as e:
+        #     # could not communicate with the GW1000, skip the test
+        #     # if we have an engine try to shut it down
+        #     if cls.engine:
+        #         cls.engine.shutDown()
+        #     # now raise unittest.SkipTest to skip this test class
+        #     raise unittest.SkipTest("%s: Unable to connect to GW1000" % (cls.__name__,))
+        # else:
+        #     # Our GW1000 service will have been instantiated by the engine during
+        #     # its startup. Whilst access to the service is not normally required we
+        #     # require access here so we can obtain some info about the station we
+        #     # are using for this test. The engine does not provide a ready means to
+        #     # access that GW1000 service so we can do a bit of guessing and iterate
+        #     # over all of the engine's services and select the one that has a
+        #     # 'collector' property. Unlikely to cause a problem since there are
+        #     # only two services in the dummy engine.
+        #     cls.gw1000_svc = None
+        #     for svc in cls.engine.service_obj:
+        #         if hasattr(svc, 'collector'):
+        #             cls.gw1000_svc = svc
+        #     if cls.gw1000_svc:
+        #         print("Using GW1000 at %s:%d" % (cls.gw1000_svc.collector.station.ip_address.decode(),
+        #                                          cls.gw1000_svc.collector.station.port))
+        #         cls.gw1000_svc.rain_total_field = 'raintotals'
+        #         cls.gw1000_svc.rain_mapping_confirmed = True
+        #     else:
+        #         # we could get the GW1000 service for some reason, shutdown the
+        #         # engine and skip this test class
+        #         if cls.engine:
+        #             cls.engine.shutDown()
+        #         # now skip this test class
+        #         raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (cls.__name__,))
+
+    # @classmethod
+    # def tearDown(cls):
+    #     """Tear down the Gw1000TestCase."""
+    #
+    #     cls.engine.shutDown()
+
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_system_params')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_map(self, mock_get_mac, mock_get_firmware, mock_get_sys):
+        """Test GW1000Service GW1000 to WeeWX mapping
+
+        Tests:
+        1. field dateTime is included in the GW1000 mapped data
+        2. field usUnits is included in the GW1000 mapped data
+        3. GW1000 obs data is correctly mapped to a WeeWX fields
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
         # wrap in a try..except in case there is an error
         try:
             # create a dummy engine
-            cls.engine = weewx.engine.StdEngine(config)
+            engine = weewx.engine.StdEngine(self.gw1000_svc_config)
         except user.gw1000.GW1000IOError as e:
             # could not communicate with the GW1000, skip the test
             # if we have an engine try to shut it down
-            if cls.engine:
-                cls.engine.shutDown()
+            if engine:
+                engine.shutDown()
             # now raise unittest.SkipTest to skip this test class
-            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (cls.__name__,))
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (self.__name__,))
         else:
             # Our GW1000 service will have been instantiated by the engine during
             # its startup. Whilst access to the service is not normally required we
@@ -987,40 +1039,24 @@ class Gw1000TestCase(unittest.TestCase):
             # over all of the engine's services and select the one that has a
             # 'collector' property. Unlikely to cause a problem since there are
             # only two services in the dummy engine.
-            cls.gw1000_svc = None
-            for svc in cls.engine.service_obj:
+            gw1000_svc = None
+            for svc in engine.service_obj:
                 if hasattr(svc, 'collector'):
-                    cls.gw1000_svc = svc
-            if cls.gw1000_svc:
-                print("Using GW1000 at %s:%d" % (cls.gw1000_svc.collector.station.ip_address.decode(),
-                                                 cls.gw1000_svc.collector.station.port))
-                cls.gw1000_svc.rain_total_field = 'raintotals'
-                cls.gw1000_svc.rain_mapping_confirmed = True
+                    gw1000_svc = svc
+            if gw1000_svc:
+                print("Using GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
+                                                 gw1000_svc.collector.station.port))
+                gw1000_svc.rain_total_field = 'raintotals'
+                gw1000_svc.rain_mapping_confirmed = True
             else:
                 # we could get the GW1000 service for some reason, shutdown the
                 # engine and skip this test class
-                if cls.engine:
-                    cls.engine.shutDown()
+                if engine:
+                    engine.shutDown()
                 # now skip this test class
-                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (cls.__name__,))
-
-    @classmethod
-    def tearDown(cls):
-        """Tear down the Gw1000TestCase."""
-
-        cls.engine.shutDown()
-
-    def test_map(self):
-        """Test GW1000Service GW1000 to WeeWX mapping
-
-        Tests:
-        1. field dateTime is included in the GW1000 mapped data
-        2. field usUnits is included in the GW1000 mapped data
-        3. GW1000 obs data is correctly mapped to a WeeWX fields
-        """
-
+                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (self.__name__,))
         # get a mapped  version of our GW1000 test data
-        mapped_gw1000_data = self.gw1000_svc.map_data(self.gw1000_data)
+        mapped_gw1000_data = gw1000_svc.map_data(self.gw1000_data)
         # check that our mapped data has a field 'dateTime'
         self.assertIn('dateTime', mapped_gw1000_data)
         # check that our mapped data has a field 'usUnits'
@@ -1028,7 +1064,10 @@ class Gw1000TestCase(unittest.TestCase):
         # check that the usUnits field is set to weewx.METRICWX
         self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
 
-    def test_rain(self):
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_system_params')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys):
         """Test GW1000Service correctly calculates WeeWX field rain
 
         Tests:
@@ -1037,10 +1076,53 @@ class Gw1000TestCase(unittest.TestCase):
         2. field rain is correctly calculated for a subsequent packet
         """
 
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        # wrap in a try..except in case there is an error
+        try:
+            # create a dummy engine
+            engine = weewx.engine.StdEngine(self.gw1000_svc_config)
+        except user.gw1000.GW1000IOError as e:
+            # could not communicate with the GW1000, skip the test
+            # if we have an engine try to shut it down
+            if engine:
+                engine.shutDown()
+            # now raise unittest.SkipTest to skip this test class
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (self.__name__,))
+        else:
+            # Our GW1000 service will have been instantiated by the engine during
+            # its startup. Whilst access to the service is not normally required we
+            # require access here so we can obtain some info about the station we
+            # are using for this test. The engine does not provide a ready means to
+            # access that GW1000 service so we can do a bit of guessing and iterate
+            # over all of the engine's services and select the one that has a
+            # 'collector' property. Unlikely to cause a problem since there are
+            # only two services in the dummy engine.
+            gw1000_svc = None
+            for svc in engine.service_obj:
+                if hasattr(svc, 'collector'):
+                    gw1000_svc = svc
+            if gw1000_svc:
+                print("Using GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
+                                                 gw1000_svc.collector.station.port))
+                gw1000_svc.rain_total_field = 'raintotals'
+                gw1000_svc.rain_mapping_confirmed = True
+            else:
+                # we could get the GW1000 service for some reason, shutdown the
+                # engine and skip this test class
+                if engine:
+                    engine.shutDown()
+                # now skip this test class
+                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (self.__name__,))
+
         # take a copy of our test data as we will be changing it
         _gw1000_data = dict(self.gw1000_data)
         # perform the rain calculation
-        self.gw1000_svc.calculate_rain(_gw1000_data)
+        gw1000_svc.calculate_rain(_gw1000_data)
         # check that our data now has field 'rain'
         self.assertIn('rain', _gw1000_data)
         # check that the field rain is None as this is the first packet
@@ -1048,23 +1130,26 @@ class Gw1000TestCase(unittest.TestCase):
         # increment increase the rainfall in our GW1000 data
         _gw1000_data['raintotals'] += self.increment
         # perform the rain calculation
-        self.gw1000_svc.calculate_rain(_gw1000_data)
+        gw1000_svc.calculate_rain(_gw1000_data)
         # Check that the field rain is now the increment we used. Use
         # AlmostEqual as unit conversion could cause assertEqual to fail.
         self.assertAlmostEqual(_gw1000_data.get('rain'), self.increment, places=3)
         # check delta_rain calculation
         # last_rain is None
-        self.assertIsNone(self.gw1000_svc.delta_rain(rain=10.2, last_rain=None))
+        self.assertIsNone(gw1000_svc.delta_rain(rain=10.2, last_rain=None))
         # rain is None
-        self.assertIsNone(self.gw1000_svc.delta_rain(rain=None, last_rain=5.2))
+        self.assertIsNone(gw1000_svc.delta_rain(rain=None, last_rain=5.2))
         # rain < last_rain
-        self.assertEqual(self.gw1000_svc.delta_rain(rain=4.2, last_rain=5.8), 4.2)
+        self.assertEqual(gw1000_svc.delta_rain(rain=4.2, last_rain=5.8), 4.2)
         # rain and last_rain are not None
-        self.assertAlmostEqual(self.gw1000_svc.delta_rain(rain=12.2, last_rain=5.8),
+        self.assertAlmostEqual(gw1000_svc.delta_rain(rain=12.2, last_rain=5.8),
                                6.4,
                                places=3)
 
-    def test_lightning(self):
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_system_params')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
+    @patch.object(user.gw1000.Gw1000Collector.Station, 'get_mac_address')
+    def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys):
         """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
 
         Tests:
@@ -1075,10 +1160,53 @@ class Gw1000TestCase(unittest.TestCase):
            subsequent packet
         """
 
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = StationTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        # wrap in a try..except in case there is an error
+        try:
+            # create a dummy engine
+            engine = weewx.engine.StdEngine(self.gw1000_svc_config)
+        except user.gw1000.GW1000IOError as e:
+            # could not communicate with the GW1000, skip the test
+            # if we have an engine try to shut it down
+            if engine:
+                engine.shutDown()
+            # now raise unittest.SkipTest to skip this test class
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (self.__name__,))
+        else:
+            # Our GW1000 service will have been instantiated by the engine during
+            # its startup. Whilst access to the service is not normally required we
+            # require access here so we can obtain some info about the station we
+            # are using for this test. The engine does not provide a ready means to
+            # access that GW1000 service so we can do a bit of guessing and iterate
+            # over all of the engine's services and select the one that has a
+            # 'collector' property. Unlikely to cause a problem since there are
+            # only two services in the dummy engine.
+            gw1000_svc = None
+            for svc in engine.service_obj:
+                if hasattr(svc, 'collector'):
+                    gw1000_svc = svc
+            if gw1000_svc:
+                print("Using GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
+                                                 gw1000_svc.collector.station.port))
+                gw1000_svc.rain_total_field = 'raintotals'
+                gw1000_svc.rain_mapping_confirmed = True
+            else:
+                # we could get the GW1000 service for some reason, shutdown the
+                # engine and skip this test class
+                if engine:
+                    engine.shutDown()
+                # now skip this test class
+                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (self.__name__,))
+
         # take a copy of our test data as we will be changing it
         _gw1000_data = dict(self.gw1000_data)
         # perform the lightning calculation
-        self.gw1000_svc.calculate_lightning_count(_gw1000_data)
+        gw1000_svc.calculate_lightning_count(_gw1000_data)
         # check that our data now has field 'lightning_strike_count'
         self.assertIn('lightning_strike_count', _gw1000_data)
         # check that the field lightning_strike_count is None as this is the
@@ -1087,7 +1215,7 @@ class Gw1000TestCase(unittest.TestCase):
         # increment increase the lightning count in our GW1000 data
         _gw1000_data['lightningcount'] += self.increment
         # perform the lightning calculation
-        self.gw1000_svc.calculate_lightning_count(_gw1000_data)
+        gw1000_svc.calculate_lightning_count(_gw1000_data)
         # check that the field lightning_strike_count is now the increment we
         # used
         self.assertAlmostEqual(_gw1000_data.get('lightning_strike_count'),
@@ -1095,13 +1223,13 @@ class Gw1000TestCase(unittest.TestCase):
                                places=1)
         # check delta_lightning calculation
         # last_count is None
-        self.assertIsNone(self.gw1000_svc.delta_lightning(count=10, last_count=None))
+        self.assertIsNone(gw1000_svc.delta_lightning(count=10, last_count=None))
         # count is None
-        self.assertIsNone(self.gw1000_svc.delta_lightning(count=None, last_count=5))
+        self.assertIsNone(gw1000_svc.delta_lightning(count=None, last_count=5))
         # count < last_count
-        self.assertEqual(self.gw1000_svc.delta_lightning(count=42, last_count=58), 42)
+        self.assertEqual(gw1000_svc.delta_lightning(count=42, last_count=58), 42)
         # count and last_count are not None
-        self.assertEqual(self.gw1000_svc.delta_lightning(count=122, last_count=58), 64)
+        self.assertEqual(gw1000_svc.delta_lightning(count=122, last_count=58), 64)
 
 
 def hex_to_bytes(hex_string):
@@ -1174,7 +1302,7 @@ def main():
 #    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
 #                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
     test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
-                  ListsAndDictsTestCase, StationTestCase)
+                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
 
     usage = """python -m user.tests.test_gw1000 --help
            python -m user.tests.test_gw1000 --version
