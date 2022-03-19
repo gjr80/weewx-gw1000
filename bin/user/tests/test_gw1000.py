@@ -30,6 +30,7 @@ To run the test suite:
     $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000 [-v]
 """
 # python imports
+import socket
 import struct
 import time
 import unittest
@@ -881,6 +882,32 @@ class StationTestCase(unittest.TestCase):
         # test that the new port number was detected
         self.assertEqual(station.port,
                          StationTestCase.discover_multi_resp[1]['port'])
+        # now test discover() returning no devices
+        mock_discover.return_value = []
+        # reset our Station object IP address and port
+        station.ip_address = self.test_ip.encode()
+        station.port = self.test_port
+        # force rediscovery
+        station.rediscover()
+        # test that we retained the original MAC address after rediscovery
+        self.assertEqual(station.mac, StationTestCase.discover_multi_resp[1]['mac'])
+        # test that the new IP address was detected
+        self.assertEqual(station.ip_address.decode(), self.test_ip)
+        # test that the new port number was detected
+        self.assertEqual(station.port, self.test_port)
+        # now test discover() returning an exception
+        mock_discover.side_effect = socket.error
+        # reset our Station object IP address and port
+        station.ip_address = self.test_ip.encode()
+        station.port = self.test_port
+        # force rediscovery
+        station.rediscover()
+        # test that we retained the original MAC address after rediscovery
+        self.assertEqual(station.mac, StationTestCase.discover_multi_resp[1]['mac'])
+        # test that the new IP address was detected
+        self.assertEqual(station.ip_address.decode(), self.test_ip)
+        # test that the new port number was detected
+        self.assertEqual(station.port, self.test_port)
 
 
 class Gw1000TestCase(unittest.TestCase):
