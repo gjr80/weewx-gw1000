@@ -882,6 +882,7 @@ class StationTestCase(unittest.TestCase):
         # test that the new port number was detected
         self.assertEqual(station.port,
                          StationTestCase.discover_multi_resp[1]['port'])
+        # TODO. Need a test when devices are found but not the original device
         # now test discover() returning no devices
         mock_discover.return_value = []
         # reset our Station object IP address and port
