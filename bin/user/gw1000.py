@@ -30,9 +30,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.4.1                                      Date: 14 October 2021
+Version: 0.4.2                                      Date: 20 March 2022
 
 Revision History
+    20 March 2022           v0.4.2
+        -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
         -   no change, version increment only
     27 September 2021       v0.4.0

@@ -1,3 +1,5 @@
+v0.4.2
+*   fix bug in Station.rediscover()
 v0.4.1
 *   fix incorrect installer version number
 v0.4.0

@@ -10,9 +10,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.4.1                                        Date: 14 October 2021
+Version: 0.4.2                                        Date: 20 March 2022
 
 Revision History
+    20 March 2022       v0.4.2
+        -   no change, version increment only
     14 October 2021     v0.4.1
         -   fix incorrect installer version number
     27 September 2021   v0.4.0
