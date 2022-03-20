@@ -1006,6 +1006,7 @@ class Gw1000TestCase(unittest.TestCase):
             # could not communicate with the mocked or real GW1000 for some
             # reason, skip the test if we have an engine try to shut it down
             if engine:
+                print("\nShutting down engine ... ", end='')
                 engine.shutDown()
             # now raise unittest.SkipTest to skip this test class
             raise unittest.SkipTest("test_map: Unable to connect to GW1000")
@@ -1112,6 +1113,7 @@ class Gw1000TestCase(unittest.TestCase):
                 # we could get the GW1000 service for some reason, shutdown the
                 # engine and skip this test class
                 if engine:
+                    print("\nShutting down engine ... ", end='')
                     engine.shutDown()
                 # now skip this test class
                 raise unittest.SkipTest("test_rain: Could not obtain GW1000Service object")
@@ -1205,6 +1207,7 @@ class Gw1000TestCase(unittest.TestCase):
                 # we could get the GW1000 service for some reason, shutdown the
                 # engine and skip this test class
                 if engine:
+                    print("\nShutting down engine ... ", end='')
                     engine.shutDown()
                 # now skip this test class
                 raise unittest.SkipTest("test_map: Could not obtain GW1000Service object")
