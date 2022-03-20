@@ -43,7 +43,6 @@ import six
 import weewx
 import user.gw1000
 
-# TODO. Get a technically correct value for Gw1000TestCase.mock_sys_params_resp
 # TODO. Check speed_data data and result are correct
 # TODO. Check rain_data data and result are correct
 # TODO. Check rainrate_data data and result are correct
@@ -914,11 +913,14 @@ class StationTestCase(unittest.TestCase):
 class Gw1000TestCase(unittest.TestCase):
     """Test the GW1000Service.
 
-    Note this test class requires that a GW1000 can be successfully discovered
-    on the local network segment. If a GW1000 cannot/is not discovered then the
-    test class is skipped.
+    Uses mock to simulate methods required to run a GW1000 service without a
+    GW1x00. If for some reason the GW1000 service cannot be run the test is
+    skipped.
     """
 
+    fake_ip = '192.168.99.99'
+    fake_port = 44444
+    fake_mac = b'\xdcO"X\xa2E'
     # dummy GW1000 data used to exercise the GW1000 to WeeWX mapping
     gw1000_data = {'absbarometer': 1009.3,
                    'datetime': 1632109437,
@@ -941,14 +943,10 @@ class Gw1000TestCase(unittest.TestCase):
                    }
     # amount to increment delta measurements
     increment = 5.6
-    # IP address to use for contacting GW1000, if None discovery will be
-    # attempted. Can be overridden using --ip-address command line argument.
-    ip_address = None
-    # Port to use for contacting GW1000, if None discovery will be attempted.
-    # Can be overridden using --port command line argument.
-    port = None
-    mock_sys_params_resp = b'\xff\xff0\t\x00\x00\x01\x02\x03\x04\x01\x00\x08'
-
+    # mocked read_system_parameters() output
+    mock_sys_params_resp = b'\xff\xff0\x0b\x00\x01b7\rj^\x02\xac'
+    # mocked get_firmware() response
+    mock_get_firm_resp = b'\xff\xffP\x11\rGW1000_V1.6.8}'
 
     @classmethod
     def setUpClass(cls):
@@ -972,14 +970,14 @@ class Gw1000TestCase(unittest.TestCase):
             'Engine': {
                 'Services': {
                     'archive_services': 'user.gw1000.Gw1000Service'}}}
-        # set the IP address and port to use
-        # set the IP address we will use
-        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else StationTestCase.fake_ip
-        # set the port number we will use
-        config['GW1000']['port'] = cls.port if cls.port is not None else StationTestCase.fake_port
-
+        # set the IP address we will use, if we received an IP address via the
+        # command line use it, otherwise use a fake address
+        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else Gw1000TestCase.fake_ip
+        # set the port number we will use, if we received a port number via the
+        # command line use it, otherwise use a fake port number
+        config['GW1000']['port'] = cls.port if cls.port is not None else Gw1000TestCase.fake_port
+        # save the service config dict for use later
         cls.gw1000_svc_config = config
-        return
 
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_system_params')
     @patch.object(user.gw1000.Gw1000Collector.Station, 'get_firmware_version')
@@ -995,46 +993,56 @@ class Gw1000TestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
+        # get_system_params() - system parameters (bytestring)
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
-        # wrap in a try..except in case there is an error
+        # create a dummy engine, wrap in a try..except in case there is an
+        # error
         try:
-            # create a dummy engine
             engine = weewx.engine.StdEngine(self.gw1000_svc_config)
         except user.gw1000.GW1000IOError as e:
-            # could not communicate with the GW1000, skip the test
-            # if we have an engine try to shut it down
+            # could not communicate with the mocked or real GW1000 for some
+            # reason, skip the test if we have an engine try to shut it down
             if engine:
                 engine.shutDown()
             # now raise unittest.SkipTest to skip this test class
-            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (self.__name__,))
+            raise unittest.SkipTest("test_map: Unable to connect to GW1000")
         else:
-            # Our GW1000 service will have been instantiated by the engine during
-            # its startup. Whilst access to the service is not normally required we
-            # require access here so we can obtain some info about the station we
-            # are using for this test. The engine does not provide a ready means to
-            # access that GW1000 service so we can do a bit of guessing and iterate
-            # over all of the engine's services and select the one that has a
-            # 'collector' property. Unlikely to cause a problem since there are
-            # only two services in the dummy engine.
+            # Our GW1000 service will have been instantiated by the engine
+            # during its startup. Whilst access to the service is not normally
+            # required we require access here so we can obtain info about the
+            # station we are using for this test. The engine does not provide a
+            # ready means to access that GW1000 service so we can do a bit of
+            # guessing and iterate over all of the engine's services and select
+            # the one that has a 'collector' property. Unlikely to cause a
+            # problem since there are only two services in the dummy engine.
             gw1000_svc = None
             for svc in engine.service_obj:
                 if hasattr(svc, 'collector'):
                     gw1000_svc = svc
             if gw1000_svc:
-                print("Using GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
-                                                 gw1000_svc.collector.station.port))
+                # tell the user what device we are using
+                if gw1000_svc.collector.station.ip_address.decode() == Gw1000TestCase.fake_ip:
+                    _stem = "\nUsing mocked GW1x00 at %s:%d ... "
+                else:
+                    _stem = "\nUsing real GW1x00 at %s:%d ... "
+                print(_stem % (gw1000_svc.collector.station.ip_address.decode(),
+                               gw1000_svc.collector.station.port),
+                      end='')
+                # set some GW1000 service parameters to enable rain related
+                # tests
                 gw1000_svc.rain_total_field = 'raintotals'
                 gw1000_svc.rain_mapping_confirmed = True
             else:
-                # we could get the GW1000 service for some reason, shutdown the
-                # engine and skip this test class
+                # we could not get the GW1000 service for some reason, shutdown
+                # the engine and skip this test class
                 if engine:
+                    print("\nShutting down engine ... ", end='')
                     engine.shutDown()
                 # now skip this test class
-                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (self.__name__,))
+                raise unittest.SkipTest("test_map: Could not obtain GW1000Service object")
         # get a mapped  version of our GW1000 test data
         mapped_gw1000_data = gw1000_svc.map_data(self.gw1000_data)
         # check that our mapped data has a field 'dateTime'
@@ -1058,7 +1066,7 @@ class Gw1000TestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
@@ -1070,9 +1078,10 @@ class Gw1000TestCase(unittest.TestCase):
             # could not communicate with the GW1000, skip the test
             # if we have an engine try to shut it down
             if engine:
+                print("\nShutting down engine ... ", end='')
                 engine.shutDown()
             # now raise unittest.SkipTest to skip this test class
-            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (self.__name__,))
+            raise unittest.SkipTest("test_rain: Unable to connect to GW1000")
         else:
             # Our GW1000 service will have been instantiated by the engine during
             # its startup. Whilst access to the service is not normally required we
@@ -1087,8 +1096,16 @@ class Gw1000TestCase(unittest.TestCase):
                 if hasattr(svc, 'collector'):
                     gw1000_svc = svc
             if gw1000_svc:
-                print("Using GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
-                                                 gw1000_svc.collector.station.port))
+                # tell the user what device we are using
+                if gw1000_svc.collector.station.ip_address.decode() == Gw1000TestCase.fake_ip:
+                    _stem = "\nUsing mocked GW1x00 at %s:%d ... "
+                else:
+                    _stem = "\nUsing real GW1x00 at %s:%d ... "
+                print(_stem % (gw1000_svc.collector.station.ip_address.decode(),
+                               gw1000_svc.collector.station.port),
+                      end='')
+                # set some GW1000 service parameters to enable rain related
+                # tests
                 gw1000_svc.rain_total_field = 'raintotals'
                 gw1000_svc.rain_mapping_confirmed = True
             else:
@@ -1097,7 +1114,7 @@ class Gw1000TestCase(unittest.TestCase):
                 if engine:
                     engine.shutDown()
                 # now skip this test class
-                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (self.__name__,))
+                raise unittest.SkipTest("test_rain: Could not obtain GW1000Service object")
 
         # take a copy of our test data as we will be changing it
         _gw1000_data = dict(self.gw1000_data)
@@ -1142,21 +1159,22 @@ class Gw1000TestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
-        # wrap in a try..except in case there is an error
+        # create a dummy engine, wrap in a try..except in case there is an
+        # error
         try:
-            # create a dummy engine
             engine = weewx.engine.StdEngine(self.gw1000_svc_config)
         except user.gw1000.GW1000IOError as e:
             # could not communicate with the GW1000, skip the test
             # if we have an engine try to shut it down
             if engine:
+                print("\nShutting down engine ... ", end='')
                 engine.shutDown()
             # now raise unittest.SkipTest to skip this test class
-            raise unittest.SkipTest("%s: Unable to connect to GW1000" % (self.__name__,))
+            raise unittest.SkipTest("%test_lightning: Unable to connect to GW1000")
         else:
             # Our GW1000 service will have been instantiated by the engine during
             # its startup. Whilst access to the service is not normally required we
@@ -1171,8 +1189,16 @@ class Gw1000TestCase(unittest.TestCase):
                 if hasattr(svc, 'collector'):
                     gw1000_svc = svc
             if gw1000_svc:
-                print("Using GW1000 at %s:%d" % (gw1000_svc.collector.station.ip_address.decode(),
-                                                 gw1000_svc.collector.station.port))
+                # tell the user what device we are using
+                if gw1000_svc.collector.station.ip_address.decode() == Gw1000TestCase.fake_ip:
+                    _stem = "\nUsing mocked GW1x00 at %s:%d ... "
+                else:
+                    _stem = "\nUsing real GW1x00 at %s:%d ... "
+                print(_stem % (gw1000_svc.collector.station.ip_address.decode(),
+                               gw1000_svc.collector.station.port),
+                      end='')
+                # set some GW1000 service parameters to enable rain related
+                # tests
                 gw1000_svc.rain_total_field = 'raintotals'
                 gw1000_svc.rain_mapping_confirmed = True
             else:
@@ -1181,7 +1207,7 @@ class Gw1000TestCase(unittest.TestCase):
                 if engine:
                     engine.shutDown()
                 # now skip this test class
-                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % (self.__name__,))
+                raise unittest.SkipTest("test_map: Could not obtain GW1000Service object")
 
         # take a copy of our test data as we will be changing it
         _gw1000_data = dict(self.gw1000_data)
@@ -1279,8 +1305,6 @@ def main():
     import argparse
 
     # test cases that are production ready
-#    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
-#                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
     test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
                   ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
 
