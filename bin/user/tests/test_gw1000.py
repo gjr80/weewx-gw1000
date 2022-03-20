@@ -641,6 +641,7 @@ class StationTestCase(unittest.TestCase):
         'CMD_GET_CO2_OFFSET': 'FF FF 53 03 56',
         'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
     }
+    # Station.discover() multiple device discovery response
     discover_multi_resp = [{'mac': b'\xe8h\xe7\x87\x1aO', #'E8:68:E7:87:1A:4F',
                             'ip_address': '192.168.50.3',
                             'port': 45001,
@@ -657,6 +658,23 @@ class StationTestCase(unittest.TestCase):
                             'ssid': 'GW1000-WIFID368 V1.6.8',
                             'model': 'GW1000'}
                            ]
+    # Station.discover() multiple device discovery response with different MAC
+    discover_multi_diff_resp = [{'mac': b'\xe8h\xe7\x87\x1bO', #'E8:68:E7:87:1B:4F',
+                                 'ip_address': '192.168.50.3',
+                                 'port': 45001,
+                                 'ssid': 'GW1100C-WIFI1A4F V2.0.9',
+                                 'model': 'GW1100'},
+                                {'mac': b'\xdcO"X\xa3E', #'DC:4F:22:58:A3:45'
+                                 'ip_address': '192.168.50.6',
+                                 'port': 45002,
+                                 'ssid': 'GW1000-WIFIA245 V1.6.7',
+                                 'model': 'GW1000'},
+                                {'mac': b'P\x02\x91\xe3\xd2h', #'50:02:91:E3:D2:68',
+                                 'ip_address': '192.168.50.7',
+                                 'port': 45003,
+                                 'ssid': 'GW1000-WIFID368 V1.6.8',
+                                 'model': 'GW1000'}
+                                ]
 
     @classmethod
     def setUpClass(cls):
@@ -871,6 +889,8 @@ class StationTestCase(unittest.TestCase):
         # to speed up testing we can reduce some of the retries and wait times
         station.max_tries = 1
         station.retry_wait = 3
+
+        # test Station.rediscover() when the original device is found again
         # force rediscovery
         station.rediscover()
         # test that we retained the original MAC address after rediscovery
@@ -881,8 +901,23 @@ class StationTestCase(unittest.TestCase):
         # test that the new port number was detected
         self.assertEqual(station.port,
                          StationTestCase.discover_multi_resp[1]['port'])
-        # TODO. Need a test when devices are found but not the original device
-        # now test discover() returning no devices
+
+        # test Station.rediscover() when devices are found but not the original
+        # device
+        mock_discover.return_value = StationTestCase.discover_multi_diff_resp
+        # reset our Station object IP address and port
+        station.ip_address = self.test_ip.encode()
+        station.port = self.test_port
+        # force rediscovery
+        station.rediscover()
+        # test that we retained the original MAC address after rediscovery
+        self.assertEqual(station.mac, StationTestCase.discover_multi_resp[1]['mac'])
+        # test that the new IP address was detected
+        self.assertEqual(station.ip_address.decode(), self.test_ip)
+        # test that the new port number was detected
+        self.assertEqual(station.port, self.test_port)
+
+        # now test Station.rediscover() when no devices are found
         mock_discover.return_value = []
         # reset our Station object IP address and port
         station.ip_address = self.test_ip.encode()
@@ -895,7 +930,9 @@ class StationTestCase(unittest.TestCase):
         self.assertEqual(station.ip_address.decode(), self.test_ip)
         # test that the new port number was detected
         self.assertEqual(station.port, self.test_port)
-        # now test discover() returning an exception
+
+        # now test Station.rediscover() when Station.discover() raises an
+        # exception
         mock_discover.side_effect = socket.error
         # reset our Station object IP address and port
         station.ip_address = self.test_ip.encode()
@@ -1025,7 +1062,7 @@ class Gw1000TestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
@@ -1077,7 +1114,7 @@ class Gw1000TestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
