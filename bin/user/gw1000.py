@@ -30,9 +30,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.4.2                                      Date: 20 March 2022
+Version: 0.5.0                                      Date: ?? April 2022
 
 Revision History
+    ?? April 2022           v0.5.0
+        -   added support for GW2000
+        -   added support for WH90 sensor platform
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -2383,8 +2386,11 @@ class Gw1000Collector(Collector):
         b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5', 'batt_fn': 'batt_volt'},
         b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
-        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'}
+        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'},
+        b'\x30': {'name': 'wh90', 'long_name': 'WH90', 'batt_fn': 'batt_volt', 'low_batt': 3}
     }
+    # sensors for which there is no low battery state
+    no_low = ['wh80', 'wh90']
     # list of dicts of weather services that I know about
     services = [{'name': 'ecowitt_net',
                  'long_name': 'Ecowitt.net'
@@ -4633,32 +4639,38 @@ class Gw1000Collector(Collector):
         def battery_desc(address, value):
             """Determine the battery state description for a given sensor.
 
+            # TODO. Comments need fleshing out
             Given the address...
             """
 
             if value is not None:
-                batt_fn = Gw1000Collector.sensor_ids[address].get('batt_fn')
-                if batt_fn == 'batt_binary':
-                    if value == 0:
-                        return "OK"
-                    elif value == 1:
-                        return "low"
-                    else:
-                        return 'Unknown'
-                elif batt_fn == 'batt_int':
-                    if value <= 1:
-                        return "low"
-                    elif value == 6:
-                        return "DC"
-                    elif value <= 5:
-                        return "OK"
-                    else:
-                        return 'Unknown'
-                elif batt_fn == 'batt_volt' or batt_fn == 'batt_volt_tenth':
-                    if value <= 1.2:
-                        return "low"
-                    else:
-                        return "OK"
+                if Gw1000Collector.sensor_ids[address].get('name') in Gw1000Collector.no_low:
+                    # we have a sensor for which no low battery cut-off
+                    # data exists
+                    return None
+                else:
+                    batt_fn = Gw1000Collector.sensor_ids[address].get('batt_fn')
+                    if batt_fn == 'batt_binary':
+                        if value == 0:
+                            return "OK"
+                        elif value == 1:
+                            return "low"
+                        else:
+                            return 'Unknown'
+                    elif batt_fn == 'batt_int':
+                        if value <= 1:
+                            return "low"
+                        elif value == 6:
+                            return "DC"
+                        elif value <= 5:
+                            return "OK"
+                        else:
+                            return 'Unknown'
+                    elif batt_fn == 'batt_volt' or batt_fn == 'batt_volt_tenth':
+                        if value <= 1.2:
+                            return "low"
+                        else:
+                            return "OK"
             else:
                 return 'Unknown'
 
@@ -5821,7 +5833,8 @@ class DirectGw1000(object):
                         # the sensor is registered so we should have signal and battery
                         # data as well
                         battery_desc = sensors.battery_desc(address, sensor_data.get('battery'))
-                        battery_str = "%s (%s)" % (sensor_data.get('battery'), battery_desc)
+                        battery_desc_text = " (%s)" % battery_desc if battery_desc is not None else ""
+                        battery_str = "%s%s" % (sensor_data.get('battery'), battery_desc_text)
                         state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').strip('0'),
                                                                             sensor_data.get('signal'),
                                                                             battery_str)
