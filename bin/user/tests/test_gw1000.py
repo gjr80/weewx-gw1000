@@ -306,7 +306,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.multi_batt['wh65']['mask'], 1 << 7)
 
         # response_struct
-        self.assertEqual(self.parser.response_struct, self.response_struct)
+        self.assertEqual(self.parser.live_data_struct, self.response_struct)
 
         # rain_field_codes
         self.assertEqual(self.parser.rain_field_codes, self.rain_field_codes)
