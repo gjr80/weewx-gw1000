@@ -30,10 +30,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0                                      Date: ?? April 2022
+Version: 0.5.0a1                                    Date: ?? April 2022
 
 Revision History
-    ?? April 2022           v0.5.0
+    ?? April 2022           v0.5.0a1
         -   added support for GW2000
         -   added support for WH90 sensor platform
     20 March 2022           v0.4.2
@@ -561,6 +561,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import calendar
 import configobj
 import re
 import socket
@@ -641,7 +642,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.4.1'
+DRIVER_VERSION = '0.5.0a1'
 
 # various defaults used throughout
 # default port used by GW1000/GW1100
@@ -2643,6 +2644,19 @@ class Gw1000Collector(Collector):
         offset_dict['pm10'] = struct.unpack(">h", data[4:6])[0]/10.0
         return offset_dict
 
+    # TODO. Is this method appropriately named?
+    @property
+    def piezo_rain(self):
+        """Obtain the device piezo rain data.
+
+        # TODO. Document this
+        """
+
+        # obtain the reset rain time data via the API
+        response = self.station.get_piezo_rain()
+        # parse the response
+        return self.parser.parse_read_rain(response)
+
     @property
     def calibration(self):
         """Obtain GW1000/GW1100 calibration data."""
@@ -3087,12 +3101,16 @@ class Gw1000Collector(Collector):
             'CMD_READ_USR_PATH': b'\x51',
             'CMD_WRITE_USR_PATH': b'\x52',
             'CMD_GET_CO2_OFFSET': b'\x53',
-            'CMD_SET_CO2_OFFSET': b'\x54'
+            'CMD_SET_CO2_OFFSET': b'\x54',
+            'CMD_READ_RSTRAIN_TIME': b'\x55',
+            'CMD_WRITE_RSTRAIN_TIME': b'\x56',
+            'CMD_READ_RAIN': b'\x57',
+            'CMD_WRITE_RAIN': b'\x58'
         }
         # header used in each API command and response packet
         header = b'\xff\xff'
         # known device models
-        known_models = ('GW1000', 'GW1100')
+        known_models = ('GW1000', 'GW1100', 'GW2000')
 
         # TODO. Is lost_contact_log_period required in the signature
         def __init__(self, ip_address=None, port=None,
@@ -3678,11 +3696,24 @@ class Gw1000Collector(Collector):
             offset data to the API with retries. If the GW1000/GW1100 cannot be
             contacted a GW1000IOError will have been raised by
             send_cmd_with_retries() which will be passed through by
-            get_offset_calibration(). Any code calling get_offset_calibration()
-            should be prepared to handle this exception.
+            get_co2_offset(). Any code calling get_co2_offset() should be
+            prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
+
+        # TODO. Is this method appropriately named?
+        def get_piezo_rain(self):
+            """Get piezo rain data.
+
+            Sends the command to obtain the piezo rain data to the API with
+            retries. If the GW1000/GW1100 cannot be contacted a GW1000IOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_piezo_rain_(). Any code calling
+            get_piezo_rain_() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_READ_RAIN')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
             """Send a command to the GW1000/GW1100 API with retries and return
@@ -3987,7 +4018,19 @@ class Gw1000Collector(Collector):
             return False
 
     class Parser(object):
-        """Class to parse GW1000/GW1100 sensor data."""
+        """Class to parse and decode device API response payload data.
+
+        The main function of class Parser is to parse and decode the payloads
+        of the device response to the following API calls:
+
+        - CMD_GW1000_LIVEDATA
+        - CMD_READ_RAIN
+
+        By virtue of its ability to decode fields in the above API responses
+        the decode methods of class Parser are also used individually
+        elsewhere in the driver to decode simple responses received from the
+        device, eg when reading device configuration settings.
+        """
 
         # TODO. Would be good to get rid of this too, but it is presently used elsewhere
         multi_batt = {'wh40': {'mask': 1 << 4},
@@ -3995,11 +4038,15 @@ class Gw1000Collector(Collector):
                       'wh25': {'mask': 1 << 6},
                       'wh65': {'mask': 1 << 7}
                       }
-        # Dictionary keyed by GW1000/GW1100 response element containing various
-        # parameters for each response 'field'. Dictionary tuple format is
-        # (decode function name, size of data in bytes, GW1000/GW1100 field
-        # name)
-        response_struct = {
+        # Dictionary keyed by device live data field 'address' containing
+        # various parameters for each 'address'. Dictionary tuple format is:
+        #   (decode fn, size, field name)
+        # where:
+        #   decode fn:  the decode function name to be used for the field
+        #   size:       the size of field data in bytes
+        #   field name: the name of the internal GW1000/GW1100/GW2000 field to
+        #               be used for the decoded data
+        live_data_struct = {
             b'\x01': ('decode_temp', 2, 'intemp'),
             b'\x02': ('decode_temp', 2, 'outtemp'),
             b'\x03': ('decode_temp', 2, 'dewpoint'),
@@ -4114,7 +4161,23 @@ class Gw1000Collector(Collector):
             b'\x78': ('decode_wet', 1, 'leafwet7'),
             b'\x79': ('decode_wet', 1, 'leafwet8')
         }
-
+        # Dictionary keyed by CMD_READ_RAIN response field 'address' containing
+        # various parameters for each 'address'. Dictionary tuple format is:
+        #   (decode fn, size, field name)
+        # where:
+        #   decode fn:  the decode function name to be used for the field
+        #   size:       the size of field data in bytes
+        #   field name: the name of the field to be used for the decoded data
+        read_rain_struct = {
+            b'\x80': ('decode_rainrate', 2, 'p_rate'),
+            b'\x81': ('decode_rain', 2, 'p_event'),
+            b'\x83': ('decode_rain', 4, 'p_day'),
+            b'\x84': ('decode_rain', 4, 'p_week'),
+            b'\x85': ('decode_big_rain', 4, 'p_month'),
+            b'\x86': ('decode_big_rain', 4, 'p_year'),
+            b'\x87': ('decode_rain_gain', 20, None),
+            b'\x88': ('decode_rain_reset', 3, None)
+        }
         # tuple of field codes for rain related fields in the GW1000/GW1100
         # live data so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
@@ -4151,6 +4214,7 @@ class Gw1000Collector(Collector):
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
 
+        # TODO. This method needs to be renamed to be consistent with parse_read_rain()
         def parse(self, raw_data, timestamp=None):
             """Parse raw sensor data.
 
@@ -4172,7 +4236,7 @@ class Gw1000Collector(Collector):
                 index = 0
                 while index < len(resp) - 1:
                     try:
-                        decode_str, field_size, field = self.response_struct[resp[index:index + 1]]
+                        decode_str, field_size, field = self.live_data_struct[resp[index:index + 1]]
                     except KeyError:
                         # We struck a field 'address' we do not know how to
                         # process. Ideally we would like to skip and move onto
@@ -4206,6 +4270,73 @@ class Gw1000Collector(Collector):
                                                                      bytes_to_hex(resp[index + 1:index + 1 + field_size]),
                                                                      field,
                                                                      _field_data[field]))
+                        index += field_size + 1
+            # if it does not exist add a datetime field with the current epoch timestamp
+            if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
+                data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
+            return data
+
+        def parse_read_rain(self, raw_data, timestamp=None):
+            """Parse the CMD_READ_RAIN API command response.
+
+            # TODO. Need to comment this
+            """
+
+            # obtain the payload size, in this case it's a big endian short (two
+            # byte) integer
+            payload_size = struct.unpack(">H", raw_data[3:5])[0]
+            # obtain the payload
+            payload = raw_data[5:5 + payload_size - 4]
+            # log the payload as a sequence of bytes in hex
+            if weewx.debug >= 3:
+                logdbg("'read_rain' payload is '%s'" % (bytes_to_hex(payload),))
+            # create a dict for our resulting data
+            data = {}
+            # do we have any payload data to operate on
+            if len(payload) > 0:
+                # we have payload data
+                # set a counter to keep track of where we are in the payload
+                index = 0
+                # work through the payload until we reach the end
+                while index < len(payload) - 1:
+                    # obtain the decode function, field size and field name for
+                    # the current field, wrap in a try..except in case we
+                    # encounter a field address we do not know about
+                    try:
+                        decode_str, field_size, field = self.read_rain_struct[payload[index:index + 1]]
+                    except KeyError:
+                        # We struck a field 'address' we do not know how to
+                        # process. Ideally we would like to skip and move onto
+                        # the next field (if there is one) but the problem is
+                        # we do not know how long the data of this unknown
+                        # field is. We could go on guessing the field data size
+                        # by looking for the next field address but we won't
+                        # know if we do find a valid field address is it a
+                        # field address or data from this field? Of course this
+                        # could also be corrupt data (unlikely though as it was
+                        # decoded using a checksum). So all we can really do is
+                        # accept the data we have so far, log the issue and
+                        # ignore the remaining data.
+                        logerr("Unknown field address '%s' detected. "
+                               "Remaining read_rain data ignored." % (bytes_to_hex(payload[index:index + 1]),))
+                        break
+                    else:
+                        # now decode the field data
+                        _field_data = getattr(self, decode_str)(payload[index + 1:index + 1 + field_size],
+                                                                field)
+                        # do we have any decoded data?
+                        if _field_data is not None:
+                            # we have decoded data
+                            # add the decoded data to our data dict
+                            data.update(_field_data)
+                            # log the decoded data if required
+                            if self.debug_rain:
+                                loginf("parse: 'read_rain' raw data: field:%s and "
+                                       "data:%s decoded as %s=%s" % (bytes_to_hex(payload[index:index + 1]),
+                                                                     bytes_to_hex(payload[index + 1:index + 1 + field_size]),
+                                                                     field,
+                                                                     _field_data[field]))
+                        # we are finished with this field, move onto the next
                         index += field_size + 1
             # if it does not exist add a datetime field with the current epoch timestamp
             if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
@@ -4251,11 +4382,18 @@ class Gw1000Collector(Collector):
             """Decode pressure data.
 
             Data is contained in a two byte big endian integer and represents
-            tenths of a unit.
+            tenths of a unit. If data contains more than two bytes take the
+            last two bytes. If field is not None return the result as a dict in
+            the format {field: decoded value} otherwise return just the decoded
+            value.
+
+            Also used to decode other two byte big endian integer fields.
             """
 
             if len(data) == 2:
                 value = struct.unpack(">H", data)[0] / 10.0
+            elif len(data) > 2:
+                value = struct.unpack(">H", data[-2:])[0] / 10.0
             else:
                 value = None
             if field is not None:
@@ -4368,10 +4506,27 @@ class Gw1000Collector(Collector):
         def decode_count(data, field=None):
             """Decode lightning count.
 
-            Count is an integer stored in a 4 byte big endian integer."""
+            Count is an integer stored in a four byte big endian integer."""
 
             if len(data) == 4:
                 value = struct.unpack(">L", data)[0]
+            else:
+                value = None
+            if field is not None:
+                return {field: value}
+            else:
+                return value
+
+        @staticmethod
+        def decode_gain_100(data, field=None):
+            """Decode a sensor gain expressed in hundredths.
+
+            Gain is stored in a four byte big endian integer and represents
+            hundredths of a unit.
+            """
+
+            if len(data) == 2:
+                value = struct.unpack(">H", data)[0] / 100.0
             else:
                 value = None
             if field is not None:
@@ -4446,6 +4601,62 @@ class Gw1000Collector(Collector):
                 # we could decode the battery state but we will be obtaining
                 # battery state data from the sensor IDs in a later step so
                 # we can skip it here
+                return results
+            return {}
+
+        def decode_rain_gain(self, data, fields=None):
+            """Decode piezo rain gain data.
+
+            Piezo rain gain data is 20 bytes of data comprising 10 two byte big
+            endian fields with each field representing a value in hundredths of
+            a unit.
+
+            The 20 bytes of piezo rain gain data is allocated as follows:
+            Byte(s) #      Data      Format            Comments
+            bytes   1-2    gain1     unsigned short    gain x 100
+                    3-4    gain2     unsigned short    gain x 100
+                    5-6    gain3     unsigned short    gain x 100
+                    7-8    gain4     unsigned short    gain x 100
+                    9-10   gain5     unsigned short    gain x 100
+                    11-12  gain6     unsigned short    gain x 100, reserved
+                    13-14  gain7     unsigned short    gain x 100, reserved
+                    15-16  gain8     unsigned short    gain x 100, reserved
+                    17-18  gain9     unsigned short    gain x 100, reserved
+                    19-20  gain10    unsigned short    gain x 100, reserved
+
+            As of device firmware v2.1.3 gain6-gain10 inclusive are unused and
+            reserved for future use.
+            """
+
+            if len(data) == 20:
+                results = dict()
+                for gain in range(10):
+                    results['gain%d' % gain] = self.decode_gain_100(data[gain*2:gain*2+2])
+                return results
+            return {}
+
+        @staticmethod
+        def decode_rain_reset(data, fields=None):
+            """Decode rain reset data.
+
+            Rain reset data is three bytes of data comprising three unsigned
+            byte fields with each field representing an integer.
+
+            The three bytes of rain reset data is allocated as follows:
+            Byte  #  Data               Format         Comments
+            byte  1  day reset time     unsigned byte  hour of the day to reset day
+                                                       rain, eg 7 = 07:00
+                  2  week reset time    unsigned byte  day of week to reset week rain,
+                                                       allowed values are 0 or 1. 0=Sunday, 1=Monday
+                  3  annual reset time  unsigned byte  month of year to reset annual
+                                                       rain, allowed values are 0-11, eg 2 = March
+            """
+
+            if len(data) == 3:
+                results = dict()
+                results['day_reset'] = struct.unpack("B", data[0:1])[0]
+                results['week_reset'] = struct.unpack("B", data[1:2])[0]
+                results['annual_reset'] = struct.unpack("B", data[2:3])[0]
                 return results
             return {}
 
@@ -5192,6 +5403,8 @@ class DirectGw1000(object):
             self.system_params()
         elif self.opts.get_rain:
             self.get_rain_data()
+        elif self.opts.get_all_rain:
+            self.get_all_rain_data()
         elif self.opts.get_mulch_offset:
             self.get_mulch_offset()
         elif self.opts.get_pm25_offset:
@@ -5324,6 +5537,84 @@ class DirectGw1000(object):
             print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
+
+    def get_all_rain_data(self):
+        """Display the device rain data including piezo data.
+
+        Obtain and display the device rain data including piezo data. The
+        CMD_READ_RAIN API command is used to obtain the device data, this
+        command returns rain data from the device for both traditional and
+        piezo rain gauges.
+
+        The device address and port are derived (in order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+
+        Note. Early testing showed the CMD_READ_RAIN command returned data for
+        the piezo gauge only. This may be due to the system under test (it only
+        had a piezo rain gauge) or it may be an issue with the v2.1.3 device
+        firmware.
+        """
+
+        traditional = ['rate', 'event', 'day', 'week', 'month', 'year']
+        piezo = ['p_rate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
+                 'gain1', 'gain2', 'gain3', 'gain4', 'gain5']
+        reset = ['day_reset', 'week_reset', 'annual_reset']
+        # wrap in a try..except in case there is an error
+        try:
+            # get a Gw1000Collector object
+            collector = Gw1000Collector(ip_address=self.ip_address,
+                                        port=self.port)
+            # identify the device being used
+            print()
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
+            # get the collector objects piezo_rain property
+            rain_data = collector.piezo_rain
+        except GW1000IOError as e:
+            print()
+            print("Unable to connect to device: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. %s did not respond." % collector.station.model)
+        else:
+            print()
+            if all(field in rain_data for field in traditional):
+                print("    Traditional rain data:")
+                print("%30s: %.1fmm/hr (%.1fin/hr)" % ('Rain rate', rain_data['rate'], rain_data['rate'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Event rain', rain_data['event'], rain_data['event'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Daily rain', rain_data['day'], rain_data['day'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Weekly rain', rain_data['week'], rain_data['week'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Monthly rain', rain_data['month'], rain_data['month'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Yearly rain', rain_data['year'], rain_data['year'] / 25.4))
+            else:
+                print("    No traditional rain data available")
+            print()
+            if all(field in rain_data for field in piezo):
+                print("    Piezo rain data:")
+                print("%30s: %.1fmm/hr (%.1fin/hr)" % ('Rain rate', rain_data['p_rate'], rain_data['p_rate'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Event rain', rain_data['p_event'], rain_data['p_event'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Daily rain', rain_data['p_day'], rain_data['p_day'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Weekly rain', rain_data['p_week'], rain_data['p_week'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Monthly rain', rain_data['p_month'], rain_data['p_month'] / 25.4))
+                print("%30s: %.1fmm (%.1fin)" % ('Yearly rain', rain_data['p_year'], rain_data['p_year'] / 25.4))
+                print("%30s: %.2f (%s)" % ('Piezo rain1 gain', rain_data['gain1'], '< 4mm/h'))
+                print("%30s: %.2f (%s)" % ('Piezo rain2 gain', rain_data['gain2'], '< 10mm/h'))
+                print("%30s: %.2f (%s)" % ('Piezo rain3 gain', rain_data['gain3'], '< 30mm/h'))
+                print("%30s: %.2f (%s)" % ('Piezo rain4 gain', rain_data['gain4'], '< 60mm/h'))
+                print("%30s: %.2f (%s)" % ('Piezo rain5 gain', rain_data['gain5'], '> 60mm/h'))
+            else:
+                print("    No piezo rain data available")
+            print()
+            if all(field in rain_data for field in reset):
+                print("    Rainfall reset time data:")
+                print("%30s: 0%d:00" % ('Daily rainfall reset time', rain_data['day_reset']))
+                print("%30s: %s" % ('Weekly rainfall reset time', calendar.day_name[(rain_data['week_reset'] + 6) % 7]))
+                print("%30s: %s" % ('Annual rainfall reset time', calendar.month_name[rain_data['annual_reset'] + 1]))
+            else:
+                print("    No rainfall reset time data available")
 
     def get_mulch_offset(self):
         """Display the multi-channel temperature and humidity offset data from
@@ -6176,7 +6467,7 @@ def main():
             [--show-all-batt]
             [--debug=0|1|2|3]     
        python -m user.gw1000 --firmware-version|--mac-address|
-            --system-params|--get-rain-data
+            --system-params|--get-rain-data|--get-all-rain_data
             [CONFIG_FILE|--config=CONFIG_FILE]  
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]     
@@ -6195,63 +6486,65 @@ def main():
 
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('--version', dest='version', action='store_true',
-                      help='display GW1000/GW1100 driver version number')
+                      help='display driver version number')
     parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
                       help="Use configuration file CONFIG_FILE.")
     parser.add_option('--debug', dest='debug', type=int,
                       help='How much status to display, 0-3')
     parser.add_option('--discover', dest='discover', action='store_true',
-                      help='discover GW1000/GW1100 and display its IP address '
+                      help='discover devices and display device IP address '
                            'and port')
     parser.add_option('--firmware-version', dest='firmware',
                       action='store_true',
-                      help='display GW1000/GW1100 firmware version')
+                      help='display device firmware version')
     parser.add_option('--mac-address', dest='mac', action='store_true',
-                      help='display GW1000/GW1100 station MAC address')
+                      help='display device station MAC address')
     parser.add_option('--system-params', dest='sys_params', action='store_true',
-                      help='display GW1000/GW1100 system parameters')
+                      help='display device system parameters')
     parser.add_option('--sensors', dest='sensors', action='store_true',
-                      help='display GW1000/GW1100 sensor information')
+                      help='display device sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
-                      help='display GW1000/GW1100 live sensor data')
+                      help='display device live sensor data')
     parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
-                      help='display GW1000/GW1100 rain data')
+                      help='display device traditional rain data only')
+    parser.add_option('--get-all-rain-data', dest='get_all_rain', action='store_true',
+                      help='display device traditional, piezo and rain reset time data')
     parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
                       action='store_true',
-                      help='display GW1000/GW1100 multi-channel temperature and '
+                      help='display device multi-channel temperature and '
                       'humidity offset data')
     parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
                       action='store_true',
-                      help='display GW1000/GW1100 PM2.5 offset data')
+                      help='display device PM2.5 offset data')
     parser.add_option('--get-co2-offset', dest='get_co2_offset',
                       action='store_true',
-                      help='display GW1000/GW1100 CO2 (WH45) offset data')
+                      help='display device CO2 (WH45) offset data')
     parser.add_option('--get-calibration', dest='get_calibration',
                       action='store_true',
-                      help='display GW1000/GW1100 calibration data')
+                      help='display device calibration data')
     parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
                       action='store_true',
-                      help='display GW1000/GW1100 soil moisture calibration data')
+                      help='display device soil moisture calibration data')
     parser.add_option('--get-services', dest='get_services',
                       action='store_true',
-                      help='display GW1000/GW1100 weather services configuration data')
+                      help='display device weather services configuration data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
-                      metavar='TEST_DRIVER', help='test the GW1000/GW1100 driver')
+                      metavar='TEST_DRIVER', help='test the GW1000/GW1100/GW2000 driver')
     parser.add_option('--test-service', dest='test_service',
                       action='store_true',
-                      metavar='TEST_SERVICE', help='test the GW1000/GW1100 service')
+                      metavar='TEST_SERVICE', help='test the GW1000/GW1100/GW2000 service')
     parser.add_option('--ip-address', dest='ip_address',
-                      help='GW1000/GW1100 IP address to use')
+                      help='device IP address to use')
     parser.add_option('--port', dest='port', type=int,
-                      help='GW1000/GW1100 port to use')
+                      help='device port to use')
     parser.add_option('--poll-interval', dest='poll_interval', type=int,
-                      help='how often to poll the GW1000/GW1100 API')
+                      help='how often to poll the device API')
     parser.add_option('--max-tries', dest='max_tries', type=int,
-                      help='max number of attempts to contact the GW1000/GW1100')
+                      help='max number of attempts to contact the device')
     parser.add_option('--retry-wait', dest='retry_wait', type=int,
-                      help='how long to wait between attempts to contact the GW1000/GW1100')
+                      help='how long to wait between attempts to contact the device')
     parser.add_option('--show-all-batt', dest='show_battery',
                       action='store_true',
                       help='show all available battery state data regardless of sensor state')
