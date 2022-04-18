@@ -1006,7 +1006,7 @@ class Gw1000TestCase(unittest.TestCase):
             'GW1000': {},
             'Engine': {
                 'Services': {
-                    'archive_services': 'user.gw1000.Gw1000Service'}}}
+                    'archive_services': 'user.gw1000.GatewayService'}}}
         # set the IP address we will use, if we received an IP address via the
         # command line use it, otherwise use a fake address
         config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else Gw1000TestCase.fake_ip

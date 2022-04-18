@@ -52,7 +52,7 @@ Revision History
             replaced with the correct device model
         -   when used as a driver the driver hardware_name property now returns
             the device model instead of the driver name (GW1000)
-        -   reworked processing of queued data by class Gw1000Service() to fix
+        -   reworked processing of queued data by class GatewayService() to fix
             a bug resulting is intermittent missing GW1000 data
         -   implemented debug_wind reporting
         -   re-factored debug_rain reporting to report both 'WeeWX' and
@@ -513,14 +513,14 @@ manually copy this file to the $BIN_ROOT/user directory and then add the
 driver' step 3 above.
 
 3.  Under the [Engine] [[Services]] stanza in weewx.conf add an entry
-'user.gw1000.Gw1000Service' to the data_services option. It should look
+'user.gw1000.GatewayService' to the data_services option. It should look
 something like:
 
 [Engine]
 
     [[Services]]
         ....
-        data_services = user.gw1000.Gw1000Service
+        data_services = user.gw1000.GatewayService
 
 5.  Test the now configured GW1000 service using the --test-service command
 line option. You should observe loop packets being emitted on a regular basis
@@ -1355,47 +1355,48 @@ class Gateway(object):
 #                            GW1000 Service class
 # ============================================================================
 
-class Gw1000Service(weewx.engine.StdService, Gateway):
-    """GW1000/GW1100 service class.
+class GatewayService(weewx.engine.StdService, Gateway):
+    """Gateway device service class.
 
     A WeeWX service to augment loop packets with observational data obtained
-    from the GW1000/GW1100 API. Using the Gw1000Service is useful when data is
-    required from more than one source, for example, WeeWX is using another
-    driver and the Gw1000Driver cannot be used.
+    from a gateway device via the Ecowitt LAN/Wi-Fi Gateway API. The
+    GatewayService is useful when data is required from more than one source;
+    for example, WeeWX is using another driver and the GatewayDriver cannot be
+    used.
 
-    Data is obtained from the GW1000/GW1100 API. The data is parsed and mapped
-    to WeeWX fields and if the GW1000/GW1100 data is not stale the loop packets
-    is augmented with the GW1000/GW1100 mapped data.
+    Data is obtained via the Ecowitt LAN/Wi-Fi Gateway API. The data is parsed
+    and mapped to WeeWX fields and if the device data is not stale the loop
+    packet is augmented with the mapped device data.
 
-    Class GatewayCollector collects and parses data from the GW1000/GW1100 API.
-    The GatewayCollector runs in a separate thread so as to not block the main
+    Class GatewayCollector collects and parses data from the API. The
+    GatewayCollector runs in a separate thread so as to not block the main
     WeeWX processing loop. The GatewayCollector is turn uses child classes
-    Station and Parser to interact directly with the GW1000/GW1100 API and
-    parse the API responses respectively.
+    Station and Parser to interact directly with the API and parse the API
+    responses respectively.
     """
 
     def __init__(self, engine, config_dict):
-        """Initialise a Gw1000Service object."""
+        """Initialise a GatewayService object."""
 
-        # extract the GW1000/GW1100 service config dictionary
-        gw1000_config_dict = config_dict.get('GW1000', {})
+        # extract the service config dictionary
+        gw_config_dict = config_dict.get('GW1000', {})
         # initialize my superclasses
-        super(Gw1000Service, self).__init__(engine, config_dict)
-        super(weewx.engine.StdService, self).__init__(**gw1000_config_dict)
+        super(GatewayService, self).__init__(engine, config_dict)
+        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
 
-        # age (in seconds) before API data is considered too old to use,
-        # use a default
-        self.max_age = int(gw1000_config_dict.get('max_age', default_max_age))
+        # age (in seconds) before API data is considered too old to use, use a
+        # default
+        self.max_age = int(gw_config_dict.get('max_age', default_max_age))
         # minimum period in seconds between 'lost contact' log entries during
         # an extended lost contact period
-        self.lost_contact_log_period = int(gw1000_config_dict.get('lost_contact_log_period',
+        self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
                                                                   default_lost_contact_log_period))
         # set failure logging on
         self.log_failures = True
         # reset the lost contact timestamp
         self.lost_con_ts = None
-        # create a placeholder for our most recent, non-stale queued
-        # GW1000/GW1100 sensor data packet
+        # create a placeholder for our most recent, non-stale queued device
+        # sensor data packet
         self.cached_sensor_data = None
         # log our version number
         loginf('version is %s' % DRIVER_VERSION)
@@ -1428,16 +1429,16 @@ class Gw1000Service(weewx.engine.StdService, Gateway):
         self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
 
     def new_loop_packet(self, event):
-        """Augment a loop packet with GW1000/GW1100 data.
+        """Augment a loop packet with device data.
 
-        When a new loop packet arrives process the queue looking for any
-        GW1000/GW1100 sensor data packets. If there are sensor data packets
-        keep the most recent, non-stale packet and use it to augment the loop
-        packet. If there are no sensor data packets, or they are all stale,
-        then the loop packet is not augmented.
+        When a new loop packet arrives process the queue looking for any device
+        sensor data packets. If there are sensor data packets keep the most
+        recent, non-stale packet and use it to augment the loop packet. If
+        there are no sensor data packets, or they are all stale, then the loop
+        packet is not augmented.
 
         The queue may also contain other control data, eg exception reporting
-        from the GW1000/GW1100 driver thread. This control data needs to be
+        from the GatewayCollector thread. This control data needs to be
         processed as well.
         """
 
@@ -1512,12 +1513,12 @@ class Gw1000Service(weewx.engine.StdService, Gateway):
                 # if it's a tuple then it's a tuple with an exception and
                 # exception text
                 elif isinstance(queue_data, BaseException):
-                    # We have an exception. The collector did not deem it serious
-                    # enough to want to shutdown or it would have sent None
-                    # instead. The action we take depends on the type of exception
-                    # it is. If its a GWIOError we can ignore it as appropriate
-                    # action will have been taken by the GW1000Collector. If it is
-                    # anything else we log it.
+                    # We have an exception. The collector did not deem it
+                    # serious enough to want to shutdown or it would have sent
+                    # None instead. The action we take depends on the type of
+                    # exception it is. If its a GWIOError we can ignore it as
+                    # appropriate action will have been taken by the
+                    # GatewayCollector. If it is anything else we log it.
                     # process the exception
                     self.process_queued_exception(queue_data)
 
@@ -1527,13 +1528,14 @@ class Gw1000Service(weewx.engine.StdService, Gateway):
                     if self.debug_loop:
                         loginf("Received collector shutdown signal 'None'")
                     # we received the signal that the GatewayCollector needs to
-                    # shutdown, that means we cannot continue so call our shutdown
-                    # method which will also shutdown the GW1000Collector thread
+                    # shutdown, that means we cannot continue so call our
+                    # shutdown method which will also shutdown the
+                    # GatewayCollector thread
                     self.shutDown()
                     # the GatewayCollector has been shutdown so we will not see
                     # anything more in the queue, we are still bound to
-                    # NEW_LOOP_PACKET but since the queue is always empty we will
-                    # just wait for the empty queue timeout before exiting
+                    # NEW_LOOP_PACKET but since the queue is always empty we
+                    # will just wait for the empty queue timeout before exiting
 
                 # if it's none of the above (which it should never be) we don't
                 # know what to do with it so pass and wait for the next item in
@@ -1626,22 +1628,21 @@ class Gw1000Service(weewx.engine.StdService, Gateway):
     def process_queued_exception(self, e):
         """Process an exception received in the collector queue."""
 
-        # is it a GW1000Error
+        # is it a GWIOError
         if isinstance(e, GWIOError):
             # set our failure logging appropriately
             if self.lost_con_ts is None:
-                # we have previously been in contact with the
-                # GW1000/GW1100 so set our lost contact timestamp
+                # we have previously been in contact with the device so set our
+                # lost contact timestamp
                 self.lost_con_ts = time.time()
-                # any failure logging for this failure will already
-                # have occurred in our GW1000Collector object and
-                # its Station, so turn off failure logging
+                # any failure logging for this failure will already have
+                # occurred in our GatewayCollector object and its Station, so
+                # turn off failure logging
                 self.set_failure_logging(False)
             elif self.log_failures:
-                # we are already in a lost contact state, but
-                # failure logging may have been turned on for a
-                # 'once in a while' log entry so we need to turn it
-                # off again
+                # we are already in a lost contact state, but failure logging
+                # may have been turned on for a 'once in a while' log entry so
+                # we need to turn it off again
                 self.set_failure_logging(False)
         else:
             # it's not so log it
@@ -1692,8 +1693,8 @@ class Gw1000Service(weewx.engine.StdService, Gateway):
         should only be logged every so often so as not to flood the logs.
         Failure logging occurs at three levels:
         1. in myself (the service)
-        2. in the GW1000Collector object
-        3. in the GW1000Collector object's Station object
+        2. in the GatewayCollector object
+        3. in the GatewayCollector object's Station object
 
         Failure logging is turned on or off by setting the log_failures
         property True or False for each of the above 3 objects.
@@ -1716,7 +1717,7 @@ class Gw1000Service(weewx.engine.StdService, Gateway):
 # ============================================================================
 
 def loader(config_dict, engine):
-    return Gw1000Driver(**config_dict[DRIVER_NAME])
+    return GatewayDriver(**config_dict[DRIVER_NAME])
 
 
 def configurator_loader(config_dict):  # @UnusedVariable
@@ -2068,31 +2069,31 @@ attempt startup indefinitely."""
 
 
 # ============================================================================
-#                            GW1000 Driver class
+#                            GatewayDriver class
 # ============================================================================
 
-class Gw1000Driver(weewx.drivers.AbstractDevice, Gateway):
-    """GW1000/GW1100 driver class.
+class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
+    """Ecowitt gateway device driver class.
 
     A WeeWX driver to emit loop packets based on observational data obtained
-    from the GW1000/GW1100 API. The Gw1000Driver should be used when there is
-    no other data source or other sources data can be ingested via one or more
-    WeeWX services.
+    from the Ecowitt LAN/Wi-Fi Gateway API. The GatewayDriver should be used
+    when there is no other data source or other sources data can be ingested
+    via one or more WeeWX services.
 
-    Data is obtained from the GW1000/GW1100 API. The data is parsed and mapped
-    to WeeWX fields and emitted as a WeeWX loop packet.
+    Data is obtained from the Ecowitt LAN/Wi-Fi Gateway API. The data is parsed
+    and mapped to WeeWX fields and emitted as a WeeWX loop packet.
 
-    Class GatewayCollector collects and parses data from the GW1000/GW1100 API.
-    The GatewayCollector runs in a separate thread so as to not block the main
+    Class GatewayCollector collects and parses data from the API. The
+    GatewayCollector runs in a separate thread so as to not block the main
     WeeWX processing loop. The GatewayCollector is turn uses child classes
-    Station and Parser to interact directly with the GW1000/GW1100 API and
-    parse the API responses respectively."""
+    Station and Parser to interact directly with the API and parse the API
+    responses respectively."""
 
     def __init__(self, **stn_dict):
-        """Initialise a GW1000/GW1100 driver object."""
+        """Initialise a gateway device driver object."""
 
         # now initialize my superclasses
-        super(Gw1000Driver, self).__init__(**stn_dict)
+        super(GatewayDriver, self).__init__(**stn_dict)
 
         # log our version number
         loginf('driver version is %s' % DRIVER_VERSION)
@@ -2123,8 +2124,8 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gateway):
     def genLoopPackets(self):
         """Generator function that returns loop packets.
 
-        Run a continuous loop checking the GatewayCollector queue for data. When
-        data arrives map the raw data to a WeeWX loop packet and yield the
+        Run a continuous loop checking the GatewayCollector queue for data.
+        When data arrives map the raw data to a WeeWX loop packet and yield the
         packet.
         """
 
@@ -2159,7 +2160,8 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gateway):
                             loginf("Received %s data: %s" % (self.collector.station.model,
                                                              natural_sort_dict(queue_data)))
                     else:
-                        # perhaps we have individual debugs such as rain or wind
+                        # perhaps we have individual debugs such as rain or
+                        # wind
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
@@ -2246,7 +2248,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gateway):
                     e = queue_data
                     # and process it if we have something
                     if e:
-                        # is it a GW1000Error
+                        # is it a GWIOError
                         if isinstance(e, GWIOError):
                             # it is so we raise a WeewxIOError, ideally would
                             # use raise .. from .. but raise.. from .. is not
@@ -2288,19 +2290,19 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gateway):
 
     @property
     def mac_address(self):
-        """Return the GW1000/GW1100 MAC address."""
+        """Return the device MAC address."""
 
         return self.collector.mac_address
 
     @property
     def firmware_version(self):
-        """Return the GW1000/GW1100 firmware version string."""
+        """Return the device firmware version string."""
 
         return self.collector.firmware_version
 
     @property
     def sensor_id_data(self):
-        """Return the GW1000/GW1100 sensor identification data.
+        """Return the device sensor identification data.
 
         The sensor ID data is available via the data property of the Collector
         objects' sensors property.
@@ -6322,8 +6324,8 @@ class DirectGw1000(object):
             self.stn_dict['retry_wait'] = self.opts.retry_wait
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Driver object
-            driver = Gw1000Driver(**self.stn_dict)
+            # get a GatewayDriver object
+            driver = GatewayDriver(**self.stn_dict)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (driver.collector.station.model,
@@ -6367,7 +6369,7 @@ class DirectGw1000(object):
             'GW1000': {},
             'Engine': {
                 'Services': {
-                    'archive_services': 'user.gw1000.Gw1000Service',
+                    'archive_services': 'user.gw1000.GatewayService',
                     'report_services': 'weewx.engine.StdPrint'}}}
         # set the IP address and port in the dummy config
         config['GW1000']['ip_address'] = self.ip_address
