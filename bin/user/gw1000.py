@@ -3,20 +3,24 @@
 """
 gw1000.py
 
-A WeeWX driver for the Ecowitt GW1000/GW1100 Wi-Fi Gateway API.
+A WeeWX driver for Ecowitt and compatible devices using Ecowitt LAN/Wi-Fi Gateway API.
 
-The WeeWX GW1000/GW1100 driver (known historically as the 'WeeWX GW1000
-driver') utilises the GW1000/GW1100 API thus using a pull methodology for
-obtaining data from the GW1000/GW1100 rather than the push methodology used by
-current drivers. This has the advantage of giving the user more control over
-when the data is obtained from the GW1000/GW1100 plus also giving access to a
-greater range of metrics.
+The WeeWX Ecowitt Gateway driver (known historically as the 'WeeWX GW1000
+driver') utilises the Ecowitt LAN/Wi-Fi Gateway API thus using a pull
+methodology in obtaining data from the gateway device rather than the push
+methodology used by drivers that obtain data from the gateway device via
+Ecowitt or WeatherUnderground format uploads emitted by the device. The API
+approach has the advantage of giving the user more control over when the data
+is obtained from the device plus also giving access to a greater range of
+metrics.
 
-The GW1000/GW1100 driver can be operated as a traditional WeeWX driver where it
-is the source of loop data or it can be operated as a WeeWX service where it is
-used to augment loop data produced by another driver.
+As of the time of release this driver supports the GW1000, GW1100 and GW2000
+gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather stations.
+The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where
+it is the source of loop data or it can be operated as a WeeWX service where it
+is used to augment loop data produced by another driver.
 
-Copyright (C) 2020-2021 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-2022 Gary Roderick                   gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +38,8 @@ Version: 0.5.0a1                                    Date: ?? April 2022
 
 Revision History
     ?? April 2022           v0.5.0a1
+        -   renamed as the Ecowitt Gateway driver/service rather than the
+            former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
         -   added support for WH90 sensor platform
     20 March 2022           v0.4.2
@@ -641,11 +647,11 @@ except ImportError:
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
-DRIVER_NAME = 'GW1000'
+DRIVER_NAME = 'Ecowitt Gateway'
 DRIVER_VERSION = '0.5.0a1'
 
 # various defaults used throughout
-# default port used by GW1000/GW1100
+# default port used by device
 default_port = 45000
 # default network broadcast address - the address that network broadcasts are
 # sent to
@@ -673,7 +679,7 @@ default_show_battery = False
 
 
 # ============================================================================
-#                          GW1000 API error classes
+#                         Gateway API error classes
 # ============================================================================
 
 class InvalidApiResponse(Exception):
@@ -685,8 +691,8 @@ class InvalidChecksum(Exception):
     checksum."""
 
 
-class GW1000IOError(Exception):
-    """Exception raised when an input/output error with the GW1000/GW1100 is
+class GWIOError(Exception):
+    """Exception raised when an input/output error with the device is
     encountered."""
 
 
@@ -695,23 +701,23 @@ class UnknownCommand(Exception):
 
 
 # ============================================================================
-#                               class Gw1000
+#                               class Gateway
 # ============================================================================
 
-class Gw1000(object):
-    """Base class for interacting with a GW1000/GW1100.
+class Gateway(object):
+    """Base class for interacting with an Ecowitt Gateway device.
 
-    There are a number of common properties and methods (eg IP address,
-    field map, rain calculation etc) when dealing with a GW1000/GW1100 either
-    as a driver or service. This class captures those common features.
+    There are a number of common properties and methods (eg IP address, field
+    map, rain calculation etc) when dealing with a gateway device either as a
+    driver or service. This class captures those common features.
     """
 
-    # Default field map to map GW1000/GW1100 sensor data to WeeWX fields. WeeWX
-    # field names are used where there is a direct correlation to the WeeWX
+    # Default field map to map device sensor data to WeeWX fields. WeeWX field
+    # names are used where there is a direct correlation to the WeeWX
     # wview_extended schema or weewx.units.obs_group_dict otherwise fields are
     # passed passed through as is.
     # Format is:
-    #   WeeWX field name: GW1000/GW1100 field name
+    #   WeeWX field name: Gateway device field name
     default_field_map = {
         'inTemp': 'intemp',
         'outTemp': 'outtemp',
@@ -812,14 +818,14 @@ class Gw1000(object):
         'leak4': 'leak4',
         'lightning_distance': 'lightningdist',
         'lightning_last_det_time': 'lightningdettime',
-        # 'lightningcount' is the GW1000/GW1100 lightning count field obtained
-        # via the API. It is safe for the user to change this mapping as
+        # 'lightningcount' is the device lightning count field obtained via the
+        # API. It is safe for the user to change this mapping as
         # 'lightning_strike_count' is derived before the user mapping is
         # applied.
         'lightningcount': 'lightningcount',
         # 'lightning_strike_count' is the WeeWX extended schema per period
-        # lightning count field that is derived from the GW1000/GW1100
-        # cumulative 'lightningcount' field
+        # lightning count field that is derived from the device cumulative
+        # 'lightningcount' field
         'lightning_strike_count': 'lightning_strike_count'
     }
     # Rain related fields default field map, merged into default_field_map to
@@ -952,33 +958,33 @@ class Gw1000(object):
         'ws80_sig': 'ws80_sig'
     }
 
-    def __init__(self, **gw1000_config):
-        """Initialise a GW1000 object."""
+    def __init__(self, **gw_config):
+        """Initialise a Gateway object."""
 
         # construct the field map, first obtain the field map from our config
-        field_map = gw1000_config.get('field_map')
+        field_map = gw_config.get('field_map')
         # obtain any field map extensions from our config
-        extensions = gw1000_config.get('field_map_extensions', {})
+        extensions = gw_config.get('field_map_extensions', {})
         # if we have no field map then use the default
         if field_map is None:
             # obtain the default field map
-            field_map = dict(Gw1000.default_field_map)
+            field_map = dict(Gateway.default_field_map)
             # now add in the rain field map
-            field_map.update(Gw1000.rain_field_map)
+            field_map.update(Gateway.rain_field_map)
             # now add in the wind field map
-            field_map.update(Gw1000.wind_field_map)
+            field_map.update(Gateway.wind_field_map)
             # now add in the battery state field map
-            field_map.update(Gw1000.battery_field_map)
+            field_map.update(Gateway.battery_field_map)
             # now add in the sensor signal field map
-            field_map.update(Gw1000.sensor_signal_field_map)
-        # If a user wishes to map a GW1000/GW1100 field differently to that in
-        # the default map they can include an entry in field_map_extensions,
-        # but if we just update the field map dict with the field map
-        # extensions that leaves two entries for that GW1000 field in the field
-        # map; the original field map entry as well as the entry from the
-        # extended map.  So if we have field_map_extensions we need to first go
-        # through the field map and delete any entries that map GW1000/GW1100
-        # fields that are included in the field_map_extensions.
+            field_map.update(Gateway.sensor_signal_field_map)
+        # If a user wishes to map a device field differently to that in the
+        # default map they can include an entry in field_map_extensions, but if
+        # we just update the field map dict with the field map extensions that
+        # leaves two entries for that device field in the field map; the
+        # original field map entry as well as the entry from the extended map.
+        # So if we have field_map_extensions we need to first go through the
+        # field map and delete any entries that map device fields that are
+        # included in the field_map_extensions.
         # we only need process the field_map_extensions if we have any
         if len(extensions) > 0:
             # first make a copy of the field map because we will be iterating
@@ -986,11 +992,10 @@ class Gw1000(object):
             field_map_copy = dict(field_map)
             # iterate over each key, value pair in the copy of the field map
             for k, v in six.iteritems(field_map_copy):
-                # if the 'value' (ie the GW1000/GW1100 field) is in the field
-                # map extensions we will be mapping that GW1000/GW1100 field
-                # elsewhere so pop that field map entry out of the field map so
-                # we don't end up with multiple mappings for a GW1000/GW1100
-                # field
+                # if the 'value' (ie the device field) is in the field map
+                # extensions we will be mapping that device field elsewhere so
+                # pop that field map entry out of the field map so we don't end
+                # up with multiple mappings for a device field
                 if v in extensions.values():
                     # pop the field map entry
                     _dummy = field_map.pop(k)
@@ -999,28 +1004,28 @@ class Gw1000(object):
         # we now have our final field map
         self.field_map = field_map
         # network broadcast address and port
-        self.broadcast_address = str.encode(gw1000_config.get('broadcast_address',
-                                                              default_broadcast_address))
-        self.broadcast_port = weeutil.weeutil.to_int(gw1000_config.get('broadcast_port',
-                                                     default_broadcast_port))
-        self.socket_timeout = weeutil.weeutil.to_int(gw1000_config.get('socket_timeout',
-                                                     default_socket_timeout))
-        self.broadcast_timeout = weeutil.weeutil.to_int(gw1000_config.get('broadcast_timeout',
-                                                        default_broadcast_timeout))
-        # obtain the GW1000/GW1100 IP address
-        _ip_address = gw1000_config.get('ip_address')
+        self.broadcast_address = str.encode(gw_config.get('broadcast_address',
+                                                          default_broadcast_address))
+        self.broadcast_port = weeutil.weeutil.to_int(gw_config.get('broadcast_port',
+                                                                   default_broadcast_port))
+        self.socket_timeout = weeutil.weeutil.to_int(gw_config.get('socket_timeout',
+                                                                   default_socket_timeout))
+        self.broadcast_timeout = weeutil.weeutil.to_int(gw_config.get('broadcast_timeout',
+                                                                      default_broadcast_timeout))
+        # obtain the device IP address
+        _ip_address = gw_config.get('ip_address')
         # if the user has specified some variation of 'auto' then we are to
-        # automatically detect the GW1000/GW1100 IP address, to do that we set
-        # the ip_address property to None
+        # automatically detect the device IP address, to do that we set the
+        # ip_address property to None
         if _ip_address is not None and _ip_address.lower() == 'auto':
             # we need to autodetect IP address so set to None
             _ip_address = None
         # set the IP address property
         self.ip_address = _ip_address
-        # obtain the GW1000/GW1100 port from the config dict
+        # obtain the device port from the config dict
         # for port number we have a default value we can use, so if port is not
         # specified use the default
-        _port = gw1000_config.get('port', default_port)
+        _port = gw_config.get('port', default_port)
         # if a port number was specified it needs to be an integer not a string
         # so try to do the conversion
         try:
@@ -1035,67 +1040,67 @@ class Gw1000(object):
             # invalid. Either way we need to set port to None to force auto
             # detection. If there was an invalid port specified then log it.
             if _port.lower() != 'auto':
-                loginf("Invalid GW1000/GW1100 port '%s' specified, "
+                loginf("Invalid device port '%s' specified, "
                        "port will be auto detected" % (_port,))
             _port = None
         # set the port property
         self.port = _port
         # how many times to poll the API before giving up, default is
         # default_max_tries
-        self.max_tries = int(gw1000_config.get('max_tries', default_max_tries))
+        self.max_tries = int(gw_config.get('max_tries', default_max_tries))
         # wait time in seconds between retries, default is default_retry_wait
         # seconds
-        self.retry_wait = int(gw1000_config.get('retry_wait',
-                                                default_retry_wait))
+        self.retry_wait = int(gw_config.get('retry_wait',
+                                            default_retry_wait))
         # how often (in seconds) we should poll the API, use a default
-        self.poll_interval = int(gw1000_config.get('poll_interval',
-                                                   default_poll_interval))
+        self.poll_interval = int(gw_config.get('poll_interval',
+                                               default_poll_interval))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
-        # to the GW1000/GW1100. In terms of TH data the process is transparent
+        # to the gateway device. In terms of TH data the process is transparent
         # and we do not need to know if a WH32 or other sensor is providing
         # outdoor TH data but in terms of battery state we need to know so the
         # battery  state data can be reported against the correct sensor.
-        use_th32 = weeutil.weeutil.tobool(gw1000_config.get('th32', False))
+        use_th32 = weeutil.weeutil.tobool(gw_config.get('th32', False))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
-        self.show_battery = weeutil.weeutil.tobool(gw1000_config.get('show_all_batt',
-                                                                     False))
+        self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
+                                                                 False))
         # get any specific debug settings
         # rain
-        self.debug_rain = weeutil.weeutil.tobool(gw1000_config.get('debug_rain',
-                                                                   False))
+        self.debug_rain = weeutil.weeutil.tobool(gw_config.get('debug_rain',
+                                                               False))
         # wind
-        self.debug_wind = weeutil.weeutil.tobool(gw1000_config.get('debug_wind',
-                                                                   False))
+        self.debug_wind = weeutil.weeutil.tobool(gw_config.get('debug_wind',
+                                                               False))
         # loop data
-        self.debug_loop = weeutil.weeutil.tobool(gw1000_config.get('debug_loop',
-                                                                   False))
+        self.debug_loop = weeutil.weeutil.tobool(gw_config.get('debug_loop',
+                                                               False))
         # sensors
-        self.debug_sensors = weeutil.weeutil.tobool(gw1000_config.get('debug_sensors',
-                                                                      False))
-        # create an Gw1000Collector object to interact with the GW1000/GW1100
+        self.debug_sensors = weeutil.weeutil.tobool(gw_config.get('debug_sensors',
+                                                                  False))
+        # create an GatewayCollector object to interact with the gateway device
         # API
-        self.collector = Gw1000Collector(ip_address=self.ip_address,
-                                         port=self.port,
-                                         broadcast_address=self.broadcast_address,
-                                         broadcast_port=self.broadcast_port,
-                                         socket_timeout=self.socket_timeout,
-                                         broadcast_timeout=self.broadcast_timeout,
-                                         poll_interval=self.poll_interval,
-                                         max_tries=self.max_tries,
-                                         retry_wait=self.retry_wait,
-                                         use_th32=use_th32,
-                                         show_battery=self.show_battery,
-                                         debug_rain=self.debug_rain,
-                                         debug_wind=self.debug_wind,
-                                         debug_sensors=self.debug_sensors)
+        self.collector = GatewayCollector(ip_address=self.ip_address,
+                                          port=self.port,
+                                          broadcast_address=self.broadcast_address,
+                                          broadcast_port=self.broadcast_port,
+                                          socket_timeout=self.socket_timeout,
+                                          broadcast_timeout=self.broadcast_timeout,
+                                          poll_interval=self.poll_interval,
+                                          max_tries=self.max_tries,
+                                          retry_wait=self.retry_wait,
+                                          use_th32=use_th32,
+                                          show_battery=self.show_battery,
+                                          debug_rain=self.debug_rain,
+                                          debug_wind=self.debug_wind,
+                                          debug_sensors=self.debug_sensors)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
         self.rain_mapping_confirmed = False
         self.rain_total_field = None
         # Finally, log any config that is not being pushed any further down.
-        # Log specific debug but only if set ie. True
+        # Log specific debug output but only if set ie. True
         debug_list = []
         if self.debug_rain:
             debug_list.append("debug_rain is %s" % (self.debug_rain,))
@@ -1113,20 +1118,20 @@ class Gw1000(object):
 
     @property
     def model(self):
-        """What model device am I using"""
+        """What model device am I using."""
 
         return self.collector.station.model
 
     def map_data(self, data):
-        """Map parsed GW1000/GW1100 data to a WeeWX loop packet.
+        """Map parsed device data to a WeeWX loop packet.
 
-        Maps parsed GW1000/GW1100 data to WeeWX loop packet fields using the
-        field map. Result includes usUnits field set to METRICWX.
+        Maps parsed device data to WeeWX loop packet fields using the field
+        map. Result includes usUnits field set to METRICWX.
 
-        data: Dict of parsed GW1000/GW1100 API data
+        data: Dict of parsed device API data
         """
 
-        # parsed GW1000/GW1100 API data uses the METRICWX unit system
+        # parsed device API data uses the METRICWX unit system
         _result = {'usUnits': weewx.METRICWX}
         # iterate over each of the key, value pairs in the field map
         for weewx_field, data_field in six.iteritems(self.field_map):
@@ -1141,22 +1146,22 @@ class Gw1000(object):
         """Log rain related data from the collector.
 
         General routine to obtain and log rain related data from a packet. The
-        packet could be unmapped GW1000/GW1100 data using 'GW1000/GW1100' field
-        names or it may be mapped data or a WeeWX loop packet that uses 'WeeWX'
-        field names so we iterate over the keys ('WeeWX' field names) and
-        values ('GW1000/GW1100' field names) of the rain field map.
+        packet could be unmapped device data using 'device' field names or it
+        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
+        so we iterate over the keys ('WeeWX' field names) and values ('device'
+        field names) of the rain field map.
         """
 
         msg_list = []
         # iterate over our rain_field_map keys (the 'WeeWX' fields) and values
-        # (the 'GW1000/GW1100' fields) we are interested in
-        for weewx_field, gw_field in six.iteritems(Gw1000.rain_field_map):
+        # (the 'device' fields) we are interested in
+        for weewx_field, gw_field in six.iteritems(Gateway.rain_field_map):
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (weewx_field,
                                            data[weewx_field]))
-            # do we have a 'GW1000/GW1100' field of interest
+            # do we have a 'device' field of interest
             if gw_field in data and weewx_field != gw_field:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (gw_field,
@@ -1174,22 +1179,22 @@ class Gw1000(object):
         """Log wind related data from the collector.
 
         General routine to obtain and log wind related data from a packet. The
-        packet could be unmapped GW1000/GW1100 data using 'GW1000/GW1100' field
-        names or it may be mapped data or a WeeWX loop packet that uses 'WeeWX'
-        field names so we iterate over the keys ('WeeWX' field names) and
-        values ('GW1000/GW1100' field names) of the rain field map.
+        packet could be unmapped device data using 'device' field names or it
+        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
+        so we iterate over the keys ('WeeWX' field names) and values ('device'
+        field names) of the rain field map.
         """
 
         msg_list = []
         # iterate over our wind_field_map keys (the 'WeeWX' fields) and values
-        # (the 'GW1000/GW1100' fields) we are interested in
-        for weewx_field, gw_field in six.iteritems(Gw1000.wind_field_map):
+        # (the 'device' fields) we are interested in
+        for weewx_field, gw_field in six.iteritems(Gateway.wind_field_map):
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (weewx_field,
                                            data[weewx_field]))
-            # do we have a 'GW1000/GW1100' field of interest
+            # do we have a 'device' field of interest
             if gw_field in data:
                 # we do so add some formatted output to our list
                 msg_list.append("%s=%s" % (gw_field,
@@ -1205,12 +1210,12 @@ class Gw1000(object):
     def get_cumulative_rain_field(self, data):
         """Determine the cumulative rain field used to derive field 'rain'.
 
-        Ecowitt rain gauges/GW1000/GW1100 emit various rain totals but WeeWX
-        needs a per period value for field rain. Try the 'big' (4 byte)
-        counters starting at the longest period and working our way down. This
-        should only need be done once.
+        Ecowitt gateway devices emit various rain totals but WeeWX needs a per
+        period value for field rain. Try the 'big' (4 byte) counters starting
+        at the longest period and working our way down. This should only need
+        be done once.
 
-        data: dic of parsed GW1000/GW1100 API data
+        data: dic of parsed device API data
         """
 
         # if raintotals is present used that as our first choice
@@ -1242,7 +1247,7 @@ class Gw1000(object):
         field between successive periods. 'rain' is only calculated if the
         field to be used has been selected and the designated field exists.
 
-        data: dict of parsed GW1000/GW1100 API data
+        data: dict of parsed device API data
         """
 
         # have we decided on a field to use and is the field present
@@ -1267,7 +1272,7 @@ class Gw1000(object):
         'lightningcount' between successive periods. 'lightning_strike_count'
         is only calculated if 'lightningcount' exists.
 
-        data: dict of parsed GW1000/GW1100 API data
+        data: dict of parsed device API data
         """
 
         # is the lightningcount field present
@@ -1350,7 +1355,7 @@ class Gw1000(object):
 #                            GW1000 Service class
 # ============================================================================
 
-class Gw1000Service(weewx.engine.StdService, Gw1000):
+class Gw1000Service(weewx.engine.StdService, Gateway):
     """GW1000/GW1100 service class.
 
     A WeeWX service to augment loop packets with observational data obtained
@@ -1362,9 +1367,9 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
     to WeeWX fields and if the GW1000/GW1100 data is not stale the loop packets
     is augmented with the GW1000/GW1100 mapped data.
 
-    Class Gw1000Collector collects and parses data from the GW1000/GW1100 API.
-    The Gw1000Collector runs in a separate thread so as to not block the main
-    WeeWX processing loop. The Gw1000Collector is turn uses child classes
+    Class GatewayCollector collects and parses data from the GW1000/GW1100 API.
+    The GatewayCollector runs in a separate thread so as to not block the main
+    WeeWX processing loop. The GatewayCollector is turn uses child classes
     Station and Parser to interact directly with the GW1000/GW1100 API and
     parse the API responses respectively.
     """
@@ -1417,7 +1422,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         logdbg('socket timeout is %d seconds' % self.socket_timeout)
         loginf("max age of API data to be used is %d seconds" % self.max_age)
         loginf("lost contact will be logged every %d seconds" % self.lost_contact_log_period)
-        # start the Gw1000Collector in its own thread
+        # start the GatewayCollector in its own thread
         self.collector.startup()
         # bind our self to the relevant weeWX events
         self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
@@ -1510,7 +1515,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                     # We have an exception. The collector did not deem it serious
                     # enough to want to shutdown or it would have sent None
                     # instead. The action we take depends on the type of exception
-                    # it is. If its a GW1000IOError we can ignore it as appropriate
+                    # it is. If its a GWIOError we can ignore it as appropriate
                     # action will have been taken by the GW1000Collector. If it is
                     # anything else we log it.
                     # process the exception
@@ -1521,11 +1526,11 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
                     # if debug_loop log what we received
                     if self.debug_loop:
                         loginf("Received collector shutdown signal 'None'")
-                    # we received the signal that the Gw1000Collector needs to
+                    # we received the signal that the GatewayCollector needs to
                     # shutdown, that means we cannot continue so call our shutdown
                     # method which will also shutdown the GW1000Collector thread
                     self.shutDown()
-                    # the Gw1000Collector has been shutdown so we will not see
+                    # the GatewayCollector has been shutdown so we will not see
                     # anything more in the queue, we are still bound to
                     # NEW_LOOP_PACKET but since the queue is always empty we will
                     # just wait for the empty queue timeout before exiting
@@ -1622,7 +1627,7 @@ class Gw1000Service(weewx.engine.StdService, Gw1000):
         """Process an exception received in the collector queue."""
 
         # is it a GW1000Error
-        if isinstance(e, GW1000IOError):
+        if isinstance(e, GWIOError):
             # set our failure logging appropriately
             if self.lost_con_ts is None:
                 # we have previously been in contact with the
@@ -2066,7 +2071,7 @@ attempt startup indefinitely."""
 #                            GW1000 Driver class
 # ============================================================================
 
-class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
+class Gw1000Driver(weewx.drivers.AbstractDevice, Gateway):
     """GW1000/GW1100 driver class.
 
     A WeeWX driver to emit loop packets based on observational data obtained
@@ -2077,9 +2082,9 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
     Data is obtained from the GW1000/GW1100 API. The data is parsed and mapped
     to WeeWX fields and emitted as a WeeWX loop packet.
 
-    Class Gw1000Collector collects and parses data from the GW1000/GW1100 API.
-    The Gw1000Collector runs in a separate thread so as to not block the main
-    WeeWX processing loop. The Gw1000Collector is turn uses child classes
+    Class GatewayCollector collects and parses data from the GW1000/GW1100 API.
+    The GatewayCollector runs in a separate thread so as to not block the main
+    WeeWX processing loop. The GatewayCollector is turn uses child classes
     Station and Parser to interact directly with the GW1000/GW1100 API and
     parse the API responses respectively."""
 
@@ -2112,13 +2117,13 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                                                                                 self.broadcast_port,
                                                                                 self.broadcast_timeout))
         logdbg('socket timeout is %d seconds' % self.socket_timeout)
-        # start the Gw1000Collector in its own thread
+        # start the GatewayCollector in its own thread
         self.collector.startup()
 
     def genLoopPackets(self):
         """Generator function that returns loop packets.
 
-        Run a continuous loop checking the Gw1000Collector queue for data. When
+        Run a continuous loop checking the GatewayCollector queue for data. When
         data arrives map the raw data to a WeeWX loop packet and yield the
         packet.
         """
@@ -2234,7 +2239,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # We have an exception. The collector did not deem it
                     # serious enough to want to shutdown or it would have sent
                     # None instead. The action we take depends on the type of
-                    # exception it is. If its a GW1000IOError we need to force
+                    # exception it is. If its a GWIOError we need to force
                     # the WeeWX engine to restart by raining a WeewxIOError. If
                     # it is anything else we log it and then raise it.
                     # first extract our exception
@@ -2242,7 +2247,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # and process it if we have something
                     if e:
                         # is it a GW1000Error
-                        if isinstance(e, GW1000IOError):
+                        if isinstance(e, GWIOError):
                             # it is so we raise a WeewxIOError, ideally would
                             # use raise .. from .. but raise.. from .. is not
                             # available under Python 2
@@ -2261,7 +2266,7 @@ class Gw1000Driver(weewx.drivers.AbstractDevice, Gw1000):
                     # we received the signal to shutdown, so call closePort()
                     self.closePort()
                     # and raise an exception to cause the engine to shutdown
-                    raise GW1000IOError("Gw1000Collector needs to shutdown")
+                    raise GWIOError("GatewayCollector needs to shutdown")
                 # if it's none of the above (which it should never be) we don't
                 # know what to do with it so pass and wait for the next item in
                 # the queue
@@ -2331,10 +2336,10 @@ class Collector(object):
 
 
 # ============================================================================
-#                              class Gw1000Collector
+#                              class GatewayCollector
 # ============================================================================
 
-class Gw1000Collector(Collector):
+class GatewayCollector(Collector):
     """Class to poll the GW1000/GW1100 API, decode and return data to the driver."""
 
     # map of sensor ids to short name, long name and battery byte decode
@@ -2419,7 +2424,7 @@ class Gw1000Collector(Collector):
         """Initialise our class."""
 
         # initialize my base class:
-        super(Gw1000Collector, self).__init__()
+        super(GatewayCollector, self).__init__()
 
         # interval between polls of the API, use a default
         self.poll_interval = poll_interval
@@ -2433,15 +2438,15 @@ class Gw1000Collector(Collector):
         self.use_th32 = use_th32
         # get a station object to do the handle the interaction with the
         # GW1000/GW1100 API
-        self.station = Gw1000Collector.Station(ip_address=ip_address,
-                                               port=port,
-                                               broadcast_address=broadcast_address,
-                                               broadcast_port=broadcast_port,
-                                               socket_timeout=socket_timeout,
-                                               broadcast_timeout=broadcast_timeout,
-                                               max_tries=max_tries,
-                                               retry_wait=retry_wait,
-                                               lost_contact_log_period=lost_contact_log_period)
+        self.station = GatewayCollector.Station(ip_address=ip_address,
+                                                port=port,
+                                                broadcast_address=broadcast_address,
+                                                broadcast_port=broadcast_port,
+                                                socket_timeout=socket_timeout,
+                                                broadcast_timeout=broadcast_timeout,
+                                                max_tries=max_tries,
+                                                retry_wait=retry_wait,
+                                                lost_contact_log_period=lost_contact_log_period)
         # Do we have a WH24 attached? First obtain our system parameters.
         _sys_params = self.station.get_system_params()
         # WH24 is indicated by the 6th byte being 0
@@ -2455,9 +2460,9 @@ class Gw1000Collector(Collector):
         # start off logging failures
         self.log_failures = True
         # get a parser object to parse any data from the station
-        self.parser = Gw1000Collector.Parser(is_wh24, debug_rain, debug_wind)
+        self.parser = GatewayCollector.Parser(is_wh24, debug_rain, debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = Gw1000Collector.Sensors(show_battery=show_battery, debug_sensors=debug_sensors)
+        self.sensors_obj = GatewayCollector.Sensors(show_battery=show_battery, debug_sensors=debug_sensors)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -2480,17 +2485,17 @@ class Gw1000Collector(Collector):
             # is it time to poll?
             if now - last_poll > self.poll_interval:
                 # it is time to poll, wrap in a try..except in case we get a
-                # GW1000IOError exception
+                # GWIOError exception
                 try:
                     queue_data = self.get_live_sensor_data()
-                except GW1000IOError as e:
-                    # a GW1000IOError occurred, most likely because the Station
+                except GWIOError as e:
+                    # a GWIOError occurred, most likely because the Station
                     # object could not contact the GW1000/GW1100
                     # first up log the event, but only if we are logging
                     # failures
                     if self.log_failures:
                         logerr('Unable to obtain live sensor data')
-                    # assign the GW1000IOError exception so it will be sent in
+                    # assign the GWIOError exception so it will be sent in
                     # the queue to our controlling object
                     queue_data = e
                 # put the queue data in the queue
@@ -2513,7 +2518,7 @@ class Gw1000Collector(Collector):
         """
 
         # obtain the raw data via the GW1000/GW1100 API, we may get a
-        # GW1000IOError exception, if we do let it bubble up (the raw data is
+        # GWIOError exception, if we do let it bubble up (the raw data is
         # the data returned from the GW1000/GW1100 inclusive of the fixed
         # header, command, payload length, payload and checksum bytes)
         raw_data = self.station.get_livedata()
@@ -2981,11 +2986,11 @@ class Gw1000Collector(Collector):
         used to discriminate between connected sensors, connecting sensors and
         disabled sensor addresses.
 
-        Before using the Gw1000Collector's Sensors object it should be updated
+        Before using the GatewayCollector's Sensors object it should be updated
         with recent sensor ID data via the GW1000/GW1100 API
         """
 
-        # obtain current sensor id data via the API, we may get a GW1000IOError
+        # obtain current sensor id data via the API, we may get a GWIOError
         # exception, if we do let it bubble up
         response = self.station.get_sensor_id()
         # if we made it here our response was validated by checksum
@@ -2999,13 +3004,13 @@ class Gw1000Collector(Collector):
         """Start a thread that collects data from the GW1000/GW1100 API."""
 
         try:
-            self.thread = Gw1000Collector.CollectorThread(self)
+            self.thread = GatewayCollector.CollectorThread(self)
             self.collect_data = True
             self.thread.setDaemon(True)
             self.thread.setName('Gw1000CollectorThread')
             self.thread.start()
         except threading.ThreadError:
-            logerr("Unable to launch Gw1000Collector thread")
+            logerr("Unable to launch GatewayCollector thread")
             self.thread = None
 
     def shutdown(self):
@@ -3022,9 +3027,9 @@ class Gw1000Collector(Collector):
             self.thread.join(10.0)
             # log the outcome
             if self.thread.is_alive():
-                logerr("Unable to shut down Gw1000Collector thread")
+                logerr("Unable to shut down GatewayCollector thread")
             else:
-                loginf("Gw1000Collector thread has been terminated")
+                loginf("GatewayCollector thread has been terminated")
         self.thread = None
 
     class CollectorThread(threading.Thread):
@@ -3175,7 +3180,7 @@ class Gw1000Collector(Collector):
                                 _msg = "Failed to detect device IP address and/or " \
                                        "port after %d attempts" % (attempt + 1,)
                                 logerr(_msg)
-                                raise GW1000IOError(_msg)
+                                raise GWIOError(_msg)
             # set our ip_address property but encode it first, it saves doing
             # it repeatedly later
             self.ip_address = ip_address.encode()
@@ -3193,7 +3198,7 @@ class Gw1000Collector(Collector):
             # get my device model
             try:
                 _firmware_b = self.get_firmware_version()
-            except GW1000IOError:
+            except GWIOError:
                 self.model = None
             else:
                 _firmware_t = struct.unpack("B" * len(_firmware_b), _firmware_b)
@@ -3446,7 +3451,7 @@ class Gw1000Collector(Collector):
             re-discovery is attempted. If rediscovery is successful the command
             is tried again otherwise the lost contact timestamp is set and the
             exception raised. Any code that calls this method should be
-            prepared to handle a GW1000IOError exception.
+            prepared to handle a GWIOError exception.
             """
 
             # send the API command to obtain live data from the GW1000/GW1100,
@@ -3455,7 +3460,7 @@ class Gw1000Collector(Collector):
             try:
                 # return the validated API response
                 return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
-            except GW1000IOError:
+            except GWIOError:
                 # there was a problem contacting the GW1000/GW1100, it could be
                 # it has changed IP address so attempt to rediscover
                 if not self.rediscover():
@@ -3463,7 +3468,7 @@ class Gw1000Collector(Collector):
                     raise
                 else:
                     # we did rediscover successfully so try again, if it fails
-                    # we get another GW1000IOError exception which will be raised
+                    # we get another GWIOError exception which will be raised
                     return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
 
         def get_raindata(self):
@@ -3471,7 +3476,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain rain data from the GW10GW1000/GW110000
             to the API with retries. If the GW1000/GW1100 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
+            GWIOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_raindata(). Any code calling
             get_raindata() should be prepared to handle this exception.
             """
@@ -3483,7 +3488,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain system parameters from the
             GW1000/GW1100 to the API with retries. If the GW1000/GW1100 cannot
-            be contacted a GW1000IOError will have been raised by
+            be contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_system_params(). Any code calling get_system_params() should be
             prepared to handle this exception.
@@ -3496,7 +3501,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 Ecowitt.net
             parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_ecowitt_net_params(). Any code calling get_ecowitt_net_params()
             should be prepared to handle this exception.
@@ -3509,7 +3514,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 Weather Underground
             parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_wunderground_params(). Any code calling
             get_wunderground_params() should be prepared to handle this
@@ -3523,7 +3528,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 Weathercloud
             parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_weathercloud_params(). Any code calling
             get_weathercloud_params() should be prepared to handle this
@@ -3537,7 +3542,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 Weather Observations
             Website parameters to the API with retries. If the GW1000/GW1100
-            cannot be contacted a GW1000IOError will have been raised by
+            cannot be contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_wow_params(). Any code calling get_wow_params() should be
             prepared to handle this exception.
@@ -3550,7 +3555,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 custom server
             parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_custom_params(). Any code calling get_custom_params() should be
             prepared to handle this exception.
@@ -3563,7 +3568,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 user defined custom
             path to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_usr_path(). Any code calling get_usr_path() should be prepared
             to handle this exception.
@@ -3576,7 +3581,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the GW1000/GW1100 MAC address to the
             API with retries. If the GW1000/GW1100 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
+            GWIOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_mac_address(). Any code calling
             get_mac_address() should be prepared to handle this exception.
             """
@@ -3588,7 +3593,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain GW1000/GW1100 firmware version to the
             API with retries. If the GW1000/GW1100 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
+            GWIOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_firmware_version(). Any code
             calling get_firmware_version() should be prepared to handle this
             exception.
@@ -3604,7 +3609,7 @@ class Gw1000Collector(Collector):
             re-discovery is attempted. If rediscovery is successful the command
             is tried again otherwise the lost contact timestamp is set and the
             exception raised. Any code that calls this method should be
-            prepared to handle a GW1000IOError exception.
+            prepared to handle a GWIOError exception.
             """
 
             # send the API command to obtain sensor ID data from the
@@ -3612,7 +3617,7 @@ class Gw1000Collector(Collector):
             # GW1000/GW1100 cannot be contacted
             try:
                 return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
-            except GW1000IOError:
+            except GWIOError:
                 # there was a problem contacting the GW1000/GW1100, it could be
                 # it has changed IP address so attempt to rediscover
                 if not self.rediscover():
@@ -3620,7 +3625,7 @@ class Gw1000Collector(Collector):
                     raise
                 else:
                     # we did rediscover successfully so try again, if it fails
-                    # we get another GW1000IOError exception which will be
+                    # we get another GWIOError exception which will be
                     # raised
                     return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
 
@@ -3629,7 +3634,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the multi-channel temperature and
             humidity offset data to the API with retries. If the GW1000/GW1100
-            cannot be contacted a GW1000IOError will have been raised by
+            cannot be contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_mulch_offset(). Any code calling get_mulch_offset() should be
             prepared to handle this exception.
@@ -3642,7 +3647,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the PM2.5 sensor offset data to the API
             with retries. If the GW1000/GW1100 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
+            GWIOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_pm25_offset(). Any code
             calling get_pm25_offset() should be prepared to handle this
             exception.
@@ -3655,7 +3660,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the calibration coefficient data to the
             API with retries. If the GW1000/GW1100 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
+            GWIOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_calibration_coefficient(). Any
             code calling get_calibration_coefficient() should be prepared to
             handle this exception.
@@ -3668,7 +3673,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the soil moisture sensor calibration
             data to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_soil_calibration(). Any code calling get_soil_calibration()
             should be prepared to handle this exception.
@@ -3681,7 +3686,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the offset calibration data to the API
             with retries. If the GW1000/GW1100 cannot be contacted a
-            GW1000IOError will have been raised by send_cmd_with_retries()
+            GWIOError will have been raised by send_cmd_with_retries()
             which will be passed through by get_offset_calibration(). Any code
             calling get_offset_calibration() should be prepared to handle this
             exception.
@@ -3694,7 +3699,7 @@ class Gw1000Collector(Collector):
 
             Sends the command to obtain the WH45 CO2, PM10 and PM2.5 sensor
             offset data to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GW1000IOError will have been raised by
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_co2_offset(). Any code calling get_co2_offset() should be
             prepared to handle this exception.
@@ -3707,7 +3712,7 @@ class Gw1000Collector(Collector):
             """Get piezo rain data.
 
             Sends the command to obtain the piezo rain data to the API with
-            retries. If the GW1000/GW1100 cannot be contacted a GW1000IOError
+            retries. If the GW1000/GW1100 cannot be contacted a GWIOError
             will have been raised by send_cmd_with_retries() which will be
             passed through by get_piezo_rain_(). Any code calling
             get_piezo_rain_() should be prepared to handle this exception.
@@ -3776,8 +3781,8 @@ class Gw1000Collector(Collector):
             _msg = ("Failed to obtain response to command '%s' after %d attempts" % (cmd, attempt + 1))
             if response is not None or self.log_failures:
                 logerr(_msg)
-            # finally raise a GW1000IOError exception
-            raise GW1000IOError(_msg)
+            # finally raise a GWIOError exception
+            raise GWIOError(_msg)
 
         def build_cmd_packet(self, cmd, payload=b''):
             """Construct an API command packet.
@@ -4685,22 +4690,22 @@ class Gw1000Collector(Collector):
             return None
 
     class Sensors(object):
-        """Class to manage GW1000/GW1100 sensor ID data.
+        """Class to manage device sensor ID data.
 
         Class Sensors allows access to various elements of sensor ID data via a
         number of properties and methods when the class is initialised with the
-        GW1000/GW1100 API response to a CMD_READ_SENSOR_ID_NEW or
-        CMD_READ_SENSOR_ID command.
+        device response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID API
+        command.
 
         A Sensors object can be initialised with sensor ID data on
         instantiation or an existing Sensors object can be updated by calling
-        the set_sensor_id_data() method passing the sensor ID data to be used
-        as the only parameter.
+        the set_sensor_id_data() method and passing the sensor ID data to be
+        used as the only parameter.
         """
 
         # Tuple of sensor ID values for sensors that are not registered with
-        # the GW1000/GW1100. 'fffffffe' means the sensor is disabled,
-        # 'ffffffff' means the sensor is registering.
+        # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
+        # the sensor is registering.
         not_registered = ('fffffffe', 'ffffffff')
 
         def __init__(self, sensor_id_data=None, show_battery=False, debug_sensors=False):
@@ -4735,14 +4740,14 @@ class Gw1000Collector(Collector):
                     # get the sensor address
                     address = data[index:index + 1]
                     # do we know how to decode this address
-                    if address in Gw1000Collector.sensor_ids.keys():
+                    if address in GatewayCollector.sensor_ids.keys():
                         # get the sensor ID
                         sensor_id = bytes_to_hex(data[index + 1: index + 5],
                                                  separator='',
                                                  caps=False)
                         # get the method to be used to decode the battery state
                         # data
-                        batt_fn = Gw1000Collector.sensor_ids[data[index:index + 1]]['batt_fn']
+                        batt_fn = GatewayCollector.sensor_ids[data[index:index + 1]]['batt_fn']
                         # get the raw battery state data
                         batt = six.indexbytes(data, index + 5)
                         # if we are not showing all battery state data then the
@@ -4772,10 +4777,10 @@ class Gw1000Collector(Collector):
 
             This includes all sensor addresses reported by the GW1000/GW1100,
             this includes:
-            - sensors that are actually connected to the GW1000/GW1100
-            - sensors that are attempting to connect to the GW1000/GW1100
-            - GW1000/GW1100 sensor addresses that are searching for a sensor
-            - GW1000/GW1100 sensor addresses that are disabled
+            - sensors that are actually connected to the device
+            - sensors that are attempting to connect to the device
+            - device sensor addresses that are searching for a sensor
+            - device sensor addresses that are disabled
             """
 
             # this is simply the list of keys to our sensor data dict
@@ -4838,7 +4843,7 @@ class Gw1000Collector(Collector):
             # iterate over our connected sensors
             for sensor in self.connected_addresses:
                 # get the sensor name
-                sensor_name = Gw1000Collector.sensor_ids[sensor]['name']
+                sensor_name = GatewayCollector.sensor_ids[sensor]['name']
                 # create the sensor battery state field for this sensor
                 data[''.join([sensor_name, '_batt'])] = self.battery_state(sensor)
                 # create the sensor signal level field for this sensor
@@ -4855,12 +4860,12 @@ class Gw1000Collector(Collector):
             """
 
             if value is not None:
-                if Gw1000Collector.sensor_ids[address].get('name') in Gw1000Collector.no_low:
+                if GatewayCollector.sensor_ids[address].get('name') in GatewayCollector.no_low:
                     # we have a sensor for which no low battery cut-off
                     # data exists
                     return None
                 else:
-                    batt_fn = Gw1000Collector.sensor_ids[address].get('batt_fn')
+                    batt_fn = GatewayCollector.sensor_ids[address].get('batt_fn')
                     if batt_fn == 'batt_binary':
                         if value == 0:
                             return "OK"
@@ -5453,9 +5458,9 @@ class DirectGw1000(object):
         }
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GW1000/GW1100 GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5463,7 +5468,7 @@ class DirectGw1000(object):
                                                  collector.station.port))
             # get the collector objects system_parameters property
             sys_params_dict = collector.system_parameters
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5514,9 +5519,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GW1000/GW1100 GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5524,7 +5529,7 @@ class DirectGw1000(object):
                                                  collector.station.port))
             # get the collector objects get_rain_data property
             rain_data = collector.rain_data
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5563,9 +5568,9 @@ class DirectGw1000(object):
         reset = ['day_reset', 'week_reset', 'annual_reset']
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5573,7 +5578,7 @@ class DirectGw1000(object):
                                                  collector.station.port))
             # get the collector objects piezo_rain property
             rain_data = collector.piezo_rain
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5630,9 +5635,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5641,7 +5646,7 @@ class DirectGw1000(object):
             # get the mulch offset data from the collector object's mulch_offset
             # property
             mulch_offset_data = collector.mulch_offset
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5680,9 +5685,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5691,7 +5696,7 @@ class DirectGw1000(object):
             # get the PM2.5 offset data from the collector object's pm25_offset
             # property
             pm25_offset_data = collector.pm25_offset
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5725,9 +5730,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5736,7 +5741,7 @@ class DirectGw1000(object):
             # get the offset data from the collector object's co2_offset
             # property
             co2_offset_data = collector.co2_offset
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5768,9 +5773,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5779,7 +5784,7 @@ class DirectGw1000(object):
             # get the calibration data from the collector object's calibration
             # property
             calibration_data = collector.calibration
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5819,9 +5824,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5830,7 +5835,7 @@ class DirectGw1000(object):
             # get the calibration data from the collector object's
             # soil_calibration property
             calibration_data = collector.soil_calibration
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -5974,9 +5979,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GW1000/GW1100 GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -5987,7 +5992,7 @@ class DirectGw1000(object):
             services_data = dict()
             for service in collector.services:
                 services_data[service['name']] = getattr(collector, service['name'])
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -6022,9 +6027,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GW1000/GW1100 GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -6034,7 +6039,7 @@ class DirectGw1000(object):
             print()
             print("%s MAC address: %s" % (collector.station.model,
                                           collector.mac_address))
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -6054,9 +6059,9 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -6066,7 +6071,7 @@ class DirectGw1000(object):
             print()
             print("%s firmware version string: %s" % (collector.station.model,
                                                       collector.firmware_version))
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -6086,10 +6091,10 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port,
-                                        show_battery=self.show_battery)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port,
+                                         show_battery=self.show_battery)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -6097,7 +6102,7 @@ class DirectGw1000(object):
                                                  collector.station.port))
             # first update the collector's sensor ID data
             collector.update_sensor_id_data()
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -6130,7 +6135,7 @@ class DirectGw1000(object):
                                                                             sensor_data.get('signal'),
                                                                             battery_str)
                         # print the formatted data
-                    print("%-10s %s" % (Gw1000Collector.sensor_ids[address].get('long_name'), state))
+                    print("%-10s %s" % (GatewayCollector.sensor_ids[address].get('long_name'), state))
             elif len(sensors.data) == 0:
                 print()
                 print("%s did not return any sensor data." % collector.station.model)
@@ -6153,10 +6158,10 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a Gw1000Collector object
-            collector = Gw1000Collector(ip_address=self.ip_address,
-                                        port=self.port,
-                                        show_battery=self.show_battery)
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port,
+                                         show_battery=self.show_battery)
             # identify the GW1000/GW1100 being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
@@ -6165,7 +6170,7 @@ class DirectGw1000(object):
             # call the driver objects get_live_sensor_data() method to obtain
             # the live sensor data
             live_sensor_data_dict = collector.get_live_sensor_data()
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
@@ -6236,9 +6241,9 @@ class DirectGw1000(object):
         # this could take a few seconds so warn the user
         print()
         print("Discovering devices on the local network. Please wait...")
-        # get an Gw1000Collector object
-        collector = Gw1000Collector()
-        # Call the Gw1000Collector object discover() method to obtain a list of
+        # get an GatewayCollector object
+        collector = GatewayCollector()
+        # Call the GatewayCollector object discover() method to obtain a list of
         # unique devices discovered. Would consider wrapping in a try..except
         # so we can catch any socket timeout exceptions but the
         # Station.discover() method should catch any such exceptions for us.
@@ -6275,15 +6280,15 @@ class DirectGw1000(object):
 
         # obtain a copy of the default field map, we need a copy so we can
         # augment it with the battery state map
-        field_map = dict(Gw1000.default_field_map)
+        field_map = dict(Gateway.default_field_map)
         # now add in the rain field map
-        field_map.update(Gw1000.rain_field_map)
+        field_map.update(Gateway.rain_field_map)
         # now add in the wind field map
-        field_map.update(Gw1000.wind_field_map)
+        field_map.update(Gateway.wind_field_map)
         # now add in the battery state field map
-        field_map.update(Gw1000.battery_field_map)
+        field_map.update(Gateway.battery_field_map)
         # now add in the sensor signal field map
-        field_map.update(Gw1000.sensor_signal_field_map)
+        field_map.update(Gateway.sensor_signal_field_map)
         print()
         print("GW1000/GW1100 driver/service default field map:")
         print("(format is WeeWX field name: GW1000/GW1100 field name)")
@@ -6329,7 +6334,7 @@ class DirectGw1000(object):
             for pkt in driver.genLoopPackets():
                 print(": ".join([weeutil.weeutil.timestamp_to_string(pkt['dateTime']),
                                  weeutil.weeutil.to_sorted_string(pkt)]))
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except KeyboardInterrupt:
@@ -6416,7 +6421,7 @@ class DirectGw1000(object):
                                                  origin='software'))
                 # sleep for a bit to emulate the simulator
                 time.sleep(10)
-        except GW1000IOError as e:
+        except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except KeyboardInterrupt:
