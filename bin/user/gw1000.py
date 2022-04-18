@@ -3433,25 +3433,25 @@ class GatewayCollector(Collector):
                 return None
 
         def get_livedata(self):
-            """Get device live data.
+            """Get live data.
 
-            Sends the command to the device to obtain live data from the device to the
-            API with retries. If the GW1000/GW1100 cannot be contacted
-            re-discovery is attempted. If rediscovery is successful the command
-            is tried again otherwise the lost contact timestamp is set and the
+            Sends the API command to the device to obtain live data with
+            retries. If the device cannot be contacted re-discovery is
+            attempted. If rediscovery is successful the command is sent again
+            otherwise the lost contact timestamp is set and a GWIOError
             exception raised. Any code that calls this method should be
-            prepared to handle a GWIOError exception.
+            prepared to handle this exception.
             """
 
-            # send the API command to obtain live data from the GW1000/GW1100,
-            # be prepared to catch the exception raised if the GW1000/GW1100
-            # cannot be contacted
+            # send the API command to obtain live data from the device, be
+            # prepared to catch the exception raised if the device cannot be
+            # contacted
             try:
                 # return the validated API response
                 return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
             except GWIOError:
-                # there was a problem contacting the GW1000/GW1100, it could be
-                # it has changed IP address so attempt to rediscover
+                # there was a problem contacting the device, it could be it has
+                # changed IP address so attempt to rediscover
                 if not self.rediscover():
                     # we could not re-discover so raise the exception
                     raise
@@ -3461,65 +3461,62 @@ class GatewayCollector(Collector):
                     return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
 
         def get_raindata(self):
-            """Get GW1000/GW1100 rain data.
+            """Get traditional gauge rain data.
 
-            Sends the command to obtain rain data from the GW10GW1000/GW110000
-            to the API with retries. If the GW1000/GW1100 cannot be contacted a
-            GWIOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_raindata(). Any code calling
+            Sends the API command to obtain traditional gauge rain data from
+            the device with retries. If the device cannot be contacted a
+            GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_raindata(). Any code calling
             get_raindata() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_RAINDATA')
 
         def get_system_params(self):
-            """Read GW1000/GW1100 system parameters.
+            """Read system parameters.
 
-            Sends the command to obtain system parameters from the
-            GW1000/GW1100 to the API with retries. If the GW1000/GW1100 cannot
-            be contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_system_params(). Any code calling get_system_params() should be
-            prepared to handle this exception.
+            Sends the API command to obtain system parameters from the device
+            with retries. If the device cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_system_params(). Any code calling
+            get_system_params() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_SSSS')
 
         def get_ecowitt_net_params(self):
-            """Get GW1000/GW1100 Ecowitt.net parameters.
+            """Get Ecowitt.net parameters.
 
-            Sends the command to obtain the GW1000/GW1100 Ecowitt.net
-            parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_ecowitt_net_params(). Any code calling get_ecowitt_net_params()
-            should be prepared to handle this exception.
+            Sends the API command to obtain the device Ecowitt.net parameters
+            with retries. If the device cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_ecowitt_net_params(). Any code calling
+            get_ecowitt_net_params() should be prepared to handle this
+            exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_ECOWITT')
 
         def get_wunderground_params(self):
-            """Get GW1000 Weather Underground parameters.
+            """Get Weather Underground parameters.
 
-            Sends the command to obtain the GW1000/GW1100 Weather Underground
-            parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_wunderground_params(). Any code calling
-            get_wunderground_params() should be prepared to handle this
+            Sends the API command to obtain the device Weather Underground
+            parameters with retries. If the device cannot be contacted a
+            GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_wunderground_params(). Any code
+            calling get_wunderground_params() should be prepared to handle this
             exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
 
         def get_weathercloud_params(self):
-            """Get GW1000/GW1100 Weathercloud parameters.
+            """Get Weathercloud parameters.
 
-            Sends the command to obtain the GW1000/GW1100 Weathercloud
-            parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_weathercloud_params(). Any code calling
+            Sends the API command to obtain the device Weathercloud parameters
+            with retries. If the device cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_weathercloud_params(). Any code calling
             get_weathercloud_params() should be prepared to handle this
             exception.
             """
@@ -3527,88 +3524,84 @@ class GatewayCollector(Collector):
             return self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
 
         def get_wow_params(self):
-            """Get GW1000/GW1100 Weather Observations Website parameters.
+            """Get Weather Observations Website parameters.
 
-            Sends the command to obtain the GW1000/GW1100 Weather Observations
-            Website parameters to the API with retries. If the GW1000/GW1100
-            cannot be contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_wow_params(). Any code calling get_wow_params() should be
-            prepared to handle this exception.
+            Sends the API command to obtain the device Weather Observations
+            Website parameters with retries. If the device cannot be contacted
+            a GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_wow_params(). Any code calling
+            get_wow_params() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_WOW')
 
         def get_custom_params(self):
-            """Get GW1000/GW1100 custom server parameters.
+            """Get custom server parameters.
 
-            Sends the command to obtain the GW1000/GW1100 custom server
-            parameters to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_custom_params(). Any code calling get_custom_params() should be
-            prepared to handle this exception.
+            Sends the API command to obtain the device custom server parameters
+            with retries. If the device cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_custom_params(). Any code calling
+            get_custom_params() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
 
         def get_usr_path(self):
-            """Get GW1000/GW1100 user defined custom path.
+            """Get user defined custom path.
 
-            Sends the command to obtain the GW1000/GW1100 user defined custom
-            path to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_usr_path(). Any code calling get_usr_path() should be prepared
-            to handle this exception.
+            Sends the API command to obtain the device user defined custom path
+            with retries. If the device cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_usr_path(). Any code calling get_usr_path() should
+            be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_USR_PATH')
 
         def get_mac_address(self):
-            """Get GW1000/GW1100 MAC address.
+            """Get device MAC address.
 
-            Sends the command to obtain the GW1000/GW1100 MAC address to the
-            API with retries. If the GW1000/GW1100 cannot be contacted a
-            GWIOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_mac_address(). Any code calling
-            get_mac_address() should be prepared to handle this exception.
+            Sends the API command to obtain the device MAC address with
+            retries. If the device cannot be contacted a GWIOError will have
+            been raised by send_cmd_with_retries() which will be passed through
+            by get_mac_address(). Any code calling get_mac_address() should be
+            prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_STATION_MAC')
 
         def get_firmware_version(self):
-            """Get GW1000/GW1100 firmware version.
+            """Get device firmware version.
 
-            Sends the command to obtain GW1000/GW1100 firmware version to the
-            API with retries. If the GW1000/GW1100 cannot be contacted a
-            GWIOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_firmware_version(). Any code
-            calling get_firmware_version() should be prepared to handle this
-            exception.
+            Sends the API command to obtain device firmware version with
+            retries. If the device cannot be contacted a GWIOError will have
+            been raised by send_cmd_with_retries() which will be passed through
+            by get_firmware_version(). Any code calling get_firmware_version()
+            should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
 
         def get_sensor_id(self):
-            """Get GW1000/GW1100 sensor ID data.
+            """Get sensor ID data.
 
-            Sends the command to obtain sensor ID data from the GW1000/GW1100
-            to the API with retries. If the GW1000/GW1100 cannot be contacted
-            re-discovery is attempted. If rediscovery is successful the command
-            is tried again otherwise the lost contact timestamp is set and the
-            exception raised. Any code that calls this method should be
-            prepared to handle a GWIOError exception.
+            Sends the API command to obtain sensor ID data from the device with
+            retries. If the device cannot be contacted re-discovery is
+            attempted. If rediscovery is successful the command is tried again
+            otherwise the lost contact timestamp is set and the exception
+            raised. Any code that calls this method should be prepared to
+            handle a GWIOError exception.
             """
 
-            # send the API command to obtain sensor ID data from the
-            # GW1000/GW1100, be prepared to catch the exception raised if the
-            # GW1000/GW1100 cannot be contacted
+            # send the API command to obtain sensor ID data from the device, be
+            # prepared to catch the exception raised if the device cannot be
+            # contacted
             try:
                 return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
             except GWIOError:
-                # there was a problem contacting the GW1000/GW1100, it could be
-                # it has changed IP address so attempt to rediscover
+                # there was a problem contacting the device, it could be it has
+                # changed IP address so attempt to rediscover
                 if not self.rediscover():
                     # we could not re-discover so raise the exception
                     raise
@@ -3621,9 +3614,9 @@ class GatewayCollector(Collector):
         def get_mulch_offset(self):
             """Get multi-channel temperature and humidity offset data.
 
-            Sends the command to obtain the multi-channel temperature and
-            humidity offset data to the API with retries. If the GW1000/GW1100
-            cannot be contacted a GWIOError will have been raised by
+            Sends the API command to obtain the multi-channel temperature and
+            humidity offset data with retries. If the device cannot be
+            contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
             get_mulch_offset(). Any code calling get_mulch_offset() should be
             prepared to handle this exception.
@@ -3634,12 +3627,11 @@ class GatewayCollector(Collector):
         def get_pm25_offset(self):
             """Get PM2.5 offset data.
 
-            Sends the command to obtain the PM2.5 sensor offset data to the API
-            with retries. If the GW1000/GW1100 cannot be contacted a
-            GWIOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_pm25_offset(). Any code
-            calling get_pm25_offset() should be prepared to handle this
-            exception.
+            Sends the API command to obtain the PM2.5 sensor offset data with
+            retries. If the GW1000/GW1100 cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_pm25_offset(). Any code calling get_pm25_offset()
+            should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
@@ -3647,12 +3639,12 @@ class GatewayCollector(Collector):
         def get_calibration_coefficient(self):
             """Get calibration coefficient data.
 
-            Sends the command to obtain the calibration coefficient data to the
-            API with retries. If the GW1000/GW1100 cannot be contacted a
-            GWIOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_calibration_coefficient(). Any
-            code calling get_calibration_coefficient() should be prepared to
-            handle this exception.
+            Sends the API command to obtain the calibration coefficient data
+            with retries. If the GW1000/GW1100 cannot be contacted a GWIOError
+            will have been raised by send_cmd_with_retries() which will be
+            passed through by get_calibration_coefficient(). Any code calling
+            get_calibration_coefficient() should be prepared to handle this
+            exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_GAIN')
@@ -3660,12 +3652,11 @@ class GatewayCollector(Collector):
         def get_soil_calibration(self):
             """Get soil moisture sensor calibration data.
 
-            Sends the command to obtain the soil moisture sensor calibration
-            data to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_soil_calibration(). Any code calling get_soil_calibration()
-            should be prepared to handle this exception.
+            Sends the API command to obtain the soil moisture sensor
+            calibration data with retries. If the device cannot be contacted a
+            GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_soil_calibration(). Any code calling
+            get_soil_calibration() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
@@ -3673,11 +3664,11 @@ class GatewayCollector(Collector):
         def get_offset_calibration(self):
             """Get offset calibration data.
 
-            Sends the command to obtain the offset calibration data to the API
-            with retries. If the GW1000/GW1100 cannot be contacted a
-            GWIOError will have been raised by send_cmd_with_retries()
-            which will be passed through by get_offset_calibration(). Any code
-            calling get_offset_calibration() should be prepared to handle this
+            Sends the API command to obtain the offset calibration data with
+            retries. If the device cannot be contacted a GWIOError will have
+            been raised by send_cmd_with_retries() which will be passed through
+            by get_offset_calibration(). Any code calling
+            get_offset_calibration() should be prepared to handle this
             exception.
             """
 
@@ -3686,39 +3677,38 @@ class GatewayCollector(Collector):
         def get_co2_offset(self):
             """Get WH45 CO2, PM10 and PM2.5 offset data.
 
-            Sends the command to obtain the WH45 CO2, PM10 and PM2.5 sensor
-            offset data to the API with retries. If the GW1000/GW1100 cannot be
-            contacted a GWIOError will have been raised by
-            send_cmd_with_retries() which will be passed through by
-            get_co2_offset(). Any code calling get_co2_offset() should be
-            prepared to handle this exception.
+            Sends the API command to obtain the WH45 CO2, PM10 and PM2.5 sensor
+            offset data with retries. If the device cannot be contacted a
+            GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_co2_offset(). Any code calling
+            get_co2_offset() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
 
         # TODO. Is this method appropriately named?
         def get_piezo_rain(self):
-            """Get piezo rain data.
+            """Get traditional gauge and piezo gauge rain data.
 
-            Sends the command to obtain the piezo rain data to the API with
-            retries. If the GW1000/GW1100 cannot be contacted a GWIOError
-            will have been raised by send_cmd_with_retries() which will be
-            passed through by get_piezo_rain_(). Any code calling
+            Sends the API command to obtain the traditional gauge and piezo
+            gauge rain data with retries. If the device cannot be contacted a
+            GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_piezo_rain_(). Any code calling
             get_piezo_rain_() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_RAIN')
 
         def send_cmd_with_retries(self, cmd, payload=b''):
-            """Send a command to the GW1000/GW1100 API with retries and return
+            """Send an API command to the device with retries and return
             the response.
 
-            Send a command to the GW1000/GW1100 and obtain the response. If the
-            the response is valid return the response. If the response is
-            invalid an appropriate exception is raised and the command resent
-            up to self.max_tries times after which the value None is returned.
+            Send a command to the device and obtain the response. If the
+            response is valid return the response. If the response is invalid
+            an appropriate exception is raised and the command resent up to
+            self.max_tries times after which the value None is returned.
 
-            cmd: A string containing a valid GW1000/GW1100 API command,
+            cmd: A string containing a valid API command,
                  eg: 'CMD_READ_FIRMWARE_VERSION'
             payload: The data to be sent with the API command, byte string.
 
@@ -3776,7 +3766,7 @@ class GatewayCollector(Collector):
         def build_cmd_packet(self, cmd, payload=b''):
             """Construct an API command packet.
 
-            A GW1000/GW1100 API command packet looks like:
+            An API command packet looks like:
 
             fixed header, command, size, data 1, data 2...data n, checksum
 
@@ -3789,7 +3779,7 @@ class GatewayCollector(Collector):
                 checksum is a byte checksum of command + size + data 1 +
                     data 2 ... + data n
 
-            cmd:     A string containing a valid GW1000/GW1100 API command,
+            cmd:     A string containing a valid API command,
                        eg: 'CMD_READ_FIRMWARE_VERSION'
             payload: The data to be sent with the API command, byte string.
 
@@ -3809,13 +3799,13 @@ class GatewayCollector(Collector):
             return b''.join([self.header, body, struct.pack('B', checksum)])
 
         def send_cmd(self, packet):
-            """Send a command to the GW1000/GW1100 API and return the response.
+            """Send a command to the API and return the response.
 
-            Send a command to the GW1000/GW1100 and return the response. Socket
-            related errors are trapped and raised, code calling send_cmd should
-            be prepared to handle such exceptions.
+            Send a command to the and return the response. Socket related
+            errors are trapped and raised, code calling send_cmd should be
+            prepared to handle such exceptions.
 
-            cmd: A valid GW1000/GW1100 API command
+            cmd: A valid API command
 
             Returns the response as a byte string.
             """
@@ -3855,10 +3845,9 @@ class GatewayCollector(Collector):
                 s.close()
 
         def check_response(self, response, cmd_code):
-            """Check the validity of a GW1000/GW1100 API response.
+            """Check the validity of an API response.
 
-            Checks the validity of a GW1000/GW1100 API response. Two checks are
-            performed:
+            Checks the validity of an API response. Two checks are performed:
 
             1.  the third byte of the response is the same as the command code
                 used in the API call
@@ -3868,13 +3857,12 @@ class GatewayCollector(Collector):
             If any check fails an appropriate exception is raised, if all checks
             pass the method exits without raising an exception.
 
-            response: Response received from the GW1000/GW1100 API call. Byte
-                      string.
-            cmd_code: Command code send to GW1000/GW1100 API. Byte string of
-                      length one.
+            response: Response received from the API call. Byte string.
+            cmd_code: Command code sent to the API. Byte string of length one.
             """
 
-            # first check that the 3rd byte of the response is the command code that was issued
+            # first check that the 3rd byte of the response is the command code
+            # that was issued
             if six.indexbytes(response, 2) == six.byte2int(cmd_code):
                 # now check the checksum
                 calc_checksum = self.calc_checksum(response[2:-1])
@@ -3891,7 +3879,8 @@ class GatewayCollector(Collector):
                                                                             "{:02X}".format(resp_checksum))
                     raise InvalidChecksum(_msg)
             else:
-                # command code check failed, raise an InvalidApiResponse exception
+                # command code check failed, raise an InvalidApiResponse
+                # exception
                 exp_int = six.byte2int(cmd_code)
                 resp_int = six.indexbytes(response, 2)
                 _msg = "Invalid command code in API response. " \
@@ -3903,10 +3892,11 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def calc_checksum(data):
-            """Calculate the checksum for a GW1000/GW1100 API call or response.
+            """Calculate the checksum for an API call or response.
 
-            The checksum used on the GW1000/GW1100 responses is simply the LSB
-            of the sum of the bytes.
+            The checksum used in an API response is simply the LSB of the sum
+            of the command, size and data bytes. The fixed header and checksum
+            bytes are excluded.
 
             data: The data on which the checksum is to be calculated. Byte
                   string.
@@ -3924,14 +3914,14 @@ class GatewayCollector(Collector):
             return checksum % 256
 
         def rediscover(self):
-            """Attempt to rediscover a lost GW1000/GW1100.
+            """Attempt to rediscover a lost device.
 
-            Use UDP broadcast to discover a GW1000/GW1100 that may have changed
-            to a new IP. We should not be re-discovering a GW1000/GW1100 for
-            which the user specified an IP, only for those for which we
-            discovered the IP address on startup. If a GW1000/GW1100 is
-            discovered then change my ip_address and port properties as
-            necessary to use the device in future. If the rediscover was
+            Use UDP broadcast to discover a device that may have changed to a
+            new IP or contact has otherwise been lost. We should not be
+            re-discovering a device for which the user specified an IP, only
+            for those for which we discovered the IP address on startup. If a
+            device is discovered then change my ip_address and port properties
+            as necessary to use the device in future. If the rediscover was
             successful return True otherwise return False.
             """
 
@@ -3956,7 +3946,7 @@ class GatewayCollector(Collector):
                                                                                      e,
                                                                                      type(e)))
                     else:
-                        # did we find any GW1000/GW1100
+                        # did we find any devices
                         if len(device_list) > 0:
                             # we have at least one, log the fact as well as what we found
                             gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'],
@@ -3970,12 +3960,13 @@ class GatewayCollector(Collector):
                             # don't find a match as we will change our
                             # ip_address and port properties in order to get
                             # the MAC for that IP address and port
+                            # TODO. Are these two required
                             present_ip = self.ip_address
                             present_port = self.port
                             # iterate over each candidate checking their MAC
                             # address against my mac property. This way we know
-                            # we will be connecting to the GW1000/GW1100 we
-                            # were previously using.
+                            # we will be connecting to the device we were
+                            # previously using.
                             for device in device_list:
                                 # do the MACs match, if so we have our old
                                 # device and we can exit the loop
@@ -3992,10 +3983,11 @@ class GatewayCollector(Collector):
                             loginf("%s at address %s:%d will be used" % (self.model,
                                                                          self.ip_address.decode(),
                                                                          self.port))
-                            # return True indicating the re-discovery was successful
+                            # return True indicating the re-discovery was
+                            # successful
                             return True
                         else:
-                            # did not discover any GW1000/GW1100 so log it
+                            # did not discover any devices so log it
                             if self.log_failures:
                                 logdbg("Failed attempt %d to detect any devices" % (attempt + 1,))
                 else:
