@@ -1390,7 +1390,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # minimum period in seconds between 'lost contact' log entries during
         # an extended lost contact period
         self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
-                                                                  default_lost_contact_log_period))
+                                                              default_lost_contact_log_period))
         # set failure logging on
         self.log_failures = True
         # reset the lost contact timestamp
@@ -3347,7 +3347,7 @@ class GatewayCollector(Collector):
         def get_model_from_firmware(self, firmware_string):
             """Determine the device model from the firmware version.
 
-            To date devicefirmware versions have included the device model in
+            To date device firmware versions have included the device model in
             the firmware version string returned via the device API. Whilst
             this is not guaranteed to be the case for future firmware releases,
             in the absence of any other direct means of obtaining the device
