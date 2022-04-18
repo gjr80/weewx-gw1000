@@ -3047,16 +3047,16 @@ class GatewayCollector(Collector):
         """Class to interact directly with the Ecowitt LAN/Wi-Fi Gateway API.
 
         A Station object knows how to:
-        1.  discover a GW1000/GW1100 via UDP broadcast
-        2.  send a command to the GW1000/GW1100 API
-        3.  receive a response from the GW1000/GW1100 API
+        1.  discover a device via UDP broadcast
+        2.  send a command to the API
+        3.  receive a response from the API
         4.  verify the response as valid
 
         A Station object needs an IP address and port as well as a network
         broadcast address and port.
         """
 
-        # GW1000/GW1100 API commands
+        # Ecowitt LAN/Wi-Fi Gateway API commands
         commands = {
             'CMD_WRITE_SSID': b'\x11',
             'CMD_BROADCAST': b'\x12',
@@ -3105,7 +3105,8 @@ class GatewayCollector(Collector):
         # header used in each API command and response packet
         header = b'\xff\xff'
         # known device models
-        known_models = ('GW1000', 'GW1100', 'GW2000')
+        known_models = ('GW1000', 'GW1100', 'GW2000',
+                        'WH2650', 'WH2850', 'WN1900')
 
         # TODO. Is lost_contact_log_period required in the signature
         def __init__(self, ip_address=None, port=None,
@@ -3126,7 +3127,7 @@ class GatewayCollector(Collector):
             self.ip_discovered = ip_address is None
             self.port_discovered = port is None
             # if IP address or port was not specified (None) then attempt to
-            # discover the GW1000/GW1100 with a UDP broadcast
+            # discover the device with a UDP broadcast
             if ip_address is None or port is None:
                 for attempt in range(max_tries):
                     try:
@@ -3140,7 +3141,7 @@ class GatewayCollector(Collector):
                         # signal that we have a critical error
                         raise
                     else:
-                        # did we find any GW1000/GW1100
+                        # did we find any devices
                         if len(device_list) > 0:
                             # we have at least one, arbitrarily choose the first one
                             # found as the one to use
@@ -3158,7 +3159,7 @@ class GatewayCollector(Collector):
                             port = disc_port if port is None else port
                             break
                         else:
-                            # did not discover any GW1000/GW1100 so log it
+                            # did not discover any device so log it
                             logdbg("Failed attempt %d to detect device IP address and/or port" % (attempt + 1,))
                             # do we try again or raise an exception
                             if attempt < max_tries - 1:
@@ -3179,8 +3180,8 @@ class GatewayCollector(Collector):
             self.retry_wait = retry_wait
             # start off logging failures
             self.log_failures = True
-            # Get my GW1000/GW1100 MAC address to use later if we have to
-            # rediscover. Within Station MAC address is stored as a bytestring.
+            # Get my MAC address to use later if we have to rediscover. Within
+            # class Station the MAC address is stored as a bytestring.
             if mac is None:
                 self.mac = self.get_mac_address()
             else:
@@ -3196,7 +3197,7 @@ class GatewayCollector(Collector):
                 self.model = self.get_model_from_firmware(_firmware_str)
 
         def discover(self):
-            """Discover any GW1000/GW1100 devices on the local network.
+            """Discover any devices on the local network.
 
             Send a UDP broadcast and check for replies. Decode each reply to
             obtain details of any devices on the local network. Create a dict
@@ -3223,8 +3224,7 @@ class GatewayCollector(Collector):
                 logdbg("Sending broadcast packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
                                                                      self.broadcast_address,
                                                                      self.broadcast_port))
-            # initialise a list for the results as multiple GW1000/GW1100 may
-            # respond
+            # initialise a list for the results as multiple devices may respond
             result_list = []
             # send the Broadcast command
             s.sendto(packet, (self.broadcast_address, self.broadcast_port))
@@ -3278,8 +3278,8 @@ class GatewayCollector(Collector):
         def decode_broadcast_response(raw_data):
             """Decode a broadcast response and return the results as a dict.
 
-            A GW1000/GW1100 response to a CMD_BROADCAST API command consists of
-            a number of control structures around a payload of a data. The API
+            A device response to a CMD_BROADCAST API command consists of a
+            number of control structures around a payload of a data. The API
             response is structured as follows:
 
             bytes 0-1 incl                  preamble, literal 0xFF 0xFF
@@ -3290,30 +3290,30 @@ class GatewayCollector(Collector):
 
             The data payload is structured as follows:
 
-            bytes 0-5 incl      GW1000/GW1100 MAC address
-            bytes 6-9 incl      GW1000/GW1100 IP address
-            bytes 10-11 incl    GW1000/GW1100 port number
-            bytes 11-           GW1000/GW1100 AP SSID
+            bytes 0-5 incl      device MAC address
+            bytes 6-9 incl      device IP address
+            bytes 10-11 incl    device port number
+            bytes 11-           device AP SSID
 
-            Note: The GW1000/GW1100 AP SSID for a given GW1000/GW1100 is fixed
-            in size but this size can vary from device to device and across
-            firmware versions.
+            Note: The device AP SSID for a given device is fixed in size but
+            this size can vary from device to device and across firmware
+            versions.
 
             There also seems to be a peculiarity in the CMD_BROADCAST response
-            data payload whereby the first character of the GW1000/GW1100 AP
-            SSID is a non-printable ASCII character. The WS View app appears to
-            ignore or not display this character nor does it appear to be used
-            elsewhere. Consequently this character is ignored.
+            data payload whereby the first character of the device AP SSID is a
+            non-printable ASCII character. The WSView app appears to ignore or
+            not display this character nor does it appear to be used elsewhere.
+            Consequently this character is ignored.
 
             raw_data:   a bytestring containing a validated (structure and
                         checksum verified) raw data response to the
                         CMD_BROADCAST API command
 
             Returns a dict with decoded data keyed as follows:
-                'mac':          GW1000/GW1100 MAC address (string)
-                'ip_address':   GW1000/GW1100 IP address (string)
-                'port':         GW1000/GW1100 port number (integer)
-                'ssid':         GW1000/GW1100 AP SSID (string)
+                'mac':          device MAC address (string)
+                'ip_address':   device IP address (string)
+                'port':         device port number (integer)
+                'ssid':         device AP SSID (string)
             """
 
             # obtain the response size, it's a big endian short (two byte)
@@ -3347,12 +3347,11 @@ class GatewayCollector(Collector):
         def get_model_from_firmware(self, firmware_string):
             """Determine the device model from the firmware version.
 
-            To date GW1000 and GW1100 firmware versions have included the
-            device model in the firmware version string returned via the device
-            API. Whilst this is not guaranteed to be the case for future
-            firmware releases, in the absence of any other direct means of
-            obtaining the device model number it is a useful means for
-            determining the device model.
+            To date devicefirmware versions have included the device model in
+            the firmware version string returned via the device API. Whilst
+            this is not guaranteed to be the case for future firmware releases,
+            in the absence of any other direct means of obtaining the device
+            model number it is a useful means for determining the device model.
 
             The check is a simple check to see if the model name is contained
             in the firmware version string returned by the device API.
@@ -3375,13 +3374,13 @@ class GatewayCollector(Collector):
         def get_model_from_ssid(self, ssid_string):
             """Determine the device model from the device SSID.
 
-            To date the GW1000 and GW1100 device SSID has included the device
-            model in the SSID returned via the device API. Whilst this is not
-            guaranteed to be the case for future firmware releases, in the
-            absence of any other direct means of obtaining the device model
-            number it is a useful means for determining the device model. This
-            is particularly the case when using UDP broadcast to discover
-            devices on the local network.
+            To date the device SSID has included the device model in the SSID
+            returned via the device API. Whilst this is not guaranteed to be
+            the case for future firmware releases, in the absence of any other
+            direct means of obtaining the device model number it is a useful
+            means for determining the device model. This is particularly the
+            case when using UDP broadcast to discover devices on the local
+            network.
 
             Note that it may be possible to alter the SSID used by the device
             in which case this method may not provide an accurate result.
@@ -3404,11 +3403,11 @@ class GatewayCollector(Collector):
         def get_model(self, t):
             """Determine the device model from a string.
 
-            To date GW1000 and GW1100 firmware versions have included the
-            device model in the firmware version string or the device SSID.
-            Both the firmware version string and device SSID are available via
-            the device API so checking the firmware version string or SSID
-            provides a de facto method of determining the device model.
+            To date firmware versions have included the device model in the
+            firmware version string or the device SSID. Both the firmware
+            version string and device SSID are available via the device API so
+            checking the firmware version string or SSID provides a de facto
+            method of determining the device model.
 
             This method uses a simple check to see if a known model name is
             contained in the string concerned.
@@ -3434,9 +3433,9 @@ class GatewayCollector(Collector):
                 return None
 
         def get_livedata(self):
-            """Get GW1000/GW1100 live data.
+            """Get device live data.
 
-            Sends the command to obtain live data from the GW1000/GW1100 to the
+            Sends the command to the device to obtain live data from the device to the
             API with retries. If the GW1000/GW1100 cannot be contacted
             re-discovery is attempted. If rediscovery is successful the command
             is tried again otherwise the lost contact timestamp is set and the
