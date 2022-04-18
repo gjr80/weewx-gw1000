@@ -41,7 +41,7 @@ Revision History
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
-        -   added support for WH90 sensor platform
+        -   added support for WS90 sensor platform
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -2342,7 +2342,7 @@ class Collector(object):
 # ============================================================================
 
 class GatewayCollector(Collector):
-    """Class to poll the GW1000/GW1100 API, decode and return data to the driver."""
+    """Class to poll the Ecowitt LAN/Wi-Fi Gateway API and return decoded data."""
 
     # map of sensor ids to short name, long name and battery byte decode
     # function
@@ -2395,10 +2395,10 @@ class GatewayCollector(Collector):
         b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'},
-        b'\x30': {'name': 'wh90', 'long_name': 'WH90', 'batt_fn': 'batt_volt', 'low_batt': 3}
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
     }
     # sensors for which there is no low battery state
-    no_low = ['wh80', 'wh90']
+    no_low = ['ws80', 'ws90']
     # list of dicts of weather services that I know about
     services = [{'name': 'ecowitt_net',
                  'long_name': 'Ecowitt.net'
@@ -2438,8 +2438,7 @@ class GatewayCollector(Collector):
         self.retry_wait = retry_wait
         # are we using a th32 sensor
         self.use_th32 = use_th32
-        # get a station object to do the handle the interaction with the
-        # GW1000/GW1100 API
+        # get a station object to do the handle the interaction with the API
         self.station = GatewayCollector.Station(ip_address=ip_address,
                                                 port=port,
                                                 broadcast_address=broadcast_address,
@@ -2492,7 +2491,7 @@ class GatewayCollector(Collector):
                     queue_data = self.get_live_sensor_data()
                 except GWIOError as e:
                     # a GWIOError occurred, most likely because the Station
-                    # object could not contact the GW1000/GW1100
+                    # object could not contact the device
                     # first up log the event, but only if we are logging
                     # failures
                     if self.log_failures:
@@ -2512,31 +2511,29 @@ class GatewayCollector(Collector):
     def get_live_sensor_data(self):
         """Get all current sensor data.
 
-        Obtain live sensor data from the GW1000/GW1100 API then parse the API
-        response to create a timestamped data dict keyed by internal
-        GW1000/GW1100 field name. Add current sensor battery state and signal
-        level data to the data dict. If no data was obtained from the API the
-        value None is returned.
+        Obtain live sensor data from the API then parse the API response to
+        create a timestamped data dict keyed by internal device field name. Add
+        current sensor battery state and signal level data to the data dict. If
+        no data was obtained from the API the value None is returned.
         """
 
-        # obtain the raw data via the GW1000/GW1100 API, we may get a
-        # GWIOError exception, if we do let it bubble up (the raw data is
-        # the data returned from the GW1000/GW1100 inclusive of the fixed
-        # header, command, payload length, payload and checksum bytes)
+        # obtain the raw data via the API, we may get a GWIOError exception, if
+        # we do let it bubble up (the raw data is the data returned from the
+        # device inclusive of the fixed header, command, payload length,
+        # payload and checksum bytes)
         raw_data = self.station.get_livedata()
         # if we made it here our raw data was validated by checksum
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
         # parse the raw data (the parsed data is a dict keyed by internal
-        # GW1000/GW1100 field names and containing the decoded raw sensor data)
+        # device field names and containing the decoded raw sensor data)
         parsed_data = self.parser.parse(raw_data, _timestamp)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
         # The parsed live data does not contain any sensor battery state or
         # signal level data. The battery state and signal level data for each
-        # sensor can be obtained from the GW1000/GW1100 API via our Sensors
-        # object.
+        # sensor can be obtained from the API via our Sensors object.
         # first we need to update our Sensors object with current sensor ID data
         self.update_sensor_id_data()
         # now add any sensor battery state and signal level data to the parsed
@@ -2557,7 +2554,7 @@ class GatewayCollector(Collector):
 
     @property
     def rain_data(self):
-        """Obtain GW1000/GW1100 rain data."""
+        """Obtain device rain data."""
 
         # obtain the rain data data via the API
         response = self.station.get_raindata()
@@ -2576,7 +2573,7 @@ class GatewayCollector(Collector):
 
     @property
     def mulch_offset(self):
-        """Obtain GW1000/GW1100 multi-channel temperature and humidity offset data."""
+        """Obtain device multi-channel temperature and humidity offset data."""
 
         # obtain the mulch offset data via the API
         response = self.station.get_mulch_offset()
@@ -2608,7 +2605,7 @@ class GatewayCollector(Collector):
 
     @property
     def pm25_offset(self):
-        """Obtain GW1000/GW1100 PM2.5 offset data."""
+        """Obtain device PM2.5 offset data."""
 
         # obtain the PM2.5 offset data via the API
         response = self.station.get_pm25_offset()
@@ -2632,7 +2629,7 @@ class GatewayCollector(Collector):
 
     @property
     def co2_offset(self):
-        """Obtain GW1000/GW1100 WH45 CO2, PM10 and PM2.5 offset data."""
+        """Obtain device WH45 CO2, PM10 and PM2.5 offset data."""
 
         # obtain the WH45 offset data via the API
         response = self.station.get_co2_offset()
@@ -2666,7 +2663,7 @@ class GatewayCollector(Collector):
 
     @property
     def calibration(self):
-        """Obtain GW1000/GW1100 calibration data."""
+        """Obtain device calibration data."""
 
         # obtain the calibration data via the API
         response = self.station.get_calibration_coefficient()
@@ -2707,7 +2704,7 @@ class GatewayCollector(Collector):
 
     @property
     def soil_calibration(self):
-        """Obtain GW1000/GW1100 soil moisture sensor calibration data.
+        """Obtain device soil moisture sensor calibration data.
 
         """
 
@@ -2750,7 +2747,7 @@ class GatewayCollector(Collector):
 
     @property
     def system_parameters(self):
-        """Obtain GW1000/GW1100 system parameters."""
+        """Obtain device system parameters."""
 
         # obtain the system parameters data via the API
         response = self.station.get_system_params()
@@ -2769,9 +2766,7 @@ class GatewayCollector(Collector):
 
     @property
     def ecowitt_net(self):
-        """Obtain GW1000/GW1100 Ecowitt.net service parameters.
-
-        Obtain the GW1000/GW1100 Ecowitt.net service settings.
+        """Obtain device Ecowitt.net service parameters.
 
         Returns a dictionary of settings.
         """
@@ -2791,9 +2786,7 @@ class GatewayCollector(Collector):
 
     @property
     def wunderground(self):
-        """Obtain GW1000/GW1100 Weather Underground service parameters.
-
-        Obtain the GW1000/GW1100 Weather Underground service settings.
+        """Obtain device Weather Underground service parameters.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2816,9 +2809,7 @@ class GatewayCollector(Collector):
 
     @property
     def weathercloud(self):
-        """Obtain GW1000/GW1100 Weathercloud service parameters.
-
-        Obtain the GW1000/GW1100 Weathercloud service settings.
+        """Obtain device Weathercloud service parameters.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2840,9 +2831,7 @@ class GatewayCollector(Collector):
 
     @property
     def wow(self):
-        """Obtain GW1000/GW1100 Weather Observations Website service parameters.
-
-        Obtain the GW1000/GW1100 Weather Observations Website service settings.
+        """Obtain device Weather Observations Website service parameters.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2866,10 +2855,9 @@ class GatewayCollector(Collector):
 
     @property
     def custom(self):
-        """Obtain GW1000/GW1100 custom server parameters.
+        """Obtain device custom server parameters.
 
-        Obtain the GW1000/GW1100 settings used for uploading data to a remote
-        server.
+        Obtain the device settings used for uploading data to a remote server.
 
         Returns a dictionary of settings with string data in unicode format.
         """
@@ -2910,16 +2898,16 @@ class GatewayCollector(Collector):
 
     @property
     def usr_path(self):
-        """Obtain the GW1000/GW1100 user defined custom paths.
+        """Obtain the device user defined custom paths.
 
-        The GW1000/GW1100 allows definition of remote server customs paths for
-        use when uploading to a custom service using Ecowitt or Weather
-        Underground format. Different paths may be specified for each protocol.
+        The device allows definition of remote server customs paths for use
+        when uploading to a custom service using Ecowitt or Weather Underground
+        format. Different paths may be specified for each protocol.
 
         Returns a dictionary with each path as a unicode text string.
         """
 
-        # return the GW1000/GW1100 user defined custom path
+        # return the device user defined custom path
         response = self.station.get_usr_path()
         # determine the size of the user path data
         raw_data_size = six.indexbytes(response, 3)
@@ -2939,24 +2927,24 @@ class GatewayCollector(Collector):
 
     @property
     def mac_address(self):
-        """Obtain the MAC address of the GW1000/GW1100.
+        """Obtain the device MAC address.
 
-        Returns the GW1000/GW1100 MAC address as a string of colon separated hex
+        Returns the device MAC address as a string of colon separated hex
         bytes.
         """
 
-        # obtain the GW1000/GW1100 MAC address bytes
+        # obtain the device MAC address bytes
         station_mac_b = self.station.get_mac_address()
         # return the formatted string
         return bytes_to_hex(station_mac_b[4:10], separator=":")
 
     @property
     def firmware_version(self):
-        """Obtain the GW1000/GW1100 firmware version string.
+        """Obtain the device firmware version string.
 
-        The firmware version can be obtained from the GW1000/GW1100 via an API
-        call made by a Station object. The Station object takes care of making
-        the API call and validating the response. What is returned is the raw
+        The firmware version can be obtained from the device via an API call
+        made by a Station object. The Station object takes care of making the
+        API call and validating the response. What is returned is the raw
         response as a bytestring. The raw response is unpacked into a sequence
         of bytes. The length of the firmware string is in byte 4 and the
         firmware string starts at byte 5. The bytes comprising the firmware are
@@ -2984,12 +2972,12 @@ class GatewayCollector(Collector):
         """Get the current Sensors object.
 
         A Sensors object holds the address, id, battery state and signal level
-        data sensors known to the GW1000/GW1100. The sensor id value can be
-        used to discriminate between connected sensors, connecting sensors and
-        disabled sensor addresses.
+        data sensors known to the device. The sensor id value can be used to
+        discriminate between connected sensors, connecting sensors and disabled
+        sensor addresses.
 
         Before using the GatewayCollector's Sensors object it should be updated
-        with recent sensor ID data via the GW1000/GW1100 API
+        with recent sensor ID data via the API
         """
 
         # obtain current sensor id data via the API, we may get a GWIOError
@@ -3003,20 +2991,20 @@ class GatewayCollector(Collector):
         return self.sensors_obj
 
     def startup(self):
-        """Start a thread that collects data from the GW1000/GW1100 API."""
+        """Start a thread that collects data from the API."""
 
         try:
             self.thread = GatewayCollector.CollectorThread(self)
             self.collect_data = True
             self.thread.setDaemon(True)
-            self.thread.setName('Gw1000CollectorThread')
+            self.thread.setName('GatewayCollectorThread')
             self.thread.start()
         except threading.ThreadError:
             logerr("Unable to launch GatewayCollector thread")
             self.thread = None
 
     def shutdown(self):
-        """Shut down the thread that collects data from the GW1000/GW1100 API.
+        """Shut down the thread that collects data from the API.
 
         Tell the thread to stop, then wait for it to finish.
         """
@@ -3035,14 +3023,14 @@ class GatewayCollector(Collector):
         self.thread = None
 
     class CollectorThread(threading.Thread):
-        """Class used to collect data via the GW1000/GW1100 API in a thread."""
+        """Class using a thread to collect data via the Ecowitt LAN/Wi-Fi Gateway API."""
 
         def __init__(self, client):
             # initialise our parent
             threading.Thread.__init__(self)
             # keep reference to the client we are supporting
             self.client = client
-            self.name = 'gw1000-collector'
+            self.name = 'gateway-collector'
 
         def run(self):
             # rather than letting the thread silently fail if an exception
@@ -3056,7 +3044,7 @@ class GatewayCollector(Collector):
                 log_traceback_critical('    ****  ')
 
     class Station(object):
-        """Class to interact directly with the GW1000/GW1100 API.
+        """Class to interact directly with the Ecowitt LAN/Wi-Fi Gateway API.
 
         A Station object knows how to:
         1.  discover a GW1000/GW1100 via UDP broadcast
