@@ -2527,7 +2527,7 @@ class GatewayCollector(Collector):
         _timestamp = int(time.time())
         # parse the raw data (the parsed data is a dict keyed by internal
         # device field names and containing the decoded raw sensor data)
-        parsed_data = self.parser.parse_live_data(raw_data, _timestamp)
+        parsed_data = self.parser.parse_livedata(raw_data, _timestamp)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
@@ -4197,7 +4197,7 @@ class GatewayCollector(Collector):
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
 
-        def parse_live_data(self, raw_data, timestamp=None):
+        def parse_livedata(self, raw_data, timestamp=None):
             """Parse raw sensor data obtained from CMD_GW1000_LIVEDATA.
 
             Parse the raw sensor data obtained from the CMD_GW1000_LIVEDATA API

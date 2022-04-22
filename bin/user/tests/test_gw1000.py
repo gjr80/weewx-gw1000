@@ -466,7 +466,7 @@ class ParseTestCase(unittest.TestCase):
                          {})
 
         # test parsing of all possible sensors
-        self.assertDictEqual(self.parser.parse_live_data(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
+        self.assertDictEqual(self.parser.parse_livedata(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
                              self.parsed_response)
 
 
