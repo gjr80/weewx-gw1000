@@ -4030,8 +4030,8 @@ class GatewayCollector(Collector):
         # where:
         #   decode fn:  the decode function name to be used for the field
         #   size:       the size of field data in bytes
-        #   field name: the name of the internal GW1000/GW1100/GW2000 field to
-        #               be used for the decoded data
+        #   field name: the name of the device field to be used for the decoded
+        #               data
         live_data_struct = {
             b'\x01': ('decode_temp', 2, 'intemp'),
             b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -4147,6 +4147,7 @@ class GatewayCollector(Collector):
             b'\x78': ('decode_wet', 1, 'leafwet7'),
             b'\x79': ('decode_wet', 1, 'leafwet8')
         }
+        # TODO. Need to refactor this to include read_rain_struct in live_data_struct
         # Dictionary keyed by CMD_READ_RAIN response field 'address' containing
         # various parameters for each 'address'. Dictionary tuple format is:
         #   (decode fn, size, field name)
@@ -4164,8 +4165,9 @@ class GatewayCollector(Collector):
             b'\x87': ('decode_rain_gain', 20, None),
             b'\x88': ('decode_rain_reset', 3, None)
         }
-        # tuple of field codes for rain related fields in the GW1000/GW1100
-        # live data so we can isolate these fields
+        # TODO. Need to include piezo rain fields in this
+        # tuple of field codes for device rain related fields in the live data
+        # so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
                             b'\x11', b'\x12', b'\x13', b'\x14')
         # tuple of field codes for wind related fields in the GW1000/GW1100
@@ -4459,7 +4461,7 @@ class GatewayCollector(Collector):
         def decode_utc(data, field=None):
             """Decode UTC time.
 
-            The GW1000/GW1100 API claims to provide 'UTC time' as a 4 byte big
+            The API documentation claims to provide 'UTC time' as a 4 byte big
             endian integer. The 4 byte integer is a unix epoch timestamp;
             however, the timestamp is offset by the stations timezone. So for a
             station in the +10 hour timezone, the timestamp returned is the
@@ -4650,22 +4652,23 @@ class GatewayCollector(Collector):
         def decode_batt(data, field=None):
             """Decode battery status data.
 
-            GW1000/GW1100 firmware version 1.6.4 and earlier supported 16 bytes
-            of battery state data at response field x4C for the following
-            sensors:
+            GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
+            battery state data at response field x4C for the following sensors:
                 WH24, WH25, WH26(WH32), WH31 ch1-8, WH40, WH41/WH43 ch1-4,
                 WH51 ch1-8, WH55 ch1-4, WH57, WH68 and WS80
 
-            As of firmware version 1.6.5 the 16 bytes of battery state data is
-            no longer returned at all. CMD_READ_SENSOR_ID_NEW or
-            CMD_READ_SENSOR_ID must be used to obtain battery state information
-            for connected sensors. The decode_batt() method has been retained
-            to support devices using firmware version 1.6.4 and earlier.
+            As of GW1000 firmware version 1.6.5 the 16 bytes of battery state
+            data is no longer returned at all (GW1100, GW2000 and later devices
+            never provided this battery state data in this format).
+            CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID must be used to obtain
+            battery state information for connected sensors. The decode_batt()
+            method has been retained to support devices using firmware
+            version 1.6.4 and earlier.
 
-            Since the GW1000/GW1100 driver now obtains battery state
-            information via CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only
-            the decode_batt() method now returns None so that firmware versions
-            before 1.6.5 continue to be supported.
+            Since the gateway driver now obtains battery state information via
+            CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
+            method now returns None so that firmware versions before 1.6.5
+            continue to be supported.
             """
 
             return None
@@ -4756,8 +4759,8 @@ class GatewayCollector(Collector):
         def addresses(self):
             """Obtain a list of sensor addresses.
 
-            This includes all sensor addresses reported by the GW1000/GW1100,
-            this includes:
+            This includes all sensor addresses reported by the device, this
+            includes:
             - sensors that are actually connected to the device
             - sensors that are attempting to connect to the device
             - device sensor addresses that are searching for a sensor
@@ -4772,12 +4775,12 @@ class GatewayCollector(Collector):
             """Obtain a list of sensor addresses for connected sensors only.
 
             Sometimes we only want a list of addresses for sensors that are
-            actually connected to the GW1000/GW1100. We can filter out those
+            actually connected to the gateway device. We can filter out those
             addresses that do not have connected sensors by looking at the
             sensor ID. If the sensor ID is 'fffffffe' either the sensor is
-            connecting to the GW1000/GW1100 or the GW1000/GW1100 is searching
-            for a sensor for that address. If the sensor ID is 'ffffffff' the
-            GW1000/GW1100 sensor address is disabled.
+            connecting to the device or the device is searching for a sensor
+            for that address. If the sensor ID is 'ffffffff' the device sensor
+            address is disabled.
             """
 
             # initialise a list to hold our connected sensor addresses
@@ -5012,26 +5015,26 @@ def obfuscate(plain, obf_char='*'):
 
 
 # ============================================================================
-#                             class DirectGw1000
+#                             class DirectGateway
 # ============================================================================
 
-class DirectGw1000(object):
-    """Class to interact with GW1000/GW1100 driver when run directly.
+class DirectGateway(object):
+    """Class to interact with gateway driver when run directly.
 
-    Would normally the direct running of a driver from main() only but when run
-    directly the GW1000/GW1100 driver has many options so pushing the detail
-    into its own class/object makes sense. Also simplifies some of the test
-    suite routines/calls.
+    Would normally run a driver directly by calling from main() only, but when
+    run directly the gateway driver has many options so pushing the detail into
+    its own class/object makes sense. Also simplifies some of the test suite
+    routines/calls.
 
-    A DirectGw1000 object is created with just an optparse options dict and a
-    standard WeeWX station dict. Once created the DirectGw1000()
+    A DirectGateway object is created with just an optparse options dict and a
+    standard WeeWX station dict. Once created the DirectGateway()
     process_options() method is called to process the respective command line
     options.
     """
 
-    # GW1000/GW1100 observation group dict, this maps all GW1000/GW1100
-    # 'fields' to a WeeWX unit group
-    gw1000_obs_group_dict = {
+    # gateway observation group dict, this maps all device 'fields' to a WeeWX
+    # unit group
+    gateway_obs_group_dict = {
         'intemp': 'group_temperature',
         'outtemp': 'group_temperature',
         'dewpoint': 'group_temperature',
@@ -5247,7 +5250,7 @@ class DirectGw1000(object):
     }
 
     def __init__(self, opts, stn_dict):
-        """Initialise a DirectGw1000 object."""
+        """Initialise a DirectGateway object."""
 
         # save the optparse options and station dict
         self.opts = opts
@@ -5422,8 +5425,8 @@ class DirectGw1000(object):
     def system_params(self):
         """Display system parameters.
 
-        Obtain and display the GW1000/GW1100 system parameters. GW1000/GW1100
-        IP address and port are derived (in order) as follows:
+        Obtain and display the gateway device system parameters. Device IP
+        address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5439,10 +5442,10 @@ class DirectGw1000(object):
         }
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 GatewayCollector object
+            # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5472,12 +5475,12 @@ class DirectGw1000(object):
             print("%s sensor type: %s (%s)" % (collector.station.model,
                                                sys_params_dict['sensor_type'],
                                                _sensor_type_str))
-            # The GW1000/GW1100 API returns what is labelled "UTC" but is in
-            # fact the current epoch timestamp adjusted by the station timezone
-            # offset. So when the timestamp is converted to a human readable
-            # GMT  date-time string it in fact shows the local date-time. We
-            # can work around this by formatting this offset UTC timestamp as a
-            # UTC date-time but then calling it local time. ideally we would
+            # The gateway API returns what is labelled "UTC" but is in fact the
+            # current epoch timestamp adjusted by the station timezone offset.
+            # So when the timestamp is converted to a human readable GMT
+            # date-time string it in fact shows the local date-time. We can
+            # work around this by formatting this offset UTC timestamp as a UTC
+            # date-time but then calling it local time. ideally we would
             # re-adjust to remove the timezone offset to get the real
             # (unadjusted) epoch timestamp but since the timezone index is
             # stored as an arbitrary number rather than an offset in seconds
@@ -5489,10 +5492,10 @@ class DirectGw1000(object):
             print("%s DST status: %s" % (collector.station.model, sys_params_dict['dst_status']))
 
     def get_rain_data(self):
-        """Display the GW1000/GW1100 rain data.
+        """Display the device rain data.
 
-        Obtain and display the GW1000/GW1100 rain data. GW1000/GW1100 IP address and port are
-        derived (in order) as follows:
+        Obtain and display the device rain data. The device IP address and port
+        are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5500,10 +5503,10 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 GatewayCollector object
+            # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5524,6 +5527,7 @@ class DirectGw1000(object):
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
 
+    # TODO. Need to review, traditional only, piezo only and both
     def get_all_rain_data(self):
         """Display the device rain data including piezo data.
 
@@ -5603,12 +5607,11 @@ class DirectGw1000(object):
                 print("    No rainfall reset time data available")
 
     def get_mulch_offset(self):
-        """Display the multi-channel temperature and humidity offset data from
-        a GW1000/GW1100.
+        """Display device multi-channel temperature and humidity offset data.
 
         Obtain and display the multi-channel temperature and humidity offset
-        data from the selected GW1000/GW1100. GW1000/GW1100 IP address and port
-        are derived (in order) as follows:
+        data from the selected device. The device IP address and port are
+        derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5619,7 +5622,7 @@ class DirectGw1000(object):
             # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5654,11 +5657,10 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def get_pm25_offset(self):
-        """Display the PM2.5 offset data from a GW1000/GW1100.
+        """Display the device PM2.5 offset data.
 
-        Obtain and display the PM2.5 offset data from the selected
-        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
-        as follows:
+        Obtain and display the PM2.5 offset data from the selected device.The
+        device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5669,7 +5671,7 @@ class DirectGw1000(object):
             # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5698,12 +5700,11 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def get_co2_offset(self):
-        """Display WH45 CO2, PM10 and PM2.5 offset data from a GW1000/GW1100.
+        """Display the device WH45 CO2, PM10 and PM2.5 offset data.
 
         Obtain and display the WH45 CO2, PM10 and PM2.5 offset data from the
-        selected GW1000/GW1100. GW1000/GW1100 IP address and port are derived
-        (in order) as
-        follows:
+        selected device. The device IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5714,7 +5715,7 @@ class DirectGw1000(object):
             # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5742,11 +5743,10 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def get_calibration(self):
-        """Display the calibration data from a GW1000/GW1100.
+        """Display the device calibration data.
 
-        Obtain and display the calibration data from the selected
-        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
-        as follows:
+        Obtain and display the calibration data from the selected device. The
+        device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5757,7 +5757,7 @@ class DirectGw1000(object):
             # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5793,11 +5793,11 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def get_soil_calibration(self):
-        """Display soil moisture sensor calibration data from a GW1000/GW1100.
+        """Display the device soil moisture sensor calibration data.
 
         Obtain and display the soil moisture sensor calibration data from the
-        selected GW1000/GW1100. GW1000/GW1100 IP address and port are derived
-        (in order) as follows:
+        selected device. The device IP address and port are derived (in order)
+        as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -5808,7 +5808,7 @@ class DirectGw1000(object):
             # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -5834,9 +5834,9 @@ class DirectGw1000(object):
                 # iterate over each channel printing the channel data
                 for channel in channels:
                     channel_dict = calibration_data[channel]
-                    # the API returns channels starting at 0, but the WS View
-                    # app displays channels starting at 1, so add 1 to our
-                    # channel number
+                    # the API returns channels starting at 0, but the
+                    # WSView/WSView Plus apps display channels starting at 1,
+                    # so add 1 to our channel number
                     print("Channel %d (%d%%)" % (channel + 1, channel_dict['humidity']))
                     print("%12s: %d" % ("Now AD", channel_dict['ad']))
                     print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
@@ -5846,10 +5846,10 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def get_services(self):
-        """Display the GW1000/GW1100 Weather Services settings.
+        """Display the device Weather Services settings.
 
         Obtain and display the settings for the various weather services
-        supported by the GW1000/GW1100. GW1000/GW1100 IP address and port are
+        supported by the device. the device IP address and port are
         derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
@@ -5874,7 +5874,7 @@ class DirectGw1000(object):
                 else:
                     print("%22s: %d minute" % ("Upload Interval",
                                                data_dict['interval']))
-                # GW1000/GW1100 MAC
+                # device MAC
                 print("%22s: %s" % ("MAC", data_dict['mac']))
 
         def print_wunderground(data_dict=None):
@@ -5960,16 +5960,16 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 GatewayCollector object
+            # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the settings for each service know to the GW1000/GW1100,
-            # store them in a dict keyed by the service name
+            # get the settings for each service know to the device, store them
+            # in a dict keyed by the service name
             services_data = dict()
             for service in collector.services:
                 services_data[service['name']] = getattr(collector, service['name'])
@@ -5996,11 +5996,10 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def station_mac(self):
-        """Display the GW1000/GW1100 hardware MAC address.
+        """Display the device hardware MAC address.
 
-        Obtain and display the hardware MAC address of the selected
-        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
-        as follows:
+        Obtain and display the hardware MAC address of the selected device. The
+        device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -6008,10 +6007,10 @@ class DirectGw1000(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GW1000/GW1100 GatewayCollector object
+            # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -6028,11 +6027,10 @@ class DirectGw1000(object):
             print("Timeout. %s did not respond." % collector.station.model)
 
     def firmware(self):
-        """Display the firmware version string from a GW1000/GW1100.
+        """Display the device firmware version string.
 
-        Obtain and display the firmware version string from the selected
-        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
-        as follows:
+        Obtain and display the firmware version string from the selected device.
+        The device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -6043,7 +6041,7 @@ class DirectGw1000(object):
             # get a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -6060,11 +6058,10 @@ class DirectGw1000(object):
             print("Timeout. %s did not respond." % collector.station.model)
 
     def sensors(self):
-        """Display the sensor ID information from a GW1000/GW1100.
+        """Display the device sensor ID information.
 
-        Obtain and display the sensor ID information from the selected
-        GW1000/GW1100. GW1000/GW1100 IP address and port are derived (in order)
-        as follows:
+        Obtain and display the sensor ID information from the selected device.
+        The device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -6076,7 +6073,7 @@ class DirectGw1000(object):
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port,
                                          show_battery=self.show_battery)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -6125,13 +6122,13 @@ class DirectGw1000(object):
                 print("%s did not respond." % collector.station.model)
 
     def live_data(self):
-        """Display live sensor data from a GW1000/GW1100.
+        """Display the device live sensor data.
 
-        Obtain and display live sensor data from the selected GW1000/GW1100.
-        Data is presented as read from the GW1000/GW1100 except for conversion
-        to US customary or Metric units. Unit labels are included.
+        Obtain and display live sensor data from the selected device. Data is
+        presented as read from the GW1000/GW1100 except for conversion to US
+        customary or Metric units. Unit labels are included.
 
-        GW1000/GW1100 IP address and port are derived (in order) as follows:
+        The device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
         3. by discovery
@@ -6143,7 +6140,7 @@ class DirectGw1000(object):
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port,
                                          show_battery=self.show_battery)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
@@ -6172,13 +6169,13 @@ class DirectGw1000(object):
             # we will use the timestamp separately so pop it from the dict and
             # save for later
             datetime = live_sensor_data_dict.pop('datetime')
-            # extend the WeeWX obs_group_dict with our GW1000/GW1100
+            # extend the WeeWX obs_group_dict with our gateway
             # obs_group_dict, because weewx.units.obs_group_dict.extend is a
             # ListOfDicts we need to use .prepend since the synthetic python2
             # ListOfDicts does not support .update and we want to use the
-            # GW1000/GW1100 entry should there already be an entry of the same
-            # name in weewx.units.obs_group_dict (eg 'rain')
-            weewx.units.obs_group_dict.prepend(DirectGw1000.gw1000_obs_group_dict)
+            # device entry should there already be an entry of the same name in
+            # weewx.units.obs_group_dict (eg 'rain')
+            weewx.units.obs_group_dict.prepend(DirectGateway.gateway_obs_group_dict)
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
             if self.opts.units.lower() == 'us':
@@ -6191,9 +6188,9 @@ class DirectGw1000(object):
             # weewx.units.default_unit_format_dict but we need voltages
             # formatted to two decimal places. So take a copy of the default
             # unit format dict, change the 'volt' format to suit and use that.
-            gw1000_unit_format_dict = dict(weewx.units.default_unit_format_dict)
-            gw1000_unit_format_dict['volt'] = '%.2f'
-            f = weewx.units.Formatter(unit_format_dict=gw1000_unit_format_dict,
+            gw_unit_format_dict = dict(weewx.units.default_unit_format_dict)
+            gw_unit_format_dict['volt'] = '%.2f'
+            f = weewx.units.Formatter(unit_format_dict=gw_unit_format_dict,
                                       unit_label_dict=weewx.units.default_unit_label_dict)
             # now build a new data dict with our converted and formatted data
             result = {}
@@ -6217,7 +6214,7 @@ class DirectGw1000(object):
 
     @staticmethod
     def discover():
-        """Display details of GW1000/GW1100 devices on the local network."""
+        """Display details of gateway devices on the local network."""
 
         # this could take a few seconds so warn the user
         print()
@@ -6247,7 +6244,7 @@ class DirectGw1000(object):
                 if num_gw_found > 1:
                     print()
                     print("Multiple devices were found.")
-                    print("If using the GW1000/GW1100 driver consider explicitly specifying the ")
+                    print("If using the gateway driver consider explicitly specifying the ")
                     print("IP address and port of the device to be used under [GW1000] in weewx.conf.")
                 elif num_gw_found == 0:
                     print("No devices were discovered.")
@@ -6271,8 +6268,8 @@ class DirectGw1000(object):
         # now add in the sensor signal field map
         field_map.update(Gateway.sensor_signal_field_map)
         print()
-        print("GW1000/GW1100 driver/service default field map:")
-        print("(format is WeeWX field name: GW1000/GW1100 field name)")
+        print("Gateway driver/service default field map:")
+        print("(format is WeeWX field name: gateway field name)")
         print()
         # obtain a list of naturally sorted dict keys so that, for example,
         # xxxxx16 appears in the correct order
@@ -6282,16 +6279,16 @@ class DirectGw1000(object):
             print("    %23s: %s" % (key, field_map[key]))
 
     def test_driver(self):
-        """Run the GW1000/GW1100 driver.
+        """Exercise the gateway driver as a driver.
 
-        Exercises the GW1000/GW1100 driver only. Loop packets, but no archive
+        Exercises the gateway driver only. Loop packets, but no archive
         records, are emitted to the console continuously until a keyboard
         interrupt is received. A station config dict is coalesced from any
         relevant command line parameters and the config file in use with
         command line parameters overriding those in the config file.
         """
 
-        loginf("Testing GW1000/GW1100 driver...")
+        loginf("Testing gateway driver...")
         # set the IP address and port in the station config dict
         self.stn_dict['ip_address'] = self.ip_address
         self.stn_dict['port'] = self.port
@@ -6321,20 +6318,20 @@ class DirectGw1000(object):
         except KeyboardInterrupt:
             # we have a keyboard interrupt so shut down
             driver.closePort()
-        loginf("GW1000/GW1100 driver testing complete")
+        loginf("Gateway driver testing complete")
 
     def test_service(self):
-        """Test the GW1000/GW1100 service.
+        """Exercise the gateway driver as a service.
 
         Uses a dummy engine/simulator to generate arbitrary loop packets for
         augmenting. Use a 10 second loop interval so we don't get too many bare
         packets.
         """
 
-        loginf("Testing GW1000/GW1100 service...")
+        loginf("Testing gateway service...")
         # Create a dummy config so we can stand up a dummy engine with a dummy
-        # simulator emitting arbitrary loop packets. Include the GW1000/GW1100
-        # service  and StdPrint, StdPrint will take care of printing our loop
+        # simulator emitting arbitrary loop packets. Include the gateway
+        # service and StdPrint. StdPrint will take care of printing our loop
         # packets (no StdArchive so loop packets only, no archive records)
         config = {
             'Station': {
@@ -6367,21 +6364,21 @@ class DirectGw1000(object):
         try:
             # create a dummy engine
             engine = weewx.engine.StdEngine(config)
-            # Our GW1000/GW1100 service will have been instantiated by the
-            # engine during its startup. Whilst access to the service is not
-            # normally required we require access here so we can obtain some
-            # info about the station we are using for this test. The engine
-            # does not provide a ready means to access that GW1000 service so
-            # we can do a bit of guessing and iterate over all of the engine's
-            # services and select the one that has a 'collector' property.
-            # Unlikely to cause a problem since there are only two services in
-            # the dummy engine.
+            # Our gateway service will have been instantiated by the engine
+            # during its startup. Whilst access to the service is not normally
+            # required we require access here so we can obtain some info about
+            # the station we are using for this test. The engine does not
+            # provide a ready means to access that gateway service so we can do
+            # a bit of guessing and iterate over all of the engine's services
+            # and select the one that has a 'collector' property. Unlikely to
+            # cause a problem since there are only two services in the dummy
+            # engine.
             gw_svc = None
             for svc in engine.service_obj:
                 if hasattr(svc, 'collector'):
                     gw_svc = svc
             if gw_svc is not None:
-                # identify the GW1000/GW1100 being used
+                # identify the device being used
                 print()
                 print("Interrogating %s at %s:%d" % (gw_svc.collector.station.model,
                                                      gw_svc.collector.station.ip_address.decode(),
@@ -6395,8 +6392,7 @@ class DirectGw1000(object):
                           'dummyTemp': 96.3
                           }
                 # send out a NEW_LOOP_PACKET event with the dummy loop packet
-                # to trigger the GW1000/GW1100 service to augment the loop
-                # packet
+                # to trigger the gateway service to augment the loop packet
                 engine.dispatchEvent(weewx.Event(weewx.NEW_LOOP_PACKET,
                                                  packet=packet,
                                                  origin='software'))
@@ -6407,7 +6403,7 @@ class DirectGw1000(object):
             print("Unable to connect to device: %s" % e)
         except KeyboardInterrupt:
             engine.shutDown()
-        loginf("GW1000/GW1100 service testing complete")
+        loginf("Gateway service testing complete")
 
 
 # To use this driver in standalone mode for testing or development, use one of
@@ -6517,10 +6513,10 @@ def main():
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
-                      metavar='TEST_DRIVER', help='test the GW1000/GW1100/GW2000 driver')
+                      metavar='TEST_DRIVER', help='exercise the gateway driver')
     parser.add_option('--test-service', dest='test_service',
                       action='store_true',
-                      metavar='TEST_SERVICE', help='test the GW1000/GW1100/GW2000 service')
+                      metavar='TEST_SERVICE', help='exercise the gateway service')
     parser.add_option('--ip-address', dest='ip_address',
                       help='device IP address to use')
     parser.add_option('--port', dest='port', type=int,
@@ -6573,10 +6569,10 @@ def main():
         if weewx.debug > 0:
             syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
 
-    # get a DirectGw1000 object
-    direct_gw100 = DirectGw1000(opts, stn_dict)
-    # now let the DirectGw1000 object process the options
-    direct_gw100.process_options()
+    # get a DirectGateway object
+    direct_gw = DirectGateway(opts, stn_dict)
+    # now let the DirectGateway object process the options
+    direct_gw.process_options()
     # if we made it here no option was selected so display our help
     parser.print_help()
 
