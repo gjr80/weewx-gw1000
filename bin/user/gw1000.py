@@ -2641,46 +2641,12 @@ class GatewayCollector(Collector):
 
     @property
     def soil_calibration(self):
-        """Obtain device soil moisture sensor calibration data.
-
-        """
+        """Obtain device soil moisture sensor calibration data."""
 
         # obtain the soil moisture calibration data via the API
         response = self.station.get_soil_calibration()
-        # determine the size of the calibration data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        calibration_dict = {}
-        # initialise a counter
-        index = 0
-        # iterate over the data
-        while index < len(data):
-            try:
-                channel = six.byte2int(data[index])
-            except TypeError:
-                channel = data[index]
-            calibration_dict[channel] = {}
-            try:
-                humidity = six.byte2int(data[index + 1])
-            except TypeError:
-                humidity = data[index + 1]
-            calibration_dict[channel]['humidity'] = humidity
-            calibration_dict[channel]['ad'] = struct.unpack(">h", data[index+2:index+4])[0]
-            try:
-                ad_select = six.byte2int(data[index + 4])
-            except TypeError:
-                ad_select = data[index + 4]
-            calibration_dict[channel]['ad_select'] = ad_select
-            try:
-                min_ad = six.byte2int(data[index + 5])
-            except TypeError:
-                min_ad = data[index + 5]
-            calibration_dict[channel]['adj_min'] = min_ad
-            calibration_dict[channel]['adj_max'] = struct.unpack(">h", data[index+6:index+8])[0]
-            index += 8
-        return calibration_dict
+        # return the parsed response
+        return self.parser.parse_get_soilhumiad(response)
 
     @property
     def system_parameters(self):
@@ -2688,38 +2654,24 @@ class GatewayCollector(Collector):
 
         # obtain the system parameters data via the API
         response = self.station.get_system_params()
-        # determine the size of the system parameters data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        data_dict['frequency'] = six.indexbytes(data, 0)
-        data_dict['sensor_type'] = six.indexbytes(data, 1)
-        data_dict['utc'] = self.parser.decode_utc(data[2:6])
-        data_dict['timezone_index'] = six.indexbytes(data, 6)
-        data_dict['dst_status'] = six.indexbytes(data, 7) != 0
-        return data_dict
+        # return the parsed response
+        return self.parser.parse_read_ssss(response)
 
     @property
     def ecowitt_net(self):
         """Obtain device Ecowitt.net service parameters.
 
-        Returns a dictionary of settings.
+        Also includes the device MAC address.
         """
 
         # obtain the system parameters data via the API
         response = self.station.get_ecowitt_net_params()
-        # determine the size of the system parameters data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        data_dict['interval'] = six.indexbytes(data, 0)
-        # obtain the device MAC address
-        data_dict['mac'] = self.mac_address
-        return data_dict
+        # parse the response
+        ecowitt = self.parser.parse_read_ecowitt(response)
+        # add the device MAC address to the parsed data
+        ecowitt['mac'] = self.mac_address
+        # return the parsed response
+        return ecowitt
 
     @property
     def wunderground(self):
@@ -4356,7 +4308,7 @@ class GatewayCollector(Collector):
             return offset_dict
 
         @staticmethod
-        def parse_read_gain(self, response):
+        def parse_read_gain(response):
             """Parse a CMD_READ_GAIN API response."""
 
             # determine the size of the calibration data
@@ -4401,6 +4353,77 @@ class GatewayCollector(Collector):
             cal_dict['dir'] = struct.unpack(">h", data[14:16])[0]
             # return the parsed response
             return cal_dict
+
+        @staticmethod
+        def parse_get_soilhumiad(response):
+            """Parse a CMD_GET_SOILHUMIAD API response."""
+
+            # determine the size of the calibration data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            cal_dict = {}
+            # initialise a counter
+            index = 0
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                cal_dict[channel] = {}
+                try:
+                    humidity = six.byte2int(data[index + 1])
+                except TypeError:
+                    humidity = data[index + 1]
+                cal_dict[channel]['humidity'] = humidity
+                cal_dict[channel]['ad'] = struct.unpack(">h", data[index + 2:index + 4])[0]
+                try:
+                    ad_select = six.byte2int(data[index + 4])
+                except TypeError:
+                    ad_select = data[index + 4]
+                cal_dict[channel]['ad_select'] = ad_select
+                try:
+                    min_ad = six.byte2int(data[index + 5])
+                except TypeError:
+                    min_ad = data[index + 5]
+                cal_dict[channel]['adj_min'] = min_ad
+                cal_dict[channel]['adj_max'] = struct.unpack(">h", data[index + 6:index + 8])[0]
+                index += 8
+            # return the parsed response
+            return cal_dict
+
+        def parse_read_ssss(self, response):
+            """Parse a CMD_READ_SSSS API response."""
+
+            # determine the size of the system parameters data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            data_dict['frequency'] = six.indexbytes(data, 0)
+            data_dict['sensor_type'] = six.indexbytes(data, 1)
+            data_dict['utc'] = self.decode_utc(data[2:6])
+            data_dict['timezone_index'] = six.indexbytes(data, 6)
+            data_dict['dst_status'] = six.indexbytes(data, 7) != 0
+            # return the parsed response
+            return data_dict
+
+        @staticmethod
+        def parse_read_ecowitt(response):
+            """Parse a CMD_READ_ECOWITT API response."""
+
+            # determine the size of the system parameters data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            data_dict['interval'] = six.indexbytes(data, 0)
+            # return the parsed response
+            return data_dict
 
         @staticmethod
         def decode_temp(data, field=None):
