@@ -2482,7 +2482,7 @@ class GatewayCollector(Collector):
         # are threaded
         self.collect_data = False
 
-    def collect_sensor_data(self):
+    def collect(self):
         """Collect sensor data by polling the API.
 
         Loop forever waking periodically to see if it is time to quit or
@@ -2500,7 +2500,7 @@ class GatewayCollector(Collector):
                 # it is time to poll, wrap in a try..except in case we get a
                 # GWIOError exception
                 try:
-                    queue_data = self.get_live_data()
+                    queue_data = self.get_current_data()
                 except GWIOError as e:
                     # a GWIOError occurred, most likely because the Station
                     # object could not contact the device
@@ -2520,7 +2520,7 @@ class GatewayCollector(Collector):
             # sleep for a second and then see if its time to poll again
             time.sleep(1)
 
-    def get_live_data(self):
+    def get_current_data(self):
         """Get all current sensor data.
 
         Return current sensor data, battery state data and signal state data
@@ -2533,13 +2533,12 @@ class GatewayCollector(Collector):
         raised.
         """
 
-        # first obtain the bulk of the current raw sensor data via the API, we
-        # may get a GWIOError exception, if we do let it bubble up (the raw
-        # data is the data returned from the device inclusive of the fixed
-        # header, command, payload length, payload and checksum bytes)
+        # first obtain the bulk of the current raw sensor data via the API, if
+        # the data cannot be obtained we will see a GWIOError exception, if we
+        # do let it bubble up
         raw_livedata = self.station.get_livedata()
-        # now get the raw rain data via API, again we may get a GWIOError
-        # exception, if we do let it bubble up
+        # now get the raw rain data via the API, if the data cannot be
+        # obtained we will see a GWIOError exception, if we do let it bubble up
         raw_raindata = self.station.get_piezo_rain()
         # if we made it here our raw data was validated by checksum, now
         # get a timestamp to use in case our data does not come with one
@@ -2582,18 +2581,8 @@ class GatewayCollector(Collector):
 
         # obtain the rain data data via the API
         response = self.station.get_raindata()
-        # determine the size of the rain data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        data_dict['rain_rate'] = self.parser.decode_big_rain(data[0:4])
-        data_dict['rain_day'] = self.parser.decode_big_rain(data[4:8])
-        data_dict['rain_week'] = self.parser.decode_big_rain(data[8:12])
-        data_dict['rain_month'] = self.parser.decode_big_rain(data[12:16])
-        data_dict['rain_year'] = self.parser.decode_big_rain(data[16:20])
-        return data_dict
+        # return the parsed response
+        return self.parser.parse_read_raindata(response)
 
     @property
     def mulch_offset(self):
@@ -2601,31 +2590,8 @@ class GatewayCollector(Collector):
 
         # obtain the mulch offset data via the API
         response = self.station.get_mulch_offset()
-        # determine the size of the mulch offset data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a counter
-        index = 0
-        # initialise a dict to hold our final data
-        offset_dict = {}
-        # iterate over the data
-        while index < len(data):
-            try:
-                channel = six.byte2int(data[index])
-            except TypeError:
-                channel = data[index]
-            offset_dict[channel] = {}
-            try:
-                offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
-            except TypeError:
-                offset_dict[channel]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
-            try:
-                offset_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
-            except TypeError:
-                offset_dict[channel]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
-            index += 3
-        return offset_dict
+        # return the parsed response
+        return self.parser.parse_get_mulch_offset(response)
 
     @property
     def pm25_offset(self):
@@ -2633,23 +2599,8 @@ class GatewayCollector(Collector):
 
         # obtain the PM2.5 offset data via the API
         response = self.station.get_pm25_offset()
-        # determine the size of the PM2.5 offset data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a counter
-        index = 0
-        # initialise a dict to hold our final data
-        offset_dict = {}
-        # iterate over the data
-        while index < len(data):
-            try:
-                channel = six.byte2int(data[index])
-            except TypeError:
-                channel = data[index]
-            offset_dict[channel] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
-            index += 3
-        return offset_dict
+        # return the parsed response
+        return self.parser.parse_get_pm25_offset(response)
 
     @property
     def co2_offset(self):
@@ -2657,20 +2608,8 @@ class GatewayCollector(Collector):
 
         # obtain the WH45 offset data via the API
         response = self.station.get_co2_offset()
-        # determine the size of the WH45 offset data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        offset_dict = dict()
-        # and decode/store the offset data
-        # bytes 0 and 1 hold the CO2 offset
-        offset_dict['co2'] = struct.unpack(">h", data[0:2])[0]
-        # bytes 2 and 3 hold the PM2.5 offset
-        offset_dict['pm25'] = struct.unpack(">h", data[2:4])[0]/10.0
-        # bytes 4 and 5 hold the PM10 offset
-        offset_dict['pm10'] = struct.unpack(">h", data[4:6])[0]/10.0
-        return offset_dict
+        # return the parsed response
+        return self.parser.parse_get_co2_offset(response)
 
     # TODO. Is this method appropriately named?
     @property
@@ -2691,40 +2630,14 @@ class GatewayCollector(Collector):
 
         # obtain the calibration data via the API
         response = self.station.get_calibration_coefficient()
-        # determine the size of the calibration data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        calibration_dict = dict()
-        # and decode/store the calibration data
-        # bytes 0 and 1 are reserved (lux to solar radiation conversion
-        # gain (126.7))
-        calibration_dict['uv'] = struct.unpack(">H", data[2:4])[0]/100.0
-        calibration_dict['solar'] = struct.unpack(">H", data[4:6])[0]/100.0
-        calibration_dict['wind'] = struct.unpack(">H", data[6:8])[0]/100.0
-        calibration_dict['rain'] = struct.unpack(">H", data[8:10])[0]/100.0
+        # parse the response
+        parsed_gain = self.parser.parse_read_gain(response)
         # obtain the offset calibration data via the API
         response = self.station.get_offset_calibration()
-        # determine the size of the calibration data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual data
-        data = response[4:4 + raw_data_size - 3]
-        # and decode/store the offset calibration data
-        calibration_dict['intemp'] = struct.unpack(">h", data[0:2])[0]/10.0
-        try:
-            calibration_dict['inhum'] = struct.unpack("b", data[2])[0]
-        except TypeError:
-            calibration_dict['inhum'] = struct.unpack("b", six.int2byte(data[2]))[0]
-        calibration_dict['abs'] = struct.unpack(">l", data[3:7])[0]/10.0
-        calibration_dict['rel'] = struct.unpack(">l", data[7:11])[0]/10.0
-        calibration_dict['outtemp'] = struct.unpack(">h", data[11:13])[0]/10.0
-        try:
-            calibration_dict['outhum'] = struct.unpack("b", data[13])[0]
-        except TypeError:
-            calibration_dict['outhum'] = struct.unpack("b", six.int2byte(data[13]))[0]
-        calibration_dict['dir'] = struct.unpack(">h", data[14:16])[0]
-        return calibration_dict
+        # update our parsed gain data with the parsed offset calibration data
+        parsed_gain.update(self.parser.parse_read_calibration(response))
+        # return the parsed data
+        return parsed_gain
 
     @property
     def soil_calibration(self):
@@ -3062,7 +2975,7 @@ class GatewayCollector(Collector):
             # can be caught and available exception information displayed
             try:
                 # kick the collection off
-                self.client.collect_sensor_data()
+                self.client.collect()
             except:
                 # we have an exception so log what we can
                 log_traceback_critical('    ****  ')
@@ -4241,7 +4154,8 @@ class GatewayCollector(Collector):
             # log the actual sensor data as a sequence of bytes in hex
             if weewx.debug >= 3:
                 logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
-            data = {}
+            # initialise a dict to hold our parsed data
+            data = dict()
             if len(resp) > 0:
                 index = 0
                 while index < len(resp) - 1:
@@ -4301,7 +4215,7 @@ class GatewayCollector(Collector):
             # log the payload as a sequence of bytes in hex
             if weewx.debug >= 3:
                 logdbg("'read_rain' payload is '%s'" % (bytes_to_hex(payload),))
-            # create a dict for our resulting data
+            # create a dict for our parsed data
             data = {}
             # do we have any payload data to operate on
             if len(payload) > 0:
@@ -4353,6 +4267,140 @@ class GatewayCollector(Collector):
             if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
                 data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
             return data
+
+        def parse_read_raindata(self, response):
+            """Parse data from a CMD_RAINDATA API response."""
+
+            # determine the size of the rain data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our parsed data
+            data_dict = dict()
+            data_dict['rain_rate'] = self.decode_big_rain(data[0:4])
+            data_dict['rain_day'] = self.decode_big_rain(data[4:8])
+            data_dict['rain_week'] = self.decode_big_rain(data[8:12])
+            data_dict['rain_month'] = self.decode_big_rain(data[12:16])
+            data_dict['rain_year'] = self.decode_big_rain(data[16:20])
+            return data_dict
+
+        @staticmethod
+        def parse_get_mulch_offset(response):
+            """Parse data from a CMD_GET_MulCH_OFFSET API response."""
+
+            # determine the size of the mulch offset data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a counter
+            index = 0
+            # initialise a dict to hold our parsed data
+            offset_dict = {}
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                offset_dict[channel] = {}
+                try:
+                    offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
+                except TypeError:
+                    offset_dict[channel]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
+                try:
+                    offset_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
+                except TypeError:
+                    offset_dict[channel]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
+                index += 3
+            return offset_dict
+
+        @staticmethod
+        def parse_get_pm25_offset(response):
+            """Parse data from a CMD_GET_PM25_OFFSET API response."""
+
+            # determine the size of the PM2.5 offset data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a counter
+            index = 0
+            # initialise a dict to hold our parsed data
+            offset_dict = {}
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                offset_dict[channel] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
+                index += 3
+            return offset_dict
+
+        @staticmethod
+        def parse_get_co2_offset(response):
+            """Parse data from a CMD_GET_CO2_OFFSET API response."""
+
+            # determine the size of the WH45 offset data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our parsed data
+            offset_dict = dict()
+            # and decode/store the offset data
+            # bytes 0 and 1 hold the CO2 offset
+            offset_dict['co2'] = struct.unpack(">h", data[0:2])[0]
+            # bytes 2 and 3 hold the PM2.5 offset
+            offset_dict['pm25'] = struct.unpack(">h", data[2:4])[0] / 10.0
+            # bytes 4 and 5 hold the PM10 offset
+            offset_dict['pm10'] = struct.unpack(">h", data[4:6])[0] / 10.0
+            return offset_dict
+
+        @staticmethod
+        def parse_read_gain(self, response):
+            """Parse a CMD_READ_GAIN API response."""
+
+            # determine the size of the calibration data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our parsed data
+            gain_dict = dict()
+            # and decode/store the calibration data
+            # bytes 0 and 1 are reserved (lux to solar radiation conversion
+            # gain (126.7))
+            gain_dict['uv'] = struct.unpack(">H", data[2:4])[0] / 100.0
+            gain_dict['solar'] = struct.unpack(">H", data[4:6])[0] / 100.0
+            gain_dict['wind'] = struct.unpack(">H", data[6:8])[0] / 100.0
+            gain_dict['rain'] = struct.unpack(">H", data[8:10])[0] / 100.0
+            # return the parsed response
+            return gain_dict
+
+        @staticmethod
+        def parse_read_calibration(response):
+            """Parse a CMD_READ_CALIBRATION API response."""
+
+            # determine the size of the calibration data
+            size = six.indexbytes(response, 3)
+            # extract the actual data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our parsed data
+            cal_dict = dict()
+            # and decode/store the offset calibration data
+            cal_dict['intemp'] = struct.unpack(">h", data[0:2])[0] / 10.0
+            try:
+                cal_dict['inhum'] = struct.unpack("b", data[2])[0]
+            except TypeError:
+                cal_dict['inhum'] = struct.unpack("b", six.int2byte(data[2]))[0]
+            cal_dict['abs'] = struct.unpack(">l", data[3:7])[0] / 10.0
+            cal_dict['rel'] = struct.unpack(">l", data[7:11])[0] / 10.0
+            cal_dict['outtemp'] = struct.unpack(">h", data[11:13])[0] / 10.0
+            try:
+                cal_dict['outhum'] = struct.unpack("b", data[13])[0]
+            except TypeError:
+                cal_dict['outhum'] = struct.unpack("b", six.int2byte(data[13]))[0]
+            cal_dict['dir'] = struct.unpack(">h", data[14:16])[0]
+            # return the parsed response
+            return cal_dict
 
         @staticmethod
         def decode_temp(data, field=None):
@@ -6172,9 +6220,9 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # call the driver objects get_live_data() method to obtain
+            # call the driver objects get_current_data() method to obtain
             # the live sensor data
-            live_sensor_data_dict = collector.get_live_data()
+            live_sensor_data_dict = collector.get_current_data()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
