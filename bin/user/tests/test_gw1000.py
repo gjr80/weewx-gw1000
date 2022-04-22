@@ -306,7 +306,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.multi_batt['wh65']['mask'], 1 << 7)
 
         # response_struct
-        self.assertEqual(self.parser.live_data_struct, self.response_struct)
+        self.assertEqual(self.parser.addressed_data_struct, self.response_struct)
 
         # rain_field_codes
         self.assertEqual(self.parser.rain_field_codes, self.rain_field_codes)
@@ -466,7 +466,7 @@ class ParseTestCase(unittest.TestCase):
                          {})
 
         # test parsing of all possible sensors
-        self.assertDictEqual(self.parser.parse(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
+        self.assertDictEqual(self.parser.parse_live_data(raw_data=hex_to_bytes(self.response_data), timestamp=1599021263),
                              self.parsed_response)
 
 
@@ -567,13 +567,13 @@ class ListsAndDictsTestCase(unittest.TestCase):
         # observation group dictionary
         for w_field, g_field in six.iteritems(self.default_field_map):
             self.assertIn(g_field,
-                          user.gw1000.DirectGw1000.gw1000_obs_group_dict.keys(),
+                          user.gw1000.DirectGateway.gateway_obs_group_dict.keys(),
                           msg="A field from the GW1000 default field map is "
                               "missing from the observation group dictionary")
 
         # test that each entry in the observation group dictionary is included
         # in the GW1000 default field map
-        for g_field, group in six.iteritems(user.gw1000.DirectGw1000.gw1000_obs_group_dict):
+        for g_field, group in six.iteritems(user.gw1000.DirectGateway.gateway_obs_group_dict):
             self.assertIn(g_field,
                           self.default_field_map.values(),
                           msg="A key from the observation group dictionary is "
