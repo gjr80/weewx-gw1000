@@ -902,7 +902,8 @@ class Gateway(object):
         'wh55_ch4_batt': 'wh55_ch4_batt',
         'wh57_batt': 'wh57_batt',
         'wh68_batt': 'wh68_batt',
-        'ws80_batt': 'ws80_batt'
+        'ws80_batt': 'ws80_batt',
+        'ws90_batt': 'ws90_batt'
     }
     # sensor signal level default field map, merged into default_field_map to
     # give the overall default field map
@@ -955,7 +956,8 @@ class Gateway(object):
         'wh55_ch4_sig': 'wh55_ch4_sig',
         'wh57_sig': 'wh57_sig',
         'wh68_sig': 'wh68_sig',
-        'ws80_sig': 'ws80_sig'
+        'ws80_sig': 'ws80_sig',
+        'ws90_sig': 'ws90_sig'
     }
 
     def __init__(self, **gw_config):
@@ -2342,7 +2344,17 @@ class Collector(object):
 # ============================================================================
 
 class GatewayCollector(Collector):
-    """Class to poll the Ecowitt LAN/Wi-Fi Gateway API and return decoded data."""
+    """Class to poll the Ecowitt LAN/Wi-Fi Gateway API and return decoded data.
+
+    A GatewayCollector object knows how to obtain, parse and return observation
+    and configuration data from an Ecowitt gateway device. A GatewayCollector
+    object uses the following subordinate classes as indicated:
+    - class Station. Communicates directly with gateway device to issue API
+                     commands and obtain and validate gateway device responses.
+    - class Parser.  Parses the validated raw data from the gateway device
+                     returning observational and parametric data
+    - class Sensors. Allows easy access sensor data from coded API sensor data
+    """
 
     # map of sensor ids to short name, long name and battery byte decode
     # function
@@ -2488,7 +2500,7 @@ class GatewayCollector(Collector):
                 # it is time to poll, wrap in a try..except in case we get a
                 # GWIOError exception
                 try:
-                    queue_data = self.get_live_sensor_data()
+                    queue_data = self.get_live_data()
                 except GWIOError as e:
                     # a GWIOError occurred, most likely because the Station
                     # object could not contact the device
@@ -2508,33 +2520,45 @@ class GatewayCollector(Collector):
             # sleep for a second and then see if its time to poll again
             time.sleep(1)
 
-    def get_live_sensor_data(self):
+    def get_live_data(self):
         """Get all current sensor data.
 
-        Obtain live sensor data from the API then parse the API response to
-        create a timestamped data dict keyed by internal device field name. Add
-        current sensor battery state and signal level data to the data dict. If
-        no data was obtained from the API the value None is returned.
+        Return current sensor data, battery state data and signal state data
+        for each sensor. The current sensor data consists of sensor data
+        available through multiple API commands. Each API command response is
+        parsed and the results accumulated in a dictionary. Battery and signal
+        state for each sensor is added to this dictionary. The dictionary is
+        timestamped and the timestamped accumulated data is returned. If the
+        API does not return any data a suitable exception will have been
+        raised.
         """
 
-        # obtain the raw data via the API, we may get a GWIOError exception, if
-        # we do let it bubble up (the raw data is the data returned from the
-        # device inclusive of the fixed header, command, payload length,
-        # payload and checksum bytes)
-        raw_data = self.station.get_livedata()
-        # if we made it here our raw data was validated by checksum
+        # first obtain the bulk of the current raw sensor data via the API, we
+        # may get a GWIOError exception, if we do let it bubble up (the raw
+        # data is the data returned from the device inclusive of the fixed
+        # header, command, payload length, payload and checksum bytes)
+        raw_livedata = self.station.get_livedata()
+        # now get the raw rain data via API, again we may get a GWIOError
+        # exception, if we do let it bubble up
+        raw_raindata = self.station.get_piezo_rain()
+        # if we made it here our raw data was validated by checksum, now
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
-        # parse the raw data (the parsed data is a dict keyed by internal
+        # parse the raw livedata (the parsed data is a dict keyed by internal
         # device field names and containing the decoded raw sensor data)
-        parsed_data = self.parser.parse_livedata(raw_data, _timestamp)
+        parsed_data = self.parser.parse_livedata(raw_livedata, _timestamp)
+        # now parse the raw rain data if we have any
+        if raw_raindata is not None:
+            parsed_raindata = self.parser.parse_livedata(raw_raindata, _timestamp)
+            # update our parsed data so far with the parsed rain data
+            parsed_data.update(parsed_raindata)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
-        # The parsed live data does not contain any sensor battery state or
-        # signal level data. The battery state and signal level data for each
-        # sensor can be obtained from the API via our Sensors object.
-        # first we need to update our Sensors object with current sensor ID data
+        # The parsed data does not currently contain any sensor battery state
+        # or signal level data. The battery state and signal level data for
+        # each sensor can be obtained from the API via our Sensors object.
+        # First we need to update our Sensors object with current sensor ID data
         self.update_sensor_id_data()
         # now add any sensor battery state and signal level data to the parsed
         # data
@@ -5197,6 +5221,7 @@ class DirectGateway(object):
         'wh57_batt': 'group_count',
         'wh68_batt': 'group_volt',
         'ws80_batt': 'group_volt',
+        'ws90_batt': 'group_volt',
         'wh40_sig': 'group_count',
         'wh26_sig': 'group_count',
         'wh25_sig': 'group_count',
@@ -5245,8 +5270,11 @@ class DirectGateway(object):
         'wh55_ch4_sig': 'group_count',
         'wh57_sig': 'group_count',
         'wh68_sig': 'group_count',
-        'ws80_sig': 'group_count'
+        'ws80_sig': 'group_count',
+        'ws90_sig': 'group_count'
     }
+    # list of sensors to be displayed in the sensor ID output
+    sensors_list = []
 
     def __init__(self, opts, stn_dict):
         """Initialise a DirectGateway object."""
@@ -6144,9 +6172,9 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # call the driver objects get_live_sensor_data() method to obtain
+            # call the driver objects get_live_data() method to obtain
             # the live sensor data
-            live_sensor_data_dict = collector.get_live_sensor_data()
+            live_sensor_data_dict = collector.get_live_data()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
