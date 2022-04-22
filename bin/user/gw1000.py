@@ -47,8 +47,8 @@ Revision History
     14 October 2021         v0.4.1
         -   no change, version increment only
     27 September 2021       v0.4.0
-        -   the device model (GW1000/GW1100) is now identified via the API so
-            many references to 'GW1000' in console and log output should now be
+        -   the device model is now identified via the API so many former
+            references to 'GW1000' in console and log output should now be
             replaced with the correct device model
         -   when used as a driver the driver hardware_name property now returns
             the device model instead of the driver name (GW1000)
@@ -73,8 +73,8 @@ Revision History
         -   fixed bug when operated with GW1100 using firmware v2.0.4
         -   implemented limited debug_sensors reporting
         -   implemented a separate broadcast_timeout config option to allow an
-            increased socket timeout when broadcasting for GW1000/GW1100
-            devices, default value is five seconds
+            increased socket timeout when broadcasting for gateway devices,
+            default value is five seconds
         -   a device is now considered unique if it has a unique MAC address
             (was formerly unique if IP address and port combination were
             unique)
@@ -128,8 +128,8 @@ Revision History
         - initial release
 
 
-The following deviations from the GW1000/GW1100 API documentation v1.6.0 are
-used in this driver:
+The following deviations from the Gateway API documentation v1.6.0 are used in
+this driver:
 
 1.  CMD_READ_SENSOR_ID documentation indicates that the WH41 battery state
 values are an integer from 0 to 5. There is no specific information in the API
@@ -666,8 +666,8 @@ default_broadcast_timeout = 5
 default_retry_wait = 10
 # default max tries when polling the API
 default_max_tries = 3
-# When run as a service the default age in seconds after which GW1000/GW1100
-# API data is considered stale and will not be used to augment loop packets
+# When run as a service the default age in seconds after which API data is
+# considered stale and will not be used to augment loop packets
 default_max_age = 60
 # default device poll interval
 default_poll_interval = 20
@@ -1738,7 +1738,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
     # define our config as a multiline string so we can preserve comments
     accum_config = """
     [Accumulator]
-        # Start GW1000/GW1100 driver extractors
+        # Start GW1000 driver extractors
         [[daymaxwind]]
             extractor = last
         [[lightning_distance]]
@@ -1967,19 +1967,19 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[ws80_sig]]
             extractor = last
-        # End GW1000/GW1100 driver extractors
+        # End GW1000 driver extractors
     """
 
     @property
     def default_stanza(self):
         return """
     [GW1000]
-        # This section is for the GW1000/GW1100 API driver.
+        # This section is for the GW1000 API driver.
 
         # The driver to use:
         driver = user.gw1000
 
-        # How often to poll the GW1000/GW1100 API:
+        # How often to poll the GW1000 API:
         poll_interval = %d
     """ % (default_poll_interval,)
 
@@ -2006,18 +2006,18 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
         # obtain IP address
         print()
-        print("Specify GW1000/GW1100 IP address, for example: 192.168.1.100")
-        print("Set to 'auto' to autodiscover GW1000/GW1100 IP address (not")
-        print("recommended for systems with more than one GW1000/GW1100)")
+        print("Specify the gateway device IP address, for example: 192.168.1.100")
+        print("Set to 'auto' to autodiscover the gateway device IP address (not")
+        print("recommended for systems with more than one gateway device)")
         ip_address = self._prompt('IP address',
                                   dflt=self.existing_options.get('ip_address'))
         # obtain port number
         print()
-        print("Specify GW1000/GW1100 network port, for example: 45000")
+        print("Specify gaeway device network port, for example: 45000")
         port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
         # obtain poll interval
         print()
-        print("Specify how often to poll the GW1000/GW1100 API in seconds")
+        print("Specify how often to poll the gateway API in seconds")
         poll_interval = self._prompt('Poll interval',
                                      dflt=self.existing_options.get('poll_interval',
                                                                     default_poll_interval))
@@ -2033,8 +2033,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         # set loop_on_init
         loop_on_init_config = """loop_on_init = %d"""
         dflt = config_dict.get('loop_on_init', '1')
-        label = """The GW1000/GW1100 driver requires a network connection to the 
-GW1000/GW1100. Consequently, the absence of a network connection 
+        label = """The GW1000 driver requires a network connection to the 
+gateway device. Consequently, the absence of a network connection 
 when WeeWX starts will cause WeeWX to exit and such a situation 
 can occur on system startup. The 'loop_on_init' setting can be
 used to mitigate such problems by having WeeWX retry startup 
@@ -2780,7 +2780,7 @@ class GatewayCollector(Collector):
         # initialise a dict to hold our final data
         data_dict = dict()
         data_dict['interval'] = six.indexbytes(data, 0)
-        # obtain the GW1000/GW1100 MAC address
+        # obtain the device MAC address
         data_dict['mac'] = self.mac_address
         return data_dict
 
@@ -3628,10 +3628,10 @@ class GatewayCollector(Collector):
             """Get PM2.5 offset data.
 
             Sends the API command to obtain the PM2.5 sensor offset data with
-            retries. If the GW1000/GW1100 cannot be contacted a GWIOError will
-            have been raised by send_cmd_with_retries() which will be passed
-            through by get_pm25_offset(). Any code calling get_pm25_offset()
-            should be prepared to handle this exception.
+            retries. If the device cannot be contacted a GWIOError will have
+            been raised by send_cmd_with_retries() which will be passed through
+            by get_pm25_offset(). Any code calling get_pm25_offset() should be
+            prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
@@ -3640,9 +3640,9 @@ class GatewayCollector(Collector):
             """Get calibration coefficient data.
 
             Sends the API command to obtain the calibration coefficient data
-            with retries. If the GW1000/GW1100 cannot be contacted a GWIOError
-            will have been raised by send_cmd_with_retries() which will be
-            passed through by get_calibration_coefficient(). Any code calling
+            with retries. If the device cannot be contacted a GWIOError will
+            have been raised by send_cmd_with_retries() which will be passed
+            through by get_calibration_coefficient(). Any code calling
             get_calibration_coefficient() should be prepared to handle this
             exception.
             """
@@ -4170,8 +4170,8 @@ class GatewayCollector(Collector):
         # so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
                             b'\x11', b'\x12', b'\x13', b'\x14')
-        # tuple of field codes for wind related fields in the GW1000/GW1100
-        # live data so we can isolate these fields
+        # tuple of field codes for wind related fields in the device live data
+        # so we can isolate these fields
         wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
         def __init__(self, is_wh24=False, debug_rain=False, debug_wind=False):
@@ -6125,8 +6125,8 @@ class DirectGateway(object):
         """Display the device live sensor data.
 
         Obtain and display live sensor data from the selected device. Data is
-        presented as read from the GW1000/GW1100 except for conversion to US
-        customary or Metric units. Unit labels are included.
+        presented as read from the device except for conversion to US customary
+        or Metric units. Unit labels are included.
 
         The device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
@@ -6302,7 +6302,7 @@ class DirectGateway(object):
         try:
             # get a GatewayDriver object
             driver = GatewayDriver(**self.stn_dict)
-            # identify the GW1000/GW1100 being used
+            # identify the device being used
             print()
             print("Interrogating %s at %s:%d" % (driver.collector.station.model,
                                                  driver.collector.station.ip_address.decode(),
