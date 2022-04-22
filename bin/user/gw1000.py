@@ -2527,7 +2527,7 @@ class GatewayCollector(Collector):
         _timestamp = int(time.time())
         # parse the raw data (the parsed data is a dict keyed by internal
         # device field names and containing the decoded raw sensor data)
-        parsed_data = self.parser.parse(raw_data, _timestamp)
+        parsed_data = self.parser.parse_live_data(raw_data, _timestamp)
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
@@ -4024,15 +4024,16 @@ class GatewayCollector(Collector):
                       'wh25': {'mask': 1 << 6},
                       'wh65': {'mask': 1 << 7}
                       }
-        # Dictionary keyed by device live data field 'address' containing
-        # various parameters for each 'address'. Dictionary tuple format is:
+        # Dictionary of 'address' based data. Dictionary is keyed by device
+        # data field 'address' containing various parameters for each
+        # 'address'. Dictionary tuple format is:
         #   (decode fn, size, field name)
         # where:
         #   decode fn:  the decode function name to be used for the field
         #   size:       the size of field data in bytes
         #   field name: the name of the device field to be used for the decoded
         #               data
-        live_data_struct = {
+        addressed_data_struct = {
             b'\x01': ('decode_temp', 2, 'intemp'),
             b'\x02': ('decode_temp', 2, 'outtemp'),
             b'\x03': ('decode_temp', 2, 'dewpoint'),
@@ -4145,31 +4146,25 @@ class GatewayCollector(Collector):
             b'\x76': ('decode_wet', 1, 'leafwet5'),
             b'\x77': ('decode_wet', 1, 'leafwet6'),
             b'\x78': ('decode_wet', 1, 'leafwet7'),
-            b'\x79': ('decode_wet', 1, 'leafwet8')
-        }
-        # TODO. Need to refactor this to include read_rain_struct in live_data_struct
-        # Dictionary keyed by CMD_READ_RAIN response field 'address' containing
-        # various parameters for each 'address'. Dictionary tuple format is:
-        #   (decode fn, size, field name)
-        # where:
-        #   decode fn:  the decode function name to be used for the field
-        #   size:       the size of field data in bytes
-        #   field name: the name of the field to be used for the decoded data
-        read_rain_struct = {
+            b'\x79': ('decode_wet', 1, 'leafwet8'),
             b'\x80': ('decode_rainrate', 2, 'p_rate'),
             b'\x81': ('decode_rain', 2, 'p_event'),
             b'\x83': ('decode_rain', 4, 'p_day'),
             b'\x84': ('decode_rain', 4, 'p_week'),
             b'\x85': ('decode_big_rain', 4, 'p_month'),
             b'\x86': ('decode_big_rain', 4, 'p_year'),
+            # field 0x87 and 0x88 hold device parameter data that is not
+            # included in the loop packets, hence the device field is not
+            # used (None).
             b'\x87': ('decode_rain_gain', 20, None),
             b'\x88': ('decode_rain_reset', 3, None)
         }
-        # TODO. Need to include piezo rain fields in this
         # tuple of field codes for device rain related fields in the live data
         # so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
-                            b'\x11', b'\x12', b'\x13', b'\x14')
+                            b'\x11', b'\x12', b'\x13', b'\x14',
+                            b'\x80', b'\x81', b'\x83', b'\x84',
+                            b'\x85', b'\x86')
         # tuple of field codes for wind related fields in the device live data
         # so we can isolate these fields
         wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
@@ -4202,15 +4197,18 @@ class GatewayCollector(Collector):
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
 
-        # TODO. This method needs to be renamed to be consistent with parse_read_rain()
-        def parse(self, raw_data, timestamp=None):
-            """Parse raw sensor data.
+        def parse_live_data(self, raw_data, timestamp=None):
+            """Parse raw sensor data obtained from CMD_GW1000_LIVEDATA.
 
-            Parse the raw sensor data and create a dict of sensor
-            observations/status data. Add a timestamp to the data if one does
-            not already exist.
+            Parse the raw sensor data obtained from the CMD_GW1000_LIVEDATA API
+            command and create a dict of sensor observations/status data. Add a
+            timestamp to the data if one does not already exist. If the
+            parameter timestamp is None (default) the timestamp to be used is
+            created from the system clock otherwise the timestamp parameter
+            value is used.
 
-            Returns a dict of observations/status data."""
+            Returns a dict of observations/status data.
+            """
 
             # obtain the response size, it's a big endian short (two byte) integer
             resp_size = struct.unpack(">H", raw_data[3:5])[0]
@@ -4224,7 +4222,7 @@ class GatewayCollector(Collector):
                 index = 0
                 while index < len(resp) - 1:
                     try:
-                        decode_str, field_size, field = self.live_data_struct[resp[index:index + 1]]
+                        decode_str, field_size, field = self.addressed_data_struct[resp[index:index + 1]]
                     except KeyError:
                         # We struck a field 'address' we do not know how to
                         # process. Ideally we would like to skip and move onto
@@ -4264,6 +4262,7 @@ class GatewayCollector(Collector):
                 data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
             return data
 
+        # TODO. Should be able to delete this method
         def parse_read_rain(self, raw_data, timestamp=None):
             """Parse the CMD_READ_RAIN API command response.
 
@@ -4291,7 +4290,7 @@ class GatewayCollector(Collector):
                     # the current field, wrap in a try..except in case we
                     # encounter a field address we do not know about
                     try:
-                        decode_str, field_size, field = self.read_rain_struct[payload[index:index + 1]]
+                        decode_str, field_size, field = self.addressed_data_struct[payload[index:index + 1]]
                     except KeyError:
                         # We struck a field 'address' we do not know how to
                         # process. Ideally we would like to skip and move onto
