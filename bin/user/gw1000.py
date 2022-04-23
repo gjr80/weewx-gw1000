@@ -682,8 +682,9 @@ default_show_battery = False
 #                         Gateway API error classes
 # ============================================================================
 
-class InvalidApiResponse(Exception):
-    """Exception raised when an API call response is invalid."""
+class UnknownApiCommand(Exception):
+    """Exception raised when an unknown API command was selected or an
+    otherwise valid API response has an unexpected command code."""
 
 
 class InvalidChecksum(Exception):
@@ -694,10 +695,6 @@ class InvalidChecksum(Exception):
 class GWIOError(Exception):
     """Exception raised when an input/output error with the device is
     encountered."""
-
-
-class UnknownCommand(Exception):
-    """Exception raised when an unknown API command is used."""
 
 
 # ============================================================================
@@ -2544,9 +2541,19 @@ class GatewayCollector(Collector):
         # the data cannot be obtained we will see a GWIOError exception, if we
         # do let it bubble up
         livedata_response = self.station.get_livedata()
-        # now get the raw rain data via the API, if the data cannot be
-        # obtained we will see a GWIOError exception, if we do let it bubble up
-        raindata_response = self.station.read_rain()
+        # Now get the raw rain data via the API. If the data cannot be obtained
+        # we may see an GWIOError exception or an UnknownApiCommand exception.
+        # If we get the UnknownApiCommand exception it is likely due to an old
+        # device that cannot handle CMD_READ_RAIN in which case our only
+        # available rain data will already be in our livedata response so just
+        # set the raindata response to None. If we get the GWIOError then let
+        # it bubble up.
+        try:
+            raindata_response = self.station.read_rain()
+        except UnknownApiCommand:
+            raindata_response = None
+        except GWIOError:
+            raise
         # if we made it here our raw data was validated by checksum, now
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
@@ -3032,10 +3039,16 @@ class GatewayCollector(Collector):
                     # check the response is valid
                     try:
                         self.check_response(response, self.commands['CMD_BROADCAST'])
-                    except (InvalidChecksum, InvalidApiResponse) as e:
+                    except InvalidChecksum as e:
                         # the response was not valid, log it and attempt again
                         # if we haven't had too many attempts already
                         logdbg("Invalid response to command '%s': %s" % ('CMD_BROADCAST', e))
+                    except UnknownApiCommand:
+                        # most likely we have encountered a device that does
+                        # not understand the command, possibly due to an old or
+                        # outdated firmware version, raise the exception for
+                        # our caller to deal with
+                        raise
                     except Exception as e:
                         # Some other error occurred in check_response(),
                         # perhaps the response was malformed. Log the stack
@@ -3524,10 +3537,16 @@ class GatewayCollector(Collector):
                     # check the response is valid
                     try:
                         self.check_response(response, self.commands[cmd])
-                    except (InvalidChecksum, InvalidApiResponse) as e:
+                    except InvalidChecksum as e:
                         # the response was not valid, log it and attempt again
                         # if we haven't had too many attempts already
                         logdbg("Invalid response to attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                    except UnknownApiCommand:
+                        # most likely we have encountered a device that does
+                        # not understand the command, possibly due to an old or
+                        # outdated firmware version, raise the exception for
+                        # our caller to deal with
+                        raise
                     except Exception as e:
                         # Some other error occurred in check_response(),
                         # perhaps the response was malformed. Log the stack
@@ -3577,7 +3596,7 @@ class GatewayCollector(Collector):
             try:
                 size = len(self.commands[cmd]) + 1 + len(payload) + 1
             except KeyError:
-                raise UnknownCommand("Unknown API command '%s'" % (cmd,))
+                raise UnknownApiCommand("Unknown API command '%s'" % (cmd,))
             # construct the portion of the message for which the checksum is calculated
             body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
             # calculate the checksum
@@ -3644,38 +3663,51 @@ class GatewayCollector(Collector):
             If any check fails an appropriate exception is raised, if all checks
             pass the method exits without raising an exception.
 
+            There are three likely scenarios:
+            1. all checks pass, in which case the method returns with no value
+            and no exception raised
+            2. checksum check passes but command code check fails. This is most
+            likely due to the device not understanding the command, possibly
+            due to an old or outdated firmware version. An UnknownApiCommand
+            exception is raised.
+            3. checksum check fails. An InvalidChecksum exception is raised.
+
             response: Response received from the API call. Byte string.
             cmd_code: Command code sent to the API. Byte string of length one.
             """
 
-            # first check that the 3rd byte of the response is the command code
-            # that was issued
-            if six.indexbytes(response, 2) == six.byte2int(cmd_code):
-                # now check the checksum
-                calc_checksum = self.calc_checksum(response[2:-1])
-                resp_checksum = six.indexbytes(response, -1)
-                if calc_checksum == resp_checksum:
-                    # checksum check passed, response is deemed valid
+            # first check the checksum is valid
+            calc_checksum = self.calc_checksum(response[2:-1])
+            resp_checksum = six.indexbytes(response, -1)
+            if calc_checksum == resp_checksum:
+                # checksum check passed, now check the response command code by
+                # checkin the 3rd byte of the response matches the command code
+                # that was issued
+                if six.indexbytes(response, 2) == six.byte2int(cmd_code):
+                    # we have a valid command code in the response so the
+                    # response is valid and we can just return
                     return
                 else:
-                    # checksum check failed, raise an InvalidChecksum exception
-                    _msg = "Invalid checksum in API response. " \
-                           "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
-                                                                            "{:02X}".format(calc_checksum),
-                                                                            resp_checksum,
-                                                                            "{:02X}".format(resp_checksum))
-                    raise InvalidChecksum(_msg)
+                    # command code check failed, since we have a valid checksum
+                    # this is most likely due to the device not understanding
+                    # the command, possibly due to an old or outdated firmware
+                    # version. Raise an UnknownApiCommand exception.
+                    exp_int = six.byte2int(cmd_code)
+                    resp_int = six.indexbytes(response, 2)
+                    _msg = "Unknown command code in API response. " \
+                           "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
+                                                                            "{:02X}".format(exp_int),
+                                                                            resp_int,
+                                                                            "{:02X}".format(resp_int))
+                    raise UnknownApiCommand(_msg)
             else:
-                # command code check failed, raise an InvalidApiResponse
-                # exception
-                exp_int = six.byte2int(cmd_code)
-                resp_int = six.indexbytes(response, 2)
-                _msg = "Invalid command code in API response. " \
-                       "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
-                                                                        "{:02X}".format(exp_int),
-                                                                        resp_int,
-                                                                        "{:02X}".format(resp_int))
-                raise InvalidApiResponse(_msg)
+                # checksum check failed, raise an InvalidChecksum exception
+                _msg = "Invalid checksum in API response. " \
+                       "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
+                                                                        "{:02X}".format(calc_checksum),
+                                                                        resp_checksum,
+                                                                        "{:02X}".format(resp_checksum))
+                raise InvalidChecksum(_msg)
 
         @staticmethod
         def calc_checksum(data):
@@ -4046,11 +4078,11 @@ class GatewayCollector(Collector):
             data = response[4:4 + size - 3]
             # initialise a dict to hold our parsed data
             data_dict = dict()
-            data_dict['rain_rate'] = self.decode_big_rain(data[0:4])
-            data_dict['rain_day'] = self.decode_big_rain(data[4:8])
-            data_dict['rain_week'] = self.decode_big_rain(data[8:12])
-            data_dict['rain_month'] = self.decode_big_rain(data[12:16])
-            data_dict['rain_year'] = self.decode_big_rain(data[16:20])
+            data_dict['rainrate'] = self.decode_big_rain(data[0:4])
+            data_dict['rainday'] = self.decode_big_rain(data[4:8])
+            data_dict['rainweek'] = self.decode_big_rain(data[8:12])
+            data_dict['rainmonth'] = self.decode_big_rain(data[12:16])
+            data_dict['rainyear'] = self.decode_big_rain(data[16:20])
             return data_dict
 
         @staticmethod
@@ -5598,7 +5630,7 @@ class DirectGateway(object):
         firmware.
         """
 
-        traditional = ['rate', 'event', 'day', 'week', 'month', 'year']
+        traditional = ['rainrate', 'rainevent', 'rainday', 'rainweek', 'rainmonth', 'rainyear']
         piezo = ['p_rate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
                  'gain1', 'gain2', 'gain3', 'gain4', 'gain5']
         reset = ['day_reset', 'week_reset', 'annual_reset']
@@ -5612,8 +5644,15 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the collector objects all_rain_data property
-            rain_data = collector.all_rain_data
+            # get the rain data from the collector object. First try to get
+            # all_rain_data but be prepared to catch the exception if our
+            # device does not support CMD_READ_RAIN. In that case fall back to
+            # the rain_data property instead.
+            try:
+                rain_data = collector.all_rain_data
+            except UnknownApiCommand:
+                # use the rain_data property
+                rain_data = collector.rain_data
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -5622,14 +5661,26 @@ class DirectGateway(object):
             print("Timeout. %s did not respond." % collector.station.model)
         else:
             print()
-            if all(field in rain_data for field in traditional):
+            if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
-                print("%30s: %.1fmm/hr (%.1fin/hr)" % ('Rain rate', rain_data['rate'], rain_data['rate'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Event rain', rain_data['event'], rain_data['event'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Daily rain', rain_data['day'], rain_data['day'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Weekly rain', rain_data['week'], rain_data['week'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Monthly rain', rain_data['month'], rain_data['month'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Yearly rain', rain_data['year'], rain_data['year'] / 25.4))
+                _data = rain_data.get('rainrate', None)
+                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
+                print("%30s: %s)" % ('Rain rate', _data_str))
+                _data = rain_data.get('rainevent', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Event rain', _data_str))
+                _data = rain_data.get('rainday', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Daily rain', _data_str))
+                _data = rain_data.get('rainweek', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Weekly rain', _data_str))
+                _data = rain_data.get('rainmonth', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Monthly rain', _data_str))
+                _data = rain_data.get('rainyear', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Yearly rain', _data_str))
             else:
                 print("    No traditional rain data available")
             print()
@@ -6208,8 +6259,7 @@ class DirectGateway(object):
             # we have a data dict to work with, but we need to format the
             # values and may need to convert units
 
-            # import the WeeWX units module, do the import here as this is the
-            # only time we need this module
+            # import weewx.units here so it is not imported unnecessarily
             import weewx.units
             # the live sensor data dict is a dict of sensor values and a
             # timestamp only, whilst all sensor values are in MetricWX units
