@@ -5528,7 +5528,7 @@ class DirectGateway(object):
                                                _sensor_type_str))
             # The gateway API returns what is labelled "UTC" but is in fact the
             # current epoch timestamp adjusted by the station timezone offset.
-            # So when the timestamp is converted to a human readable GMT
+            # So when the timestamp is converted to a human-readable GMT
             # date-time string it in fact shows the local date-time. We can
             # work around this by formatting this offset UTC timestamp as a UTC
             # date-time but then calling it local time. ideally we would
@@ -5658,9 +5658,9 @@ class DirectGateway(object):
                 print("    No rainfall reset time data available")
 
     def get_mulch_offset(self):
-        """Display device multi-channel temperature and humidity offset data.
+        """Display device multichannel temperature and humidity offset data.
 
-        Obtain and display the multi-channel temperature and humidity offset
+        Obtain and display the multichannel temperature and humidity offset
         data from the selected device. The device IP address and port are
         derived (in order) as follows:
         1. command line --ip-address and --port parameters
@@ -6375,7 +6375,7 @@ class DirectGateway(object):
         """Exercise the gateway driver as a service.
 
         Uses a dummy engine/simulator to generate arbitrary loop packets for
-        augmenting. Use a 10 second loop interval so we don't get too many bare
+        augmenting. Use a 10-second loop interval so we don't get too many bare
         packets.
         """
 
