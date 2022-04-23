@@ -2344,14 +2344,18 @@ class Collector(object):
 # ============================================================================
 
 class GatewayCollector(Collector):
-    """Class to poll the Ecowitt LAN/Wi-Fi Gateway API and return decoded data.
+    """Class to collect and return data from an Ecowitt LAN/Wi-Fi Gateway
+    device.
 
-    A GatewayCollector object knows how to obtain, parse and return observation
-    and configuration data from an Ecowitt gateway device. A GatewayCollector
-    object uses the following subordinate classes as indicated:
-    - class Station. Communicates directly with gateway device to issue API
-                     commands and obtain and validate gateway device responses.
-    - class Parser.  Parses the validated raw data from the gateway device
+    A GatewayCollector object is responsible for obtaining data from an Ecowitt
+    LAN/Wi-Fi Gateway device using the Ecowitt LAN/Wi-Fi Gateway device API. A
+    GatewayCollector object also decodes this data and makes it available to
+    WeeWX drivers, services and other components as required. A
+    GatewayCollector object uses the following subordinate classes as
+    indicated:
+    - class Station. Communicates directly with the gateway device via the API
+                     and obtains and validates gateway device responses.
+    - class Parser.  Parses and decodes the validated gateway response data
                      returning observational and parametric data
     - class Sensors. Allows easy access sensor data from coded API sensor data
     """
@@ -2465,7 +2469,7 @@ class GatewayCollector(Collector):
         # WH24 is indicated by the 6th byte being 0
         is_wh24 = six.indexbytes(_sys_params, 5) == 0
         # Tell our sensor id decoding whether we have a WH24 or a WH65. By
-        # default we are coded to use a WH65. Is there a WH24 connected?
+        # default, we are coded to use a WH65. Is there a WH24 connected?
         if is_wh24:
             # set the WH24 sensor id decode dict entry
             self.sensor_ids[b'\x00']['name'] = 'wh24'
@@ -2483,10 +2487,13 @@ class GatewayCollector(Collector):
         self.collect_data = False
 
     def collect(self):
-        """Collect sensor data by polling the API.
+        """Collect and queue sensor data by polling the API.
 
         Loop forever waking periodically to see if it is time to quit or
-        collect more data.
+        collect more data. A dictionary of data is placed in the queue on each
+        successful poll of the device. If an exception is raised when
+        interacting with the device the exception is placed in the queue as a
+        signal to our parent that there is a problem.
         """
 
         # initialise ts of last time API was polled
@@ -2536,21 +2543,22 @@ class GatewayCollector(Collector):
         # first obtain the bulk of the current raw sensor data via the API, if
         # the data cannot be obtained we will see a GWIOError exception, if we
         # do let it bubble up
-        raw_livedata = self.station.get_livedata()
+        livedata_response = self.station.get_livedata()
         # now get the raw rain data via the API, if the data cannot be
         # obtained we will see a GWIOError exception, if we do let it bubble up
-        raw_raindata = self.station.get_piezo_rain()
+        raindata_response = self.station.read_rain()
         # if we made it here our raw data was validated by checksum, now
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
         # parse the raw livedata (the parsed data is a dict keyed by internal
         # device field names and containing the decoded raw sensor data)
-        parsed_data = self.parser.parse_livedata(raw_livedata, _timestamp)
-        # now parse the raw rain data if we have any
-        if raw_raindata is not None:
-            parsed_raindata = self.parser.parse_livedata(raw_raindata, _timestamp)
-            # update our parsed data so far with the parsed rain data
-            parsed_data.update(parsed_raindata)
+        parsed_data = self.parser.parse_livedata(livedata_response)
+        # now parse the raw rain data if we have any and update our parsed data
+        # dict
+        if raindata_response is not None:
+            parsed_data.update(self.parser.parse_read_rain(raindata_response))
+        # add the timestamp to the data dict
+        parsed_data['datetime'] = _timestamp
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
@@ -2570,19 +2578,37 @@ class GatewayCollector(Collector):
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
 
-        # get the current sensor ID data
+        # first get the current sensor ID data
         sensor_id_data = self.station.get_sensor_id()
         # now use the sensor ID data to re-initialise our sensors object
         self.sensors_obj.set_sensor_id_data(sensor_id_data)
 
     @property
     def rain_data(self):
-        """Obtain device rain data."""
+        """Obtain device rain data.
 
-        # obtain the rain data data via the API
-        response = self.station.get_raindata()
+        Uses the API command CMD_READ_RAINDATA to obtain 'traditional' rain
+        gauge data only. To obtain 'traditional' and 'piezo' rain data use the
+        GatewayCollector.all_rain_data property instead.
+        """
+
+        # obtain the rain data via the API
+        response = self.station.read_raindata()
         # return the parsed response
         return self.parser.parse_read_raindata(response)
+
+    @property
+    def all_rain_data(self):
+        """Obtain all device rain data.
+
+        Uses the API command CMD_READ_RAIN to obtain 'traditional' and 'piezo'
+        gauge rain data.
+        """
+
+        # obtain the rain data via the API
+        response = self.station.read_rain()
+        # return the parsed response
+        return self.parser.parse_read_rain(response)
 
     @property
     def mulch_offset(self):
@@ -2610,19 +2636,6 @@ class GatewayCollector(Collector):
         response = self.station.get_co2_offset()
         # return the parsed response
         return self.parser.parse_get_co2_offset(response)
-
-    # TODO. Is this method appropriately named?
-    @property
-    def piezo_rain(self):
-        """Obtain the device piezo rain data.
-
-        # TODO. Document this
-        """
-
-        # obtain the reset rain time data via the API
-        response = self.station.get_piezo_rain()
-        # parse the response
-        return self.parser.parse_read_rain(response)
 
     @property
     def calibration(self):
@@ -2675,186 +2688,71 @@ class GatewayCollector(Collector):
 
     @property
     def wunderground(self):
-        """Obtain device Weather Underground service parameters.
-
-        Returns a dictionary of settings with string data in unicode format.
-        """
+        """Obtain device Weather Underground service parameters."""
 
         # obtain the system parameters data via the API
         response = self.station.get_wunderground_params()
-        # determine the size of the system parameters data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # return data
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        # obtain the required data from the response decoding any bytestrings
-        id_size = six.indexbytes(data, 0)
-        data_dict['id'] = data[1:1+id_size].decode()
-        password_size = six.indexbytes(data, 1+id_size)
-        data_dict['password'] = data[2+id_size:2+id_size+password_size].decode()
-        return data_dict
-
-    @property
-    def weathercloud(self):
-        """Obtain device Weathercloud service parameters.
-
-        Returns a dictionary of settings with string data in unicode format.
-        """
-
-        # obtain the system parameters data via the API
-        response = self.station.get_weathercloud_params()
-        # determine the size of the system parameters data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        # obtain the required data from the response decoding any bytestrings
-        id_size = six.indexbytes(data, 0)
-        data_dict['id'] = data[1:1+id_size].decode()
-        key_size = six.indexbytes(data, 1+id_size)
-        data_dict['key'] = data[2+id_size:2+id_size+key_size].decode()
-        return data_dict
+        # return the parsed response
+        return self.parser.parse_read_wunderground(response)
 
     @property
     def wow(self):
-        """Obtain device Weather Observations Website service parameters.
-
-        Returns a dictionary of settings with string data in unicode format.
-        """
+        """Obtain device Weather Observations Website service parameters."""
 
         # obtain the system parameters data via the API
         response = self.station.get_wow_params()
-        # determine the size of the system parameters data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        # obtain the required data from the response decoding any bytestrings
-        id_size = six.indexbytes(data, 0)
-        data_dict['id'] = data[1:1+id_size].decode()
-        password_size = six.indexbytes(data, 1+id_size)
-        data_dict['password'] = data[2+id_size:2+id_size+password_size].decode()
-        station_num_size = six.indexbytes(data, 1+id_size)
-        data_dict['station_num'] = data[3+id_size+password_size:3+id_size+password_size+station_num_size].decode()
-        return data_dict
+        # return the parsed response
+        return self.parser.parse_read_wow(response)
+
+    @property
+    def weathercloud(self):
+        """Obtain device Weathercloud service parameters."""
+
+        # obtain the system parameters data via the API
+        response = self.station.get_weathercloud_params()
+        # return the parsed response
+        return self.parser.parse_read_weathercloud(response)
 
     @property
     def custom(self):
-        """Obtain device custom server parameters.
-
-        Obtain the device settings used for uploading data to a remote server.
-
-        Returns a dictionary of settings with string data in unicode format.
-        """
+        """Obtain device custom server parameters."""
 
         # obtain the system parameters data via the API
         response = self.station.get_custom_params()
-        # determine the size of the system parameters data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        # obtain the required data from the response decoding any bytestrings
-        index = 0
-        id_size = six.indexbytes(data, index)
-        index += 1
-        data_dict['id'] = data[index:index+id_size].decode()
-        index += id_size
-        password_size = six.indexbytes(data, index)
-        index += 1
-        data_dict['password'] = data[index:index+password_size].decode()
-        index += password_size
-        server_size = six.indexbytes(data, index)
-        index += 1
-        data_dict['server'] = data[index:index+server_size].decode()
-        index += server_size
-        data_dict['port'] = struct.unpack(">h", data[index:index + 2])[0]
-        index += 2
-        data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
-        index += 2
-        data_dict['type'] = six.indexbytes(data, index)
-        index += 1
-        data_dict['active'] = six.indexbytes(data, index)
+        # obtain the parsed response
+        data_dict = self.parser.parse_read_customized(response)
         # the user path is obtained separately, get the user path and add it to
         # our response
         data_dict.update(self.usr_path)
+        # return the resulting parsed data
         return data_dict
 
     @property
     def usr_path(self):
-        """Obtain the device user defined custom paths.
-
-        The device allows definition of remote server customs paths for use
-        when uploading to a custom service using Ecowitt or Weather Underground
-        format. Different paths may be specified for each protocol.
-
-        Returns a dictionary with each path as a unicode text string.
-        """
+        """Obtain the device user defined custom paths."""
 
         # return the device user defined custom path
         response = self.station.get_usr_path()
-        # determine the size of the user path data
-        raw_data_size = six.indexbytes(response, 3)
-        # extract the actual system parameters data
-        data = response[4:4 + raw_data_size - 3]
-        # initialise a dict to hold our final data
-        data_dict = dict()
-        index = 0
-        ecowitt_size = six.indexbytes(data, index)
-        index += 1
-        data_dict['ecowitt_path'] = data[index:index+ecowitt_size].decode()
-        index += ecowitt_size
-        wu_size = six.indexbytes(data, index)
-        index += 1
-        data_dict['wu_path'] = data[index:index+wu_size].decode()
-        return data_dict
+        # return the parsed response
+        return self.parser.parse_read_usr_path(response)
 
     @property
     def mac_address(self):
-        """Obtain the device MAC address.
-
-        Returns the device MAC address as a string of colon separated hex
-        bytes.
-        """
+        """Obtain the device MAC address."""
 
         # obtain the device MAC address bytes
-        station_mac_b = self.station.get_mac_address()
-        # return the formatted string
-        return bytes_to_hex(station_mac_b[4:10], separator=":")
+        response = self.station.get_mac_address()
+        # return the parsed response
+        return self.parser.parse_read_station_mac(response)
 
     @property
     def firmware_version(self):
-        """Obtain the device firmware version string.
-
-        The firmware version can be obtained from the device via an API call
-        made by a Station object. The Station object takes care of making the
-        API call and validating the response. What is returned is the raw
-        response as a bytestring. The raw response is unpacked into a sequence
-        of bytes. The length of the firmware string is in byte 4 and the
-        firmware string starts at byte 5. The bytes comprising the firmware are
-        extracted and converted to unicode characters before being reassembled
-        into a string containing the firmware version.
-        """
+        """Obtain the device firmware version string."""
 
         # get the firmware bytestring via the API
-        firmware_b = self.station.get_firmware_version()
-        # create a format string so the firmware string can be unpacked into
-        # its bytes
-        firmware_format = "B" * len(firmware_b)
-        # unpack the firmware response bytestring, we now have a tuple of
-        # integers representing each of the bytes
-        firmware_t = struct.unpack(firmware_format, firmware_b)
-        # get the length of the firmware string, it is in byte 4
-        str_length = firmware_t[4]
-        # the firmware string starts at byte 5 and is str_length bytes long,
-        # convert the sequence of bytes to unicode characters and assemble as a
-        # string and return the result
-        return "".join([chr(x) for x in firmware_t[5:5 + str_length]])
+        response = self.station.get_firmware_version()
+        # return the parsed response
+        return self.parser.parse_read_firmware_version(response)
 
     @property
     def sensors(self):
@@ -3349,14 +3247,14 @@ class GatewayCollector(Collector):
                     # we get another GWIOError exception which will be raised
                     return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
 
-        def get_raindata(self):
+        def read_raindata(self):
             """Get traditional gauge rain data.
 
             Sends the API command to obtain traditional gauge rain data from
             the device with retries. If the device cannot be contacted a
             GWIOError will have been raised by send_cmd_with_retries() which
-            will be passed through by get_raindata(). Any code calling
-            get_raindata() should be prepared to handle this exception.
+            will be passed through by read_raindata(). Any code calling
+            read_raindata() should be prepared to handle this exception.
             """
 
             return self.send_cmd_with_retries('CMD_READ_RAINDATA')
@@ -3501,9 +3399,9 @@ class GatewayCollector(Collector):
                     return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
 
         def get_mulch_offset(self):
-            """Get multi-channel temperature and humidity offset data.
+            """Get multichannel temperature and humidity offset data.
 
-            Sends the API command to obtain the multi-channel temperature and
+            Sends the API command to obtain the multichannel temperature and
             humidity offset data with retries. If the device cannot be
             contacted a GWIOError will have been raised by
             send_cmd_with_retries() which will be passed through by
@@ -3576,7 +3474,7 @@ class GatewayCollector(Collector):
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
 
         # TODO. Is this method appropriately named?
-        def get_piezo_rain(self):
+        def read_rain(self):
             """Get traditional gauge and piezo gauge rain data.
 
             Sends the API command to obtain the traditional gauge and piezo
@@ -4086,89 +3984,22 @@ class GatewayCollector(Collector):
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
 
-        def parse_livedata(self, raw_data, timestamp=None):
-            """Parse raw sensor data obtained from CMD_GW1000_LIVEDATA.
+        # TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
+        def parse_livedata(self, response):
+            """Parse data from a CMD_GW1000_LIVEDATA API response.
 
             Parse the raw sensor data obtained from the CMD_GW1000_LIVEDATA API
-            command and create a dict of sensor observations/status data. Add a
-            timestamp to the data if one does not already exist. If the
-            parameter timestamp is None (default) the timestamp to be used is
-            created from the system clock otherwise the timestamp parameter
-            value is used.
+            command and create a dict of sensor observations/status data.
 
             Returns a dict of observations/status data.
             """
 
-            # obtain the response size, it's a big endian short (two byte) integer
-            resp_size = struct.unpack(">H", raw_data[3:5])[0]
-            # obtain the response
-            resp = raw_data[5:5 + resp_size - 4]
-            # log the actual sensor data as a sequence of bytes in hex
-            if weewx.debug >= 3:
-                logdbg("sensor data is '%s'" % (bytes_to_hex(resp),))
+            # obtain the payload size, it's a big endian short (two byte) integer
+            payload_size = struct.unpack(">H", response[3:5])[0]
+            # obtain the payload
+            payload = response[5:5 + payload_size - 4]
             # initialise a dict to hold our parsed data
             data = dict()
-            if len(resp) > 0:
-                index = 0
-                while index < len(resp) - 1:
-                    try:
-                        decode_str, field_size, field = self.addressed_data_struct[resp[index:index + 1]]
-                    except KeyError:
-                        # We struck a field 'address' we do not know how to
-                        # process. Ideally we would like to skip and move onto
-                        # the next field (if there is one) but the problem is
-                        # we do not know how long the data of this unknown
-                        # field is. We could go on guessing the field data size
-                        # by looking for the next field address but we won't
-                        # know if we do find a valid field address is it a
-                        # field address or data from this field? Of course this
-                        # could also be corrupt data (unlikely though as it was
-                        # decoded using a checksum). So all we can really do is
-                        # accept the data we have so far, log the issue and
-                        # ignore the remaining data.
-                        logerr("Unknown field address '%s' detected. "
-                               "Remaining sensor data ignored." % (bytes_to_hex(resp[index:index + 1]),))
-                        break
-                    else:
-                        _field_data = getattr(self, decode_str)(resp[index + 1:index + 1 + field_size],
-                                                                field)
-                        if _field_data is not None:
-                            data.update(_field_data)
-                            if self.debug_rain and resp[index:index + 1] in self.rain_field_codes:
-                                loginf("parse: raw rain data: field:%s and "
-                                       "data:%s decoded as %s=%s" % (bytes_to_hex(resp[index:index + 1]),
-                                                                     bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                                     field,
-                                                                     _field_data[field]))
-                            if self.debug_wind and resp[index:index + 1] in self.wind_field_codes:
-                                loginf("parse: raw wind data: field:%s and "
-                                       "data:%s decoded as %s=%s" % (resp[index:index + 1],
-                                                                     bytes_to_hex(resp[index + 1:index + 1 + field_size]),
-                                                                     field,
-                                                                     _field_data[field]))
-                        index += field_size + 1
-            # if it does not exist add a datetime field with the current epoch timestamp
-            if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
-                data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
-            return data
-
-        # TODO. Should be able to delete this method
-        def parse_read_rain(self, raw_data, timestamp=None):
-            """Parse the CMD_READ_RAIN API command response.
-
-            # TODO. Need to comment this
-            """
-
-            # obtain the payload size, in this case it's a big endian short (two
-            # byte) integer
-            payload_size = struct.unpack(">H", raw_data[3:5])[0]
-            # obtain the payload
-            payload = raw_data[5:5 + payload_size - 4]
-            # log the payload as a sequence of bytes in hex
-            if weewx.debug >= 3:
-                logdbg("'read_rain' payload is '%s'" % (bytes_to_hex(payload),))
-            # create a dict for our parsed data
-            data = {}
             # do we have any payload data to operate on
             if len(payload) > 0:
                 # we have payload data
@@ -4183,45 +4014,31 @@ class GatewayCollector(Collector):
                         decode_str, field_size, field = self.addressed_data_struct[payload[index:index + 1]]
                     except KeyError:
                         # We struck a field 'address' we do not know how to
-                        # process. Ideally we would like to skip and move onto
-                        # the next field (if there is one) but the problem is
-                        # we do not know how long the data of this unknown
-                        # field is. We could go on guessing the field data size
-                        # by looking for the next field address but we won't
-                        # know if we do find a valid field address is it a
-                        # field address or data from this field? Of course this
-                        # could also be corrupt data (unlikely though as it was
-                        # decoded using a checksum). So all we can really do is
-                        # accept the data we have so far, log the issue and
-                        # ignore the remaining data.
+                        # process. We can't skip to the next field so all we
+                        # can really do is accept the data we have so far, log
+                        # the issue and ignore the remaining data.
                         logerr("Unknown field address '%s' detected. "
-                               "Remaining read_rain data ignored." % (bytes_to_hex(payload[index:index + 1]),))
+                               "Remaining data ignored." % (bytes_to_hex(payload[index:index + 1]),))
                         break
                     else:
-                        # now decode the field data
                         _field_data = getattr(self, decode_str)(payload[index + 1:index + 1 + field_size],
                                                                 field)
                         # do we have any decoded data?
                         if _field_data is not None:
-                            # we have decoded data
-                            # add the decoded data to our data dict
+                            # we have decoded data so add the decoded data to
+                            # our data dict
                             data.update(_field_data)
-                            # log the decoded data if required
-                            if self.debug_rain:
-                                loginf("parse: 'read_rain' raw data: field:%s and "
-                                       "data:%s decoded as %s=%s" % (bytes_to_hex(payload[index:index + 1]),
-                                                                     bytes_to_hex(payload[index + 1:index + 1 + field_size]),
-                                                                     field,
-                                                                     _field_data[field]))
                         # we are finished with this field, move onto the next
                         index += field_size + 1
-            # if it does not exist add a datetime field with the current epoch timestamp
-            if 'datetime' not in data or 'datetime' in data and data['datetime'] is None:
-                data['datetime'] = timestamp if timestamp is not None else int(time.time() + 0.5)
+            # return the parsed response
             return data
 
+        # we can use the same parse method for parsing CMD_READ_RAIN as we use
+        # for CMD_GW1000_LIVEDATA
+        parse_read_rain = parse_livedata
+
         def parse_read_raindata(self, response):
-            """Parse data from a CMD_RAINDATA API response."""
+            """Parse data from a CMD_READ_RAINDATA API response."""
 
             # determine the size of the rain data
             size = six.indexbytes(response, 3)
@@ -4424,6 +4241,142 @@ class GatewayCollector(Collector):
             data_dict['interval'] = six.indexbytes(data, 0)
             # return the parsed response
             return data_dict
+
+        @staticmethod
+        def parse_read_wunderground(response):
+            """Parse a CMD_READ_WUNDERGROUND API response."""
+
+            # determine the size of the system parameters data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            # obtain the required data from the response decoding any bytestrings
+            id_size = six.indexbytes(data, 0)
+            data_dict['id'] = data[1:1 + id_size].decode()
+            password_size = six.indexbytes(data, 1 + id_size)
+            data_dict['password'] = data[2 + id_size:2 + id_size + password_size].decode()
+            # return the parsed response
+            return data_dict
+
+        @staticmethod
+        def parse_read_wow(response):
+            """Parse a CMD_READ_WOW API response."""
+
+            # determine the size of the system parameters data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            # obtain the required data from the response decoding any bytestrings
+            id_size = six.indexbytes(data, 0)
+            data_dict['id'] = data[1:1 + id_size].decode()
+            pw_size = six.indexbytes(data, 1 + id_size)
+            data_dict['password'] = data[2 + id_size:2 + id_size + pw_size].decode()
+            stn_num_size = six.indexbytes(data, 1 + id_size)
+            data_dict['station_num'] = data[3 + id_size + pw_size:3 + id_size + pw_size + stn_num_size].decode()
+            # return the parsed response
+            return data_dict
+
+        @staticmethod
+        def parse_read_weathercloud(response):
+            """Parse a CMD_READ_WEATHERCLOUD API response."""
+
+            # determine the size of the system parameters data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            # obtain the required data from the response decoding any bytestrings
+            id_size = six.indexbytes(data, 0)
+            data_dict['id'] = data[1:1 + id_size].decode()
+            key_size = six.indexbytes(data, 1 + id_size)
+            data_dict['key'] = data[2 + id_size:2 + id_size + key_size].decode()
+            # return the parsed response
+            return data_dict
+
+        @staticmethod
+        def parse_read_customized(response):
+            """Parse a CMD_READ_CUSTOMIZED API response."""
+
+            # determine the size of the system parameters data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            # obtain the required data from the response decoding any bytestrings
+            index = 0
+            id_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['id'] = data[index:index + id_size].decode()
+            index += id_size
+            password_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['password'] = data[index:index + password_size].decode()
+            index += password_size
+            server_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['server'] = data[index:index + server_size].decode()
+            index += server_size
+            data_dict['port'] = struct.unpack(">h", data[index:index + 2])[0]
+            index += 2
+            data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
+            index += 2
+            data_dict['type'] = six.indexbytes(data, index)
+            index += 1
+            data_dict['active'] = six.indexbytes(data, index)
+            # return the parsed response
+            return data_dict
+
+        @staticmethod
+        def parse_read_usr_path(response):
+            """Parse a CMD_READ_USR_PATH API response."""
+
+            # determine the size of the user path data
+            size = six.indexbytes(response, 3)
+            # extract the actual system parameters data
+            data = response[4:4 + size - 3]
+            # initialise a dict to hold our final data
+            data_dict = dict()
+            index = 0
+            ecowitt_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['ecowitt_path'] = data[index:index + ecowitt_size].decode()
+            index += ecowitt_size
+            wu_size = six.indexbytes(data, index)
+            index += 1
+            data_dict['wu_path'] = data[index:index + wu_size].decode()
+            # return the parsed response
+            return data_dict
+
+        @staticmethod
+        def parse_read_station_mac(response):
+            """Parse a CMD_READ_STATION_MAC API response."""
+
+            # return the parsed response, in this case we simply return the
+            # bytes as a semicolon separated hex string
+            return bytes_to_hex(response[4:10], separator=":")
+
+        @staticmethod
+        def parse_read_firmware_version(response):
+            """Parse a CMD_READ_FIRMWARE_VERSION API response."""
+
+            # create a format string so the firmware string can be unpacked into
+            # its bytes
+            firmware_format = "B" * len(response)
+            # unpack the firmware response bytestring, we now have a tuple of
+            # integers representing each of the bytes
+            firmware_t = struct.unpack(firmware_format, response)
+            # get the length of the firmware string, it is in byte 4
+            str_length = firmware_t[4]
+            # the firmware string starts at byte 5 and is str_length bytes long,
+            # convert the sequence of bytes to unicode characters and assemble as a
+            # string and return the result
+            return ''.join([chr(x) for x in firmware_t[5:5 + str_length]])
 
         @staticmethod
         def decode_temp(data, field=None):
@@ -5659,8 +5612,8 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the collector objects piezo_rain property
-            rain_data = collector.piezo_rain
+            # get the collector objects all_rain_data property
+            rain_data = collector.all_rain_data
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
