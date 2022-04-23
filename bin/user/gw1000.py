@@ -5604,11 +5604,11 @@ class DirectGateway(object):
             print("Timeout. %s did not respond." % collector.station.model)
         else:
             print()
-            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rain_rate'], rain_data['rain_rate'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rain_day'], rain_data['rain_day'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rain_week'], rain_data['rain_week'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rain_month'], rain_data['rain_month'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rain_year'], rain_data['rain_year'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rainrate'], rain_data['rainrate'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rainday'], rain_data['rainday'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rainweek'], rain_data['rainweek'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rainmonth'], rain_data['rainmonth'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rainyear'], rain_data['rainyear'] / 25.4))
 
     # TODO. Need to review, traditional only, piezo only and both
     def get_all_rain_data(self):
@@ -5747,7 +5747,7 @@ class DirectGateway(object):
                 # iterate over each channel for which we have data
                 for channel in mulch_offset_data:
                     # print the channel and offset data
-                    mulch_str = "Channel %d: Temperature offset: %5s Humidity offset: %3s"
+                    mulch_str = "    Channel %d: Temperature offset: %5s Humidity offset: %3s"
                     # the API returns channels starting at 0, but the WS View
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
@@ -5796,7 +5796,7 @@ class DirectGateway(object):
                 # iterate over each channel for which we have data
                 for channel in pm25_offset_data:
                     # print the channel and offset data
-                    print("Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
+                    print("    Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
             else:
                 print()
                 print("%s did not respond." % collector.station.model)
@@ -5837,9 +5837,9 @@ class DirectGateway(object):
                 # now format and display the data
                 print()
                 print("CO2 Calibration")
-                print("CO2 offset: %5s" % ("%2.1f" % co2_offset_data['co2']))
-                print("PM10 offset: %5s" % ("%2.1f" % co2_offset_data['pm10']))
-                print("PM2.5 offset: %5s" % ("%2.1f" % co2_offset_data['pm25']))
+                print("%16s: %5s" % ("CO2 offset", "%2.1f" % co2_offset_data['co2']))
+                print("%16s: %5s" % ("PM10 offset","%2.1f" % co2_offset_data['pm10']))
+                print("%16s: %5s" % ("PM2.5 offset", "%2.1f" % co2_offset_data['pm25']))
             else:
                 print()
                 print("%s did not respond." % collector.station.model)
@@ -5939,14 +5939,15 @@ class DirectGateway(object):
                     # the API returns channels starting at 0, but the
                     # WSView/WSView Plus apps display channels starting at 1,
                     # so add 1 to our channel number
-                    print("Channel %d (%d%%)" % (channel + 1, channel_dict['humidity']))
-                    print("%12s: %d" % ("Now AD", channel_dict['ad']))
-                    print("%12s: %d" % ("0% AD", channel_dict['adj_min']))
-                    print("%12s: %d" % ("100% AD", channel_dict['adj_max']))
+                    print("    Channel %d (%d%%)" % (channel + 1, channel_dict['humidity']))
+                    print("%16s: %d" % ("Now AD", channel_dict['ad']))
+                    print("%16s: %d" % ("0% AD", channel_dict['adj_min']))
+                    print("%16s: %d" % ("100% AD", channel_dict['adj_max']))
             else:
                 print()
                 print("%s did not respond." % collector.station.model)
 
+    # TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
     def get_services(self):
         """Display the device Weather Services settings.
 
