@@ -42,6 +42,8 @@ Revision History
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
         -   added support for WS90 sensor platform
+        -   WH40 battery state is decoded as tenths of a valt rather than as
+            binary
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -2363,7 +2365,7 @@ class GatewayCollector(Collector):
         b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
         b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
         b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
-        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_binary'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_volt_tenth'},
         b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
         b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
         b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
