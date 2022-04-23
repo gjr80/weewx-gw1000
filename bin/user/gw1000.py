@@ -5513,19 +5513,19 @@ class DirectGateway(object):
         else:
             # create a meaningful string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
-            # if sensor_type is 0 there is a WH24 connected, if its a 1 there
+            # if sensor_type is 0 there is a WH24 connected, if it's a 1 there
             # is a WH65
             _is_wh24 = sys_params_dict['sensor_type'] == 0
             # string to use in sensor type message
             _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
             # print the system parameters
             print()
-            print("%s frequency: %s (%s)" % (collector.station.model,
-                                             sys_params_dict['frequency'],
-                                             freq_str))
-            print("%s sensor type: %s (%s)" % (collector.station.model,
-                                               sys_params_dict['sensor_type'],
-                                               _sensor_type_str))
+            print("%18s: %s (%s)" % ('frequency',
+                                     sys_params_dict['frequency'],
+                                     freq_str))
+            print("%18s: %s (%s)" % ('sensor type',
+                                     sys_params_dict['sensor_type'],
+                                     _sensor_type_str))
             # The gateway API returns what is labelled "UTC" but is in fact the
             # current epoch timestamp adjusted by the station timezone offset.
             # So when the timestamp is converted to a human-readable GMT
@@ -5538,9 +5538,9 @@ class DirectGateway(object):
             # this is not possible. We can only do what we can.
             date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                           time.gmtime(sys_params_dict['utc']))
-            print("%s date-time: %s" % (collector.station.model, date_time_str))
-            print("%s timezone index: %s" % (collector.station.model, sys_params_dict['timezone_index']))
-            print("%s DST status: %s" % (collector.station.model, sys_params_dict['dst_status']))
+            print("%18s: %s" % ('date-time', date_time_str))
+            print("%18s: %s" % ('timezone index', sys_params_dict['timezone_index']))
+            print("%18s: %s" % ('DST status', sys_params_dict['dst_status']))
 
     def get_rain_data(self):
         """Display the device rain data.
@@ -6068,8 +6068,7 @@ class DirectGateway(object):
                                                  collector.station.port))
             # call the driver objects mac_address() method
             print()
-            print("%s MAC address: %s" % (collector.station.model,
-                                          collector.mac_address))
+            print("    MAC address: %s" % collector.mac_address)
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6099,8 +6098,7 @@ class DirectGateway(object):
                                                  collector.station.port))
             # call the driver objects firmware_version() method
             print()
-            print("%s firmware version string: %s" % (collector.station.model,
-                                                      collector.firmware_version))
+            print("    firmware version string: %s" % collector.firmware_version)
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6257,7 +6255,7 @@ class DirectGateway(object):
                 key_vh = weewx.units.ValueHelper(key_vt, formatter=f, converter=c)
                 # and add the converted and formatted value to our dict
                 result[key] = key_vh.toString(None_string='None')
-            # finally sort our dict by key and print the data
+            # finally, sort our dict by key and print the data
             print()
             print("%s live sensor data (%s): %s" % (collector.station.model,
                                                     weeutil.weeutil.timestamp_to_string(datetime),
