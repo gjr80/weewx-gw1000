@@ -6116,6 +6116,7 @@ class DirectGateway(object):
         3. by discovery
         """
 
+        # TODO. Need to re-order sensor output to match app
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayCollector object
