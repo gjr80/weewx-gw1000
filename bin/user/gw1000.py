@@ -1115,7 +1115,7 @@ class Gateway(object):
         # and we do not need to know if a WH32 or other sensor is providing
         # outdoor TH data but in terms of battery state we need to know so the
         # battery  state data can be reported against the correct sensor.
-        use_th32 = weeutil.weeutil.tobool(gw_config.get('th32', False))
+        use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', False))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
         self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
@@ -1144,7 +1144,7 @@ class Gateway(object):
                                           poll_interval=self.poll_interval,
                                           max_tries=self.max_tries,
                                           retry_wait=self.retry_wait,
-                                          use_th32=use_th32,
+                                          use_wh32=use_wh32,
                                           show_battery=self.show_battery,
                                           debug_rain=self.debug_rain,
                                           debug_wind=self.debug_wind,
@@ -2567,7 +2567,7 @@ class GatewayCollector(Collector):
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_th32=False, lost_contact_log_period=0, show_battery=False,
+                 use_wh32=False, show_battery=False,
                  debug_rain=False, debug_wind=False, debug_sensors=False):
         """Initialise our class."""
 
@@ -2582,8 +2582,8 @@ class GatewayCollector(Collector):
         # period in seconds to wait before polling again, default is
         # default_retry_wait seconds
         self.retry_wait = retry_wait
-        # are we using a th32 sensor
-        self.use_th32 = use_th32
+        # are we using a WH32 sensor
+        self.use_wh32 = use_wh32
         # get a station object to do the handle the interaction with the API
         self.station = GatewayCollector.Station(ip_address=ip_address,
                                                 port=port,
@@ -2592,8 +2592,7 @@ class GatewayCollector(Collector):
                                                 socket_timeout=socket_timeout,
                                                 broadcast_timeout=broadcast_timeout,
                                                 max_tries=max_tries,
-                                                retry_wait=retry_wait,
-                                                lost_contact_log_period=lost_contact_log_period)
+                                                retry_wait=retry_wait)
         # Do we have a WH24 attached? First obtain our system parameters.
         _sys_params = self.station.get_system_params()
         # WH24 is indicated by the 6th byte being 0
@@ -3035,13 +3034,11 @@ class GatewayCollector(Collector):
         known_models = ('GW1000', 'GW1100', 'GW2000',
                         'WH2650', 'WH2850', 'WN1900')
 
-        # TODO. Is lost_contact_log_period required in the signature
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
                      socket_timeout=None, broadcast_timeout=None,
                      max_tries=default_max_tries,
-                     retry_wait=default_retry_wait, mac=None,
-                     lost_contact_log_period=None):
+                     retry_wait=default_retry_wait, mac=None):
 
             # network broadcast address
             self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -3694,11 +3691,11 @@ class GatewayCollector(Collector):
                 if attempt < self.max_tries - 1:
                     time.sleep(self.retry_wait)
             # if we made it here we failed after self.max_tries attempts
-            # first of all log it
+            # first log it
             _msg = ("Failed to obtain response to command '%s' after %d attempts" % (cmd, attempt + 1))
             if response is not None or self.log_failures:
                 logerr(_msg)
-            # finally raise a GWIOError exception
+            # then finally, raise a GWIOError exception
             raise GWIOError(_msg)
 
         def build_cmd_packet(self, cmd, payload=b''):
