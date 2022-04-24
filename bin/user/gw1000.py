@@ -576,7 +576,6 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Review queue dwell times
-# TODO. Implement WH34 signal level
 
 # Python imports
 from __future__ import absolute_import
