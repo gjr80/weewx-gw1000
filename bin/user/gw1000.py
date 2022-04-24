@@ -601,6 +601,7 @@ import weecfg
 import weeutil.weeutil
 import weewx.drivers
 import weewx.engine
+import weewx.units
 import weewx.wxformulas
 from weeutil.weeutil import timestamp_to_string
 
@@ -6393,8 +6394,6 @@ class DirectGateway(object):
             # we have a data dict to work with, but we need to format the
             # values and may need to convert units
 
-            # import weewx.units here so it is not imported unnecessarily
-            import weewx.units
             # the live sensor data dict is a dict of sensor values and a
             # timestamp only, whilst all sensor values are in MetricWX units
             # there is no usUnits field present. We need usUnits to do our unit
