@@ -88,6 +88,18 @@ gw1000_config = """
         extractor = last
     [[totalRain]]
         extractor = last
+    [[p_rain]]
+        extractor = sum
+    [[p_stormRain]]
+        extractor = last
+    [[p_dayRain]]
+        extractor = last
+    [[p_weekRain]]
+        extractor = last
+    [[p_monthRain]]
+        extractor = last
+    [[p_yearRain]]
+        extractor = last
     [[pm2_51_24h_avg]]
         extractor = last
     [[pm2_52_24h_avg]]

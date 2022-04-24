@@ -274,6 +274,18 @@ method):
                 extractor = last
             [[totalRain]]
                 extractor = last
+            [[p_rain]]
+                extractor = sum
+            [[p_stormRain]]
+                extractor = last
+            [[p_dayRain]]
+                extractor = last
+            [[p_weekRain]]
+                extractor = last
+            [[p_monthRain]]
+                extractor = last
+            [[p_yearRain]]
+                extractor = last
             [[pm2_51_24h_avg]]
                 extractor = last
             [[pm2_52_24h_avg]]
@@ -710,7 +722,12 @@ default_groups = {'extraTemp9': 'group_temperature',
                   'extraTemp15': 'group_temperature',
                   'extraTemp16': 'group_temperature',
                   'extraTemp17': 'group_temperature',
-                  }
+                  'p_rain': 'group_rain',
+                  'p_stormRain': 'group_rain',
+                  'p_dayRain': 'group_rain',
+                  'p_weekRain': 'group_rain',
+                  'p_monthRain': 'group_rain',
+                  'p_yearRain': 'group_rain'}
 
 # merge the default unit groups into weewx.units.obs_group_dict, but so we
 # don't undo any user customisation elsewhere only merge those fields that do
@@ -880,6 +897,13 @@ class Gateway(object):
         'monthRain': 'rainmonth',
         'yearRain': 'rainyear',
         'totalRain': 'raintotals',
+        'p_rain': 'p_rain',
+        'p_stormRain': 'p_rainevent',
+        'p_rainRate': 'p_rainrate',
+        'p_dayRain': 'p_rainday',
+        'p_weekRain': 'p_rainweek',
+        'p_monthRain': 'p_rainmonth',
+        'p_yearRain': 'p_rainyear'
     }
     # wind related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
@@ -1154,8 +1178,11 @@ class Gateway(object):
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
+        self.piezo_last_rain = None
         self.rain_mapping_confirmed = False
         self.rain_total_field = None
+        self.piezo_rain_mapping_confirmed = False
+        self.piezo_rain_total_field = None
         # Finally, log any config that is not being pushed any further down.
         # Log specific debug output but only if set ie. True
         debug_list = []
@@ -1271,6 +1298,10 @@ class Gateway(object):
         period value for field rain. Try the 'big' (4 byte) counters starting
         at the longest period and working our way down. This should only need
         be done once.
+        
+        This is further complicated by the introduction of 'piezo' rain with 
+        the WS90. Do a second round of checks on the piezo rain equivalents and 
+        create piezo equivalent properties.
 
         data: dic of parsed device API data
         """
@@ -1295,7 +1326,27 @@ class Gateway(object):
             loginf("Using '%s' for rain total" % self.rain_total_field)
         elif self.debug_rain:
             # if debug_rain is set log that we had nothing
-            loginf("No suitable field found for rain total")
+            loginf("No suitable field found for rain")
+
+        # now do the same for piezo rain
+        
+        # if raintotals is present used that as our first choice
+        if 'p_rainyear' in data:
+            self.piezo_rain_total_field = 'p_rainyear'
+            self.piezo_rain_mapping_confirmed = True
+        # rainyear is not present so now try rainmonth
+        elif 'p_rainmonth' in data:
+            self.piezo_rain_total_field = 'p_rainmonth'
+            self.piezo_rain_mapping_confirmed = True
+        # otherwise do nothing, we can try again next packet
+        else:
+            self.piezo_rain_total_field = None
+        # if we found a field log what we are using
+        if self.piezo_rain_mapping_confirmed:
+            loginf("Using '%s' for piezo rain total" % self.piezo_rain_total_field)
+        elif self.debug_rain:
+            # if debug_rain is set log that we had nothing
+            loginf("No suitable field found for piezo rain")
 
     def calculate_rain(self, data):
         """Calculate total rainfall for a period.
@@ -1304,6 +1355,10 @@ class Gateway(object):
         field between successive periods. 'rain' is only calculated if the
         field to be used has been selected and the designated field exists.
 
+        This is further complicated by the introduction of 'piezo' rain with 
+        the WS90. Do a second round of calculations on the piezo rain 
+        equivalents and calculate the piezo rain field.
+        
         data: dict of parsed device API data
         """
 
@@ -1321,6 +1376,25 @@ class Gateway(object):
                                                                                          data['rain']))
             # save the new total as the old total for next time
             self.last_rain = new_total
+
+        # now do the same for piezo rain
+        
+        # have we decided on a field to use for piezo rain and is the field 
+        # present
+        if self.piezo_rain_mapping_confirmed and self.piezo_rain_total_field in data:
+            # yes on both counts, so get the new total
+            piezo_new_total = data[self.piezo_rain_total_field]
+            # now calculate field p_rain as the difference between the new and
+            # old totals
+            data['p_rain'] = self.delta_rain(piezo_new_total, self.piezo_last_rain)
+            # if debug_rain is set log some pertinent values
+            if self.debug_rain:
+                loginf("calculate_rain: piezo_last_rain=%s piezo_new_total=%s "
+                       "calculated p_rain=%s" % (self.piezo_last_rain,
+                                                 piezo_new_total,
+                                                 data['p_rain']))
+            # save the new total as the old total for next time
+            self.piezo_last_rain = piezo_new_total
 
     def calculate_lightning_count(self, data):
         """Calculate total lightning strike count for a period.
@@ -1634,7 +1708,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
             # we have a sensor data packet
             # if not already done so determine which cumulative rain field will
             # be used to determine the per period rain field
-            if not self.rain_mapping_confirmed:
+            if not self.rain_mapping_confirmed or not self.piezo_rain_mapping_confirmed:
                 self.get_cumulative_rain_field(self.cached_sensor_data)
             # get the rainfall this period from total
             self.calculate_rain(self.cached_sensor_data)
@@ -1841,6 +1915,18 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[yearRain]]
             extractor = last
         [[totalRain]]
+            extractor = last
+        [[p_rain]]
+            extractor = sum
+        [[p_stormRain]]
+            extractor = last
+        [[p_dayRain]]
+            extractor = last
+        [[p_weekRain]]
+            extractor = last
+        [[p_monthRain]]
+            extractor = last
+        [[p_yearRain]]
             extractor = last
         [[pm2_51_24h_avg]]
             extractor = last
@@ -2315,7 +2401,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                         packet = {'dateTime': int(time.time() + 0.5)}
                     # if not already determined, determine which cumulative rain
                     # field will be used to determine the per period rain field
-                    if not self.rain_mapping_confirmed:
+                    if not self.rain_mapping_confirmed or not self.piezo_rain_mapping_confirmed:
                         self.get_cumulative_rain_field(queue_data)
                     # get the rainfall this period from total
                     self.calculate_rain(queue_data)
@@ -4084,12 +4170,12 @@ class GatewayCollector(Collector):
             b'\x77': ('decode_wet', 1, 'leafwet6'),
             b'\x78': ('decode_wet', 1, 'leafwet7'),
             b'\x79': ('decode_wet', 1, 'leafwet8'),
-            b'\x80': ('decode_rainrate', 2, 'p_rate'),
-            b'\x81': ('decode_rain', 2, 'p_event'),
-            b'\x83': ('decode_rain', 4, 'p_day'),
-            b'\x84': ('decode_rain', 4, 'p_week'),
-            b'\x85': ('decode_big_rain', 4, 'p_month'),
-            b'\x86': ('decode_big_rain', 4, 'p_year'),
+            b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
+            b'\x81': ('decode_rain', 2, 'p_rainevent'),
+            b'\x83': ('decode_rain', 4, 'p_rainday'),
+            b'\x84': ('decode_rain', 4, 'p_rainweek'),
+            b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
+            b'\x86': ('decode_big_rain', 4, 'p_rainyear'),
             # field 0x87 and 0x88 hold device parameter data that is not
             # included in the loop packets, hence the device field is not
             # used (None).
