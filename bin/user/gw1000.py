@@ -3908,13 +3908,6 @@ class GatewayCollector(Collector):
                             else:
                                 stem = "Multiple devices were"
                             loginf("%s found at %s" % (stem, gw1000_str))
-                            # keep our current IP address and port in case we
-                            # don't find a match as we will change our
-                            # ip_address and port properties in order to get
-                            # the MAC for that IP address and port
-                            # TODO. Are these two required
-                            present_ip = self.ip_address
-                            present_port = self.port
                             # iterate over each candidate checking their MAC
                             # address against my mac property. This way we know
                             # we will be connecting to the device we were
