@@ -94,24 +94,24 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_volt_tenth(255), 25.5)
 
         # binary description
-        self.assertEqual(self.sensors.battery_desc(b'\x00', 0), 'OK')
-        self.assertEqual(self.sensors.battery_desc(b'\x00', 1), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x00', 2), 'Unknown')
-        self.assertEqual(self.sensors.battery_desc(b'\x00', None), 'Unknown')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x00', 0), 'OK')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x00', 1), 'low')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x00', 2), 'Unknown')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x00', None), 'Unknown')
 
         # int description
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 0), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 1), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 4), 'OK')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 6), 'DC')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', 7), 'Unknown')
-        self.assertEqual(self.sensors.battery_desc(b'\x16', None), 'Unknown')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x16', 0), 'low')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x16', 1), 'low')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x16', 4), 'OK')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x16', 6), 'DC')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x16', 7), 'Unknown')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x16', None), 'Unknown')
 
         # voltage description
-        self.assertEqual(self.sensors.battery_desc(b'\x20', 0), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x20', 1.2), 'low')
-        self.assertEqual(self.sensors.battery_desc(b'\x20', 1.5), 'OK')
-        self.assertEqual(self.sensors.battery_desc(b'\x20', None), 'Unknown')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x20', 0), 'low')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x20', 1.2), 'low')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x20', 1.5), 'OK')
+        self.assertEqual(self.sensors.batt_state_desc(b'\x20', None), 'Unknown')
 
 
 class ParseTestCase(unittest.TestCase):

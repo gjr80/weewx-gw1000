@@ -3619,7 +3619,6 @@ class GatewayCollector(Collector):
 
             return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
 
-        # TODO. Is this method appropriately named?
         def read_rain(self):
             """Get traditional gauge and piezo gauge rain data.
 
@@ -5024,11 +5023,18 @@ class GatewayCollector(Collector):
             return data
 
         @staticmethod
-        def battery_desc(address, value):
+        def batt_state_desc(address, value):
             """Determine the battery state description for a given sensor.
 
-            # TODO. Comments need fleshing out
-            Given the address...
+            Given a sensor address and battery state value determine
+            appropriate battery state descriptive text, eg 'low', 'OK' etc.
+            Descriptive text is based on Ecowitt API documentation. None is
+            returned for sensors for which the API documentation provides no
+            suitable battery state data, or for which descriptive battery state
+            text cannot be inferred.
+
+            A battery state value of None should not occur but if received the
+            descriptive text 'unknown' is returned.
             """
 
             if value is not None:
@@ -6333,7 +6339,7 @@ class DirectGateway(object):
                     else:
                         # the sensor is registered so we should have signal and battery
                         # data as well
-                        battery_desc = sensors.battery_desc(address, sensor_data.get('battery'))
+                        battery_desc = sensors.batt_state_desc(address, sensor_data.get('battery'))
                         battery_desc_text = " (%s)" % battery_desc if battery_desc is not None else ""
                         battery_str = "%s%s" % (sensor_data.get('battery'), battery_desc_text)
                         state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').strip('0'),
