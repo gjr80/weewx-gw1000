@@ -44,6 +44,20 @@ Revision History
         -   added support for WS90 sensor platform
         -   WH40 and WH51 battery state now decoded as tenths of a Volt rather
             than as binary
+        -   added mappings for WH34 battery and signal state to the default
+            mapping meaning this data will now appear in WeeWX loop packets
+        -   redesignated WH35 as WN35, this is a sensor name change only
+            default mapping is still to WeeWX fields leafWet1-leafWet8
+        -   refactored GatewayDriver, GatewayService and Gateway class
+            initialisations to facilitate running the GatewayDriver and
+            GatewayService simultaneously
+        -   GatewayService now defaults to using a [GatewayService] stanza but
+            if not found will drop back to the legacy [GW1000] stanza
+        -   the source of GatewayDriver and GatewayService log output is now
+            clearly identified
+        -   moved all parsing and decoding of API responses to class Parser
+        -   assigned WeeWX fields extraTemp9 to extraTemp17 inclusive to
+            group_temperature
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -891,14 +905,22 @@ class Gateway(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
-        'wh35_ch1_batt': 'wh35_ch1_batt',
-        'wh35_ch2_batt': 'wh35_ch2_batt',
-        'wh35_ch3_batt': 'wh35_ch3_batt',
-        'wh35_ch4_batt': 'wh35_ch4_batt',
-        'wh35_ch5_batt': 'wh35_ch5_batt',
-        'wh35_ch6_batt': 'wh35_ch6_batt',
-        'wh35_ch7_batt': 'wh35_ch7_batt',
-        'wh35_ch8_batt': 'wh35_ch8_batt',
+        'wh34_ch1_batt': 'wh34_ch1_batt',
+        'wh34_ch2_batt': 'wh34_ch2_batt',
+        'wh34_ch3_batt': 'wh34_ch3_batt',
+        'wh34_ch4_batt': 'wh34_ch4_batt',
+        'wh34_ch5_batt': 'wh34_ch5_batt',
+        'wh34_ch6_batt': 'wh34_ch6_batt',
+        'wh34_ch7_batt': 'wh34_ch7_batt',
+        'wh34_ch8_batt': 'wh34_ch8_batt',
+        'wn35_ch1_batt': 'wn35_ch1_batt',
+        'wn35_ch2_batt': 'wn35_ch2_batt',
+        'wn35_ch3_batt': 'wn35_ch3_batt',
+        'wn35_ch4_batt': 'wn35_ch4_batt',
+        'wn35_ch5_batt': 'wn35_ch5_batt',
+        'wn35_ch6_batt': 'wn35_ch6_batt',
+        'wn35_ch7_batt': 'wn35_ch7_batt',
+        'wn35_ch8_batt': 'wn35_ch8_batt',
         'wh41_ch1_batt': 'wh41_ch1_batt',
         'wh41_ch2_batt': 'wh41_ch2_batt',
         'wh41_ch3_batt': 'wh41_ch3_batt',
@@ -945,14 +967,22 @@ class Gateway(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
-        'wh35_ch1_sig': 'wh35_ch1_sig',
-        'wh35_ch2_sig': 'wh35_ch2_sig',
-        'wh35_ch3_sig': 'wh35_ch3_sig',
-        'wh35_ch4_sig': 'wh35_ch4_sig',
-        'wh35_ch5_sig': 'wh35_ch5_sig',
-        'wh35_ch6_sig': 'wh35_ch6_sig',
-        'wh35_ch7_sig': 'wh35_ch7_sig',
-        'wh35_ch8_sig': 'wh35_ch8_sig',
+        'wh34_ch1_sig': 'wh34_ch1_sig',
+        'wh34_ch2_sig': 'wh34_ch2_sig',
+        'wh34_ch3_sig': 'wh34_ch3_sig',
+        'wh34_ch4_sig': 'wh34_ch4_sig',
+        'wh34_ch5_sig': 'wh34_ch5_sig',
+        'wh34_ch6_sig': 'wh34_ch6_sig',
+        'wh34_ch7_sig': 'wh34_ch7_sig',
+        'wh34_ch8_sig': 'wh34_ch8_sig',
+        'wn35_ch1_sig': 'wn35_ch1_sig',
+        'wn35_ch2_sig': 'wn35_ch2_sig',
+        'wn35_ch3_sig': 'wn35_ch3_sig',
+        'wn35_ch4_sig': 'wn35_ch4_sig',
+        'wn35_ch5_sig': 'wn35_ch5_sig',
+        'wn35_ch6_sig': 'wn35_ch6_sig',
+        'wn35_ch7_sig': 'wn35_ch7_sig',
+        'wn35_ch8_sig': 'wn35_ch8_sig',
         'wh41_ch1_sig': 'wh41_ch1_sig',
         'wh41_ch2_sig': 'wh41_ch2_sig',
         'wh41_ch3_sig': 'wh41_ch3_sig',
@@ -1849,21 +1879,37 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_batt]]
             extractor = last
-        [[wh35_ch1_batt]]
+        [[wh34_ch1_batt]]
             extractor = last
-        [[wh35_ch2_batt]]
+        [[wh34_ch2_batt]]
             extractor = last
-        [[wh35_ch3_batt]]
+        [[wh34_ch3_batt]]
             extractor = last
-        [[wh35_ch4_batt]]
+        [[wh34_ch4_batt]]
             extractor = last
-        [[wh35_ch5_batt]]
+        [[wh34_ch5_batt]]
             extractor = last
-        [[wh35_ch6_batt]]
+        [[wh34_ch6_batt]]
             extractor = last
-        [[wh35_ch7_batt]]
+        [[wh34_ch7_batt]]
             extractor = last
-        [[wh35_ch8_batt]]
+        [[wh34_ch8_batt]]
+            extractor = last
+        [[wn35_ch1_batt]]
+            extractor = last
+        [[wn35_ch2_batt]]
+            extractor = last
+        [[wn35_ch3_batt]]
+            extractor = last
+        [[wn35_ch4_batt]]
+            extractor = last
+        [[wn35_ch5_batt]]
+            extractor = last
+        [[wn35_ch6_batt]]
+            extractor = last
+        [[wn35_ch7_batt]]
+            extractor = last
+        [[wn35_ch8_batt]]
             extractor = last
         [[wh41_ch1_batt]]
             extractor = last
@@ -1945,21 +1991,37 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_sig]]
             extractor = last
-        [[wh35_ch1_sig]]
+        [[wh34_ch1_sig]]
             extractor = last
-        [[wh35_ch2_sig]]
+        [[wh34_ch2_sig]]
             extractor = last
-        [[wh35_ch3_sig]]
+        [[wh34_ch3_sig]]
             extractor = last
-        [[wh35_ch4_sig]]
+        [[wh34_ch4_sig]]
             extractor = last
-        [[wh35_ch5_sig]]
+        [[wh34_ch5_sig]]
             extractor = last
-        [[wh35_ch6_sig]]
+        [[wh34_ch6_sig]]
             extractor = last
-        [[wh35_ch7_sig]]
+        [[wh34_ch7_sig]]
             extractor = last
-        [[wh35_ch8_sig]]
+        [[wh34_ch8_sig]]
+            extractor = last
+        [[wn35_ch1_sig]]
+            extractor = last
+        [[wn35_ch2_sig]]
+            extractor = last
+        [[wn35_ch3_sig]]
+            extractor = last
+        [[wn35_ch4_sig]]
+            extractor = last
+        [[wn35_ch5_sig]]
+            extractor = last
+        [[wn35_ch6_sig]]
+            extractor = last
+        [[wn35_ch7_sig]]
+            extractor = last
+        [[wn35_ch8_sig]]
             extractor = last
         [[wh41_ch1_sig]]
             extractor = last
@@ -2472,14 +2534,14 @@ class GatewayCollector(Collector):
         b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
         b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
         b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
-        b'\x28': {'name': 'wh35_ch1', 'long_name': 'WH35 ch1', 'batt_fn': 'batt_volt'},
-        b'\x29': {'name': 'wh35_ch2', 'long_name': 'WH35 ch2', 'batt_fn': 'batt_volt'},
-        b'\x2a': {'name': 'wh35_ch3', 'long_name': 'WH35 ch3', 'batt_fn': 'batt_volt'},
-        b'\x2b': {'name': 'wh35_ch4', 'long_name': 'WH35 ch4', 'batt_fn': 'batt_volt'},
-        b'\x2c': {'name': 'wh35_ch5', 'long_name': 'WH35 ch5', 'batt_fn': 'batt_volt'},
-        b'\x2d': {'name': 'wh35_ch6', 'long_name': 'WH35 ch6', 'batt_fn': 'batt_volt'},
-        b'\x2e': {'name': 'wh35_ch7', 'long_name': 'WH35 ch7', 'batt_fn': 'batt_volt'},
-        b'\x2f': {'name': 'wh35_ch8', 'long_name': 'WH35 ch8', 'batt_fn': 'batt_volt'},
+        b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
+        b'\x29': {'name': 'wn35_ch2', 'long_name': 'WN35 ch2', 'batt_fn': 'batt_volt'},
+        b'\x2a': {'name': 'wn35_ch3', 'long_name': 'WN35 ch3', 'batt_fn': 'batt_volt'},
+        b'\x2b': {'name': 'wn35_ch4', 'long_name': 'WN35 ch4', 'batt_fn': 'batt_volt'},
+        b'\x2c': {'name': 'wn35_ch5', 'long_name': 'WN35 ch5', 'batt_fn': 'batt_volt'},
+        b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
+        b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
+        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
         b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
     }
     # sensors for which there is no low battery state
@@ -4697,6 +4759,11 @@ class GatewayCollector(Collector):
                                         byte big endian signed integer
                                         representing tenths of a degree
             3       battery voltage     0.02 * value Volts
+
+            WH34 battery state data is included in the WH34 sensor data (along
+            with temperature) as well as in the complete sensor ID data. In
+            keeping with other sensors we do not use the sensor data battery
+            state, rather we obtain it from the sensor ID data.
             """
 
             if len(data) == 3 and field is not None:
@@ -4725,6 +4792,11 @@ class GatewayCollector(Collector):
                     12-13  CO2                unsigned short  ppm
                     14-15  CO2 24 our avg     unsigned short  ppm
                     16     battery state      unsigned byte   0-5 <=1 is low
+
+            WH45 battery state data is included in the WH45 sensor data (along
+            with temperature) as well as in the complete sensor ID data. In
+            keeping with other sensors we do not use the sensor data battery
+            state, rather we obtain it from the sensor ID data.
             """
 
             if len(data) == 16 and fields is not None:
@@ -5300,7 +5372,7 @@ class DirectGateway(object):
         'leafwet6': 'group_percent',
         'leafwet7': 'group_percent',
         'leafwet8': 'group_percent',
-        'wh40_batt': 'group_count',
+        'wh40_batt': 'group_volt',
         'wh26_batt': 'group_count',
         'wh25_batt': 'group_count',
         'wh24_batt': 'group_count',
@@ -5313,35 +5385,43 @@ class DirectGateway(object):
         'wh31_ch6_batt': 'group_count',
         'wh31_ch7_batt': 'group_count',
         'wh31_ch8_batt': 'group_count',
-        'wh35_ch1_batt': 'group_count',
-        'wh35_ch2_batt': 'group_count',
-        'wh35_ch3_batt': 'group_count',
-        'wh35_ch4_batt': 'group_count',
-        'wh35_ch5_batt': 'group_count',
-        'wh35_ch6_batt': 'group_count',
-        'wh35_ch7_batt': 'group_count',
-        'wh35_ch8_batt': 'group_count',
+        'wh34_ch1_batt': 'group_volt',
+        'wh34_ch2_batt': 'group_volt',
+        'wh34_ch3_batt': 'group_volt',
+        'wh34_ch4_batt': 'group_volt',
+        'wh34_ch5_batt': 'group_volt',
+        'wh34_ch6_batt': 'group_volt',
+        'wh34_ch7_batt': 'group_volt',
+        'wh34_ch8_batt': 'group_volt',
+        'wn35_ch1_batt': 'group_volt',
+        'wn35_ch2_batt': 'group_volt',
+        'wn35_ch3_batt': 'group_volt',
+        'wn35_ch4_batt': 'group_volt',
+        'wn35_ch5_batt': 'group_volt',
+        'wn35_ch6_batt': 'group_volt',
+        'wn35_ch7_batt': 'group_volt',
+        'wn35_ch8_batt': 'group_volt',
         'wh41_ch1_batt': 'group_count',
         'wh41_ch2_batt': 'group_count',
         'wh41_ch3_batt': 'group_count',
         'wh41_ch4_batt': 'group_count',
         'wh45_batt': 'group_count',
-        'wh51_ch1_batt': 'group_count',
-        'wh51_ch2_batt': 'group_count',
-        'wh51_ch3_batt': 'group_count',
-        'wh51_ch4_batt': 'group_count',
-        'wh51_ch5_batt': 'group_count',
-        'wh51_ch6_batt': 'group_count',
-        'wh51_ch7_batt': 'group_count',
-        'wh51_ch8_batt': 'group_count',
-        'wh51_ch9_batt': 'group_count',
-        'wh51_ch10_batt': 'group_count',
-        'wh51_ch11_batt': 'group_count',
-        'wh51_ch12_batt': 'group_count',
-        'wh51_ch13_batt': 'group_count',
-        'wh51_ch14_batt': 'group_count',
-        'wh51_ch15_batt': 'group_count',
-        'wh51_ch16_batt': 'group_count',
+        'wh51_ch1_batt': 'group_volt',
+        'wh51_ch2_batt': 'group_volt',
+        'wh51_ch3_batt': 'group_volt',
+        'wh51_ch4_batt': 'group_volt',
+        'wh51_ch5_batt': 'group_volt',
+        'wh51_ch6_batt': 'group_volt',
+        'wh51_ch7_batt': 'group_volt',
+        'wh51_ch8_batt': 'group_volt',
+        'wh51_ch9_batt': 'group_volt',
+        'wh51_ch10_batt': 'group_volt',
+        'wh51_ch11_batt': 'group_volt',
+        'wh51_ch12_batt': 'group_volt',
+        'wh51_ch13_batt': 'group_volt',
+        'wh51_ch14_batt': 'group_volt',
+        'wh51_ch15_batt': 'group_volt',
+        'wh51_ch16_batt': 'group_volt',
         'wh55_ch1_batt': 'group_count',
         'wh55_ch2_batt': 'group_count',
         'wh55_ch3_batt': 'group_count',
@@ -5363,14 +5443,22 @@ class DirectGateway(object):
         'wh31_ch6_sig': 'group_count',
         'wh31_ch7_sig': 'group_count',
         'wh31_ch8_sig': 'group_count',
-        'wh35_ch1_sig': 'group_count',
-        'wh35_ch2_sig': 'group_count',
-        'wh35_ch3_sig': 'group_count',
-        'wh35_ch4_sig': 'group_count',
-        'wh35_ch5_sig': 'group_count',
-        'wh35_ch6_sig': 'group_count',
-        'wh35_ch7_sig': 'group_count',
-        'wh35_ch8_sig': 'group_count',
+        'wh34_ch1_sig': 'group_count',
+        'wh34_ch2_sig': 'group_count',
+        'wh34_ch3_sig': 'group_count',
+        'wh34_ch4_sig': 'group_count',
+        'wh34_ch5_sig': 'group_count',
+        'wh34_ch6_sig': 'group_count',
+        'wh34_ch7_sig': 'group_count',
+        'wh34_ch8_sig': 'group_count',
+        'wn35_ch1_sig': 'group_count',
+        'wn35_ch2_sig': 'group_count',
+        'wn35_ch3_sig': 'group_count',
+        'wn35_ch4_sig': 'group_count',
+        'wn35_ch5_sig': 'group_count',
+        'wn35_ch6_sig': 'group_count',
+        'wn35_ch7_sig': 'group_count',
+        'wn35_ch8_sig': 'group_count',
         'wh41_ch1_sig': 'group_count',
         'wh41_ch2_sig': 'group_count',
         'wh41_ch3_sig': 'group_count',
