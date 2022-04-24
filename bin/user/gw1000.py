@@ -58,6 +58,9 @@ Revision History
         -   moved all parsing and decoding of API responses to class Parser
         -   assigned WeeWX fields extraTemp9 to extraTemp17 inclusive to
             group_temperature
+        -   implemented --driver-map and --service-map command line options to
+            display the actual field map that would be used when running as a
+            driver and service respectively
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
