@@ -562,7 +562,6 @@ the WeeWX daemon:
 # TODO. Confirm WH40 battery status
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Review queue dwell times
-# TODO. Move decoding of any response from GW1000 API to class Parser()
 # TODO. Implement WH34 signal level
 
 # Python imports
@@ -679,6 +678,31 @@ default_poll_interval = 20
 default_lost_contact_log_period = 21600
 # default battery state filtering
 default_show_battery = False
+# For packet unit conversion to work correctly each possible WeeWX field needs
+# to be assigned to a unit group. This is normally already taken care of for
+# WeeWX fields in the in-use database schema; however, a GW1000 system may
+# include additional fields not included in the schema. We cannot know what
+# unit group the user may intend for each WeeWX field in a custom field map but
+# we can take care of the default field map.
+# define the default groups to use for WeeWX fields in the default field map
+# but not in the (WeeWX default) wview_extended schema
+default_groups = {'extraTemp9': 'group_temperature',
+                  'extraTemp10': 'group_temperature',
+                  'extraTemp11': 'group_temperature',
+                  'extraTemp12': 'group_temperature',
+                  'extraTemp13': 'group_temperature',
+                  'extraTemp14': 'group_temperature',
+                  'extraTemp15': 'group_temperature',
+                  'extraTemp16': 'group_temperature',
+                  'extraTemp17': 'group_temperature',
+                  }
+
+# merge the default unit groups into weewx.units.obs_group_dict, but so we
+# don't undo any user customisation elsewhere only merge those fields that do
+# not already exits in weewx.units.obs_group_dict
+for obs, group in six.iteritems(default_groups):
+    if obs not in weewx.units.obs_group_dict.keys():
+        weewx.units.obs_group_dict[obs] = group
 
 
 # ============================================================================
@@ -1380,8 +1404,15 @@ class GatewayService(weewx.engine.StdService, Gateway):
     def __init__(self, engine, config_dict):
         """Initialise a GatewayService object."""
 
-        # extract the service config dictionary
-        gw_config_dict = config_dict.get('GW1000', {})
+        # extract the gateway service config dictionary
+        # first look for [Gw1000Service]
+        if 'GW1000Service' in config_dict:
+            # we have a [GW1000Service] config stanza so use it
+            gw_config_dict = config_dict['GW1000Service']
+        else:
+            # we don't have a [GW1000Service] stana so use [GW1000] if it
+            # exists otherwise use an empty config
+            gw_config_dict = config_dict.get('GW1000', {})
         # initialize my superclasses
         super(GatewayService, self).__init__(engine, config_dict)
         super(weewx.engine.StdService, self).__init__(**gw_config_dict)
@@ -1401,33 +1432,52 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # sensor data packet
         self.cached_sensor_data = None
         # log our version number
-        loginf('version is %s' % DRIVER_VERSION)
+        loginf('GatewayService: version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
-            loginf("%s IP address and port not specified, "
-                   "attempting to discover %s..." % (self.collector.station.model,
+            loginf('GatewayService: %s IP address and port not specified, '
+                   'attempting to discover %s...' % (self.collector.station.model,
                                                      self.collector.station.model))
         elif self.ip_address is None:
-            loginf("%s IP address not specified, attempting to discover %s..." % (self.collector.station.model,
-                                                                                  self.collector.station.model))
+            loginf('GatewayService: %s IP address not specified, attempting '
+                   'to discover %s...' % (self.collector.station.model,
+                                          self.collector.station.model))
         elif self.port is None:
-            loginf("%s port not specified, attempting to discover %s..." % (self.collector.station.model,
-                                                                            self.collector.station.model))
-        loginf("%s address is %s:%d" % (self.collector.station.model,
-                                        self.collector.station.ip_address.decode(),
-                                        self.collector.station.port))
-        loginf("poll interval is %d seconds" % self.poll_interval)
-        logdbg('max tries is %d, retry wait time is %d seconds' % (self.max_tries,
-                                                                   self.retry_wait))
-        logdbg('broadcast address %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address,
-                                                                             self.broadcast_port,
-                                                                             self.broadcast_timeout))
-        logdbg('socket timeout is %d seconds' % self.socket_timeout)
-        loginf("max age of API data to be used is %d seconds" % self.max_age)
-        loginf("lost contact will be logged every %d seconds" % self.lost_contact_log_period)
-        # start the GatewayCollector in its own thread
+            loginf('Gw1000Service: %s port not specified, attempting '
+                   'to discover %s...' % (self.collector.station.model,
+                                          self.collector.station.model))
+        loginf('GatewayService: %s address is %s:%d' % (self.collector.station.model,
+                                                        self.collector.station.ip_address.decode(),
+                                                        self.collector.station.port))
+        loginf('GatewayService: poll interval is %d seconds' % self.poll_interval)
+        logdbg('GatewayService: max tries is %d, retry wait time is %d seconds' % (self.max_tries,
+                                                                                  self.retry_wait))
+        logdbg('GatewayService: broadcast address %s:%d, '
+               'broadcast timeout is %d seconds' % (self.broadcast_address,
+                                                    self.broadcast_port,
+                                                    self.broadcast_timeout))
+        logdbg('GatewayService: socket timeout is %d seconds' % self.socket_timeout)
+        loginf("GatewayService: max age of API data to be used is %d seconds" % self.max_age)
+        # The field map. Field map dict output will be in unsorted key order.
+        # It is easier to read if sorted alphanumerically but we have keys such
+        # as xxxxx16 that do not sort well. Use a custom natural sort of the
+        # keys in a manually produced formatted dict representation.
+        loginf('Gw1000Service: field map is %s' % natural_sort_dict(self.field_map))
+        loginf('Gw1000Service: lost contact will be logged every %d seconds' % self.lost_contact_log_period)
+        # log specific debug but only if set ie. True
+        debug_list = []
+        if self.debug_rain:
+            debug_list.append('debug_rain is %s' % (self.debug_rain,))
+        if self.debug_wind:
+            debug_list.append('debug_wind is %s' % (self.debug_wind,))
+        if self.debug_loop:
+            debug_list.append('debug_loop is %s' % (self.debug_loop,))
+        if len(debug_list) > 0:
+            loginf('%s: %s' % ('Gw1000Service', ' '.join(debug_list)))
+
+        # start the Gw1000Collector in its own thread
         self.collector.startup()
-        # bind our self to the relevant weeWX events
+        # bind our self to the relevant WeeWX events
         self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
 
     def new_loop_packet(self, event):
@@ -1447,8 +1497,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # log the loop packet received if necessary, there are several debug
         # settings that may require this
         if self.debug_loop or self.debug_rain or self.debug_wind:
-            loginf("Processing loop packet: %s %s" % (timestamp_to_string(event.packet['dateTime']),
-                                                      natural_sort_dict(event.packet)))
+            loginf('GatewayService: Processing loop packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
+                                                                      natural_sort_dict(event.packet)))
         # we are about to process the queue so reset our cached sensor data
         # packet property
         self.cached_sensor_data = None
@@ -1465,7 +1515,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 # there was nothing in the queue so if required log this and
                 # then break out of the while loop
                 if self.debug_loop or self.debug_rain or self.debug_wind:
-                    loginf("No queued items to process")
+                    loginf('GatewayService: No queued items to process')
                 if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
                     self.lost_con_ts = time.time()
                     self.set_failure_logging(True)
@@ -1493,22 +1543,25 @@ class GatewayService(weewx.engine.StdService, Gateway):
                         if 'datetime' in queue_data:
                             # if we have a 'datetime' field it is almost
                             # certainly a sensor data packet
-                            loginf("Received queued sensor data: %s %s" % (timestamp_to_string(queue_data['datetime']),
-                                                                           natural_sort_dict(queue_data)))
+                            loginf('GatewayService: Received queued sensor '
+                                   'data: %s %s' % (timestamp_to_string(queue_data['datetime']),
+                                                    natural_sort_dict(queue_data)))
                         else:
                             # There is no 'datetime' field, this should not
                             # happen. Log it in any case.
-                            loginf("Received queued data: %s" % (natural_sort_dict(queue_data),))
+                            loginf('GatewayService: Received queued data: %s' % (natural_sort_dict(queue_data),))
                     else:
                         # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
-                            self.log_rain_data(queue_data, "Received %s data" % self.collector.station.model)
+                            self.log_rain_data(queue_data,
+                                               'GatewayService: Received %s data' % self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
-                            self.log_wind_data(queue_data, "Received %s data" % self.collector.station.model)
+                            self.log_wind_data(queue_data,
+                                               'GatewayService: Received %s data' % self.collector.station.model)
                     # now process the just received sensor data packet
                     self.process_queued_sensor_data(queue_data, event.packet['dateTime'])
 
@@ -1524,15 +1577,14 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     # process the exception
                     self.process_queued_exception(queue_data)
 
-                # if it's None then its a signal the Collector needs to shutdown
+                # if it's None then it's a signal the Collector needs to shutdown
                 elif queue_data is None:
                     # if debug_loop log what we received
                     if self.debug_loop:
-                        loginf("Received collector shutdown signal 'None'")
+                        loginf('GatewayService: Received collector shutdown signal')
                     # we received the signal that the GatewayCollector needs to
-                    # shutdown, that means we cannot continue so call our
-                    # shutdown method which will also shutdown the
-                    # GatewayCollector thread
+                    # shutdown, that means we cannot continue so call our shutdown
+                    # method which will also shutdown the GatewayCollector thread
                     self.shutDown()
                     # the GatewayCollector has been shutdown so we will not see
                     # anything more in the queue, we are still bound to
@@ -1561,42 +1613,40 @@ class GatewayService(weewx.engine.StdService, Gateway):
             mapped_data = self.map_data(self.cached_sensor_data)
             # log the mapped data if necessary
             if self.debug_loop:
-                loginf("Mapped %s data: %s %s" % (self.collector.station.model,
-                                                  timestamp_to_string(mapped_data['dateTime']),
-                                                  natural_sort_dict(mapped_data)))
+                loginf('GatewayService: Mapped %s data: %s' % (self.collector.station.model,
+                                                               natural_sort_dict(mapped_data)))
             else:
                 # perhaps we have individual debugs such as rain or wind
                 if self.debug_rain:
                     # debug_rain is set so log the 'rain' field in the
                     # mapped data, if it does not exist say so
-                    self.log_rain_data(mapped_data, "Mapped %s data" % self.collector.station.model)
+                    self.log_rain_data(mapped_data,
+                                       'GatewayService: Mapped %s data' % self.collector.station.model)
                 if self.debug_wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # mapped data, if they do not exist say so
-                    self.log_wind_data(mapped_data, "Mapped %s data" % self.collector.station.model)
+                    self.log_wind_data(mapped_data,
+                                       'GatewayService: Mapped %s data' % self.collector.station.model)
             # and finally augment the loop packet with the mapped data
             self.augment_packet(event.packet, mapped_data)
             # log the augmented packet if necessary, there are several debug
             # settings that may require this, start from the highest (most
             # encompassing) and work to the lowest (least encompassing)
-            if self.debug_loop:
-                loginf('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
-                                                    natural_sort_dict(event.packet)))
-            elif weewx.debug >= 2:
-                logdbg('Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
-                                                    natural_sort_dict(event.packet)))
+            if self.debug_loop or weewx.debug >= 2:
+                loginf('GatewayService: Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
+                                                                    natural_sort_dict(event.packet)))
             else:
                 # perhaps we have individual debugs such as rain or wind
                 if self.debug_rain:
                     # debug_rain is set so log the 'rain' field in the
                     # augmented loop packet, if it does not exist say
                     # so
-                    self.log_rain_data(event.packet, "Augmented packet")
+                    self.log_rain_data(event.packet, 'GatewayService: Augmented packet')
                 if self.debug_wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # loop packet being emitted, if they do not exist
                     # say so
-                    self.log_wind_data(event.packet, "Augmented packet")
+                    self.log_wind_data(event.packet, 'GatewayService: Augmented packet')
 
     def process_queued_sensor_data(self, sensor_data, date_time):
         """Process a sensor data packet received in the collector queue.
@@ -1648,8 +1698,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 self.set_failure_logging(False)
         else:
             # it's not so log it
-            logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
-                                                           e))
+            logerr('GatewayService: Caught unexpected exception %s: %s' % (e.__class__.__name__,
+                                                                           e))
 
     def augment_packet(self, packet, data):
         """Augment a loop packet with data from another packet.
@@ -1665,9 +1715,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
         """
 
         if self.debug_loop:
-            _stem = "Mapped data(%s) will be used to augment loop packet(%s)"
-            loginf(_stem % (timestamp_to_string(data['dateTime']),
-                            timestamp_to_string(packet['dateTime'])))
+            _stem = 'GatewayService: Mapped data will be used to augment loop packet(%s)'
+            loginf(_stem % timestamp_to_string(packet['dateTime']))
         # But the mapped data must be converted to the same unit system as
         # the packet being augmented. First get a converter.
         converter = weewx.units.StdUnitConverters[packet['usUnits']]
@@ -1676,9 +1725,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
         converted_data = converter.convertDict(data)
         # if required log the converted data
         if self.debug_loop:
-            loginf("Converted %s data: %s %s" % (self.collector.station.model,
-                                                 timestamp_to_string(converted_data['dateTime']),
-                                                 natural_sort_dict(converted_data)))
+            loginf("GatewayService: Converted %s data: %s" % (self.collector.station.model,
+                                                              natural_sort_dict(converted_data)))
         # now we can freely augment the packet with any of our mapped obs
         for field, data in six.iteritems(converted_data):
             # Any existing packet fields, whether they contain data or are
@@ -2098,29 +2146,49 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         super(GatewayDriver, self).__init__(**stn_dict)
 
         # log our version number
-        loginf('driver version is %s' % DRIVER_VERSION)
+        loginf('GatewayDriver: version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
-            loginf("%s IP address and port not specified, "
-                   "attempting to discover %s..." % (self.collector.station.model,
+            loginf('GatewayDriver: %s IP address and port not specified, '
+                   'attempting to discover %s...' % (self.collector.station.model,
                                                      self.collector.station.model))
         elif self.ip_address is None:
-            loginf("%s IP address not specified, attempting to discover %s..." % (self.collector.station.model,
-                                                                                  self.collector.station.model))
+            loginf('GatewayDriver: %s IP address not specified, attempting '
+                   'to discover %s...' % (self.collector.station.model,
+                                          self.collector.station.model))
         elif self.port is None:
-            loginf("%s port not specified, attempting to discover %s..." % (self.collector.station.model,
-                                                                            self.collector.station.model))
-        loginf("%s address is %s:%d" % (self.collector.station.model,
-                                        self.collector.station.ip_address.decode(),
-                                        self.collector.station.port))
-        loginf("poll interval is %d seconds" % self.poll_interval)
-        logdbg('max tries is %d, retry wait time is %d seconds' % (self.max_tries,
-                                                                   self.retry_wait))
-        logdbg('broadcast address is %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address,
-                                                                                self.broadcast_port,
-                                                                                self.broadcast_timeout))
-        logdbg('socket timeout is %d seconds' % self.socket_timeout)
-        # start the GatewayCollector in its own thread
+            loginf('GatewayDriver: %s port not specified, attempting '
+                   'to discover %s...' % (self.collector.station.model,
+                                          self.collector.station.model))
+        loginf('GatewayDriver: %s address is %s:%d' % (self.collector.station.model,
+                                                       self.collector.station.ip_address.decode(),
+                                                       self.collector.station.port))
+        loginf('GatewayDriver: poll interval is %d seconds' % self.poll_interval)
+        logdbg('GatewayDriver: max tries is %d, retry wait time '
+               'is %d seconds' % (self.max_tries,
+                                  self.retry_wait))
+        logdbg('GatewayDriver: broadcast address is %s:%d, broadcast '
+               'timeout is %d seconds' % (self.broadcast_address,
+                                          self.broadcast_port,
+                                          self.broadcast_timeout))
+        logdbg('GatewayDriver: socket timeout is %d seconds' % self.socket_timeout)
+        # The field map. Field map dict output will be in unsorted key order.
+        # It is easier to read if sorted alphanumerically but we have keys such
+        # as xxxxx16 that do not sort well. Use a custom natural sort of the
+        # keys in a manually produced formatted dict representation.
+        loginf('GatewayDriver: field map is %s' % natural_sort_dict(self.field_map))
+        # log specific debug but only if set ie. True
+        debug_list = []
+        if self.debug_rain:
+            debug_list.append('debug_rain is %s' % (self.debug_rain,))
+        if self.debug_wind:
+            debug_list.append('debug_wind is %s' % (self.debug_wind,))
+        if self.debug_loop:
+            debug_list.append('debug_loop is %s' % (self.debug_loop,))
+        if len(debug_list) > 0:
+            loginf('%s: %s' % ('GatewayDriver', ' '.join(debug_list)))
+
+        # start the Gw1000Collector in its own thread
         self.collector.startup()
 
     def genLoopPackets(self):
@@ -2155,23 +2223,25 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # log the received data if necessary
                     if self.debug_loop:
                         if 'datetime' in queue_data:
-                            loginf("Received %s data: %s %s" % (self.collector.station.model,
-                                                                timestamp_to_string(queue_data['datetime']),
-                                                                natural_sort_dict(queue_data)))
+                            loginf('GatewayDriver: Received %s data: %s %s' % (self.collector.station.model,
+                                                                               timestamp_to_string(queue_data['datetime']),
+                                                                               natural_sort_dict(queue_data)))
                         else:
-                            loginf("Received %s data: %s" % (self.collector.station.model,
-                                                             natural_sort_dict(queue_data)))
+                            loginf('GatewayDriver: Received %s data: %s' % (self.collector.station.model,
+                                                                            natural_sort_dict(queue_data)))
                     else:
                         # perhaps we have individual debugs such as rain or
                         # wind
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
-                            self.log_rain_data(queue_data, "Received %s data" % self.collector.station.model)
+                            self.log_rain_data(queue_data,
+                                               'GatewayDriver: Received %s data'% self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
-                            self.log_wind_data(queue_data, "Received %s data" % self.collector.station.model)
+                            self.log_wind_data(queue_data,
+                                               'GatewayDriver: Received %s data' % self.collector.station.model)
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
                     # received data use it otherwise allocate one.
@@ -2193,34 +2263,33 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # log the mapped data if necessary
                     if self.debug_loop:
                         if 'datetime' in mapped_data:
-                            loginf("Mapped %s data: %s %s" % (self.collector.station.model,
-                                                              timestamp_to_string(mapped_data['datetime']),
-                                                              natural_sort_dict(mapped_data)))
+                            loginf('GatewayDriver: Mapped %s data: %s %s' % (self.collector.station.model,
+                                                                             timestamp_to_string(mapped_data['datetime']),
+                                                                             natural_sort_dict(mapped_data)))
                         else:
-                            loginf("Mapped %s data: %s" % (self.collector.station.model,
-                                                           natural_sort_dict(mapped_data)))
+                            loginf('GatewayDriver: Mapped %s data: %s' % (self.collector.station.model,
+                                                                          natural_sort_dict(mapped_data)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
-                            self.log_rain_data(mapped_data, "Mapped %s data" % self.collector.station.model)
+                            self.log_rain_data(mapped_data,
+                                               'GatewayDriver: Mapped %s data' % self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
-                            self.log_wind_data(mapped_data, "Mapped %s data" % self.collector.station.model)
+                            self.log_wind_data(mapped_data,
+                                               'GatewayDriver: Mapped %s data' % self.collector.station.model)
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet if necessary, there are several debug
                     # settings that may require this, start from the highest
                     # (most encompassing) and work to the lowest (least
                     # encompassing)
-                    if self.debug_loop:
-                        loginf('Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
-                                                  natural_sort_dict(packet)))
-                    elif weewx.debug >= 2:
-                        logdbg('Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
-                                                  natural_sort_dict(packet)))
+                    if self.debug_loop or weewx.debug >= 2:
+                        loginf('GatewayDriver: Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
+                                                                 natural_sort_dict(packet)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
                         if self.debug_rain:
@@ -2228,13 +2297,13 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # loop packet being emitted, if it does not exist
                             # say so
                             self.log_rain_data(mapped_data,
-                                               "Packet %s" % timestamp_to_string(packet['dateTime']))
+                                               'GatewayDriver: Packet %s' % timestamp_to_string(packet['dateTime']))
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
                             self.log_wind_data(mapped_data,
-                                               "Packets %s" % timestamp_to_string(packet['dateTime']))
+                                               'GatewayDriver: Packets %s' % timestamp_to_string(packet['dateTime']))
                     # yield the loop packet
                     yield packet
                 # if it's a tuple then it's a tuple with an exception and
@@ -2258,15 +2327,15 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             raise weewx.WeeWxIOError(e)
                         else:
                             # it's not so log it
-                            logerr("Caught unexpected exception %s: %s" % (e.__class__.__name__,
-                                                                           e))
+                            logerr('GatewayDriver: Caught unexpected exception %s: %s' % (e.__class__.__name__,
+                                                                                         e))
                             # then raise it, WeeWX will decide what to do
                             raise e
                 # if it's None then its a signal the Collector needs to shutdown
                 elif queue_data is None:
                     # if debug_loop log what we received
                     if self.debug_loop:
-                        loginf("Received 'None'")
+                        loginf('GatewayDriver: Received shutdown signal')
                     # we received the signal to shutdown, so call closePort()
                     self.closePort()
                     # and raise an exception to cause the engine to shutdown
