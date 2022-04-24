@@ -3970,12 +3970,6 @@ class GatewayCollector(Collector):
         device, eg when reading device configuration settings.
         """
 
-        # TODO. Would be good to get rid of this too, but it is presently used elsewhere
-        multi_batt = {'wh40': {'mask': 1 << 4},
-                      'wh26': {'mask': 1 << 5},
-                      'wh25': {'mask': 1 << 6},
-                      'wh65': {'mask': 1 << 7}
-                      }
         # Dictionary of 'address' based data. Dictionary is keyed by device
         # data field 'address' containing various parameters for each
         # 'address'. Dictionary tuple format is:
@@ -4122,29 +4116,8 @@ class GatewayCollector(Collector):
         wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
         def __init__(self, is_wh24=False, debug_rain=False, debug_wind=False):
-            # Tell our battery state decoding whether we have a WH24 or a WH65
-            # (they both share the same battery state bit). By default we are
-            # coded to use a WH65. But is there a WH24 connected?
-            if is_wh24:
-                # We have a WH24. On startup we are set for a WH65 but if it is
-                # a restart we will likely already be setup for a WH24. We need
-                # to handle both cases.
-                if 'wh24' not in self.multi_batt.keys():
-                    # we don't have a 'wh24' entry so create one, it's the same
-                    # as the 'wh65' entry
-                    self.multi_batt['wh24'] = self.multi_batt['wh65']
-                    # and pop off the no longer needed WH65 decode dict entry
-                    self.multi_batt.pop('wh65')
-            else:
-                # We don't have a WH24 but a WH65. On startup we are set for a
-                # WH65 but if it is a restart it is possible we have already
-                # been setup for a WH24. We need to handle both cases.
-                if 'wh65' not in self.multi_batt.keys():
-                    # we don't have a 'wh65' entry so create one, it's the same
-                    # as the 'wh24' entry
-                    self.multi_batt['wh65'] = self.multi_batt['wh24']
-                    # and pop off the no longer needed WH65 decode dict entry
-                    self.multi_batt.pop('wh24')
+            # do we have a WH24 or a WH65
+            self.is_wh24 = is_wh24
             # get debug_rain and debug_wind
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
