@@ -752,7 +752,7 @@ class Gateway(object):
     # Default field map to map device sensor data to WeeWX fields. WeeWX field
     # names are used where there is a direct correlation to the WeeWX
     # wview_extended schema or weewx.units.obs_group_dict otherwise fields are
-    # passed passed through as is.
+    # passed through as is.
     # Format is:
     #   WeeWX field name: Gateway device field name
     default_field_map = {
@@ -5629,6 +5629,10 @@ class DirectGateway(object):
             self.discover()
         elif self.opts.map:
             self.field_map()
+        elif self.opts.driver_map:
+            self.driver_field_map()
+        elif self.opts.service_map:
+            self.service_field_map()
         else:
             return
         exit(0)
@@ -6507,6 +6511,125 @@ class DirectGateway(object):
         for key in keys_list:
             print("    %23s: %s" % (key, field_map[key]))
 
+    def driver_field_map(self):
+        """Display the driver field map that would be used.
+
+        By default, the default field map is used by the driver; however, the
+        user may alter the field map used by the driver via the [GW1000]
+        stanza. This method displays the actual field map that would be used by
+        the driver.
+        """
+
+        # this may take a moment to set up so inform the user
+        print()
+        print("This may take a moment...")
+        # place an entry in the log so that if we encounter errors that are
+        # logged we can tell they were not caused by a live WeeWX instance
+        loginf("Obtaining a gateway driver...")
+        # wrap in a try..except in case there is an error obtaining and
+        # interacting with the driver
+        try:
+            # get a GatewayDriver object
+            driver = GatewayDriver(**self.stn_dict)
+            # now display the field map defined in the driver's field_map
+            # property
+            print()
+            print("Gateway driver actual field map:")
+            print("(format is WeeWX field name: gateway field name)")
+            print()
+            # obtain a list of naturally sorted dict keys so that, for example,
+            # xxxxx16 appears in the correct order
+            keys_list = natural_sort_keys(driver.field_map)
+            # iterate over the sorted keys and print the key and item
+            for key in keys_list:
+                print("    %23s: %s" % (key, driver.field_map[key]))
+        except GWIOError as e:
+            print()
+            print("Unable to connect to device: %s" % e)
+            print()
+            print("Unable to display actual driver field map")
+        except KeyboardInterrupt:
+            # we have a keyboard interrupt so shut down
+            if driver:
+                driver.closePort()
+        loginf("Finished using gateway driver")
+
+    def service_field_map(self):
+        """Display the service field map that would be used.
+
+        By default, the default field map is used by the service; however, the
+        user may alter the field map used by the service via the [GW1000]
+        stanza. This method displays the actual field map that would be used by
+        the service.
+        """
+
+        # this may take a moment to set up so inform the user
+        print()
+        print("This may take a moment...")
+        # place an entry in the log so that if we encounter errors that are
+        # logged we can tell they were not caused by a live WeeWX instance
+        loginf("Obtaining a gateway service...")
+        # Create a dummy config so we can stand up a dummy engine with a dummy
+        # simulator emitting arbitrary loop packets. Include the gateway
+        # service and StdPrint. StdPrint will take care of printing our loop
+        # packets (no StdArchive so loop packets only, no archive records)
+        config = {
+            'Station': {
+                'station_type': 'Simulator',
+                'altitude': [0, 'meter'],
+                'latitude': 0,
+                'longitude': 0},
+            'Simulator': {
+                'driver': 'weewx.drivers.simulator',
+                'mode': 'simulator'},
+            'GW1000': {},
+            'Engine': {
+                'Services': {
+                    'archive_services': 'user.gw1000.GatewayService',
+                    'report_services': 'weewx.engine.StdPrint'}}}
+        # set the IP address and port in the dummy config
+        config['GW1000']['ip_address'] = self.ip_address
+        config['GW1000']['port'] = self.port
+        # wrap in a try..except in case there is an error
+        try:
+            # create a dummy engine
+            engine = weewx.engine.StdEngine(config)
+            # Our gateway service will have been instantiated by the engine
+            # during its startup. Whilst access to the service is not normally
+            # required we require access here so we can obtain some info about
+            # the station we are using for this test. The engine does not
+            # provide a ready means to access that gateway service so we can do
+            # a bit of guessing and iterate over all of the engine's services
+            # and select the one that has a 'collector' property. Unlikely to
+            # cause a problem since there are only two services in the dummy
+            # engine.
+            gw_svc = None
+            for svc in engine.service_obj:
+                if hasattr(svc, 'collector'):
+                    gw_svc = svc
+            if gw_svc is not None:
+                # we have a gateway service, it's not much use but it has the
+                # field map we need so go ahead and display it's field map
+                print()
+                print("Gateway service actual field map:")
+                print("(format is WeeWX field name: gateway field name)")
+                print()
+                # obtain a list of naturally sorted dict keys so that, for example,
+                # xxxxx16 appears in the correct order
+                keys_list = natural_sort_keys(gw_svc.field_map)
+                # iterate over the sorted keys and print the key and item
+                for key in keys_list:
+                    print("    %23s: %s" % (key, gw_svc.field_map[key]))
+        except GWIOError as e:
+            print()
+            print("Unable to connect to device: %s" % e)
+            print()
+            print("Unable to display actual driver field map")
+        except KeyboardInterrupt:
+            if engine:
+                engine.shutDown()
+        loginf("Finished using gateway service")
+
     def test_driver(self):
         """Exercise the gateway driver as a driver.
 
@@ -6653,47 +6776,49 @@ class DirectGateway(object):
 # Python version as WeeWX uses. This means that on some systems 'python' in the
 # above commands may need to be changed to 'python2' or 'python3'.
 
-# TODO. Should we display the default and actual field map
 def main():
     import optparse
 
     usage = """Usage: python -m user.gw1000 --help
        python -m user.gw1000 --version
        python -m user.gw1000 --test-driver|--test-service
-            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--poll-interval=INTERVAL]
             [--max-tries=MAX_TRIES]
             [--retry-wait=RETRY_WAIT]
             [--show-all-batt]
-            [--debug=0|1|2|3]     
+            [--debug=0|1|2|3]
        python -m user.gw1000 --sensors
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--show-all-batt]
-            [--debug=0|1|2|3]     
+            [--debug=0|1|2|3]
        python -m user.gw1000 --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
-            [--units=us|metric|metricwx]  
+            [--units=us|metric|metricwx]
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--show-all-batt]
-            [--debug=0|1|2|3]     
+            [--debug=0|1|2|3]
        python -m user.gw1000 --firmware-version|--mac-address|
             --system-params|--get-rain-data|--get-all-rain_data
-            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
+            [--debug=0|1|2|3]
        python -m user.gw1000 --get-mulch-offset|--get-pm25-offset|
             --get-calibration|--get-soil-calibration|--get-co2-offset
-            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]     
+            [--debug=0|1|2|3]
        python -m user.gw1000 --get-services
-            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--unmask] [--debug=0|1|2|3]     
+            [--unmask] [--debug=0|1|2|3]
+       python -m user.gw1000 --default-map|--driver-map|--service-map
+            [CONFIG_FILE|--config=CONFIG_FILE]
+            [--debug=0|1|2|3]
        python -m user.gw1000 --discover
-            [CONFIG_FILE|--config=CONFIG_FILE]  
+            [CONFIG_FILE|--config=CONFIG_FILE]
             [--debug=0|1|2|3]"""
 
     parser = optparse.OptionParser(usage=usage)
@@ -6720,7 +6845,8 @@ def main():
     parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
                       help='display device traditional rain data only')
     parser.add_option('--get-all-rain-data', dest='get_all_rain', action='store_true',
-                      help='display device traditional, piezo and rain reset time data')
+                      help='display device traditional, piezo and rain reset '
+                           'time data')
     parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
                       action='store_true',
                       help='display device multi-channel temperature and '
@@ -6742,11 +6868,17 @@ def main():
                       help='display device weather services configuration data')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
+    parser.add_option('--driver-map', dest='driver_map', action='store_true',
+                      help='display the field map that would be used by the gateway '
+                           'driver')
+    parser.add_option('--service-map', dest='service_map', action='store_true',
+                      help='display the field map that would be used by the gateway '
+                           'service')
     parser.add_option('--test-driver', dest='test_driver', action='store_true',
                       metavar='TEST_DRIVER', help='exercise the gateway driver')
     parser.add_option('--test-service', dest='test_service',
-                      action='store_true',
-                      metavar='TEST_SERVICE', help='exercise the gateway service')
+                      action='store_true', metavar='TEST_SERVICE',
+                      help='exercise the gateway service')
     parser.add_option('--ip-address', dest='ip_address',
                       help='device IP address to use')
     parser.add_option('--port', dest='port', type=int,
@@ -6759,7 +6891,8 @@ def main():
                       help='how long to wait between attempts to contact the device')
     parser.add_option('--show-all-batt', dest='show_battery',
                       action='store_true',
-                      help='show all available battery state data regardless of sensor state')
+                      help='show all available battery state data regardless of '
+                           'sensor state')
     parser.add_option('--unmask', dest='unmask', action='store_true',
                       help='unmask sensitive settings')
     parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
