@@ -119,7 +119,7 @@ class ParseTestCase(unittest.TestCase):
 
     batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
                    'unused', 'wh41', 'wh55')
-    response_struct = {
+    addressed_data_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
         b'\x03': ('decode_temp', 2, 'dewpoint'),
@@ -219,6 +219,8 @@ class ParseTestCase(unittest.TestCase):
         b'\x68': ('decode_wh34', 3, 'temp14'),
         b'\x69': ('decode_wh34', 3, 'temp15'),
         b'\x6A': ('decode_wh34', 3, 'temp16'),
+        # WH45 battery data is not obtained from live data rather it is
+        # obtained from sensor ID data
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
@@ -230,10 +232,23 @@ class ParseTestCase(unittest.TestCase):
         b'\x76': ('decode_wet', 1, 'leafwet5'),
         b'\x77': ('decode_wet', 1, 'leafwet6'),
         b'\x78': ('decode_wet', 1, 'leafwet7'),
-        b'\x79': ('decode_wet', 1, 'leafwet8')
+        b'\x79': ('decode_wet', 1, 'leafwet8'),
+        b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
+        b'\x81': ('decode_rain', 2, 'p_rainevent'),
+        b'\x83': ('decode_rain', 4, 'p_rainday'),
+        b'\x84': ('decode_rain', 4, 'p_rainweek'),
+        b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
+        b'\x86': ('decode_big_rain', 4, 'p_rainyear'),
+        # field 0x87 and 0x88 hold device parameter data that is not
+        # included in the loop packets, hence the device field is not
+        # used (None).
+        b'\x87': ('decode_rain_gain', 20, None),
+        b'\x88': ('decode_rain_reset', 3, None)
     }
     rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
-                        b'\x11', b'\x12', b'\x13', b'\x14')
+                        b'\x11', b'\x12', b'\x13', b'\x14',
+                        b'\x80', b'\x81', b'\x83', b'\x84',
+                        b'\x85', b'\x86')
     wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
     response_data = 'FF FF 27 00 40 01 01 40 06 26 08 27 D2 09 27 D2 2A 00 5A ' \
@@ -254,21 +269,26 @@ class ParseTestCase(unittest.TestCase):
                        'humid2': 58,
                        'lightningcount': 0,
                        'lightningdettime': None,
-                       'lightningdist': None,
-                       'datetime': 1599021263}
+                       'lightningdist': None}
     temp_data = {'hex': '00 EA', 'value': 23.4}
     humid_data = {'hex': '48', 'value': 72}
-    press_data = {'hex': '27 4C', 'value': 1006.0}
+    press_data = {'hex': '27 4C', 'value': 1006.0,
+                  'long': '03 27 4C', 'long_value': 1006.0}
     dir_data = {'hex': '00 70', 'value': 112}
-    speed_data = {'hex': '00 70', 'value': 11.2}
-    rain_data = {'hex': '01 70', 'value': 36.8}
-    rainrate_data = {'hex': '00 34', 'value': 5.2}
+    speed_data = {'hex': '00 70', 'value': 11.2,
+                  'long': '03 00 70', 'long_value': 11.2}
+    rain_data = {'hex': '01 70', 'value': 36.8,
+                 'long': '03 01 70', 'long_value': 36.8}
+    rainrate_data = {'hex': '00 34', 'value': 5.2,
+                     'long': '03 00 34', 'long_value': 5.2}
     big_rain_data = {'hex': '01 70 37 21', 'value': 2413136.1}
     light_data = {'hex': '02 40 72 51', 'value': 3777800.1}
-    uv_data = {'hex': '32 70', 'value': 1291.2}
+    uv_data = {'hex': '32 70', 'value': 1291.2,
+               'long': '03 32 70', 'long_value': 1291.2}
     uvi_data = {'hex': '0C', 'value': 12}
     datetime_data = {'hex': '0C AB 23 41 56 37', 'value': (12, 171, 35, 65, 86, 55)}
-    pm25_data = {'hex': '00 39', 'value': 5.7}
+    pm25_data = {'hex': '00 39', 'value': 5.7,
+                 'long': '03 00 39', 'long_value': 5.7}
     moist_data = {'hex': '3A', 'value': 58}
     leak_data = {'hex': '3A', 'value': 58}
     distance_data = {'hex': '1A', 'value': 26}
@@ -297,18 +317,10 @@ class ParseTestCase(unittest.TestCase):
     def test_constants(self):
         """Test constants"""
 
-        # test battery mask dicts
+        # test addressed_data_struct
+        self.assertEqual(self.parser.addressed_data_struct, self.addressed_data_struct)
 
-        # multi_batt
-        self.assertEqual(self.parser.multi_batt['wh40']['mask'], 1 << 4)
-        self.assertEqual(self.parser.multi_batt['wh26']['mask'], 1 << 5)
-        self.assertEqual(self.parser.multi_batt['wh25']['mask'], 1 << 6)
-        self.assertEqual(self.parser.multi_batt['wh65']['mask'], 1 << 7)
-
-        # response_struct
-        self.assertEqual(self.parser.addressed_data_struct, self.response_struct)
-
-        # rain_field_codes
+        # test rain_field_codes
         self.assertEqual(self.parser.rain_field_codes, self.rain_field_codes)
 
         # wind_field_codes
@@ -336,7 +348,8 @@ class ParseTestCase(unittest.TestCase):
                          self.press_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['long'])),
+                         self.press_data['long_value'])
 
         # test direction decode (method decode_dir())
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data['hex'])),
@@ -385,21 +398,24 @@ class ParseTestCase(unittest.TestCase):
                          self.speed_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.speed_data['long'])),
+                         self.speed_data['long_value'])
 
         # test rain decode (method decode_rain())
         self.assertEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['hex'])),
                          self.rain_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rain_data['long'])),
+                         self.rain_data['long_value'])
 
         # test rain rate decode (method decode_rainrate())
         self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['hex'])),
                          self.rainrate_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rainrate_data['long'])),
+                         self.rainrate_data['long_value'])
 
         # test light decode (method decode_light())
         self.assertEqual(self.parser.decode_light(hex_to_bytes(self.light_data['hex'])),
@@ -413,7 +429,8 @@ class ParseTestCase(unittest.TestCase):
                          self.uv_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.uv_data['long'])),
+                         self.uv_data['long_value'])
 
         # test uvi decode (method decode_uvi())
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['hex'])),
@@ -434,7 +451,8 @@ class ParseTestCase(unittest.TestCase):
                          self.pm25_data['value'])
         # test correct handling of too few and too many bytes
         self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(3))), None)
+        self.assertEqual(self.parser.decode_press(hex_to_bytes(self.pm25_data['long'])),
+                         self.pm25_data['long_value'])
 
         # test leak decode (method decode_leak())
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['hex'])),
@@ -466,7 +484,7 @@ class ParseTestCase(unittest.TestCase):
                          {})
 
         # test parsing of all possible sensors
-        self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data), timestamp=1599021263),
+        self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data)),
                              self.parsed_response)
 
 
