@@ -332,6 +332,22 @@ class ParseTestCase(unittest.TestCase):
                           'wind': 5.0,
                           'rain': 4.3}
                  }
+    read_calibration = {'response': 'FF FF 38 13 FF C6 04 FF FF FF E5 '
+                                    '00 00 00 31 00 60 09 00 B4 44',
+                        'data': {'intemp': -5.8,
+                                 'inhum': 4,
+                                 'abs': -2.7,
+                                 'rel': 4.9,
+                                 'outtemp': 9.6,
+                                 'outhum': 9,
+                                 'dir': 180}
+                        }
+    get_soilhumiad = {'response': 'FF FF 28 13 00 29 00 EB 01 C8 03 '
+                                  'E8 01 35 01 17 01 23 00 C8 3D',
+                      'data': {0: {'humidity': 41, 'ad': 235, 'ad_select': 1, 'adj_min': 200, 'adj_max': 1000},
+                               1: {'humidity': 53, 'ad': 279, 'ad_select': 1, 'adj_min': 35, 'adj_max': 200}
+                               }
+                      }
     read_ssss = {'response': 'FF FF 30 0B 00 01 62 66 8E 53 5E 03 46',
                  'data': {'frequency': 0,
                           'sensor_type': 1,
@@ -393,8 +409,12 @@ class ParseTestCase(unittest.TestCase):
                              self.read_gain['data'])
 
         # test parse_read_calibration()
+        self.assertDictEqual(self.parser.parse_read_calibration(response=hex_to_bytes(self.read_calibration['response'])),
+                             self.read_calibration['data'])
 
         # test parse_get_soilhumiad()
+        self.assertDictEqual(self.parser.parse_get_soilhumiad(response=hex_to_bytes(self.get_soilhumiad['response'])),
+                             self.get_soilhumiad['data'])
 
         # test read_ssss()
         self.assertDictEqual(self.parser.parse_read_ssss(response=hex_to_bytes(self.read_ssss['response'])),
