@@ -4256,7 +4256,27 @@ class GatewayCollector(Collector):
         parse_read_rain = parse_livedata
 
         def parse_read_raindata(self, response):
-            """Parse data from a CMD_READ_RAINDATA API response."""
+            """Parse data from a CMD_READ_RAINDATA API response.
+
+            Response consists of 25 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x2C
+            4       size            byte
+            5-8     rainrate        unsigned long   0 to 60000 in tenths mm/hr
+                                                    0 to 6000.0
+            9-12    rainday         unsigned long   0 to 99999 in tenths mm
+                                                    0 to 9999.9
+            13-16   rainweek        unsigned long   0 to 99999 in tenths mm
+                                                    0 to 9999.9
+            17-20   rainmonth       unsigned long   0 to 99999 in tenths mm
+                                                    0 to 9999.9
+            21-24   rainyear        unsigned long   0 to 99999 in tenths mm
+                                                    0 to 9999.9
+            25      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the rain data
             size = six.indexbytes(response, 3)
@@ -4275,7 +4295,7 @@ class GatewayCollector(Collector):
         def parse_get_mulch_offset(response):
             """Parse data from a CMD_GET_MulCH_OFFSET API response.
 
-            Response consists of a 29 bytes as follows:
+            Response consists of 29 bytes as follows:
             Byte(s) Data            Format          Comments
             1-2     header          -               fixed header 0xFFFF
             3       command code    byte            0x2C
@@ -4328,7 +4348,7 @@ class GatewayCollector(Collector):
         def parse_get_pm25_offset(response):
             """Parse data from a CMD_GET_PM25_OFFSET API response.
 
-            Response consists of a 17 bytes as follows:
+            Response consists of 17 bytes as follows:
             Byte(s) Data            Format          Comments
             1-2     header          -               fixed header 0xFFFF
             3       command code    byte            0x2E
@@ -4365,7 +4385,22 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_get_co2_offset(response):
-            """Parse data from a CMD_GET_CO2_OFFSET API response."""
+            """Parse data from a CMD_GET_CO2_OFFSET API response.
+
+            Response consists of 11 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x53
+            4       size            byte
+            5-6     co2 offset      signed short    -600 to +10000 in tenths µg/m³
+            7-8     pm25 offset     signed short    -200 to +200 in tenths µg/m³
+                                                   (-20.0 to +20.0)
+            9-10    pm10 offset     signed short    -200 to +200 in tenths µg/m³
+                                                   (-20.0 to +20.0)
+            17      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the WH45 offset data
             size = six.indexbytes(response, 3)
