@@ -294,6 +294,30 @@ class ParseTestCase(unittest.TestCase):
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
                            'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751}
                  }
+    read_rain = {'response': 'FF FF 57 00 37 80 00 06 83 00 00 00 4B 84 00 00 '
+                             '00 52 85 00 00 00 BB 86 00 00 00 BB 81 00 4B 87 '
+                             '00 0A 01 F4 00 64 00 E6 01 CC 01 EA 01 4A 00 DE '
+                             '00 6E 00 14 88 09 01 06 FC',
+                 'data': {'p_rainrate': 0.6,
+                          'p_rainevent': 7.5,
+                          'p_rainday': 7.5,
+                          'p_rainweek': 8.2,
+                          'p_rainmonth': 18.7,
+                          'p_rainyear': 18.7,
+                          'gain0': 0.1,
+                          'gain1': 5.0,
+                          'gain2': 1.0,
+                          'gain3': 2.3,
+                          'gain4': 4.6,
+                          'gain5': 4.9,
+                          'gain6': 3.3,
+                          'gain7': 2.22,
+                          'gain8': 1.1,
+                          'gain9': 0.2,
+                          'day_reset': 9,
+                          'week_reset': 1,
+                          'annual_reset': 6}
+                 }
     # TODO. Perhaps have a non-zero value for rainrate
     read_raindata = {'response': 'FF FF 34 17 00 00 00 00 00 00 00 34 '
                                  '00 00 00 34 00 00 01 7B 00 00 09 25 5D',
@@ -355,6 +379,41 @@ class ParseTestCase(unittest.TestCase):
                           'timezone_index': 94,
                           'dst_status': True}
                  }
+    read_ecowitt = {'response': 'FF FF 1E 04 03 23',
+                    'data': {'interval': 3}
+                    }
+    read_wunderground = {'response': 'FF FF 20 16 08 61 62 63 64 65 66 67 '
+                                     '68 08 31 32 33 34 35 36 37 38 01 0F',
+                         'data': {'id': 'abcdefgh',
+                                  'password': '12345678'}
+                         }
+    read_wow = {'response': 'FF FF 22 1E 07 77 6F 77 31 32 33 34 08 71 61 7A '
+                            '78 73 77 65 64 08 00 00 00 00 00 00 00 00 01 F6',
+                'data': {'id': 'wow1234',
+                         'password': 'qazxswed',
+                         'station_num': '\x00\x00\x00\x00\x00\x00\x00\x00'}
+                }
+    read_weathercloud = {'response': 'FF FF 24 16 08 71 77 65 72 74 79 75 69 '
+                                     '08 61 62 63 64 65 66 67 68 01 F9',
+                         'data': {'id': 'qwertyui',
+                                  'key': 'abcdefgh'}
+                         }
+    read_customized = {'response': 'FF FF 2A 27 06 31 32 33 34 35 36 08 61 62 '
+                                   '63 64 65 66 67 68 0D 31 39 32 2E 31 36 38 '
+                                   '2E 32 2E 32 32 30 1F 40 00 14 00 01 C4',
+                       'data': {'id': '123456',
+                                'password': 'abcdefgh',
+                                'server': '192.168.2.220',
+                                'port': 8000,
+                                'interval': 20,
+                                'type': 0,
+                                'active': 1}
+                       }
+    read_usr_path = {'response': 'FF FF 51 12 05 2F 70 61 74 68 08 2F 6D 79 2F '
+                                 '70 61 74 68 3D',
+                     'data': {'ecowitt_path': '/path',
+                              'wu_path': '/my/path'}
+                     }
     read_station_mac = {'response': 'FF FF 26 09 E8 68 E7 12 9D D7 EC',
                         'data': 'E8:68:E7:12:9D:D7'
                         }
@@ -387,6 +446,10 @@ class ParseTestCase(unittest.TestCase):
 
     def test_parse(self):
         """Test methods used to parse API response data."""
+
+        # test parse_read_rain()
+        self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain['response'])),
+                             self.read_rain['data'])
 
         # test parse_read_raindata()
         self.assertDictEqual(self.parser.parse_read_raindata(response=hex_to_bytes(self.read_raindata['response'])),
@@ -421,16 +484,28 @@ class ParseTestCase(unittest.TestCase):
                              self.read_ssss['data'])
 
         # test parse_read_ecowitt()
+        self.assertDictEqual(self.parser.parse_read_ecowitt(response=hex_to_bytes(self.read_ecowitt['response'])),
+                             self.read_ecowitt['data'])
 
         # test parse_read_wunderground()
+        self.assertDictEqual(self.parser.parse_read_wunderground(response=hex_to_bytes(self.read_wunderground['response'])),
+                             self.read_wunderground['data'])
 
         # test parse_read_wow()
+        self.assertDictEqual(self.parser.parse_read_wow(response=hex_to_bytes(self.read_wow['response'])),
+                             self.read_wow['data'])
 
         # test parse_read_weathercloud()
+        self.assertDictEqual(self.parser.parse_read_weathercloud(response=hex_to_bytes(self.read_weathercloud['response'])),
+                             self.read_weathercloud['data'])
 
         # test parse_read_customized()
+        self.assertDictEqual(self.parser.parse_read_customized(response=hex_to_bytes(self.read_customized['response'])),
+                             self.read_customized['data'])
 
         # test parse_read_usr_path()
+        self.assertDictEqual(self.parser.parse_read_usr_path(response=hex_to_bytes(self.read_usr_path['response'])),
+                             self.read_usr_path['data'])
 
         # test parse_read_station_mac()
         self.assertEqual(self.parser.parse_read_station_mac(response=hex_to_bytes(self.read_station_mac['response'])),
