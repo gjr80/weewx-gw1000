@@ -303,6 +303,49 @@ class ParseTestCase(unittest.TestCase):
                               'rainmonth': 37.9,
                               'rainyear': 234.1}
                      }
+    get_mulch_offset = {'response': 'FF FF 2C 1B 00 02 15 01 FB E5 02 0A '
+                                    '64 03 00 1A 04 06 00 05 F6 9C 06 05 '
+                                    '14 07 FB C4 52',
+                        'data': {0: {'temp': 2.1, 'hum': 2},
+                                 1: {'temp': -2.7, 'hum': -5},
+                                 2: {'temp': 10.0, 'hum': 10},
+                                 3: {'temp': 2.6, 'hum': 0},
+                                 4: {'temp': 0.0, 'hum': 6},
+                                 5: {'temp': -10.0, 'hum': -10},
+                                 6: {'temp': 2.0, 'hum': 5},
+                                 7: {'temp': -6.0, 'hum': -5}
+                                 }
+                        }
+    get_pm25_offset = {'response': 'FF FF 2E 0F 00 00 C8 01 FF 38 02 '
+                                   '00 00 03 FF C7 08',
+                       'data': {0: 20, 1: -20, 2: 0, 3: -5.7}
+                       }
+    get_co2_offset = {'response': 'FF FF 53 09 1D C7 00 7B FF CB 5C',
+                      'data': {'co2': 7623,
+                               'pm25': 12.3,
+                               'pm10': -5.3}
+                      }
+    read_gain = {'response': 'FF FF 36 0F 04 F3 00 35 00 0A 01 F4 01 '
+                             'AE 00 64 38',
+                 'data': {'uv': 0.53,
+                          'solar': 0.1,
+                          'wind': 5.0,
+                          'rain': 4.3}
+                 }
+    read_ssss = {'response': 'FF FF 30 0B 00 01 62 66 8E 53 5E 03 46',
+                 'data': {'frequency': 0,
+                          'sensor_type': 1,
+                          'utc': 1650888275,
+                          'timezone_index': 94,
+                          'dst_status': True}
+                 }
+    read_station_mac = {'response': 'FF FF 26 09 E8 68 E7 12 9D D7 EC',
+                        'data': 'E8:68:E7:12:9D:D7'
+                        }
+    read_firmware_version = {'response': 'FF FF 50 12 0E 47 57 32 30 '
+                                         '30 30 43 5F 56 32 2E 31 2E 34 BB',
+                             'data': 'GW2000C_V2.1.4'
+                             }
 
     def setUp(self):
 
@@ -332,6 +375,50 @@ class ParseTestCase(unittest.TestCase):
         # test parse_read_raindata()
         self.assertDictEqual(self.parser.parse_read_raindata(response=hex_to_bytes(self.read_raindata['response'])),
                              self.read_raindata['data'])
+
+        # test parse_get_mulch_offset()
+        self.assertDictEqual(self.parser.parse_get_mulch_offset(response=hex_to_bytes(self.get_mulch_offset['response'])),
+                             self.get_mulch_offset['data'])
+
+        # test parse_get_pm25_offset()
+        self.assertDictEqual(self.parser.parse_get_pm25_offset(response=hex_to_bytes(self.get_pm25_offset['response'])),
+                             self.get_pm25_offset['data'])
+
+        # test parse_get_co2_offset()
+        self.assertDictEqual(self.parser.parse_get_co2_offset(response=hex_to_bytes(self.get_co2_offset['response'])),
+                             self.get_co2_offset['data'])
+
+        # test parse_read_gain()
+        self.assertDictEqual(self.parser.parse_read_gain(response=hex_to_bytes(self.read_gain['response'])),
+                             self.read_gain['data'])
+
+        # test parse_read_calibration()
+
+        # test parse_get_soilhumiad()
+
+        # test read_ssss()
+        self.assertDictEqual(self.parser.parse_read_ssss(response=hex_to_bytes(self.read_ssss['response'])),
+                             self.read_ssss['data'])
+
+        # test parse_read_ecowitt()
+
+        # test parse_read_wunderground()
+
+        # test parse_read_wow()
+
+        # test parse_read_weathercloud()
+
+        # test parse_read_customized()
+
+        # test parse_read_usr_path()
+
+        # test parse_read_station_mac()
+        self.assertEqual(self.parser.parse_read_station_mac(response=hex_to_bytes(self.read_station_mac['response'])),
+                         self.read_station_mac['data'])
+
+        # test parse_read_firmware_version()
+        self.assertEqual(self.parser.parse_read_firmware_version(response=hex_to_bytes(self.read_firmware_version['response'])),
+                         self.read_firmware_version['data'])
 
     def test_decode(self):
         """Test methods used to decode observation byte data"""
