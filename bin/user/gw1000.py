@@ -4431,7 +4431,22 @@ class GatewayCollector(Collector):
             return cal_dict
 
         def parse_read_ssss(self, response):
-            """Parse a CMD_READ_SSSS API response."""
+            """Parse a CMD_READ_SSSS API response.
+
+            Response consists of 13 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byt             0x30
+            4       size            byte
+            5       frequency       byte            0=433, 1=868, 2=915, 3=920
+            6       sensor type     byte            0=WH24, 1=WH65
+            7-10    utc time        unsigned long
+            11      timezone index  byte
+            12      dst status      byte            0=False, 1=True
+            13      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
