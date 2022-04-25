@@ -8,14 +8,15 @@ suite tests correct operation of:
 
 -
 
-Version: 0.4.1                                   Date: 14 October 2021
+Version: 0.5.0                                  Date: ?? April 2022
 
 Revision History
+    ?? April 2022       v0.5.0
+        -   updated for gateway driver release 0.5.0
     14 October 2021     v0.4.1
         -   no change, version increment only
     27 September 2021   v0.4.0
         -   updated to work with GW1000 driver v0.4.0
-
     20 March 2021       v0.3.0
         -   incomplete but works with release v0.3.0 under python3
         -   initial release
@@ -32,7 +33,6 @@ To run the test suite:
 # python imports
 import socket
 import struct
-import time
 import unittest
 from unittest.mock import patch
 
@@ -58,8 +58,8 @@ import user.gw1000
 # TODO. Check count_data data and result are correct
 # TODO. Add decode firmware check refer issue #31
 
-TEST_SUITE_NAME = "GW1000 driver"
-TEST_SUITE_VERSION = "0.4.0"
+TEST_SUITE_NAME = "Gateway driver"
+TEST_SUITE_VERSION = "0.5.0"
 
 
 class SensorsTestCase(unittest.TestCase):
@@ -606,8 +606,8 @@ class StationTestCase(unittest.TestCase):
     cmd_read_fware_ver = b'\x50'
     read_fware_cmd_bytes = b'\xff\xffP\x03S'
     read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
-    read_fware_resp_bad_checksum_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1w'
-    read_fware_resp_bad_cmd_bytes = b'\xff\xffQ\x11\rGW1000_V1.6.1v'
+    read_fware_resp_bad_checksum_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1z'
+    read_fware_resp_unex_cmd_bytes = b'\xff\xffQ\x11\rGW1000_V1.6.1w'
     broadcast_response_data = 'FF FF 12 00 26 50 02 91 E3 FD 32 C0 A8 02 20 AF ' \
                               'C8 16 47 57 31 30 30 30 2D 57 49 46 49 46 44 33 ' \
                               '32 20 56 31 2E 36 2E 38 5F'
@@ -657,7 +657,11 @@ class StationTestCase(unittest.TestCase):
         'CMD_READ_USR_PATH': 'FF FF 51 03 54',
         'CMD_WRITE_USR_PATH': 'FF FF 52 03 55',
         'CMD_GET_CO2_OFFSET': 'FF FF 53 03 56',
-        'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57'
+        'CMD_SET_CO2_OFFSET': 'FF FF 54 03 57',
+        'CMD_READ_RSTRAIN_TIME': 'FF FF 55 03 58',
+        'CMD_WRITE_RSTRAIN_TIME': 'FF FF 56 03 59',
+        'CMD_READ_RAIN': 'FF FF 57 03 5A',
+        'CMD_WRITE_RAIN': 'FF FF 58 03 5B'
     }
     # Station.discover() multiple device discovery response
     discover_multi_resp = [{'mac': b'\xe8h\xe7\x87\x1aO', #'E8:68:E7:87:1A:4F',
@@ -815,7 +819,7 @@ class StationTestCase(unittest.TestCase):
         self.assertEqual(station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
                          hex_to_bytes(self.cmd_packet))
         # test building a command packet for an unknown command, should be an UnknownCommand exception
-        self.assertRaises(user.gw1000.UnknownCommand,
+        self.assertRaises(user.gw1000.UnknownApiCommand,
                           station.build_cmd_packet,
                           cmd='UNKNOWN_COMMAND')
 
@@ -850,8 +854,9 @@ class StationTestCase(unittest.TestCase):
         1. checks Station.check_response() with good data
         2. checks that Station.check_response() raises an InvalidChecksum
            exception for a response with an invalid checksum
-        3. checks that Station.check_response() raises an InvalidApiResponse
-           exception for a response with an command code
+        3. checks that Station.check_response() raises an UnknownApiCommand
+           exception for a response with a valid check sum but an unexpected
+           command code
         """
 
         # set return values for mocked methods
@@ -868,17 +873,18 @@ class StationTestCase(unittest.TestCase):
                                    self.cmd_read_fware_ver)
         except user.gw1000.InvalidChecksum:
             self.fail("check_response() raised an InvalidChecksum exception")
-        except user.gw1000.InvalidApiResponse:
-            self.fail("check_response() raised an InvalidApiResponse exception")
+        except user.gw1000.UnknownApiCommand:
+            self.fail("check_response() raised an UnknownApiCommand exception")
         # test check_response() with a bad checksum data, should be an InvalidChecksum exception
         self.assertRaises(user.gw1000.InvalidChecksum,
                           station.check_response,
                           response=self.read_fware_resp_bad_checksum_bytes,
                           cmd_code=self.cmd_read_fware_ver)
-        # test check_response() with a bad response, should be an InvalidApiResponse exception
-        self.assertRaises(user.gw1000.InvalidApiResponse,
+        # test check_response() with a valid checksum but unexpected command
+        # code, should be an UnknownApiCommand exception
+        self.assertRaises(user.gw1000.UnknownApiCommand,
                           station.check_response,
-                          response=self.read_fware_resp_bad_cmd_bytes,
+                          response=self.read_fware_resp_unex_cmd_bytes,
                           cmd_code=self.cmd_read_fware_ver)
 
     @patch.object(user.gw1000.GatewayCollector.Station, 'discover')
