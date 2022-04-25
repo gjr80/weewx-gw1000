@@ -4418,6 +4418,7 @@ class GatewayCollector(Collector):
                     ad_select = six.byte2int(data[index + 4])
                 except TypeError:
                     ad_select = data[index + 4]
+                # get 'Customize' setting 1 = enable, 0 = customised
                 cal_dict[channel]['ad_select'] = ad_select
                 try:
                     min_ad = six.byte2int(data[index + 5])
