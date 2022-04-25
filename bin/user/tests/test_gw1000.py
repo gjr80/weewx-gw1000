@@ -447,6 +447,10 @@ class ParseTestCase(unittest.TestCase):
     def test_parse(self):
         """Test methods used to parse API response data."""
 
+        # test parse_livedata()
+        self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data)),
+                             self.parsed_response)
+
         # test parse_read_rain()
         self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain['response'])),
                              self.read_rain['data'])
@@ -671,10 +675,6 @@ class ParseTestCase(unittest.TestCase):
                          {})
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']),
                          {})
-
-        # test parsing of all possible sensors
-        self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data)),
-                             self.parsed_response)
 
 
 class UtilitiesTestCase(unittest.TestCase):
