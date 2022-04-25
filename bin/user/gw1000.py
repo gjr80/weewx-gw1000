@@ -4273,7 +4273,30 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_get_mulch_offset(response):
-            """Parse data from a CMD_GET_MulCH_OFFSET API response."""
+            """Parse data from a CMD_GET_MulCH_OFFSET API response.
+
+            Response consists of a 29 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x2C
+            4       size            byte
+            5       channel 1       byte            fixed 00
+            6       hum offset      signed byte     -10 to +10
+            7       temp offset     signed byte     -100 to +100 in tenths C
+                                                    (-10.0 to +10.0)
+            8       channel 2       byte            fixed 01
+            9       hum offset      signed byte     -10 to +10
+            10      temp offset     signed byte     -100 to +100 in tenths C
+                                                    (-10.0 to +10.0)
+            ....
+            26      channel 8       byte            fixed 07
+            27      hum offset      signed byte     -10 to +10
+            28      temp offset     signed byte     -100 to +100 in tenths C
+                                                    (-10.0 to +10.0)
+            29      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the mulch offset data
             size = six.indexbytes(response, 3)
@@ -4303,7 +4326,24 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_get_pm25_offset(response):
-            """Parse data from a CMD_GET_PM25_OFFSET API response."""
+            """Parse data from a CMD_GET_PM25_OFFSET API response.
+
+            Response consists of a 17 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x2E
+            4       size            byte
+            5       channel 1       byte            fixed 00
+            6-7     pm25 offset     signed short    -200 to +200 in tenths µg/m³
+                                                    (-20.0 to +20.0)
+            ....
+            14      channel 1       byte            fixed 00
+            15-16   pm25 offset     signed short    -200 to +200 in tenths µg/m³
+                                                   (-20.0 to +20.0)
+            17      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the PM2.5 offset data
             size = six.indexbytes(response, 3)
@@ -4448,6 +4488,7 @@ class GatewayCollector(Collector):
                                                     bytes
             """
 
+
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
             # extract the actual system parameters data
@@ -4464,7 +4505,18 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_ecowitt(response):
-            """Parse a CMD_READ_ECOWITT API response."""
+            """Parse a CMD_READ_ECOWITT API response.
+
+            Response consists of six bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x1E
+            4       size            byte
+            5       upload interval byte            1-5 minutes, 0=off
+            6       checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
