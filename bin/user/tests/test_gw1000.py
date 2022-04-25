@@ -117,8 +117,6 @@ class SensorsTestCase(unittest.TestCase):
 class ParseTestCase(unittest.TestCase):
     """Test the GatewayCollector Parser class."""
 
-    batt_fields = ('multi', 'wh31', 'wh51', 'wh57', 'wh68', 'ws80',
-                   'unused', 'wh41', 'wh55')
     addressed_data_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -209,8 +207,6 @@ class ParseTestCase(unittest.TestCase):
         b'\x60': ('decode_distance', 1, 'lightningdist'),
         b'\x61': ('decode_utc', 4, 'lightningdettime'),
         b'\x62': ('decode_count', 4, 'lightningcount'),
-        # WH34 battery data is not obtained from live data rather it is
-        # obtained from sensor ID data
         b'\x63': ('decode_wh34', 3, 'temp9'),
         b'\x64': ('decode_wh34', 3, 'temp10'),
         b'\x65': ('decode_wh34', 3, 'temp11'),
@@ -219,8 +215,6 @@ class ParseTestCase(unittest.TestCase):
         b'\x68': ('decode_wh34', 3, 'temp14'),
         b'\x69': ('decode_wh34', 3, 'temp15'),
         b'\x6A': ('decode_wh34', 3, 'temp16'),
-        # WH45 battery data is not obtained from live data rather it is
-        # obtained from sensor ID data
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
@@ -239,9 +233,6 @@ class ParseTestCase(unittest.TestCase):
         b'\x84': ('decode_rain', 4, 'p_rainweek'),
         b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
         b'\x86': ('decode_big_rain', 4, 'p_rainyear'),
-        # field 0x87 and 0x88 hold device parameter data that is not
-        # included in the loop packets, hence the device field is not
-        # used (None).
         b'\x87': ('decode_rain_gain', 20, None),
         b'\x88': ('decode_rain_reset', 3, None)
     }
@@ -303,6 +294,15 @@ class ParseTestCase(unittest.TestCase):
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
                            'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751}
                  }
+    # TODO. Perhaps have a non-zero value for rainrate
+    read_raindata = {'response': 'FF FF 34 17 00 00 00 00 00 00 00 34 '
+                                 '00 00 00 34 00 00 01 7B 00 00 09 25 5D',
+                     'data': {'rainrate': 0.0,
+                              'rainday': 5.2,
+                              'rainweek': 5.2,
+                              'rainmonth': 37.9,
+                              'rainyear': 234.1}
+                     }
 
     def setUp(self):
 
@@ -325,6 +325,13 @@ class ParseTestCase(unittest.TestCase):
 
         # wind_field_codes
         self.assertEqual(self.parser.wind_field_codes, self.wind_field_codes)
+
+    def test_parse(self):
+        """Test methods used to parse API response data."""
+
+        # test parse_read_raindata()
+        self.assertDictEqual(self.parser.parse_read_raindata(response=hex_to_bytes(self.read_raindata['response'])),
+                             self.read_raindata['data'])
 
     def test_decode(self):
         """Test methods used to decode observation byte data"""
