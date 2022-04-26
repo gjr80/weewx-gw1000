@@ -4419,7 +4419,27 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_gain(response):
-            """Parse a CMD_READ_GAIN API response."""
+            """Parse a CMD_READ_GAIN API response.
+
+            Response consists of 17 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x36
+            4       size            byte
+            5-6     fixed           short           fixed value 1267
+            7-8     uvGain          unsigned short  10 to 500 in hundredths
+                                                    (0.10 to 5.00)
+            9-10    solarRadGain    unsigned short  10 to 500 in hundredths
+                                                    (0.10 to 5.00)
+            11-12   windGain        unsigned short  10 to 500 in hundredths
+                                                    (0.10 to 5.00)
+            13-14   rainGain        unsigned short  10 to 500 in hundredths
+                                                    (0.10 to 5.00)
+            15-16   reserved                        reserved
+            17      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the calibration data
             size = six.indexbytes(response, 3)
@@ -4439,7 +4459,28 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_calibration(response):
-            """Parse a CMD_READ_CALIBRATION API response."""
+            """Parse a CMD_READ_CALIBRATION API response.
+
+            Response consists of 21 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x38
+            4       size            byte
+            5-6     intemp offset   signed short    -100 to +100 in tenths C
+                                                    (-10.0 to +10.0)
+            7       inhum offset    signed byte     -10 to +10 %
+            8-11    abs offset      signed long     -800 to +800 in tenths hPa
+                                                    (-80.0 to +80.0)
+            12-15   rel offset      signed long     -800 to +800 in tenths hPa
+                                                    (-80.0 to +80.0)
+            16-17   outtemp offset  signed short    -100 to +100 in tenths C
+                                                    (-10.0 to +10.0)
+            18      outhum offset   signed byte     -10 to +10 %
+            19-20   wind dir offset signed short    -180 to +180 degrees
+            21      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the calibration data
             size = six.indexbytes(response, 3)
@@ -4466,7 +4507,28 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_get_soilhumiad(response):
-            """Parse a CMD_GET_SOILHUMIAD API response."""
+            """Parse a CMD_GET_SOILHUMIAD API response.
+
+            Response consists of a variable number of bytes determined by the
+            number of WH51 soil moisture sensors. Number of bytes = 5 + (n x 9)
+            where n is the number of connected WH51 sensors. Decode as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x29
+            4       size            byte
+            5       channel         byte            channel number (0 to 8)
+            6       current hum     byte            from sensor
+            7-8     current ad      unsigned short  from sensor
+            9       custom cal      byte            0 = sensor, 1 = enabled
+            10      min ad          unsigned byte   0% ad setting (70 to 200)
+            11-12   max ad          unsigned short  100% ad setting (80 to 1000)
+            ....
+            structure of bytes 5 to 12 incl repeated for each WH51 sensor
+            ....
+            21      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the calibration data
             size = six.indexbytes(response, 3)
@@ -4523,7 +4585,6 @@ class GatewayCollector(Collector):
                                                     bytes
             """
 
-
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
             # extract the actual system parameters data
@@ -4565,7 +4626,28 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_wunderground(response):
-            """Parse a CMD_READ_WUNDERGROUND API response."""
+            """Parse a CMD_READ_WUNDERGROUND API response.
+
+            Response consists of a variable number of bytes. Number of
+            bytes = 8 + i + p where i = length of the Wunderground ID in
+            characters and p is the length of the Wunderground password in
+            characters. Decode as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x20
+            4       size            byte
+            5       ID size         unsigned byte   length of Wunderground ID
+                                                    in characters
+            6-6+i   ID              i x bytes       ASCII, max 32 characters
+            7+i     password size   unsigned byte   length of Wunderground
+                                                    password in characters
+            8+i-    password        p x bytes       ASCII, max 32 characters
+            8+i+p
+            9+i+p   fixed           1               fixed value 1
+            6       checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
