@@ -4644,7 +4644,7 @@ class GatewayCollector(Collector):
             8+i-    password        p x bytes       ASCII, max 32 characters
             8+i+p
             9+i+p   fixed           1               fixed value 1
-            6       checksum        byte            LSB of the sum of the
+            10+i+p  checksum        byte            LSB of the sum of the
                                                     command, size and data
                                                     bytes
             """
