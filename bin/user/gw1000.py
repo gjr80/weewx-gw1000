@@ -592,6 +592,10 @@ the WeeWX daemon:
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Review queue dwell times
 # TODO. Should service aspects of running the driver directly use [GatewayService] then [GW1000]
+# TODO. Need to re-order sensor output for --sensors to better match app
+# TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
+# TODO. Need to review get_all_rain_data for operation with traditional only, piezo only and both
+# TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
 
 # Python imports
 from __future__ import absolute_import
@@ -4202,7 +4206,6 @@ class GatewayCollector(Collector):
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
 
-        # TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
         def parse_livedata(self, response):
             """Parse data from a CMD_GW1000_LIVEDATA API response.
 
@@ -4665,7 +4668,32 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_wow(response):
-            """Parse a CMD_READ_WOW API response."""
+            """Parse a CMD_READ_WOW API response.
+
+            Response consists of a variable number of bytes. Number of
+            bytes = 9 + i + p + s where i = length of the WOW ID in characters,
+            p is the length of the WOW password in characters and s is the
+            length of the WOW station number in characters. Decode as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x22
+            4       size            byte
+            5       ID size         unsigned byte   length of WOW ID in
+                                                    characters
+            6-6+i   ID              i x bytes       ASCII, max 39 characters
+            7+i     password size   unsigned byte   length of WOW password in
+                                                    characters
+            8+i-    password        p x bytes       ASCII, max 32 characters
+            8+i+p
+            9+i+p   station num     unsigned byte   length of WOW station num
+                    size                            (unused)
+            10+i+p- station num     s x bytes       ASCII, max 32 characters
+            10+i+p+s                                (unused)
+            11+i+p+s fixed          1               fixed value 1
+            12+i+p+s checksum       byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
@@ -4685,7 +4713,28 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_weathercloud(response):
-            """Parse a CMD_READ_WEATHERCLOUD API response."""
+            """Parse a CMD_READ_WEATHERCLOUD API response.
+
+            Response consists of a variable number of bytes. Number of
+            bytes = 8 + i + k where i = length of the Weathercloud ID in
+            characters and p is the length of the Weathercloud key in
+            characters. Decode as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x24
+            4       size            byte
+            5       ID size         unsigned byte   length of Weathercloud ID
+                                                    in characters
+            6-6+i   ID              i x bytes       ASCII, max 32 characters
+            7+i     key size        unsigned byte   length of Weathercloud key
+                                                    in characters
+            8+i-    key             k x bytes       ASCII, max 32 characters
+            8+i+k
+            9+i+k   fixed           1               fixed value 1
+            10+i+k  checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
@@ -4703,7 +4752,36 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_customized(response):
-            """Parse a CMD_READ_CUSTOMIZED API response."""
+            """Parse a CMD_READ_CUSTOMIZED API response.
+
+            Response consists of a variable number of bytes. Number of
+            bytes = 14 + i + p + s where i = length of the ID in characters,
+            p is the length of the password in characters and s is the length
+            of the server address in characters. Decode as follows:
+            Byte(s)   Data            Format          Comments
+            1-2       header          -               fixed header 0xFFFF
+            3         command code    byte            0x2A
+            4         size            byte
+            5         ID size         unsigned byte   length of ID in characters
+            6-5+i     ID              i x bytes       ASCII, max 40 characters
+            6+i       password size   unsigned byte   length of password in
+                                                      characters
+            7+i-      password        p x bytes       ASCII, max 40 characters
+            6+i+p
+            7+i+p     server address  unsigned byte   length of server address in
+                      size                            characters
+            8+i+p-    server address  s x bytes       ASCII, max 64 characters
+            7+i+p+s
+            8+i+p+s-  port number     unsigned short  0 to 65535
+            9+i+p+s
+            10+i+p+s- interval        unsigned short  16 to 600 seconds
+            11+i+p+s
+            12+i+p+s  type            byte            0 = Ecowitt, 1 = WU
+            13+i+p+s  active          byte            0 = disable, 1 = enable
+            14+i+p+s  checksum        byte            LSB of the sum of the
+                                                      command, size and data
+                                                      bytes
+            """
 
             # determine the size of the system parameters data
             size = six.indexbytes(response, 3)
@@ -6025,7 +6103,6 @@ class DirectGateway(object):
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rainmonth'], rain_data['rainmonth'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rainyear'], rain_data['rainyear'] / 25.4))
 
-    # TODO. Need to review, traditional only, piezo only and both
     def get_all_rain_data(self):
         """Display the device rain data including piezo data.
 
@@ -6362,7 +6439,6 @@ class DirectGateway(object):
                 print()
                 print("%s did not respond." % collector.station.model)
 
-    # TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
     def get_services(self):
         """Display the device Weather Services settings.
 
@@ -6583,7 +6659,6 @@ class DirectGateway(object):
         3. by discovery
         """
 
-        # TODO. Need to re-order sensor output to match app
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayCollector object
