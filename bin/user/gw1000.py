@@ -44,10 +44,11 @@ Revision History
         -   added support for WS90 sensor platform
         -   WH40 and WH51 battery state now decoded as tenths of a Volt rather
             than as binary
+        -   redesignated WH35 as WN35 and WH34 as WN34, these changes are
+            essentially sensor name change only and do not change any
+            decoding/calculations
         -   added mappings for WN34 battery and signal state to the default
             mapping meaning this data will now appear in WeeWX loop packets
-        -   redesignated WH35 as WN35, this is a sensor name change only
-            default mapping is still to WeeWX fields leafWet1-leafWet8
         -   refactored GatewayDriver, GatewayService and Gateway class
             initialisations to facilitate running the GatewayDriver and
             GatewayService simultaneously
