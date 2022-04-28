@@ -61,6 +61,7 @@ Revision History
         -   implemented --driver-map and --service-map command line options to
             display the actual field map that would be used when running as a
             driver and service respectively
+        -   default field map is now only logged at startup when debug>=1
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -594,7 +595,6 @@ the WeeWX daemon:
 # TODO. Should service aspects of running the driver directly use [GatewayService] then [GW1000]
 # TODO. Need to re-order sensor output for --sensors to better match app
 # TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
-# TODO. Need to review get_all_rain_data for operation with traditional only, piezo only and both
 # TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
 
 # Python imports
