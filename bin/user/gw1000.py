@@ -44,7 +44,7 @@ Revision History
         -   added support for WS90 sensor platform
         -   WH40 and WH51 battery state now decoded as tenths of a Volt rather
             than as binary
-        -   added mappings for WH34 battery and signal state to the default
+        -   added mappings for WN34 battery and signal state to the default
             mapping meaning this data will now appear in WeeWX loop packets
         -   redesignated WH35 as WN35, this is a sensor name change only
             default mapping is still to WeeWX fields leafWet1-leafWet8
@@ -937,14 +937,14 @@ class Gateway(object):
         'wh31_ch6_batt': 'wh31_ch6_batt',
         'wh31_ch7_batt': 'wh31_ch7_batt',
         'wh31_ch8_batt': 'wh31_ch8_batt',
-        'wh34_ch1_batt': 'wh34_ch1_batt',
-        'wh34_ch2_batt': 'wh34_ch2_batt',
-        'wh34_ch3_batt': 'wh34_ch3_batt',
-        'wh34_ch4_batt': 'wh34_ch4_batt',
-        'wh34_ch5_batt': 'wh34_ch5_batt',
-        'wh34_ch6_batt': 'wh34_ch6_batt',
-        'wh34_ch7_batt': 'wh34_ch7_batt',
-        'wh34_ch8_batt': 'wh34_ch8_batt',
+        'wn34_ch1_batt': 'wn34_ch1_batt',
+        'wn34_ch2_batt': 'wn34_ch2_batt',
+        'wn34_ch3_batt': 'wn34_ch3_batt',
+        'wn34_ch4_batt': 'wn34_ch4_batt',
+        'wn34_ch5_batt': 'wn34_ch5_batt',
+        'wn34_ch6_batt': 'wn34_ch6_batt',
+        'wn34_ch7_batt': 'wn34_ch7_batt',
+        'wn34_ch8_batt': 'wn34_ch8_batt',
         'wn35_ch1_batt': 'wn35_ch1_batt',
         'wn35_ch2_batt': 'wn35_ch2_batt',
         'wn35_ch3_batt': 'wn35_ch3_batt',
@@ -999,14 +999,14 @@ class Gateway(object):
         'wh31_ch6_sig': 'wh31_ch6_sig',
         'wh31_ch7_sig': 'wh31_ch7_sig',
         'wh31_ch8_sig': 'wh31_ch8_sig',
-        'wh34_ch1_sig': 'wh34_ch1_sig',
-        'wh34_ch2_sig': 'wh34_ch2_sig',
-        'wh34_ch3_sig': 'wh34_ch3_sig',
-        'wh34_ch4_sig': 'wh34_ch4_sig',
-        'wh34_ch5_sig': 'wh34_ch5_sig',
-        'wh34_ch6_sig': 'wh34_ch6_sig',
-        'wh34_ch7_sig': 'wh34_ch7_sig',
-        'wh34_ch8_sig': 'wh34_ch8_sig',
+        'wn34_ch1_sig': 'wn34_ch1_sig',
+        'wn34_ch2_sig': 'wn34_ch2_sig',
+        'wn34_ch3_sig': 'wn34_ch3_sig',
+        'wn34_ch4_sig': 'wn34_ch4_sig',
+        'wn34_ch5_sig': 'wn34_ch5_sig',
+        'wn34_ch6_sig': 'wn34_ch6_sig',
+        'wn34_ch7_sig': 'wn34_ch7_sig',
+        'wn34_ch8_sig': 'wn34_ch8_sig',
         'wn35_ch1_sig': 'wn35_ch1_sig',
         'wn35_ch2_sig': 'wn35_ch2_sig',
         'wn35_ch3_sig': 'wn35_ch3_sig',
@@ -1973,21 +1973,21 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_batt]]
             extractor = last
-        [[wh34_ch1_batt]]
+        [[wn34_ch1_batt]]
             extractor = last
-        [[wh34_ch2_batt]]
+        [[wn34_ch2_batt]]
             extractor = last
-        [[wh34_ch3_batt]]
+        [[wn34_ch3_batt]]
             extractor = last
-        [[wh34_ch4_batt]]
+        [[wn34_ch4_batt]]
             extractor = last
-        [[wh34_ch5_batt]]
+        [[wn34_ch5_batt]]
             extractor = last
-        [[wh34_ch6_batt]]
+        [[wn34_ch6_batt]]
             extractor = last
-        [[wh34_ch7_batt]]
+        [[wn34_ch7_batt]]
             extractor = last
-        [[wh34_ch8_batt]]
+        [[wn34_ch8_batt]]
             extractor = last
         [[wn35_ch1_batt]]
             extractor = last
@@ -2085,21 +2085,21 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh31_ch8_sig]]
             extractor = last
-        [[wh34_ch1_sig]]
+        [[wn34_ch1_sig]]
             extractor = last
-        [[wh34_ch2_sig]]
+        [[wn34_ch2_sig]]
             extractor = last
-        [[wh34_ch3_sig]]
+        [[wn34_ch3_sig]]
             extractor = last
-        [[wh34_ch4_sig]]
+        [[wn34_ch4_sig]]
             extractor = last
-        [[wh34_ch5_sig]]
+        [[wn34_ch5_sig]]
             extractor = last
-        [[wh34_ch6_sig]]
+        [[wn34_ch6_sig]]
             extractor = last
-        [[wh34_ch7_sig]]
+        [[wn34_ch7_sig]]
             extractor = last
-        [[wh34_ch8_sig]]
+        [[wn34_ch8_sig]]
             extractor = last
         [[wn35_ch1_sig]]
             extractor = last
@@ -2619,14 +2619,14 @@ class GatewayCollector(Collector):
         b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
         b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
         b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
-        b'\x1f': {'name': 'wh34_ch1', 'long_name': 'WH34 ch1', 'batt_fn': 'batt_volt'},
-        b'\x20': {'name': 'wh34_ch2', 'long_name': 'WH34 ch2', 'batt_fn': 'batt_volt'},
-        b'\x21': {'name': 'wh34_ch3', 'long_name': 'WH34 ch3', 'batt_fn': 'batt_volt'},
-        b'\x22': {'name': 'wh34_ch4', 'long_name': 'WH34 ch4', 'batt_fn': 'batt_volt'},
-        b'\x23': {'name': 'wh34_ch5', 'long_name': 'WH34 ch5', 'batt_fn': 'batt_volt'},
-        b'\x24': {'name': 'wh34_ch6', 'long_name': 'WH34 ch6', 'batt_fn': 'batt_volt'},
-        b'\x25': {'name': 'wh34_ch7', 'long_name': 'WH34 ch7', 'batt_fn': 'batt_volt'},
-        b'\x26': {'name': 'wh34_ch8', 'long_name': 'WH34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x1f': {'name': 'wn34_ch1', 'long_name': 'WN34 ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wn34_ch2', 'long_name': 'WN34 ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wn34_ch3', 'long_name': 'WN34 ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wn34_ch4', 'long_name': 'WN34 ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wn34_ch5', 'long_name': 'WN34 ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wn34_ch6', 'long_name': 'WN34 ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wn34_ch7', 'long_name': 'WN34 ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wn34_ch8', 'long_name': 'WN34 ch8', 'batt_fn': 'batt_volt'},
         b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
         b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
         b'\x29': {'name': 'wn35_ch2', 'long_name': 'WN35 ch2', 'batt_fn': 'batt_volt'},
@@ -4153,16 +4153,16 @@ class GatewayCollector(Collector):
             b'\x60': ('decode_distance', 1, 'lightningdist'),
             b'\x61': ('decode_utc', 4, 'lightningdettime'),
             b'\x62': ('decode_count', 4, 'lightningcount'),
-            # WH34 battery data is not obtained from live data rather it is
+            # WN34 battery data is not obtained from live data rather it is
             # obtained from sensor ID data
-            b'\x63': ('decode_wh34', 3, 'temp9'),
-            b'\x64': ('decode_wh34', 3, 'temp10'),
-            b'\x65': ('decode_wh34', 3, 'temp11'),
-            b'\x66': ('decode_wh34', 3, 'temp12'),
-            b'\x67': ('decode_wh34', 3, 'temp13'),
-            b'\x68': ('decode_wh34', 3, 'temp14'),
-            b'\x69': ('decode_wh34', 3, 'temp15'),
-            b'\x6A': ('decode_wh34', 3, 'temp16'),
+            b'\x63': ('decode_wn34', 3, 'temp9'),
+            b'\x64': ('decode_wn34', 3, 'temp10'),
+            b'\x65': ('decode_wn34', 3, 'temp11'),
+            b'\x66': ('decode_wn34', 3, 'temp12'),
+            b'\x67': ('decode_wn34', 3, 'temp13'),
+            b'\x68': ('decode_wn34', 3, 'temp14'),
+            b'\x69': ('decode_wn34', 3, 'temp15'),
+            b'\x6A': ('decode_wn34', 3, 'temp16'),
             # WH45 battery data is not obtained from live data rather it is
             # obtained from sensor ID data
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
@@ -5147,8 +5147,8 @@ class GatewayCollector(Collector):
         decode_co2 = decode_dir
         decode_wet = decode_humid
 
-        def decode_wh34(self, data, field=None):
-            """Decode WH34 sensor data.
+        def decode_wn34(self, data, field=None):
+            """Decode WN34 sensor data.
 
             Data consists of three bytes:
 
@@ -5158,7 +5158,7 @@ class GatewayCollector(Collector):
                                         representing tenths of a degree
             3       battery voltage     0.02 * value Volts
 
-            WH34 battery state data is included in the WH34 sensor data (along
+            WN34 battery state data is included in the WN34 sensor data (along
             with temperature) as well as in the complete sensor ID data. In
             keeping with other sensors we do not use the sensor data battery
             state, rather we obtain it from the sensor ID data.
@@ -5800,14 +5800,14 @@ class DirectGateway(object):
         'wh31_ch6_batt': 'group_count',
         'wh31_ch7_batt': 'group_count',
         'wh31_ch8_batt': 'group_count',
-        'wh34_ch1_batt': 'group_volt',
-        'wh34_ch2_batt': 'group_volt',
-        'wh34_ch3_batt': 'group_volt',
-        'wh34_ch4_batt': 'group_volt',
-        'wh34_ch5_batt': 'group_volt',
-        'wh34_ch6_batt': 'group_volt',
-        'wh34_ch7_batt': 'group_volt',
-        'wh34_ch8_batt': 'group_volt',
+        'wn34_ch1_batt': 'group_volt',
+        'wn34_ch2_batt': 'group_volt',
+        'wn34_ch3_batt': 'group_volt',
+        'wn34_ch4_batt': 'group_volt',
+        'wn34_ch5_batt': 'group_volt',
+        'wn34_ch6_batt': 'group_volt',
+        'wn34_ch7_batt': 'group_volt',
+        'wn34_ch8_batt': 'group_volt',
         'wn35_ch1_batt': 'group_volt',
         'wn35_ch2_batt': 'group_volt',
         'wn35_ch3_batt': 'group_volt',
@@ -5858,14 +5858,14 @@ class DirectGateway(object):
         'wh31_ch6_sig': 'group_count',
         'wh31_ch7_sig': 'group_count',
         'wh31_ch8_sig': 'group_count',
-        'wh34_ch1_sig': 'group_count',
-        'wh34_ch2_sig': 'group_count',
-        'wh34_ch3_sig': 'group_count',
-        'wh34_ch4_sig': 'group_count',
-        'wh34_ch5_sig': 'group_count',
-        'wh34_ch6_sig': 'group_count',
-        'wh34_ch7_sig': 'group_count',
-        'wh34_ch8_sig': 'group_count',
+        'wn34_ch1_sig': 'group_count',
+        'wn34_ch2_sig': 'group_count',
+        'wn34_ch3_sig': 'group_count',
+        'wn34_ch4_sig': 'group_count',
+        'wn34_ch5_sig': 'group_count',
+        'wn34_ch6_sig': 'group_count',
+        'wn34_ch7_sig': 'group_count',
+        'wn34_ch8_sig': 'group_count',
         'wn35_ch1_sig': 'group_count',
         'wn35_ch2_sig': 'group_count',
         'wn35_ch3_sig': 'group_count',
