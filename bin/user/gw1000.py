@@ -4213,6 +4213,25 @@ class GatewayCollector(Collector):
             command and create a dict of sensor observations/status data.
 
             Returns a dict of observations/status data.
+
+            Response consists of a variable number of bytes determined by the
+            number of connected sensors. Decode as follows:
+            Byte(s)     Data            Format          Comments
+            1-2         header          -               fixed header 0xFFFF
+            3           command code    byte            0x27
+            4-5         size            unsigned short
+            ....
+            6-2nd last byte
+                    data structure follows the structure of
+                    Parser.addressed_data_struct in the format:
+                        address (byte)
+                        data    length: as per second element of tuple
+                                decode: Parser method as per first element of
+                                        tuple
+            ....
+            last byte   checksum        byte            LSB of the sum of the
+                                                        command, size and data
+                                                        bytes
             """
 
             # obtain the payload size, it's a big endian short (two byte) integer
@@ -4576,7 +4595,7 @@ class GatewayCollector(Collector):
             Response consists of 13 bytes as follows:
             Byte(s) Data            Format          Comments
             1-2     header          -               fixed header 0xFFFF
-            3       command code    byt             0x30
+            3       command code    byte            0x30
             4       size            byte
             5       frequency       byte            0=433, 1=868, 2=915, 3=920
             6       sensor type     byte            0=WH24, 1=WH65
@@ -4815,7 +4834,26 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_usr_path(response):
-            """Parse a CMD_READ_USR_PATH API response."""
+            """Parse a CMD_READ_USR_PATH API response.
+
+            Response consists of a variable number of bytes. Number of
+            bytes = 7 + e + w where e = length of the 'Ecowitt path' in
+            characters and w is the length of the 'Weather Underground path'.
+            Decode as follows:
+            Byte(s)     Data            Format          Comments
+            1-2         header          -               fixed header 0xFFFF
+            3           command code    byte            0x51
+            4           size            byte
+            5           Ecowitt size    unsigned byte   length of Ecowitt path
+                                                        in characters
+            6-5+e       Ecowitt path    e x bytes       ASCII, max 64 characters
+            6+e         WU size         unsigned byte   length of WU path in
+                                                        characters
+            7+e-6+e+w   WU path         w x bytes       ASCII, max 64 characters
+            7+e+w       checksum        byte            LSB of the sum of the
+                                                        command, size and data
+                                                        bytes
+            """
 
             # determine the size of the user path data
             size = six.indexbytes(response, 3)
@@ -4836,7 +4874,18 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_station_mac(response):
-            """Parse a CMD_READ_STATION_MAC API response."""
+            """Parse a CMD_READ_STATION_MAC API response.
+
+            Response consists of 11 bytes as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x26
+            4       size            byte
+            5-12    station MAC     6 x byte
+            13      checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # return the parsed response, in this case we simply return the
             # bytes as a semicolon separated hex string
@@ -4844,7 +4893,23 @@ class GatewayCollector(Collector):
 
         @staticmethod
         def parse_read_firmware_version(response):
-            """Parse a CMD_READ_FIRMWARE_VERSION API response."""
+            """Parse a CMD_READ_FIRMWARE_VERSION API response.
+
+            Response consists of a variable number of bytes. Number of
+            bytes = 6 + f where f = length of the firmware version string in
+            characters. Decode as follows:
+            Byte(s) Data            Format          Comments
+            1-2     header          -               fixed header 0xFFFF
+            3       command code    byte            0x50
+            4       size            byte
+            5       fw size         byte            length of firmware version
+                                                    string in characters
+            6-5+f   fw string       f x byte        firmware version string
+                                                    (ASCII ?)
+            6+f     checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+            """
 
             # create a format string so the firmware string can be unpacked into
             # its bytes
@@ -4864,7 +4929,9 @@ class GatewayCollector(Collector):
             """Decode temperature data.
 
             Data is contained in a two byte big endian signed integer and
-            represents tenths of a degree.
+            represents tenths of a degree. If field is not None return the
+            result as a dict in the format {field: decoded value} otherwise
+            return just the decoded value.
             """
 
             if len(data) == 2:
@@ -4881,7 +4948,9 @@ class GatewayCollector(Collector):
             """Decode humidity data.
 
             Data is contained in a single unsigned byte and represents whole
-            units.
+            units. If field is not None return the result as a dict in the
+            format {field: decoded value} otherwise return just the decoded
+            value.
             """
 
             if len(data) == 1:
@@ -4922,7 +4991,9 @@ class GatewayCollector(Collector):
             """Decode direction data.
 
             Data is contained in a two byte big endian integer and represents
-            whole degrees.
+            whole degrees. If field is not None return the result as a dict in
+            the format {field: decoded value} otherwise return just the decoded
+            value.
             """
 
             if len(data) == 2:
@@ -4939,7 +5010,9 @@ class GatewayCollector(Collector):
             """Decode 4 byte rain data.
 
             Data is contained in a four byte big endian integer and represents
-            tenths of a unit.
+            tenths of a unit. If field is not None return the result as a dict
+            in the format {field: decoded value} otherwise return just the
+            decoded value.
             """
 
             if len(data) == 4:
@@ -4955,7 +5028,9 @@ class GatewayCollector(Collector):
         def decode_datetime(data, field=None):
             """Decode date-time data.
 
-            Unknown format but length is six bytes.
+            Unknown format but length is six bytes. If field is not None return
+            the result as a dict in the format {field: decoded value} otherwise
+            return just the decoded value.
             """
 
             if len(data) == 6:
@@ -4972,7 +5047,9 @@ class GatewayCollector(Collector):
             """Decode lightning distance.
 
             Data is contained in a single byte integer and represents a value
-            from 0 to 40km.
+            from 0 to 40km. If field is not None return the result as a dict in
+            the format {field: decoded value} otherwise return just the decoded
+            value.
             """
 
             if len(data) == 1:
@@ -4991,8 +5068,8 @@ class GatewayCollector(Collector):
 
             The API documentation claims to provide 'UTC time' as a 4 byte big
             endian integer. The 4 byte integer is a unix epoch timestamp;
-            however, the timestamp is offset by the stations timezone. So for a
-            station in the +10 hour timezone, the timestamp returned is the
+            however, the timestamp is offset by the station's timezone. So for
+            a station in the +10 hour timezone, the timestamp returned is the
             present epoch timestamp plus 10 * 3600 seconds.
 
             When decoded in localtime the decoded date-time is off by the
@@ -5002,6 +5079,9 @@ class GatewayCollector(Collector):
             In any case decode the 4 byte big endian integer as is and any
             further use of this timestamp needs to take the above time zone
             offset into account when using the timestamp.
+
+            If field is not None return the result as a dict in the format
+            {field: decoded value} otherwise return just the decoded value.
             """
 
             if len(data) == 4:
@@ -5022,7 +5102,10 @@ class GatewayCollector(Collector):
         def decode_count(data, field=None):
             """Decode lightning count.
 
-            Count is an integer stored in a four byte big endian integer."""
+            Count is an integer stored in a four byte big endian integer. If
+            field is not None return the result as a dict in the format
+            {field: decoded value} otherwise return just the decoded value.
+            """
 
             if len(data) == 4:
                 value = struct.unpack(">L", data)[0]
@@ -5079,6 +5162,9 @@ class GatewayCollector(Collector):
             with temperature) as well as in the complete sensor ID data. In
             keeping with other sensors we do not use the sensor data battery
             state, rather we obtain it from the sensor ID data.
+
+            If field is not None return the result as a dict in the format
+            {field: decoded value} otherwise return just the decoded value.
             """
 
             if len(data) == 3 and field is not None:
