@@ -1884,6 +1884,10 @@ class GatewayService(weewx.engine.StdService, Gateway):
         self.collector.shutdown()
 
 
+# for backwards compatibility
+Gw1000Service = GatewayService
+
+
 # ============================================================================
 #                 GW1000 Loader/Configurator/Editor methods
 # ============================================================================
@@ -2572,6 +2576,10 @@ class Collector(object):
 
     def shutdown(self):
         pass
+
+
+# for backwards compatibility
+Gw1000Driver = GatewayDriver
 
 
 # ============================================================================
