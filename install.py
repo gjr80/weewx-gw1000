@@ -10,9 +10,14 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.4.2                                        Date: 20 March 2022
+Version: 0.5.0a1                                      Date: ?? April 2022
 
 Revision History
+    ?? April 2022       v0.5.0
+        -   changed descriptive name of extension
+        -   redesignated WH35 as WN35
+        -   added accumulator extractor entries for WN34 and WS90 battery and
+            signal state data
     20 March 2022       v0.4.2
         -   no change, version increment only
     14 October 2021     v0.4.1
@@ -49,7 +54,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.4.1"
+GW1000_VERSION = "0.5.0a1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -140,21 +145,37 @@ gw1000_config = """
         extractor = last
     [[wh31_ch8_batt]]
         extractor = last
-    [[wh35_ch1_batt]]
+    [[wn34_ch1_batt]]
         extractor = last
-    [[wh35_ch2_batt]]
+    [[wn34_ch2_batt]]
         extractor = last
-    [[wh35_ch3_batt]]
+    [[wn34_ch3_batt]]
         extractor = last
-    [[wh35_ch4_batt]]
+    [[wn34_ch4_batt]]
         extractor = last
-    [[wh35_ch5_batt]]
+    [[wn34_ch5_batt]]
         extractor = last
-    [[wh35_ch6_batt]]
+    [[wn34_ch6_batt]]
         extractor = last
-    [[wh35_ch7_batt]]
+    [[wn34_ch7_batt]]
         extractor = last
-    [[wh35_ch8_batt]]
+    [[wn34_ch8_batt]]
+        extractor = last
+    [[wn35_ch1_batt]]
+        extractor = last
+    [[wn35_ch2_batt]]
+        extractor = last
+    [[wn35_ch3_batt]]
+        extractor = last
+    [[wn35_ch4_batt]]
+        extractor = last
+    [[wn35_ch5_batt]]
+        extractor = last
+    [[wn35_ch6_batt]]
+        extractor = last
+    [[wn35_ch7_batt]]
+        extractor = last
+    [[wn35_ch8_batt]]
         extractor = last
     [[wh41_ch1_batt]]
         extractor = last
@@ -212,6 +233,8 @@ gw1000_config = """
         extractor = last
     [[ws80_batt]]
         extractor = last
+    [[ws90_batt]]
+        extractor = last
     [[wh40_sig]]
         extractor = last
     [[wh26_sig]]
@@ -238,21 +261,37 @@ gw1000_config = """
         extractor = last
     [[wh31_ch8_sig]]
         extractor = last
-    [[wh35_ch1_sig]]
+    [[wn34_ch1_sig]]
         extractor = last
-    [[wh35_ch2_sig]]
+    [[wn34_ch2_sig]]
         extractor = last
-    [[wh35_ch3_sig]]
+    [[wn34_ch3_sig]]
         extractor = last
-    [[wh35_ch4_sig]]
+    [[wn34_ch4_sig]]
         extractor = last
-    [[wh35_ch5_sig]]
+    [[wn34_ch5_sig]]
         extractor = last
-    [[wh35_ch6_sig]]
+    [[wn34_ch6_sig]]
         extractor = last
-    [[wh35_ch7_sig]]
+    [[wn34_ch7_sig]]
         extractor = last
-    [[wh35_ch8_sig]]
+    [[wn34_ch8_sig]]
+        extractor = last
+    [[wn35_ch1_sig]]
+        extractor = last
+    [[wn35_ch2_sig]]
+        extractor = last
+    [[wn35_ch3_sig]]
+        extractor = last
+    [[wn35_ch4_sig]]
+        extractor = last
+    [[wn35_ch5_sig]]
+        extractor = last
+    [[wn35_ch6_sig]]
+        extractor = last
+    [[wn35_ch7_sig]]
+        extractor = last
+    [[wn35_ch8_sig]]
         extractor = last
     [[wh41_ch1_sig]]
         extractor = last
@@ -310,6 +349,8 @@ gw1000_config = """
         extractor = last
     [[ws80_sig]]
         extractor = last
+    [[ws90_sig]]
+        extractor = last
     # End GW1000 driver extractors
 """
 
@@ -331,7 +372,7 @@ class Gw1000Installer(ExtensionInstaller):
         super(Gw1000Installer, self).__init__(
             version=GW1000_VERSION,
             name='GW1000',
-            description='WeeWX driver for GW1000/GW1100 WiFi gateways.',
+            description='WeeWX driver for devices using the Ecowitt LAN/Wi-Fi Gateway API.',
             author="Gary Roderick",
             author_email="gjroderick<@>gmail.com",
             files=[('bin/user', ['bin/user/gw1000.py'])],
