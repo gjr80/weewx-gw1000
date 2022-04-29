@@ -5576,7 +5576,7 @@ def natural_sort_keys(source_dict):
         Allows use of key=natural_keys to sort a list in human order, eg:
             alist.sort(key=natural_keys)
 
-        http://nedbatchelder.com/blog/200712/human_sorting.html (See
+        https://nedbatchelder.com/blog/200712/human_sorting.html (See
         Toothy's implementation in the comments)
         """
 
@@ -6573,8 +6573,8 @@ class DirectGateway(object):
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
-                print("%22s: %s" % ("Station ID", id))
+                wu_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Station ID", wu_id))
                 # Station key
                 key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Station Key", key))
@@ -6585,8 +6585,8 @@ class DirectGateway(object):
             # do we have any settings?
             if data_dict is not None:
                 # Weathercloud ID
-                id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
-                print("%22s: %s" % ("Weathercloud ID", id))
+                wc_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Weathercloud ID", wc_id))
                 # Weathercloud key
                 key = data_dict['key'] if self.opts.unmask else obfuscate(data_dict['key'])
                 print("%22s: %s" % ("Weathercloud Key", key))
@@ -6597,8 +6597,8 @@ class DirectGateway(object):
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
-                print("%22s: %s" % ("Station ID", id))
+                wow_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                print("%22s: %s" % ("Station ID", wow_id))
                 # Station key
                 key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Station Key", key))
@@ -6632,8 +6632,8 @@ class DirectGateway(object):
                     print("%22s: %s" % ("Path", data_dict['ecowitt_path']))
                 elif data_dict['type'] == 1:
                     print("%22s: %s" % ("Path", data_dict['wu_path']))
-                    id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
-                    print("%22s: %s" % ("Station ID", id))
+                    custom_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                    print("%22s: %s" % ("Station ID", custom_id))
                     key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
                     print("%22s: %s" % ("Station Key", key))
                 # port
