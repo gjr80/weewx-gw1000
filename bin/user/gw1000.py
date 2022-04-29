@@ -3,7 +3,7 @@
 """
 gw1000.py
 
-A WeeWX driver for Ecowitt and compatible devices using Ecowitt LAN/Wi-Fi Gateway API.
+A WeeWX driver for devices using Ecowitt LAN/Wi-Fi Gateway API.
 
 The WeeWX Ecowitt Gateway driver (known historically as the 'WeeWX GW1000
 driver') utilises the Ecowitt LAN/Wi-Fi Gateway API thus using a pull
