@@ -1,6 +1,6 @@
 # Ecowitt Gateway (formerly GW1000) Driver #
 
-**Note:** General support issues for the Ecowitt Gateway driver should be raised in the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum"). The Ecowitt Gateway driver [Issues Page](https://github.com/gjr80/weewx-gw1000/issues "Ecowitt Gateway driver Issues") should only be used for specific bugs in the Ecowitt Gateway driver code. It is recommended that even if a Ecowitt Gateway driver bug is suspected users first post to the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum").
+**Note:** General support issues for the Ecowitt Gateway driver should be raised in the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum"). The Ecowitt Gateway driver [Issues Page](https://github.com/gjr80/weewx-gw1000/issues "Ecowitt Gateway driver Issues") should only be used for specific bugs in the Ecowitt Gateway driver code. It is recommended that even if an Ecowitt Gateway driver bug is suspected users first post to the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum").
 
 ## Description ##
 
@@ -22,7 +22,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 ### Installation as a WeeWX driver ###
 
-1.  If the Ecowitt Gateway driver is to be installed on a fresh WeeWX installation [install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure it to use the *simulator*.
+1.  If the Ecowitt Gateway driver is to be installed on a fresh WeeWX installation first [install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure it to use the *simulator*.
 
 2.  Install the driver using the *wee_extension* utility:
 
@@ -154,7 +154,7 @@ To downgrade to an earlier release first uninstall the currently installed Ecowi
 
 ## Support ##
 
-General support issues for the Ecowitt Gateway driver should be raised in the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum"). The Ecowitt Gateway driver [Issues Page](https://github.com/gjr80/weewx-gw1000/issues "Ecowitt Gateway driver Issues") should only be used for specific bugs in the Ecowitt Gateway driver code. It is recommended that even if a Ecowitt Gateway driver bug is suspected users first post to the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum").
+General support issues for the Ecowitt Gateway driver should be raised in the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum"). The Ecowitt Gateway driver [Issues Page](https://github.com/gjr80/weewx-gw1000/issues "Ecowitt Gateway driver Issues") should only be used for specific bugs in the Ecowitt Gateway driver code. It is recommended that even if an Ecowitt Gateway driver bug is suspected users first post to the Google Groups [weewx-user forum](https://groups.google.com/g/weewx-user "Google Groups weewx-user forum").
 
 ## Licensing ##
 
