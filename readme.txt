@@ -224,9 +224,17 @@ device data into WeeWX generated reports.
 
 Upgrade Instructions
 
-To upgrade from an earlier version of the GW1000 driver (installed as either a
-WeeWX driver or a WeeWX service) simply install the GW1000 version you wish to
-upgrade to as per the Installation Instructions above.
+Note: Before upgrading the Ecowitt Gateway driver, check the Instructions for
+      specific versions section
+      (https://github.com/gjr80/weewx-gw1000/wiki/Upgrade-Guide#instructions-for-specific-versions)
+      of the Ecowitt Gateway driver Upgrade Guide
+      (https://github.com/gjr80/weewx-gw1000/wiki/Upgrade-Guide) to see if any
+      specific actions are required as part of the upgrade.
+
+To upgrade from an earlier version of the Ecowitt Gateway driver or GW1000
+driver (installed as either a WeeWX driver or a WeeWX service) simply install
+the Ecowitt Gateway driver version you wish to upgrade to as per the
+Installation Instructions above.
 
 Note: The Installation Instructions refer to the current release only. It is
       recommended that users upgrade to the latest release rather than an
@@ -236,9 +244,25 @@ Note: The Installation Instructions refer to the current release only. It is
 Downgrade Instructions
 
 To downgrade to an earlier release first uninstall the currently installed
-GW1000 driver and then install the desired release as per the Installation
-Instructions above.
+Ecowitt Gateway driver (or GW1000 driver) and then install the desired release
+as per the Installation Instructions above.
 
 Note: Care should be taken when downgrading to an earlier release as subsequent
       releases may have entailed enduring changes; for example database schema
       changes, that are not undone by simply uninstalling the GW1000 driver.
+
+
+Support
+
+General support issues for the Ecowitt Gateway driver should be raised in the
+Google Groups weewx-user forum (https://groups.google.com/g/weewx-user). The
+Ecowitt Gateway driver Issues Page (https://github.com/gjr80/weewx-gw1000/issues)
+should only be used for specific bugs in the Ecowitt Gateway driver code. It is
+recommended that even if an Ecowitt Gateway driver bug is suspected users first
+post to the Google Groups weewx-user forum.
+
+
+Licensing
+
+The Ecowitt Gateway driver/GW1000 driver is licensed under the GNU Public
+License v3 (https://github.com/gjr80/weewx-gw1000/blob/master/LICENSE).
