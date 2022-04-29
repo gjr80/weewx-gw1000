@@ -684,7 +684,7 @@ except ImportError:
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
-DRIVER_NAME = 'Ecowitt Gateway'
+DRIVER_NAME = 'GW1000'
 DRIVER_VERSION = '0.5.0a1'
 
 # various defaults used throughout
@@ -1202,11 +1202,6 @@ class Gateway(object):
             debug_list.append("debug_loop is %s" % (self.debug_loop,))
         if len(debug_list) > 0:
             loginf(" ".join(debug_list))
-        # The field map. Field map dict output will be in unsorted key order.
-        # It is easier to read if sorted alphanumerically but we have keys such
-        # as xxxxx16 that do not sort well. Use a custom natural sort of the
-        # keys in a manually produced formatted dict representation.
-        loginf('field map is %s' % natural_sort_dict(self.field_map))
 
     @property
     def model(self):
@@ -1314,47 +1309,58 @@ class Gateway(object):
         data: dic of parsed device API data
         """
 
-        # if raintotals is present used that as our first choice
-        if 'raintotals' in data:
-            self.rain_total_field = 'raintotals'
-            self.rain_mapping_confirmed = True
-        # raintotals is not present so now try rainyear
-        elif 'rainyear' in data:
-            self.rain_total_field = 'rainyear'
-            self.rain_mapping_confirmed = True
-        # rainyear is not present so now try rainmonth
-        elif 'rainmonth' in data:
-            self.rain_total_field = 'rainmonth'
-            self.rain_mapping_confirmed = True
-        # otherwise do nothing, we can try again next packet
-        else:
-            self.rain_total_field = None
-        # if we found a field log what we are using
-        if self.rain_mapping_confirmed:
-            loginf("Using '%s' for rain total" % self.rain_total_field)
-        elif self.debug_rain:
-            # if debug_rain is set log that we had nothing
-            loginf("No suitable field found for rain")
+        # Do we have a confirmed field to use for calculating rain? If we do we
+        # can skip this otherwise we need to look for one.
+        if not self.rain_mapping_confirmed:
+            # We have no field for calculating rain so look for one, if device
+            # field 'raintotals' is present used that as our first choice.
+            # Otherwise work down the list in order of descending period.
+            if 'raintotals' in data:
+                self.rain_total_field = 'raintotals'
+                self.rain_mapping_confirmed = True
+            # raintotals is not present so now try rainyear
+            elif 'rainyear' in data:
+                self.rain_total_field = 'rainyear'
+                self.rain_mapping_confirmed = True
+            # rainyear is not present so now try rainmonth
+            elif 'rainmonth' in data:
+                self.rain_total_field = 'rainmonth'
+                self.rain_mapping_confirmed = True
+            # do nothing, we can try again next packet
+            else:
+                self.rain_total_field = None
+            # if we found a field log what we are using
+            if self.rain_mapping_confirmed:
+                loginf("Using '%s' for rain total" % self.rain_total_field)
+            elif self.debug_rain:
+                # if debug_rain is set log that we had nothing
+                loginf("No suitable field found for rain")
 
         # now do the same for piezo rain
         
-        # if raintotals is present used that as our first choice
-        if 'p_rainyear' in data:
-            self.piezo_rain_total_field = 'p_rainyear'
-            self.piezo_rain_mapping_confirmed = True
-        # rainyear is not present so now try rainmonth
-        elif 'p_rainmonth' in data:
-            self.piezo_rain_total_field = 'p_rainmonth'
-            self.piezo_rain_mapping_confirmed = True
-        # otherwise do nothing, we can try again next packet
-        else:
-            self.piezo_rain_total_field = None
-        # if we found a field log what we are using
-        if self.piezo_rain_mapping_confirmed:
-            loginf("Using '%s' for piezo rain total" % self.piezo_rain_total_field)
-        elif self.debug_rain:
-            # if debug_rain is set log that we had nothing
-            loginf("No suitable field found for piezo rain")
+        # Do we have a confirmed field to use for calculating piezo rain? If we
+        # do we can skip this otherwise we need to look for one.
+        if not self.piezo_rain_mapping_confirmed:
+            # We have no field for calculating piezo rain so look for one, if
+            # device field 'p_rainyear' is present used that as our first
+            # choice. Otherwise work down the list in order of descending
+            # period.
+            if 'p_rainyear' in data:
+                self.piezo_rain_total_field = 'p_rainyear'
+                self.piezo_rain_mapping_confirmed = True
+            # rainyear is not present so now try rainmonth
+            elif 'p_rainmonth' in data:
+                self.piezo_rain_total_field = 'p_rainmonth'
+                self.piezo_rain_mapping_confirmed = True
+            # do nothing, we can try again next packet
+            else:
+                self.piezo_rain_total_field = None
+            # if we found a field log what we are using
+            if self.piezo_rain_mapping_confirmed:
+                loginf("Using '%s' for piezo rain total" % self.piezo_rain_total_field)
+            elif self.debug_rain:
+                # if debug_rain is set log that we had nothing
+                loginf("No suitable field found for piezo rain")
 
     def calculate_rain(self, data):
         """Calculate total rainfall for a period.
@@ -1394,7 +1400,9 @@ class Gateway(object):
             piezo_new_total = data[self.piezo_rain_total_field]
             # now calculate field p_rain as the difference between the new and
             # old totals
-            data['p_rain'] = self.delta_rain(piezo_new_total, self.piezo_last_rain)
+            data['p_rain'] = self.delta_rain(piezo_new_total,
+                                             self.piezo_last_rain,
+                                             descriptor='piezo rain')
             # if debug_rain is set log some pertinent values
             if self.debug_rain:
                 loginf("calculate_rain: piezo_last_rain=%s piezo_new_total=%s "
@@ -1426,7 +1434,7 @@ class Gateway(object):
             self.last_lightning = new_total
 
     @staticmethod
-    def delta_rain(rain, last_rain):
+    def delta_rain(rain, last_rain, descriptor='rain'):
         """Calculate rainfall from successive cumulative values.
 
         Rainfall is calculated as the difference between two cumulative values.
@@ -1434,27 +1442,28 @@ class Gateway(object):
         value is greater than the latest value a counter wrap around is assumed
         and the latest value is returned.
 
-        rain:      current cumulative rain value
-        last_rain: last cumulative rain value
+        rain:       current cumulative rain value
+        last_rain:  last cumulative rain value
+        descriptor: string to indicate what rain data we are working with
         """
 
         # do we have a last rain value
         if last_rain is None:
             # no, log it and return None
-            loginf("skipping rain measurement of %s: no last rain" % rain)
+            loginf("skipping %s measurement of %s: no last rain" % (descriptor, rain))
             return None
         # do we have a non-None current rain value
         if rain is None:
             # no, log it and return None
-            loginf("skipping rain measurement: no current rain")
+            loginf("skipping %s measurement: no current rain data" % descriptor)
             return None
         # is the last rain value greater than the current rain value
         if rain < last_rain:
             # it is, assume a counter wrap around/reset, log it and return the
             # latest rain value
-            loginf("rain counter wraparound detected: new=%s last=%s" % (rain, last_rain))
+            loginf("%s counter wraparound detected: new=%s last=%s" % (descriptor, rain, last_rain))
             return rain
-        # otherwise return the difference between the counts
+        # return the difference between the counts
         return rain - last_rain
 
     @staticmethod
@@ -1575,7 +1584,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # It is easier to read if sorted alphanumerically but we have keys such
         # as xxxxx16 that do not sort well. Use a custom natural sort of the
         # keys in a manually produced formatted dict representation.
-        loginf('Gw1000Service: field map is %s' % natural_sort_dict(self.field_map))
+        logdbg('Gw1000Service: field map is %s' % natural_sort_dict(self.field_map))
         loginf('Gw1000Service: lost contact will be logged every %d seconds' % self.lost_contact_log_period)
         # log specific debug but only if set ie. True
         debug_list = []
@@ -2333,7 +2342,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         # It is easier to read if sorted alphanumerically but we have keys such
         # as xxxxx16 that do not sort well. Use a custom natural sort of the
         # keys in a manually produced formatted dict representation.
-        loginf('GatewayDriver: field map is %s' % natural_sort_dict(self.field_map))
+        logdbg('GatewayDriver: field map is %s' % natural_sort_dict(self.field_map))
         # log specific debug but only if set ie. True
         debug_list = []
         if self.debug_rain:
