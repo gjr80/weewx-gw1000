@@ -34,10 +34,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0a2                                    Date: ?? April 2022
+Version: 0.5.0b1                                    Date: ?? May 2022
 
 Revision History
-    ?? April 2022           v0.5.0a1
+    ?? May 2022            v0.5.0
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
@@ -176,417 +176,63 @@ order to obtain the correct UTC time.
 
 Before using this driver:
 
-Before running WeeWX with the GW1000 driver you may wish to run the driver
-directly from the command line to ensure correct operation/assist in
-configuration. To run the driver directly from the command line enter one of
-the following commands depending on your WeeWX installation type:
+Before running WeeWX with the Ecowitt Gateway driver you may wish to run the
+driver directly from the command line to ensure correct operation/assist in
+configuration. Running the driver directly will not interrupt a running WeeWX
+instance other than perhaps placing a few extra lines in the WeeWX log. To run
+the driver directly from the command line:
 
-    for a setup.py install:
+1.  Install WeeWX (https://weewx.com/docs/usersguide.htm#installing) and make
+sure WeeWX is operating correctly (perhaps with the simulator driver). Whilst
+the Ecowitt Gateway driver may be run independently of WeeWX the driver still
+requires WeeWX and it's dependencies be installed.
+
+2.  Run the driver directly and display the driver help:
+
+    for a WeeWX setup.py install:
 
         $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --help
 
-    or for package installs use:
+    or for a WeeWX package install use:
 
         $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --help
-
-Note: Depending on your system/installation the above command may need to be
-      prefixed with sudo.
-
-Note: Whilst the driver may be run independently of WeeWX the driver still
-      requires WeeWX and it's dependencies be installed. Consequently, if
-      WeeWX 4.0.0 or later is installed the driver must be run under the same
-      Python version as WeeWX uses. This means that on some systems 'python' in
-      the above commands may need to be changed to 'python2' or 'python3'.
-
-Note: The nature of the GW1000 API and the GW1000 driver mean that the GW1000
-      driver can be run directly from the command line while the GW1000
-      continues to serve data to any existing drivers/services. This makes it
-      possible to configure and test the GW1000 driver without taking an
-      existing GW1000 based system off-line.
-
-The --discover command line option is useful for discovering any GW1000 on the
-local network. The IP address and port details returned by --discover can be
-useful for configuring the driver IP address and port config options in
-weewx.conf.
-
-The --live-data command line option is useful for seeing what data is available
-from a particular GW1000. Note the fields available will depend on the sensors
-connected to the GW1000. As the field names returned by --live-data are GW1000
-field names before they have been mapped to WeeWX fields names, the --live-data
-output is useful for configuring the field map to be used by the GW1000 driver.
-
-Once you believe the GW1000 driver is configured the --test-driver or
---test-service command line options can be used to confirm correct operation of
-the GW1000 driver as a driver or as a service respectively.
-
-
-To use the GW1000 driver as a WeeWX driver:
-
-1.  If installing on a fresh WeeWX installation install WeeWX and configure it
-to use the 'simulator'. Refer to https://weewx.com/docs/usersguide.htm#installing
-
-2.  If installing the driver using the wee_extension utility (the recommended
-method):
-
-    -   download the GW1000 driver extension package:
-
-        $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.3.0/gw1000-0.3.0.tar.gz
-
-    -   install the GW1000 driver extension:
-
-        $ wee_extension --install=/var/tmp/gw1000-0.3.0.tar.gz
-
-        Note: Depending on your system/installation the above command may need
-              to be prefixed with sudo.
-
-        Note: Depending on your WeeWX installation wee_extension may need to be
-              prefixed with the path to wee_extension.
-
-    -   skip to step 4
-
-3.  If installing manually:
-
-    -   put this file in $BIN_ROOT/user.
-
-    -   add the following stanza to weewx.conf:
-
-        [GW1000]
-            # This section is for the GW1000
-
-            # The driver itself
-            driver = user.gw1000
-
-    -   add the following stanza to weewx.conf:
-
-        Note: If an [Accumulator] stanza already exists in weewx.conf just add
-              the child settings.
-
-        [Accumulator]
-            [[lightning_strike_count]]
-                extractor = sum
-            [[lightningcount]]
-                extractor = last
-            [[lightning_last_det_time]]
-                extractor = last
-            [[daymaxwind]]
-                extractor = last
-            [[lightning_distance]]
-                extractor = last
-            [[stormRain]]
-                extractor = last
-            [[hourRain]]
-                extractor = last
-            [[dayRain]]
-                extractor = last
-            [[weekRain]]
-                extractor = last
-            [[monthRain]]
-                extractor = last
-            [[yearRain]]
-                extractor = last
-            [[totalRain]]
-                extractor = last
-            [[p_rain]]
-                extractor = sum
-            [[p_stormRain]]
-                extractor = last
-            [[p_dayRain]]
-                extractor = last
-            [[p_weekRain]]
-                extractor = last
-            [[p_monthRain]]
-                extractor = last
-            [[p_yearRain]]
-                extractor = last
-            [[pm2_51_24h_avg]]
-                extractor = last
-            [[pm2_52_24h_avg]]
-                extractor = last
-            [[pm2_53_24h_avg]]
-                extractor = last
-            [[pm2_54_24h_avg]]
-                extractor = last
-            [[pm2_55_24h_avg]]
-                extractor = last
-            [[pm10_24h_avg]]
-                extractor = last
-            [[co2_24h_avg]]
-                extractor = last
-            [[wh40_batt]]
-                extractor = last
-            [[wh26_batt]]
-                extractor = last
-            [[wh25_batt]]
-                extractor = last
-            [[wh65_batt]]
-                extractor = last
-            [[wh31_ch1_batt]]
-                extractor = last
-            [[wh31_ch2_batt]]
-                extractor = last
-            [[wh31_ch3_batt]]
-                extractor = last
-            [[wh31_ch4_batt]]
-                extractor = last
-            [[wh31_ch5_batt]]
-                extractor = last
-            [[wh31_ch6_batt]]
-                extractor = last
-            [[wh31_ch7_batt]]
-                extractor = last
-            [[wh31_ch8_batt]]
-                extractor = last
-            [[wh41_ch1_batt]]
-                extractor = last
-            [[wh41_ch2_batt]]
-                extractor = last
-            [[wh41_ch3_batt]]
-                extractor = last
-            [[wh41_ch4_batt]]
-                extractor = last
-            [[wh45_batt]]
-                extractor = last
-            [[wh51_ch1_batt]]
-                extractor = last
-            [[wh51_ch2_batt]]
-                extractor = last
-            [[wh51_ch3_batt]]
-                extractor = last
-            [[wh51_ch4_batt]]
-                extractor = last
-            [[wh51_ch5_batt]]
-                extractor = last
-            [[wh51_ch6_batt]]
-                extractor = last
-            [[wh51_ch7_batt]]
-                extractor = last
-            [[wh51_ch8_batt]]
-                extractor = last
-            [[wh51_ch9_batt]]
-                extractor = last
-            [[wh51_ch10_batt]]
-                extractor = last
-            [[wh51_ch11_batt]]
-                extractor = last
-            [[wh51_ch12_batt]]
-                extractor = last
-            [[wh51_ch13_batt]]
-                extractor = last
-            [[wh51_ch14_batt]]
-                extractor = last
-            [[wh51_ch15_batt]]
-                extractor = last
-            [[wh51_ch16_batt]]
-                extractor = last
-            [[wh55_ch1_batt]]
-                extractor = last
-            [[wh55_ch2_batt]]
-                extractor = last
-            [[wh55_ch3_batt]]
-                extractor = last
-            [[wh55_ch4_batt]]
-                extractor = last
-            [[wh57_batt]]
-                extractor = last
-            [[wh68_batt]]
-                extractor = last
-            [[ws80_batt]]
-                extractor = last
-            [[wh40_sig]]
-                extractor = last
-            [[wh26_sig]]
-                extractor = last
-            [[wh25_sig]]
-                extractor = last
-            [[wh65_sig]]
-                extractor = last
-            [[wh31_ch1_sig]]
-                extractor = last
-            [[wh31_ch2_sig]]
-                extractor = last
-            [[wh31_ch3_sig]]
-                extractor = last
-            [[wh31_ch4_sig]]
-                extractor = last
-            [[wh31_ch5_sig]]
-                extractor = last
-            [[wh31_ch6_sig]]
-                extractor = last
-            [[wh31_ch7_sig]]
-                extractor = last
-            [[wh31_ch8_sig]]
-                extractor = last
-            [[wh41_ch1_sig]]
-                extractor = last
-            [[wh41_ch2_sig]]
-                extractor = last
-            [[wh41_ch3_sig]]
-                extractor = last
-            [[wh41_ch4_sig]]
-                extractor = last
-            [[wh45_sig]]
-                extractor = last
-            [[wh51_ch1_sig]]
-                extractor = last
-            [[wh51_ch2_sig]]
-                extractor = last
-            [[wh51_ch3_sig]]
-                extractor = last
-            [[wh51_ch4_sig]]
-                extractor = last
-            [[wh51_ch5_sig]]
-                extractor = last
-            [[wh51_ch6_sig]]
-                extractor = last
-            [[wh51_ch7_sig]]
-                extractor = last
-            [[wh51_ch8_sig]]
-                extractor = last
-            [[wh51_ch9_sig]]
-                extractor = last
-            [[wh51_ch10_sig]]
-                extractor = last
-            [[wh51_ch11_sig]]
-                extractor = last
-            [[wh51_ch12_sig]]
-                extractor = last
-            [[wh51_ch13_sig]]
-                extractor = last
-            [[wh51_ch14_sig]]
-                extractor = last
-            [[wh51_ch15_sig]]
-                extractor = last
-            [[wh51_ch16_sig]]
-                extractor = last
-            [[wh55_ch1_sig]]
-                extractor = last
-            [[wh55_ch2_sig]]
-                extractor = last
-            [[wh55_ch3_sig]]
-                extractor = last
-            [[wh55_ch4_sig]]
-                extractor = last
-            [[wh57_sig]]
-                extractor = last
-            [[wh68_sig]]
-                extractor = last
-            [[ws80_sig]]
-                extractor = last
-
-4.  Confirm that WeeWX is set to use software record generation
-(refer https://weewx.com/docs/usersguide.htm#record_generation). In weewx.conf
-under [StdArchive] ensure the record_generation setting is set to software:
-
-        [StdArchive]
-            ....
-            record_generation = software
-
-    If record_generation is set to hardware change it to software.
-
-5.  Test the GW1000 driver by running the driver file directly using the
---test-driver command line option:
-
-    $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-driver
-
-    for setup.py installs or for package installs use:
-
-    $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-driver
 
     Note: Depending on your system/installation the above command may need to be
           prefixed with sudo.
 
-    Note: Whilst the driver may be run independently of WeeWX the driver still
-          requires WeeWX and it's dependencies be installed. Consequently, if
-          WeeWX 4.0.0 or later is installed the driver must be run under the
-          same Python version as WeeWX uses. This means that on some systems
-          'python' in the above commands may need to be changed to 'python2' or
-          'python3'.
+    Note: The driver must be run under the same Python version as WeeWX uses.
+          For WeeWX 3.x this is Python 2. If WeeWX 4.0.0 or later is installed
+          this may be Python 2 or Python 3. This means that on some systems
+          'python' in the above commands may need to be changed to 'python2'
+          or 'python3'.
 
-    Note: If necessary you can specify the GW1000 IP address and port using the
-          --ip-address and --port command line options. Refer to the GW1000
-          driver help using --help for further information.
+3.  The --discover command line option is useful for discovering any gateway
+devices on the local network. The IP address and port details returned by
+--discover can be useful for configuring the driver IP address and port config
+options in weewx.conf.
 
-    You should observe loop packets being emitted on a regular basis. Once
-    finished press ctrl-c to exit.
+    Note: The recommended approach when using the Ecowitt Gateway driver in a
+          live environment is to specify the IP address and port number to be
+          used for each gateway device. Discovery has been unreliable at time
+          and to date has not worked on a WiFi only connected GW2000 (ethernet
+          connected GW200 discover fine).
 
-    Note: You will only see loop packets and not archive records when running
-          the driver directly. This is because you are seeing output directly
-          from the driver and not WeeWX.
+4.  The --live-data command line option is useful for seeing what data is
+available from a particular gateway device. Note the fields available will
+depend on the sensors connected to the device. As the field names returned by
+--live-data are internal gateway device field names before they have been
+mapped to WeeWX fields names, the --live-data output is useful for configuring
+the field map to be used by the Ecowitt Gateway driver.
 
-6.  Configure the driver:
+5.  Once you believe the Ecowitt Gateway driver is configured the --test-driver
+or --test-service command line options can be used to confirm correct operation
+of the Ecowitt Gateway driver as a driver or as a service respectively.
 
-    $ wee_config --reconfigure --driver=user.gw1000
+Installing and COnfiguring the Ecowitt Gateway Driver
 
-    Note: Depending on your system/installation the above command may need to
-          be prefixed with sudo.
-
-    Note: Depending on your WeeWX installation wee_config may need to be
-          prefixed with the path to wee_config.
-
-7.  You may chose to run WeeWX directly (refer
-https://weewx.com/docs/usersguide.htm#Running_directly) to observe the loop
-packets and archive records being generated by WeeWX.
-
-8.  Once satisfied that the GW1000 driver is operating correctly you can start
-the WeeWX daemon:
-
-    $ sudo /etc/init.d/weewx start
-
-    or
-
-    $ sudo service weewx start
-
-    or
-
-    $ sudo systemctl start weewx
-
-
-To use the GW1000 driver as a WeeWX service:
-
-1.  Install WeeWX and configure it to use either the 'simulator' or another
-driver of your choice. Refer to https://weewx.com/docs/usersguide.htm#installing.
-
-2.  Install the GW1000 driver using the wee_extension utility (preferred) as
-per 'To use the GW1000 driver as a WeeWX driver' step 2 above. If installing
-manually copy this file to the $BIN_ROOT/user directory and then add the
-[Accumulator] entries to weewx.conf as per 'To use the GW1000 driver as a WeeWX
-driver' step 3 above.
-
-3.  Under the [Engine] [[Services]] stanza in weewx.conf add an entry
-'user.gw1000.GatewayService' to the data_services option. It should look
-something like:
-
-[Engine]
-
-    [[Services]]
-        ....
-        data_services = user.gw1000.GatewayService
-
-5.  Test the now configured GW1000 service using the --test-service command
-line option. You should observe loop packets being emitted on a regular basis
-that include GW1000 data. Note that depending on the frequency of the loop
-packets emitted by the in-use driver and the polling interval of the GW1000
-service it is likely that not all loop packets will include GW1000 data.
-
-7.  You may chose to run WeeWX directly to observe the loop packets and archive
-records being generated by WeeWX. Refer to
-https://weewx.com/docs/usersguide.htm#Running_directly. Note that depending on
-the frequency of the loop packets emitted by the in-use driver and the polling
-interval of the GW1000 service it is likely that not all loop packets will
-include GW1000 data.
-
-8.  Once satisfied that the GW1000 service is operating correctly you can start
-the WeeWX daemon:
-
-    $ sudo /etc/init.d/weewx restart
-
-    or
-
-    $ sudo service weewx restart
-
-    or
-
-    $ sudo systemctl restart weewx
+Refer to the included readme.txt for basic installation instructions. Refer to
+the Ecowitt Gateway driver wiki (https://github.com/gjr80/weewx-gw1000/wiki)
+for more in-depth installation and configuration information.
 """
 
 # Standing TODOs:
@@ -692,7 +338,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0a2'
+DRIVER_VERSION = '0.5.0b1'
 
 # various defaults used throughout
 # default port used by device

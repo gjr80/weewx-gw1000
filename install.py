@@ -8,12 +8,12 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
-                        Installer for GW1000 Driver
+                      Installer for Ecowitt Gateway Driver
 
-Version: 0.5.0a2                                      Date: ?? April 2022
+Version: 0.5.0b1                                      Date: ?? May 2022
 
 Revision History
-    ?? April 2022       v0.5.0
+    ?? May 2022         v0.5.0
         -   changed descriptive name of extension
         -   redesignated WH35 as WN35
         -   added accumulator extractor entries for WN34 and WS90 battery and
@@ -54,13 +54,13 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.5.0a2"
+GW1000_VERSION = "0.5.0b1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
-    # This section is for the GW1000 API driver.
+    # This section is for the Ecowitt Gateway driver.
 
-    # How often to poll the GW1000 API, default is every 20 seconds:
+    # How often to poll the API, default is every 20 seconds:
     poll_interval = 20
 
     # The driver to use:
@@ -68,7 +68,7 @@ gw1000_config = """
     
 [Accumulator]
 
-    # Start GW1000 driver extractors
+    # Start Ecowitt Gateway driver extractors
     [[daymaxwind]]
         extractor = last
     [[lightning_distance]]
@@ -363,7 +363,7 @@ gw1000_config = """
         extractor = last
     [[ws90_sig]]
         extractor = last
-    # End GW1000 driver extractors
+    # End Ecowitt Gateway driver extractors
 """
 
 # construct our config dict
