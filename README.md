@@ -16,13 +16,9 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 ## Installation Instructions ##
 
-**Note**:   Symbolic names are used below to refer to file locations on the WeeWX system. Symbolic names allow a common name to be used to refer to a directory that may be different from system to system. The following symbolic name is used below:
-
--   *BIN_ROOT*. The path to the directory where WeeWX executables are located. This directory varies depending on WeeWX installation method. Refer to [where to find things](http://weewx.com/docs/usersguide.htm#Where_to_find_things) in the WeeWX User's Guide for further information.
-
 ### Installation as a WeeWX driver ###
 
-1.  If the Ecowitt Gateway driver is to be installed on a fresh WeeWX installation first [install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure it to use the *simulator*.
+1.  If the Ecowitt Gateway driver is to be installed on a fresh WeeWX installation first [install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure WeeWX to use the *simulator*.
 
 2.  Install the driver using the *wee_extension* utility:
 
@@ -50,19 +46,19 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
         $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-driver
 
-    for *setup.py* installs or for package installs use:
+    for WeeWX *setup.py* installs or for WeeWX package installs use:
 
         $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-driver
     
     **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
-    **Note:** Whilst the driver may be run independently of WeeWX the driver still requires WeeWX and it's dependencies be installed. Consequently, if WeeWX 4.0.0 or later is installed the driver must be run under the same Python version as WeeWX uses. This may be different to the Python version invoked by the command 'python'. This means that on some systems 'python' in the above commands may need to be changed to 'python2' or 'python3'.
+    **Note:** Whilst the Ecowitt Gateway driver may be run independently of WeeWX the driver still requires WeeWX and it's dependencies be installed. Consequently, if WeeWX 4.0.0 or later is installed the driver must be run under the same Python version as WeeWX uses. This may be different to the Python version invoked by the command 'python'. This means that on some systems 'python' in the above commands may need to be changed to 'python2' or 'python3'.
     
     **Note:** If necessary you can specify the device IP address and port using the *--ip-address* and *--port* command line options. Refer to the Ecowitt Gateway driver help by using the *--help* command line option for further information.
 
     You should observe loop packets being emitted on a regular basis. Once finished press *ctrl-c* to exit.
 
-    **Note:** You will only see loop packets and not archive records when running the driver directly. This is because you are seeing output directly from the driver and not WeeWX. 
+    **Note:** You will only see loop packets and not archive records when running the driver directly. This is because you are seeing output not from WeeWX but rather directly from the driver. 
 
 5.  Configure the driver:
 
@@ -86,13 +82,13 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
         $ sudo systemctl restart weewx
 
-8.  You may wish to refer to the [GW1000 driver wiki](https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on customising the operation of the Ecowitt Gateway driver and integrating gateway device data into WeeWX generated reports. 
+8.  You may wish to refer to the [Ecowitt Gateway driver wiki](https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on customising the operation of the Ecowitt Gateway driver and integrating gateway device data into WeeWX generated reports. 
 
 ### Installation as a WeeWX service ###
 
 1. [Install WeeWX](http://weewx.com/docs/usersguide.htm#installing) and configure it to use either the *simulator* or another driver of your choice.
 
-2. Install the Ecowitt Gateway driver extension using the *wee_extension* utility as per *Installation as a WeeWX driver* step 2 above.
+2. Install the Ecowitt Gateway driver extension using the *wee_extension* utility as per *Installation as a WeeWX driver* at step 2 above.
 
 3. Edit *weewx.conf* and under the *[Engine] [[Services]]* stanza add an entry *user.gw1000.GatewayService* to the *data_services* option. It should look something like:
 
@@ -106,13 +102,13 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
         $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-service
 
-    for *setup.py* installs or for package installs use:
+    for WeeWX *setup.py* installs or for WeeWX package installs use:
 
         $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-service
     
     **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
-    **Note:** Whilst the Ecowitt Gateway driver may be run as a service independently of WeeWX the driver/service still requires WeeWX and it's dependencies be installed. Consequently, if WeeWX 4.0.0 or later is installed the driver/service must be run under the same Python version as WeeWX uses. This may be different to the Python version invoked by the command 'python'. This means that on some systems 'python' in the above commands may need to be changed to 'python2' or 'python3'.
+    **Note:** Whilst the Ecowitt Gateway driver may be run as a service independently of WeeWX, the service still requires WeeWX and it's dependencies be installed. Consequently, if WeeWX 4.0.0 or later is installed the service must be run under the same Python version as WeeWX uses. This may be different to the Python version invoked by the command 'python'. This means that on some systems 'python' in the above commands may need to be changed to 'python2' or 'python3'.
     
     **Note:** If necessary you can specify the gateway device IP address and port using the *--ip-address* and *--port* command line options. Refer to the GW1000 driver help by using the *--help* command line option for further information.
 
