@@ -130,14 +130,14 @@ class ParseTestCase(unittest.TestCase):
         b'\x0A': ('decode_dir', 2, 'winddir'),
         b'\x0B': ('decode_speed', 2, 'windspeed'),
         b'\x0C': ('decode_speed', 2, 'gustspeed'),
-        b'\x0D': ('decode_rain', 2, 'rainevent'),
-        b'\x0E': ('decode_rainrate', 2, 'rainrate'),
-        b'\x0F': ('decode_rain', 2, 'rainhour'),
-        b'\x10': ('decode_rain', 2, 'rainday'),
-        b'\x11': ('decode_rain', 2, 'rainweek'),
-        b'\x12': ('decode_big_rain', 4, 'rainmonth'),
-        b'\x13': ('decode_big_rain', 4, 'rainyear'),
-        b'\x14': ('decode_big_rain', 4, 'raintotals'),
+        b'\x0D': ('decode_rain', 2, 't_rainevent'),
+        b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
+        b'\x0F': ('decode_rain', 2, 't_rainhour'),
+        b'\x10': ('decode_rain', 2, 't_rainday'),
+        b'\x11': ('decode_rain', 2, 't_rainweek'),
+        b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
+        b'\x13': ('decode_big_rain', 4, 't_rainyear'),
+        b'\x14': ('decode_big_rain', 4, 't_raintotals'),
         b'\x15': ('decode_light', 4, 'light'),
         b'\x16': ('decode_uv', 2, 'uv'),
         b'\x17': ('decode_uvi', 1, 'uvi'),
@@ -207,14 +207,14 @@ class ParseTestCase(unittest.TestCase):
         b'\x60': ('decode_distance', 1, 'lightningdist'),
         b'\x61': ('decode_utc', 4, 'lightningdettime'),
         b'\x62': ('decode_count', 4, 'lightningcount'),
-        b'\x63': ('decode_wh34', 3, 'temp9'),
-        b'\x64': ('decode_wh34', 3, 'temp10'),
-        b'\x65': ('decode_wh34', 3, 'temp11'),
-        b'\x66': ('decode_wh34', 3, 'temp12'),
-        b'\x67': ('decode_wh34', 3, 'temp13'),
-        b'\x68': ('decode_wh34', 3, 'temp14'),
-        b'\x69': ('decode_wh34', 3, 'temp15'),
-        b'\x6A': ('decode_wh34', 3, 'temp16'),
+        b'\x63': ('decode_wn34', 3, 'temp9'),
+        b'\x64': ('decode_wn34', 3, 'temp10'),
+        b'\x65': ('decode_wn34', 3, 'temp11'),
+        b'\x66': ('decode_wn34', 3, 'temp12'),
+        b'\x67': ('decode_wn34', 3, 'temp13'),
+        b'\x68': ('decode_wn34', 3, 'temp14'),
+        b'\x69': ('decode_wn34', 3, 'temp15'),
+        b'\x6A': ('decode_wn34', 3, 'temp16'),
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
@@ -309,7 +309,7 @@ class ParseTestCase(unittest.TestCase):
     utc_data = {'data': '5F 40 72 51', 'value': 1598059089}
     count_data = {'data': '00 40 72 51', 'value': 4223569}
     gain_100_data = {'data': '01 F2', 'value': 4.98}
-    wh34_data = {'data': '00 EA 4D',
+    wn34_data = {'data': '00 EA 4D',
                  'field': 't',
                  'value': {'t': 23.4}
                  }
@@ -345,11 +345,11 @@ class ParseTestCase(unittest.TestCase):
     # TODO. Perhaps have a non-zero value for rainrate
     read_raindata = {'response': 'FF FF 34 17 00 00 00 00 00 00 00 34 '
                                  '00 00 00 34 00 00 01 7B 00 00 09 25 5D',
-                     'data': {'rainrate': 0.0,
-                              'rainday': 5.2,
-                              'rainweek': 5.2,
-                              'rainmonth': 37.9,
-                              'rainyear': 234.1}
+                     'data': {'t_rainrate': 0.0,
+                              't_rainday': 5.2,
+                              't_rainweek': 5.2,
+                              't_rainmonth': 37.9,
+                              't_rainyear': 234.1}
                      }
     get_mulch_offset = {'response': 'FF FF 2C 1B 00 02 15 01 FB E5 02 0A '
                                     '64 03 00 1A 04 06 00 05 F6 9C 06 05 '
@@ -773,12 +773,12 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(2))), None)
 
-        # test wh34 decode (method decode_wh34())
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(self.wh34_data['data']), field=self.wh34_data['field']),
-                         self.wh34_data['value'])
+        # test wn34 decode (method decode_wn34())
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(self.wn34_data['data']), field=self.wn34_data['field']),
+                         self.wn34_data['value'])
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(1)), field=self.wh34_data['field']), {})
-        self.assertEqual(self.parser.decode_wh34(hex_to_bytes(xbytes(4)), field=self.wh34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(1)), field=self.wn34_data['field']), {})
+        self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(4)), field=self.wn34_data['field']), {})
 
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['data']), fields=self.wh45_data['field']),
@@ -1309,7 +1309,7 @@ class Gw1000TestCase(unittest.TestCase):
                    'inHumidity': 56,
                    'inTemp': 27.3,
                    'lightningcount': 32,
-                   'raintotals': 100.3,
+                   't_raintotals': 100.3,
                    'relbarometer': 1014.3,
                    'usUnits': 17
                    }
@@ -1412,23 +1412,23 @@ class Gw1000TestCase(unittest.TestCase):
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # set some GW1000 service parameters to enable rain related tests
-        gw1000_svc.rain_total_field = 'raintotals'
+        gw1000_svc.rain_total_field = 't_raintotals'
         gw1000_svc.rain_mapping_confirmed = True
         # take a copy of our test data as we will be changing it
         _gw1000_data = dict(self.gw1000_data)
         # perform the rain calculation
         gw1000_svc.calculate_rain(_gw1000_data)
         # check that our data now has field 'rain'
-        self.assertIn('rain', _gw1000_data)
+        self.assertIn('t_rain', _gw1000_data)
         # check that the field rain is None as this is the first packet
-        self.assertIsNone(_gw1000_data.get('rain', 1))
+        self.assertIsNone(_gw1000_data['t_rain'])
         # increment increase the rainfall in our GW1000 data
-        _gw1000_data['raintotals'] += self.increment
+        _gw1000_data['t_raintotals'] += self.increment
         # perform the rain calculation
         gw1000_svc.calculate_rain(_gw1000_data)
         # Check that the field rain is now the increment we used. Use
         # AlmostEqual as unit conversion could cause assertEqual to fail.
-        self.assertAlmostEqual(_gw1000_data.get('rain'), self.increment, places=3)
+        self.assertAlmostEqual(_gw1000_data.get('t_rain'), self.increment, places=3)
         # check delta_rain calculation
         # last_rain is None
         self.assertIsNone(gw1000_svc.delta_rain(rain=10.2, last_rain=None))
