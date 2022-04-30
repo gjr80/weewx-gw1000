@@ -1386,12 +1386,12 @@ class Gateway(object):
             new_total = data[self.rain_total_field]
             # now calculate field rain as the difference between the new and
             # old totals
-            data['rain'] = self.delta_rain(new_total, self.last_rain)
+            data['t_rain'] = self.delta_rain(new_total, self.last_rain)
             # if debug_rain is set log some pertinent values
             if self.debug_rain:
                 loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
                                                                                          new_total,
-                                                                                         data['rain']))
+                                                                                         data['t_rain']))
             # save the new total as the old total for next time
             self.last_rain = new_total
 
@@ -4340,11 +4340,11 @@ class GatewayCollector(Collector):
             data = response[4:4 + size - 3]
             # initialise a dict to hold our parsed data
             data_dict = dict()
-            data_dict['rainrate'] = self.decode_big_rain(data[0:4])
-            data_dict['rainday'] = self.decode_big_rain(data[4:8])
-            data_dict['rainweek'] = self.decode_big_rain(data[8:12])
-            data_dict['rainmonth'] = self.decode_big_rain(data[12:16])
-            data_dict['rainyear'] = self.decode_big_rain(data[16:20])
+            data_dict['t_rainrate'] = self.decode_big_rain(data[0:4])
+            data_dict['t_rainday'] = self.decode_big_rain(data[4:8])
+            data_dict['t_rainweek'] = self.decode_big_rain(data[8:12])
+            data_dict['t_rainmonth'] = self.decode_big_rain(data[12:16])
+            data_dict['t_rainyear'] = self.decode_big_rain(data[16:20])
             return data_dict
 
         @staticmethod
