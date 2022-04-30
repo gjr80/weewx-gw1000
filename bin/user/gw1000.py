@@ -158,22 +158,27 @@ Revision History
         - initial release
 
 
-The following deviations from the Gateway API documentation v1.6.0 are used in
-this driver:
+The following deviations from the Ecowitt LAN/Wi-Fi Gateway API documentation
+v1.6.4 are used in this driver:
 
-1.  CMD_READ_SENSOR_ID documentation indicates that the WH41 battery state
-values are an integer from 0 to 5. There is no specific information in the API
-documentation for WH43 battery states, but data in practise the API returns
-integer value 6 when WH43 is powered by DC.
-
-2. CMD_READ_SSSS documentation states that 'UTC time' is part of the data
-returned by the CMD_READ_SSSS API command. The UTC time field returned is a
-four byte integer containing a Unix epoch timestamp; however, the timestamp is
-offset from UTC time by the GW1000 timezone. In other words, two GW1000 in
-different timezones that have their system time correctly set will return
-different values for UTC time. The GW1000 driver subtracts the system UTC
+1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
+returned by the CMD_READ_SSSS API command. The UTC time field is described as
+'UTC time' and is an unsigned long. No other details are provided in the API
+documentation. Rather than being a Unix epoch timestamp the UTC time data
+appears to be a Unix epoch timestamp that is offset from UTC time by the
+gateway device timezone. In other words, two gateway devices in different
+timezones that have their system time correctly set will return different
+values for UTC time. The Ecowitt Gateway driver subtracts the system UTC
 offset in seconds from the UTC time returned by the CMD_READ_SSSS command in
 order to obtain the correct UTC time.
+
+2.  The CMD_READ_RAIN API command response contains an undocumented field
+(address 0x7A) that appears to contain the rain source selection set from the
+WSView Plus app. The field data appears to be 0, 1 or 2. At the time of release
+GW1000 devices using firmware v1.7.1 and 1.7.2 include the 0x7A data but
+GW1100/GW2000 using firmware v2.1.4 do not. If field 0x7A data is available the
+Ecowitt Gateway driver uses the data when running the driver directly with the
+--get-all-rain-data command line option.
 
 
 Before using this driver:
