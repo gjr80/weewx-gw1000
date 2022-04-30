@@ -896,15 +896,15 @@ class Gateway(object):
     # give the overall default field map. Kept separate to make it easier to
     # iterate over rain related fields.
     rain_field_map = {
-        'rain': 'rain',
-        'stormRain': 'rainevent',
-        'rainRate': 'rainrate',
-        'hourRain': 'rainhour',
-        'dayRain': 'rainday',
-        'weekRain': 'rainweek',
-        'monthRain': 'rainmonth',
-        'yearRain': 'rainyear',
-        'totalRain': 'raintotals',
+        'rain': 't_rain',
+        'stormRain': 't_rainevent',
+        'rainRate': 't_rainrate',
+        'hourRain': 't_rainhour',
+        'dayRain': 't_rainday',
+        'weekRain': 't_rainweek',
+        'monthRain': 't_rainmonth',
+        'yearRain': 't_rainyear',
+        'totalRain': 't_raintotals',
         'p_rain': 'p_rain',
         'p_stormRain': 'p_rainevent',
         'p_rainRate': 'p_rainrate',
@@ -1069,7 +1069,7 @@ class Gateway(object):
         # If a user wishes to map a device field differently to that in the
         # default map they can include an entry in field_map_extensions, but if
         # we just update the field map dict with the field map extensions that
-        # leaves two entries for that device field in the field map; the
+        # will leave two entries for that device field in the field map; the
         # original field map entry as well as the entry from the extended map.
         # So if we have field_map_extensions we need to first go through the
         # field map and delete any entries that map device fields that are
@@ -1313,18 +1313,18 @@ class Gateway(object):
         # can skip this otherwise we need to look for one.
         if not self.rain_mapping_confirmed:
             # We have no field for calculating rain so look for one, if device
-            # field 'raintotals' is present used that as our first choice.
+            # field 't_raintotals' is present used that as our first choice.
             # Otherwise work down the list in order of descending period.
-            if 'raintotals' in data:
-                self.rain_total_field = 'raintotals'
+            if 't_raintotals' in data:
+                self.rain_total_field = 't_raintotals'
                 self.rain_mapping_confirmed = True
-            # raintotals is not present so now try rainyear
-            elif 'rainyear' in data:
-                self.rain_total_field = 'rainyear'
+            # t_raintotals is not present so now try rainyear
+            elif 't_rainyear' in data:
+                self.rain_total_field = 't_rainyear'
                 self.rain_mapping_confirmed = True
-            # rainyear is not present so now try rainmonth
-            elif 'rainmonth' in data:
-                self.rain_total_field = 'rainmonth'
+            # t_rainyear is not present so now try rainmonth
+            elif 't_rainmonth' in data:
+                self.rain_total_field = 't_rainmonth'
                 self.rain_mapping_confirmed = True
             # do nothing, we can try again next packet
             else:
@@ -1936,6 +1936,18 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[yearRain]]
             extractor = last
         [[totalRain]]
+            extractor = last
+        [[t_rain]]
+            extractor = sum
+        [[t_stormRain]]
+            extractor = last
+        [[t_dayRain]]
+            extractor = last
+        [[t_weekRain]]
+            extractor = last
+        [[t_monthRain]]
+            extractor = last
+        [[t_yearRain]]
             extractor = last
         [[p_rain]]
             extractor = sum
@@ -4094,14 +4106,14 @@ class GatewayCollector(Collector):
             b'\x0A': ('decode_dir', 2, 'winddir'),
             b'\x0B': ('decode_speed', 2, 'windspeed'),
             b'\x0C': ('decode_speed', 2, 'gustspeed'),
-            b'\x0D': ('decode_rain', 2, 'rainevent'),
-            b'\x0E': ('decode_rainrate', 2, 'rainrate'),
-            b'\x0F': ('decode_rain', 2, 'rainhour'),
-            b'\x10': ('decode_rain', 2, 'rainday'),
-            b'\x11': ('decode_rain', 2, 'rainweek'),
-            b'\x12': ('decode_big_rain', 4, 'rainmonth'),
-            b'\x13': ('decode_big_rain', 4, 'rainyear'),
-            b'\x14': ('decode_big_rain', 4, 'raintotals'),
+            b'\x0D': ('decode_rain', 2, 't_rainevent'),
+            b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
+            b'\x0F': ('decode_rain', 2, 't_rainhour'),
+            b'\x10': ('decode_rain', 2, 't_rainday'),
+            b'\x11': ('decode_rain', 2, 't_rainweek'),
+            b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
+            b'\x13': ('decode_big_rain', 4, 't_rainyear'),
+            b'\x14': ('decode_big_rain', 4, 't_raintotals'),
             b'\x15': ('decode_light', 4, 'light'),
             b'\x16': ('decode_uv', 2, 'uv'),
             b'\x17': ('decode_uvi', 1, 'uvi'),
@@ -5777,15 +5789,15 @@ class DirectGateway(object):
         'lightningdettime': 'group_time',
         'lightning_strike_count': 'group_count',
         'lightningcount': 'group_count',
-        'rain': 'group_rain',
-        'rainevent': 'group_rain',
-        'rainrate': 'group_rainrate',
-        'rainhour': 'group_rain',
-        'rainday': 'group_rain',
-        'rainweek': 'group_rain',
-        'rainmonth': 'group_rain',
-        'rainyear': 'group_rain',
-        'raintotals': 'group_rain',
+        't_rain': 'group_rain',
+        't_rainevent': 'group_rain',
+        't_rainrate': 'group_rainrate',
+        't_rainhour': 'group_rain',
+        't_rainday': 'group_rain',
+        't_rainweek': 'group_rain',
+        't_rainmonth': 'group_rain',
+        't_rainyear': 'group_rain',
+        't_raintotals': 'group_rain',
         'p_rain': 'group_rain',
         'p_rainevent': 'group_rain',
         'p_rainrate': 'group_rainrate',
