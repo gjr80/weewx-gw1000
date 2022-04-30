@@ -63,6 +63,10 @@ Revision History
             display the actual field map that would be used when running as a
             driver and service respectively
         -   default field map is now only logged at startup when debug>=1
+        -   internal non-piezo rainfall related fields renamed with a 't_'
+            prefix, eg: 't_rainrate', 't_rainday'
+        -   default field map now maps 't_' rainfall fields to the standard
+            WeeWX rainfall related fields
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
