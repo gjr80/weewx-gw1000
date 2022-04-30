@@ -10,7 +10,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                         Installer for GW1000 Driver
 
-Version: 0.5.0a1                                      Date: ?? April 2022
+Version: 0.5.0a2                                      Date: ?? April 2022
 
 Revision History
     ?? April 2022       v0.5.0
@@ -54,7 +54,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.5.0a1"
+GW1000_VERSION = "0.5.0a2"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -104,6 +104,18 @@ gw1000_config = """
     [[p_monthRain]]
         extractor = last
     [[p_yearRain]]
+        extractor = last
+    [[t_rain]]
+        extractor = sum
+    [[t_stormRain]]
+        extractor = last
+    [[t_dayRain]]
+        extractor = last
+    [[t_weekRain]]
+        extractor = last
+    [[_monthRain]]
+        extractor = last
+    [[t_yearRain]]
         extractor = last
     [[pm2_51_24h_avg]]
         extractor = last

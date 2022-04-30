@@ -34,7 +34,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0a1                                    Date: ?? April 2022
+Version: 0.5.0a2                                    Date: ?? April 2022
 
 Revision History
     ?? April 2022           v0.5.0a1
@@ -689,7 +689,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0a1'
+DRIVER_VERSION = '0.5.0a2'
 
 # various defaults used throughout
 # default port used by device
