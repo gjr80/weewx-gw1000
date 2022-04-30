@@ -1,3 +1,31 @@
+v0.5.0
+-   renamed as the Ecowitt Gateway driver/service rather than the former GW1000
+    or GW1000/GW1100 driver/service
+-   added support for GW2000
+-   added support for WS90 sensor platform
+-   WH40 and WH51 battery state now decoded as tenths of a Volt rather than as
+    binary
+-   redesignated WH35 as WN35 and WH34 as WN34, these changes are essentially
+    sensor name change only and do not change any decoding/calculations
+-   added mappings for WN34 battery and signal state to the default mapping
+    meaning this data will now appear in WeeWX loop packets
+-   refactored GatewayDriver, GatewayService and Gateway class initialisations
+    to facilitate running the GatewayDriver and GatewayService simultaneously
+-   GatewayService now defaults to using a [GatewayService] stanza but if not
+    found will drop back to the legacy [GW1000] stanza
+-   the source of GatewayDriver and GatewayService log output is now clearly
+    identified
+-   moved all parsing and decoding of API responses to class Parser
+-   assigned WeeWX fields extraTemp9 to extraTemp17 inclusive to
+    group_temperature
+-   implemented --driver-map and --service-map command line options to display
+    the actual field map that would be used when running as a driver and
+    service respectively
+-   default field map is now only logged at startup when debug>=1
+-   internal non-piezo rainfall related fields renamed with a 't_' prefix,
+    eg: 't_rainrate', 't_rainday'
+-   default field map now maps 't_' rainfall fields to the standard WeeWX
+    rainfall related fields
 v0.4.2
 *   fix bug in Station.rediscover()
 v0.4.1
