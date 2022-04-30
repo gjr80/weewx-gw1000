@@ -34,7 +34,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b1                                    Date: ?? May 2022
+Version: 0.5.0b2                                    Date: ?? May 2022
 
 Revision History
     ?? May 2022            v0.5.0
@@ -70,6 +70,8 @@ Revision History
         -   added config option log_unknown_fields to log unknown fields found
             in a CMD_GW1000_LIVEDATA or CMD_READ_RAIN API response at the
             info (True) or the default debug (False) level
+        -   added support for (likely) rain source selection field (0x7A)
+            appearing in CMD_READ_RAIN response
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -337,7 +339,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b1'
+DRIVER_VERSION = '0.5.0b2'
 
 # various defaults used throughout
 # default port used by device
@@ -3868,8 +3870,8 @@ class GatewayCollector(Collector):
             b'\x77': ('decode_wet', 1, 'leafwet6'),
             b'\x78': ('decode_wet', 1, 'leafwet7'),
             b'\x79': ('decode_wet', 1, 'leafwet8'),
-            # placeholder for unknown field 0x7A
-            # b'\x7A': (None, 1, None),
+            # undocumented field 0x7A, believed to be rain source selection
+            b'\x7A': ('decode_int', 1, 'rain_source'),
             b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
             b'\x81': ('decode_rain', 2, 'p_rainevent'),
             b'\x83': ('decode_rain', 4, 'p_rainday'),
@@ -4851,6 +4853,7 @@ class GatewayCollector(Collector):
         decode_pm10 = decode_press
         decode_co2 = decode_dir
         decode_wet = decode_humid
+        decode_int = decode_humid
 
         def decode_wn34(self, data, field=None):
             """Decode WN34 sensor data.
@@ -5918,6 +5921,10 @@ class DirectGateway(object):
         piezo = ['p_rainrate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
                  'gain1', 'gain2', 'gain3', 'gain4', 'gain5']
         reset = ['day_reset', 'week_reset', 'annual_reset']
+        source_lookup = {0: 'no selection',
+                         1: 'traditional gauge',
+                         2: 'piezo gauge'
+                         }
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayCollector object
@@ -5945,6 +5952,9 @@ class DirectGateway(object):
             print("Timeout. %s did not respond." % collector.station.model)
         else:
             print()
+            if 'rain_source' in rain_data:
+                print("    Rain source selected: %s" % source_lookup.get(rain_data['rain_source'], "unknown selection"))
+                print()
             if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
                 _data = rain_data.get('t_rainrate', None)
