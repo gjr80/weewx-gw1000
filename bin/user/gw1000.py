@@ -67,6 +67,9 @@ Revision History
             prefix, eg: 't_rainrate', 't_rainday'
         -   default field map now maps 't_' rainfall fields to the standard
             WeeWX rainfall related fields
+        -   added config option log_unknown_fields to log unknown fields found
+            in a CMD_GW1000_LIVEDATA or CMD_READ_RAIN API response at the
+            info (True) or the default debug (False) level
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -1158,6 +1161,10 @@ class Gateway(object):
         # filter those sensors with signal state == 0
         self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
                                                                  False))
+        # whether to log unknown API fields, unknown fields are logged at the
+        # debug level, this will log them at the info level
+        log_unknown_fields = weeutil.weeutil.tobool(gw_config.get('log_unknown_fields',
+                                                                  False))
         # get any specific debug settings
         # rain
         self.debug_rain = weeutil.weeutil.tobool(gw_config.get('debug_rain',
@@ -1184,6 +1191,7 @@ class Gateway(object):
                                           retry_wait=self.retry_wait,
                                           use_wh32=use_wh32,
                                           show_battery=self.show_battery,
+                                          log_unknown_fields=log_unknown_fields,
                                           debug_rain=self.debug_rain,
                                           debug_wind=self.debug_wind,
                                           debug_sensors=self.debug_sensors)
@@ -2696,7 +2704,7 @@ class GatewayCollector(Collector):
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_wh32=False, show_battery=False,
+                 use_wh32=False, show_battery=False, log_unknown_fields=False,
                  debug_rain=False, debug_wind=False, debug_sensors=False):
         """Initialise our class."""
 
@@ -2735,7 +2743,10 @@ class GatewayCollector(Collector):
         # start off logging failures
         self.log_failures = True
         # get a parser object to parse any data from the station
-        self.parser = GatewayCollector.Parser(is_wh24, debug_rain, debug_wind)
+        self.parser = GatewayCollector.Parser(is_wh24=is_wh24,
+                                              log_unknown_fields=log_unknown_fields,
+                                              debug_rain=debug_rain,
+                                              debug_wind=debug_wind)
         # get a sensors object to handle sensor ID data
         self.sensors_obj = GatewayCollector.Sensors(show_battery=show_battery, debug_sensors=debug_sensors)
         # create a thread property
@@ -4202,7 +4213,8 @@ class GatewayCollector(Collector):
             b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                           'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                           'co2', 'co2_24h_avg')),
-            b'\x71': (None, None, None),
+            # placeholder for unknown field 0x71
+            # b'\x71': (None, None, None),
             b'\x72': ('decode_wet', 1, 'leafwet1'),
             b'\x73': ('decode_wet', 1, 'leafwet2'),
             b'\x74': ('decode_wet', 1, 'leafwet3'),
@@ -4211,6 +4223,8 @@ class GatewayCollector(Collector):
             b'\x77': ('decode_wet', 1, 'leafwet6'),
             b'\x78': ('decode_wet', 1, 'leafwet7'),
             b'\x79': ('decode_wet', 1, 'leafwet8'),
+            # placeholder for unknown field 0x7A
+            # b'\x7A': (None, 1, None),
             b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
             b'\x81': ('decode_rain', 2, 'p_rainevent'),
             b'\x83': ('decode_rain', 4, 'p_rainday'),
@@ -4233,9 +4247,12 @@ class GatewayCollector(Collector):
         # so we can isolate these fields
         wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
-        def __init__(self, is_wh24=False, debug_rain=False, debug_wind=False):
+        def __init__(self, is_wh24=False, log_unknown_fields=True,
+                     debug_rain=False, debug_wind=False):
             # do we have a WH24 or a WH65
             self.is_wh24 = is_wh24
+            # do we log unknown fields at info or leave at debug
+            self.log_unknown_fields = log_unknown_fields
             # get debug_rain and debug_wind
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
@@ -4291,8 +4308,17 @@ class GatewayCollector(Collector):
                         # process. We can't skip to the next field so all we
                         # can really do is accept the data we have so far, log
                         # the issue and ignore the remaining data.
-                        logerr("Unknown field address '%s' detected. "
-                               "Remaining data ignored." % (bytes_to_hex(payload[index:index + 1]),))
+                        # are we logging as info or debug, get an appropriate log function
+                        if self.log_unknown_fields:
+                            log_fn = loginf
+                        else:
+                            log_fn = logdbg
+                        # now call it
+                        log_fn("Unknown field address '%s' detected. "
+                               "Remaining data '%s' ignored." % (bytes_to_hex(payload[index:index + 1]),
+                                                                 bytes_to_hex(payload[index + 1:])))
+                        # and break, there is nothing more we can with this
+                        # data
                         break
                     else:
                         _field_data = getattr(self, decode_str)(payload[index + 1:index + 1 + field_size],
@@ -6217,11 +6243,11 @@ class DirectGateway(object):
             print("Timeout. %s did not respond." % collector.station.model)
         else:
             print()
-            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['rainrate'], rain_data['rainrate'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['rainday'], rain_data['rainday'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['rainweek'], rain_data['rainweek'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['rainmonth'], rain_data['rainmonth'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['rainyear'], rain_data['rainyear'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['t_rainrate'], rain_data['t_rainrate'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['t_rainday'], rain_data['t_rainday'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['t_rainweek'], rain_data['t_rainweek'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['t_rainmonth'], rain_data['t_rainmonth'] / 25.4))
+            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['t_rainyear'], rain_data['t_rainyear'] / 25.4))
 
     def get_all_rain_data(self):
         """Display the device rain data including piezo data.
@@ -6242,8 +6268,9 @@ class DirectGateway(object):
         firmware.
         """
 
-        traditional = ['rainrate', 'rainevent', 'rainday', 'rainweek', 'rainmonth', 'rainyear']
-        piezo = ['p_rate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
+        traditional = ['t_rainrate', 't_rainevent', 't_rainday',
+                       't_rainweek', 't_rainmonth', 't_rainyear']
+        piezo = ['p_rainrate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
                  'gain1', 'gain2', 'gain3', 'gain4', 'gain5']
         reset = ['day_reset', 'week_reset', 'annual_reset']
         # wrap in a try..except in case there is an error
@@ -6275,47 +6302,63 @@ class DirectGateway(object):
             print()
             if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
-                _data = rain_data.get('rainrate', None)
+                _data = rain_data.get('t_rainrate', None)
                 _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
-                _data = rain_data.get('rainevent', None)
+                _data = rain_data.get('t_rainevent', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Event rain', _data_str))
-                _data = rain_data.get('rainday', None)
+                _data = rain_data.get('t_rainday', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Daily rain', _data_str))
-                _data = rain_data.get('rainweek', None)
+                _data = rain_data.get('t_rainweek', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Weekly rain', _data_str))
-                _data = rain_data.get('rainmonth', None)
+                _data = rain_data.get('t_rainmonth', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Monthly rain', _data_str))
-                _data = rain_data.get('rainyear', None)
+                _data = rain_data.get('t_rainyear', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Yearly rain', _data_str))
             else:
                 print("    No traditional rain data available")
             print()
-            if all(field in rain_data for field in piezo):
+            if any(field in rain_data for field in piezo):
                 print("    Piezo rain data:")
-                print("%30s: %.1fmm/hr (%.1fin/hr)" % ('Rain rate', rain_data['p_rate'], rain_data['p_rate'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Event rain', rain_data['p_event'], rain_data['p_event'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Daily rain', rain_data['p_day'], rain_data['p_day'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Weekly rain', rain_data['p_week'], rain_data['p_week'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Monthly rain', rain_data['p_month'], rain_data['p_month'] / 25.4))
-                print("%30s: %.1fmm (%.1fin)" % ('Yearly rain', rain_data['p_year'], rain_data['p_year'] / 25.4))
-                print("%30s: %.2f (%s)" % ('Piezo rain1 gain', rain_data['gain1'], '< 4mm/h'))
-                print("%30s: %.2f (%s)" % ('Piezo rain2 gain', rain_data['gain2'], '< 10mm/h'))
-                print("%30s: %.2f (%s)" % ('Piezo rain3 gain', rain_data['gain3'], '< 30mm/h'))
-                print("%30s: %.2f (%s)" % ('Piezo rain4 gain', rain_data['gain4'], '< 60mm/h'))
-                print("%30s: %.2f (%s)" % ('Piezo rain5 gain', rain_data['gain5'], '> 60mm/h'))
+                _data = rain_data.get('p_rainrate', None)
+                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
+                print("%30s: %s)" % ('Rain rate', _data_str))
+                _data = rain_data.get('p_rainevent', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Event rain', _data_str))
+                _data = rain_data.get('p_rainday', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Daily rain', _data_str))
+                _data = rain_data.get('p_rainweek', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Weekly rain', _data_str))
+                _data = rain_data.get('p_rainmonth', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Monthly rain', _data_str))
+                _data = rain_data.get('p_rainyear', None)
+                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
+                print("%30s: %s" % ('Yearly rain', _data_str))
+                print("%30s: %.2f (%s)" % ('Rain1 gain', rain_data.get('gain1', '--'), '< 4mm/h'))
+                print("%30s: %.2f (%s)" % ('Rain2 gain', rain_data.get('gain2', '--'), '< 10mm/h'))
+                print("%30s: %.2f (%s)" % ('Rain3 gain', rain_data.get('gain3', '--'), '< 30mm/h'))
+                print("%30s: %.2f (%s)" % ('Rain4 gain', rain_data.get('gain4', '--'), '< 60mm/h'))
+                print("%30s: %.2f (%s)" % ('Rain5 gain', rain_data.get('gain5', '--'), '> 60mm/h'))
             else:
                 print("    No piezo rain data available")
             print()
-            if all(field in rain_data for field in reset):
+            if any(field in rain_data for field in reset):
                 print("    Rainfall reset time data:")
-                print("%30s: 0%d:00" % ('Daily rainfall reset time', rain_data['day_reset']))
-                print("%30s: %s" % ('Weekly rainfall reset time', calendar.day_name[(rain_data['week_reset'] + 6) % 7]))
+                print("%30s: 0%d:00" % ('Daily rainfall reset time', rain_data.get('day_reset', '-----')))
+                _data = rain_data.get('week_reset', None)
+                _data_str = "%s" % calendar.day_name[(_data + 6) % 7] if _data is not None else "-----"
+                print("%30s: %s" % ('Weekly rainfall reset time', _data_str))
+                _data = rain_data.get('annual_reset', None)
+                _data_str = "%s" % calendar.month_name[_data + 1] if _data is not None else "-----"
                 print("%30s: %s" % ('Annual rainfall reset time', calendar.month_name[rain_data['annual_reset'] + 1]))
             else:
                 print("    No rainfall reset time data available")
