@@ -31,6 +31,8 @@ v0.5.0
     default debug (False) level
 -   added support for (likely) rain source selection field (0x7A) appearing in
     CMD_READ_RAIN response
+-   fix issue where day rain uses a different format in CMD_READ_RAIN to that
+    in CMD_GW1000_LIVEDATA
 v0.4.2
 *   fix bug in Station.rediscover()
 v0.4.1
