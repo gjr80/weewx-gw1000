@@ -158,8 +158,11 @@ Revision History
         - initial release
 
 
-The following deviations from the Ecowitt LAN/Wi-Fi Gateway API documentation
-v1.6.4 are used in this driver:
+The Ecowitt LAN/Wi-Fi Gateway API documentation
+
+This driver has been based on the Ecowitt LAN/Wi-Fi Gateway API documentation
+v1.6.4. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
+API documentation v1.6.4 have been made in this driver:
 
 1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
 returned by the CMD_READ_SSSS API command. The UTC time field is described as
@@ -235,7 +238,8 @@ the field map to be used by the Ecowitt Gateway driver.
 or --test-service command line options can be used to confirm correct operation
 of the Ecowitt Gateway driver as a driver or as a service respectively.
 
-Installing and COnfiguring the Ecowitt Gateway Driver
+
+Installing and CConfiguring the Ecowitt Gateway Driver
 
 Refer to the included readme.txt for basic installation instructions. Refer to
 the Ecowitt Gateway driver wiki (https://github.com/gjr80/weewx-gw1000/wiki)
@@ -244,6 +248,7 @@ for more in-depth installation and configuration information.
 
 # Standing TODOs:
 # TODO. Review against latest
+# Outstanding TODOs:
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm WH26/WH32 battery status
 # TODO. Confirm WH68 battery status
@@ -374,10 +379,11 @@ default_lost_contact_log_period = 21600
 default_show_battery = False
 # For packet unit conversion to work correctly each possible WeeWX field needs
 # to be assigned to a unit group. This is normally already taken care of for
-# WeeWX fields in the in-use database schema; however, a GW1000 system may
-# include additional fields not included in the schema. We cannot know what
-# unit group the user may intend for each WeeWX field in a custom field map but
-# we can take care of the default field map.
+# WeeWX fields that are part of the in-use database schema; however, an Ecowitt
+# Gateway based system may include additional fields not included in the
+# schema. We cannot know what unit group the user may intend for each WeeWX
+# field in a custom field map, but we can take care of the default field map.
+
 # define the default groups to use for WeeWX fields in the default field map
 # but not in the (WeeWX default) wview_extended schema
 default_groups = {'extraTemp9': 'group_temperature',
@@ -435,11 +441,13 @@ class Gateway(object):
     driver or service. This class captures those common features.
     """
 
-    # Default field map to map device sensor data to WeeWX fields. WeeWX field
-    # names are used where there is a direct correlation to the WeeWX
-    # wview_extended schema or weewx.units.obs_group_dict otherwise fields are
-    # passed through as is.
-    # Format is:
+    # Default field map to map device sensor data to WeeWX fields. Field names
+    # in the WeeWX wview_extended schema are used where there is a direct
+    # correlation to the WeeWX wview_extended schema or
+    # weewx.units.obs_group_dict. If there is a related but different field in
+    # the wview_extended schema then a WeeWX field name with a similar format
+    # is used. Otherwise fields are passed through as is.
+    # Field map format is:
     #   WeeWX field name: Gateway device field name
     default_field_map = {
         'inTemp': 'intemp',
@@ -452,6 +460,8 @@ class Gateway(object):
         'pressure': 'absbarometer',
         'relbarometer': 'relbarometer',
         'luminosity': 'light',
+        # we can't pass through 'uv'; it's too much like 'UV', so use the
+        # Ecowitt term 'uvradiation'
         'uvradiation': 'uv',
         'UV': 'uvi',
         'dateTime': 'datetime',
@@ -553,7 +563,7 @@ class Gateway(object):
     }
     # Rain related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
-    # iterate over rain related fields.
+    # iterate over only rain related fields.
     rain_field_map = {
         'rain': 't_rain',
         'stormRain': 't_rainevent',
@@ -574,7 +584,7 @@ class Gateway(object):
     }
     # wind related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
-    # iterate over wind related fields.
+    # iterate over only wind related fields.
     wind_field_map = {
         'windDir': 'winddir',
         'windSpeed': 'windspeed',
@@ -780,13 +790,14 @@ class Gateway(object):
             _port = int(_port)
         except TypeError:
             # most likely port somehow ended up being None, in any case force
-            # auto detection by setting port to None
+            # auto-detection by setting port to None
             _port = None
         except ValueError:
             # We couldn't convert the port number to an integer. Maybe it was
             # because it was 'auto' (or some variation) or perhaps it was
-            # invalid. Either way we need to set port to None to force auto
-            # detection. If there was an invalid port specified then log it.
+            # invalid. Either way we need to set port to None to force
+            # auto-detection. If there was an invalid port specified then log
+            # it.
             if _port.lower() != 'auto':
                 loginf("Invalid device port '%s' specified, "
                        "port will be auto detected" % (_port,))
@@ -897,10 +908,10 @@ class Gateway(object):
         """Log rain related data from the collector.
 
         General routine to obtain and log rain related data from a packet. The
-        packet could be unmapped device data using 'device' field names or it
-        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
-        so we iterate over the keys ('WeeWX' field names) and values ('device'
-        field names) of the rain field map.
+        packet could be unmapped device data using 'device' field names, or it
+        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field
+        names. So we iterate over the keys ('WeeWX' field names) and values
+        ('device' field names) of the rain field map.
         """
 
         msg_list = []
@@ -930,10 +941,10 @@ class Gateway(object):
         """Log wind related data from the collector.
 
         General routine to obtain and log wind related data from a packet. The
-        packet could be unmapped device data using 'device' field names or it
-        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field names
-        so we iterate over the keys ('WeeWX' field names) and values ('device'
-        field names) of the rain field map.
+        packet could be unmapped device data using 'device' field names, or it
+        may be mapped data or a WeeWX loop packet that uses 'WeeWX' field
+        names. So we iterate over the keys ('WeeWX' field names) and values
+        ('device' field names) of the rain field map.
         """
 
         msg_list = []
@@ -962,9 +973,9 @@ class Gateway(object):
         """Determine the cumulative rain field used to derive field 'rain'.
 
         Ecowitt gateway devices emit various rain totals but WeeWX needs a per
-        period value for field rain. Try the 'big' (4 byte) counters starting
-        at the longest period and working our way down. This should only need
-        be done once.
+        period value for field rain. Try the 'big' (four byte) counters
+        starting at the longest period and working our way down. This should
+        only need be done once.
         
         This is further complicated by the introduction of 'piezo' rain with 
         the WS90. Do a second round of checks on the piezo rain equivalents and 
@@ -978,7 +989,7 @@ class Gateway(object):
         if not self.rain_mapping_confirmed:
             # We have no field for calculating rain so look for one, if device
             # field 't_raintotals' is present used that as our first choice.
-            # Otherwise work down the list in order of descending period.
+            # Otherwise, work down the list in order of descending period.
             if 't_raintotals' in data:
                 self.rain_total_field = 't_raintotals'
                 self.rain_mapping_confirmed = True
@@ -1007,7 +1018,7 @@ class Gateway(object):
         if not self.piezo_rain_mapping_confirmed:
             # We have no field for calculating piezo rain so look for one, if
             # device field 'p_rainyear' is present used that as our first
-            # choice. Otherwise work down the list in order of descending
+            # choice. Otherwise, work down the list in order of descending
             # period.
             if 'p_rainyear' in data:
                 self.piezo_rain_total_field = 'p_rainyear'
@@ -1181,7 +1192,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
     packet is augmented with the mapped device data.
 
     Class GatewayCollector collects and parses data from the API. The
-    GatewayCollector runs in a separate thread so as to not block the main
+    GatewayCollector runs in a separate thread, so it does not block the main
     WeeWX processing loop. The GatewayCollector is turn uses child classes
     Station and Parser to interact directly with the API and parse the API
     responses respectively.
@@ -1237,7 +1248,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                                                         self.collector.station.port))
         loginf('GatewayService: poll interval is %d seconds' % self.poll_interval)
         logdbg('GatewayService: max tries is %d, retry wait time is %d seconds' % (self.max_tries,
-                                                                                  self.retry_wait))
+                                                                                   self.retry_wait))
         logdbg('GatewayService: broadcast address %s:%d, '
                'broadcast timeout is %d seconds' % (self.broadcast_address,
                                                     self.broadcast_port,
@@ -1355,10 +1366,10 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 # exception text
                 elif isinstance(queue_data, BaseException):
                     # We have an exception. The collector did not deem it
-                    # serious enough to want to shutdown or it would have sent
-                    # None instead. The action we take depends on the type of
-                    # exception it is. If its a GWIOError we can ignore it as
-                    # appropriate action will have been taken by the
+                    # serious enough to want to shut down, or it would have
+                    # sent None instead. The action we take depends on the type
+                    # of exception it is. If it's a GWIOError we can ignore it
+                    # as appropriate action will have been taken by the
                     # GatewayCollector. If it is anything else we log it.
                     # process the exception
                     self.process_queued_exception(queue_data)
@@ -1369,11 +1380,11 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     if self.debug_loop:
                         loginf('GatewayService: Received collector shutdown signal')
                     # we received the signal that the GatewayCollector needs to
-                    # shutdown, that means we cannot continue so call our shutdown
-                    # method which will also shutdown the GatewayCollector thread
+                    # shut down, that means we cannot continue so call our shutdown
+                    # method which will also shut down the GatewayCollector thread
                     self.shutDown()
-                    # the GatewayCollector has been shutdown so we will not see
-                    # anything more in the queue, we are still bound to
+                    # the GatewayCollector has been shut down, so we will not see
+                    # anything more in the queue. We are still bound to
                     # NEW_LOOP_PACKET but since the queue is always empty we
                     # will just wait for the empty queue timeout before exiting
 
@@ -1889,7 +1900,9 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         configuration options or warn about deprecated or harmful options.
 
         The return value should be a long string. See default_stanza above
-        for an example string stanza."""
+        for an example string stanza.
+        """
+
         return self.default_stanza if orig_stanza is None else orig_stanza
 
     def prompt_for_settings(self):
@@ -1909,7 +1922,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
                                   dflt=self.existing_options.get('ip_address'))
         # obtain port number
         print()
-        print("Specify gaeway device network port, for example: 45000")
+        print("Specify gateway device network port, for example: 45000")
         port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
         # obtain poll interval
         print()
@@ -1922,7 +1935,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
                 'poll_interval': poll_interval
                 }
 
-    def modify_config(self, config_dict):
+    @staticmethod
+    def modify_config(config_dict):
 
         import weecfg
 
@@ -1941,7 +1955,8 @@ attempt startup indefinitely."""
         loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init, )))
         config_dict.merge(loop_on_init_dict)
         if len(config_dict.comments['loop_on_init']) == 0:
-            config_dict.comments['loop_on_init'] = ['', '# Whether to try indefinitely to load the driver']
+            config_dict.comments['loop_on_init'] = ['',
+                                                    '# Whether to try indefinitely to load the driver']
         print()
 
         # set record generation to software
@@ -1980,7 +1995,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
     and mapped to WeeWX fields and emitted as a WeeWX loop packet.
 
     Class GatewayCollector collects and parses data from the API. The
-    GatewayCollector runs in a separate thread so as to not block the main
+    GatewayCollector runs in a separate thread, so it does not block the main
     WeeWX processing loop. The GatewayCollector is turn uses child classes
     Station and Parser to interact directly with the API and parse the API
     responses respectively."""
@@ -2019,9 +2034,9 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                                           self.broadcast_timeout))
         logdbg('GatewayDriver: socket timeout is %d seconds' % self.socket_timeout)
         # The field map. Field map dict output will be in unsorted key order.
-        # It is easier to read if sorted alphanumerically but we have keys such
-        # as xxxxx16 that do not sort well. Use a custom natural sort of the
-        # keys in a manually produced formatted dict representation.
+        # It is easier to read if sorted alphanumerically, but we have keys
+        # such as xxxxx16 that do not sort well. Use a custom natural sort of
+        # the keys in a manually produced formatted dict representation.
         logdbg('GatewayDriver: field map is %s' % natural_sort_dict(self.field_map))
         # log specific debug but only if set ie. True
         debug_list = []
@@ -2156,9 +2171,9 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 # exception text
                 elif isinstance(queue_data, BaseException):
                     # We have an exception. The collector did not deem it
-                    # serious enough to want to shutdown or it would have sent
+                    # serious enough to want to shut down or it would have sent
                     # None instead. The action we take depends on the type of
-                    # exception it is. If its a GWIOError we need to force
+                    # exception it is. If it's a GWIOError we need to force
                     # the WeeWX engine to restart by raining a WeewxIOError. If
                     # it is anything else we log it and then raise it.
                     # first extract our exception
@@ -2182,9 +2197,9 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # if debug_loop log what we received
                     if self.debug_loop:
                         loginf('GatewayDriver: Received shutdown signal')
-                    # we received the signal to shutdown, so call closePort()
+                    # we received the signal to shut down, so call closePort()
                     self.closePort()
-                    # and raise an exception to cause the engine to shutdown
+                    # and raise an exception to cause the engine to shut down
                     raise GWIOError("GatewayCollector needs to shutdown")
                 # if it's none of the above (which it should never be) we don't
                 # know what to do with it so pass and wait for the next item in
@@ -2234,6 +2249,10 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         self.collector.shutdown()
 
 
+# for backwards compatibility
+Gw1000Driver = GatewayDriver
+
+
 # ============================================================================
 #                              class Collector
 # ============================================================================
@@ -2252,10 +2271,6 @@ class Collector(object):
 
     def shutdown(self):
         pass
-
-
-# for backwards compatibility
-Gw1000Driver = GatewayDriver
 
 
 # ============================================================================
@@ -2400,7 +2415,8 @@ class GatewayCollector(Collector):
                                               debug_rain=debug_rain,
                                               debug_wind=debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = GatewayCollector.Sensors(show_battery=show_battery, debug_sensors=debug_sensors)
+        self.sensors_obj = GatewayCollector.Sensors(show_battery=show_battery,
+                                                    debug_sensors=debug_sensors)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -2436,7 +2452,7 @@ class GatewayCollector(Collector):
                     # failures
                     if self.log_failures:
                         logerr('Unable to obtain live sensor data')
-                    # assign the GWIOError exception so it will be sent in
+                    # assign the GWIOError exception, so it will be sent in
                     # the queue to our controlling object
                     queue_data = e
                 # put the queue data in the queue
@@ -2741,7 +2757,8 @@ class GatewayCollector(Collector):
         self.thread = None
 
     class CollectorThread(threading.Thread):
-        """Class using a thread to collect data via the Ecowitt LAN/Wi-Fi Gateway API."""
+        """Class using a thread to collect data via the Ecowitt LAN/Wi-Fi
+        Gateway API."""
 
         def __init__(self, client):
             # initialise our parent
@@ -2952,7 +2969,7 @@ class GatewayCollector(Collector):
                     if weewx.debug >= 3:
                         logdbg("Received broadcast response '%s'" % (bytes_to_hex(response),))
                 except socket.timeout:
-                    # if we timeout then we are done
+                    # if we time out then we are done
                     break
                 except socket.error:
                     # raise any other socket error
@@ -3447,9 +3464,8 @@ class GatewayCollector(Collector):
                 except socket.timeout as e:
                     # a socket timeout occurred, log it
                     if self.log_failures:
-                        logdbg("Failed to obtain response to attempt %d to send command '%s': %s" % (attempt + 1,
-                                                                                                     cmd,
-                                                                                                     e))
+                        logdbg("Failed to obtain response to attempt %d "
+                               "to send command '%s': %s" % (attempt + 1, cmd, e))
                 except Exception as e:
                     # an exception was encountered, log it
                     if self.log_failures:
@@ -3461,7 +3477,8 @@ class GatewayCollector(Collector):
                     except InvalidChecksum as e:
                         # the response was not valid, log it and attempt again
                         # if we haven't had too many attempts already
-                        logdbg("Invalid response to attempt %d to send command '%s': %s" % (attempt + 1, cmd, e))
+                        logdbg("Invalid response to attempt %d "
+                               "to send command '%s': %s" % (attempt + 1, cmd, e))
                     except UnknownApiCommand:
                         # most likely we have encountered a device that does
                         # not understand the command, possibly due to an old or
@@ -3484,7 +3501,8 @@ class GatewayCollector(Collector):
                     time.sleep(self.retry_wait)
             # if we made it here we failed after self.max_tries attempts
             # first log it
-            _msg = ("Failed to obtain response to command '%s' after %d attempts" % (cmd, attempt + 1))
+            _msg = ("Failed to obtain response to command '%s' "
+                    "after %d attempts" % (cmd, attempt + 1))
             if response is not None or self.log_failures:
                 logerr(_msg)
             # then finally, raise a GWIOError exception
@@ -3544,7 +3562,7 @@ class GatewayCollector(Collector):
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             # set the socket timeout
             s.settimeout(self.socket_timeout)
-            # wrap our connect in a try..except so we can catch any socket
+            # wrap our connect in a try..except, so we can catch any socket
             # related exceptions
             try:
                 # connect to the device
@@ -3605,8 +3623,8 @@ class GatewayCollector(Collector):
                 # checkin the 3rd byte of the response matches the command code
                 # that was issued
                 if six.indexbytes(response, 2) == six.byte2int(cmd_code):
-                    # we have a valid command code in the response so the
-                    # response is valid and we can just return
+                    # we have a valid command code in the response, so the
+                    # response is valid and all we need do is return
                     return
                 else:
                     # command code check failed, since we have a valid checksum
@@ -3661,8 +3679,8 @@ class GatewayCollector(Collector):
             re-discovering a device for which the user specified an IP, only
             for those for which we discovered the IP address on startup. If a
             device is discovered then change my ip_address and port properties
-            as necessary to use the device in future. If the rediscover was
-            successful return True otherwise return False.
+            as necessary to use the device in the future. If the rediscovery
+            was successful return True otherwise return False.
             """
 
             # we will only rediscover if we first discovered
@@ -3672,7 +3690,7 @@ class GatewayCollector(Collector):
                     loginf("Attempting to re-discover %s..." % self.model)
                 # attempt to discover up to self.max_tries times
                 for attempt in range(self.max_tries):
-                    # sleep before our attempt, but not if its the first one
+                    # sleep before our attempt, but not if it's the first one
                     if attempt > 0:
                         time.sleep(self.retry_wait)
                     try:
@@ -5301,7 +5319,7 @@ def natural_sort_dict(source_dict):
         {key a:value a, key b: value b ... key z: value z}
     but the order of the key:value pairs is unlikely to be alphabetical.
     Displaying dicts of key:value pairs in logs or on the console in
-    alphabetical order by key assists in the analysis of the the dict data.
+    alphabetical order by key assists in the analysis of the dict data.
     Where keys are strings with leading digits a natural sort is useful.
     """
 
@@ -5854,8 +5872,8 @@ class DirectGateway(object):
             # current epoch timestamp adjusted by the station timezone offset.
             # So when the timestamp is converted to a human-readable GMT
             # date-time string it in fact shows the local date-time. We can
-            # work around this by formatting this offset UTC timestamp as a UTC
-            # date-time but then calling it local time. ideally we would
+            # work around this by formatting this offset UTC time stamp as a
+            # UTC date-time but then calling it local time. ideally we would
             # re-adjust to remove the timezone offset to get the real
             # (unadjusted) epoch timestamp but since the timezone index is
             # stored as an arbitrary number rather than an offset in seconds
@@ -6775,10 +6793,10 @@ class DirectGateway(object):
             engine = weewx.engine.StdEngine(config)
             # Our gateway service will have been instantiated by the engine
             # during its startup. Whilst access to the service is not normally
-            # required we require access here so we can obtain some info about
+            # required we require access here, so we can obtain some info about
             # the station we are using for this test. The engine does not
-            # provide a ready means to access that gateway service so we can do
-            # a bit of guessing and iterate over all of the engine's services
+            # provide a ready means to access that gateway service, so we can
+            # do a bit of guessing and iterate over all the engine's services
             # and select the one that has a 'collector' property. Unlikely to
             # cause a problem since there are only two services in the dummy
             # engine.
@@ -6787,8 +6805,8 @@ class DirectGateway(object):
                 if hasattr(svc, 'collector'):
                     gw_svc = svc
             if gw_svc is not None:
-                # we have a gateway service, it's not much use but it has the
-                # field map we need so go ahead and display it's field map
+                # we have a gateway service, it's not much use, but it has the
+                # field map we need so go ahead and display its field map
                 print()
                 print("Gateway service actual field map:")
                 print("(format is WeeWX field name: gateway field name)")
@@ -6860,7 +6878,7 @@ class DirectGateway(object):
         """
 
         loginf("Testing gateway service...")
-        # Create a dummy config so we can stand up a dummy engine with a dummy
+        # Create a dummy config, so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Include the gateway
         # service and StdPrint. StdPrint will take care of printing our loop
         # packets (no StdArchive so loop packets only, no archive records)
@@ -6897,10 +6915,10 @@ class DirectGateway(object):
             engine = weewx.engine.StdEngine(config)
             # Our gateway service will have been instantiated by the engine
             # during its startup. Whilst access to the service is not normally
-            # required we require access here so we can obtain some info about
+            # required we require access here, so we can obtain some info about
             # the station we are using for this test. The engine does not
-            # provide a ready means to access that gateway service so we can do
-            # a bit of guessing and iterate over all of the engine's services
+            # provide a ready means to access that gateway service, so we can
+            # do a bit of guessing and iterate over all the engine's services
             # and select the one that has a 'collector' property. Unlikely to
             # cause a problem since there are only two services in the dummy
             # engine.
