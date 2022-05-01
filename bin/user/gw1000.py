@@ -2824,7 +2824,7 @@ class GatewayCollector(Collector):
         header = b'\xff\xff'
         # known device models
         known_models = ('GW1000', 'GW1100', 'GW2000',
-                        'WH2650', 'WH2850', 'WN1900')
+                        'WH2650', 'WH2680', 'WN1900')
 
         def __init__(self, ip_address=None, port=None,
                      broadcast_address=None, broadcast_port=None,
