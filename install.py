@@ -10,7 +10,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                       Installer for Ecowitt Gateway Driver
 
-Version: 0.5.0b1                                      Date: ?? May 2022
+Version: 0.5.0b2                                      Date: ?? May 2022
 
 Revision History
     ?? May 2022         v0.5.0
@@ -54,7 +54,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.5.0b1"
+GW1000_VERSION = "0.5.0b2"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
