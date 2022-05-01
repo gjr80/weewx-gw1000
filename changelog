@@ -29,6 +29,8 @@ v0.5.0
 -   added config option log_unknown_fields to log unknown fields found in a
     CMD_GW1000_LIVEDATA or CMD_READ_RAIN API response at the info (True) or the
     default debug (False) level
+-   added support for (likely) rain source selection field (0x7A) appearing in
+    CMD_READ_RAIN response
 v0.4.2
 *   fix bug in Station.rediscover()
 v0.4.1
