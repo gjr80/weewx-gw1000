@@ -7116,7 +7116,7 @@ def main():
     if _debug > 0:
         print("debug level is '%d'" % _debug)
 
-    # Now we can set up the user customized logging but we need to handle both
+    # Now we can set up the user customized logging, but we need to handle both
     # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
     # set up syslog and raise our log level based on weewx.debug
     try:
