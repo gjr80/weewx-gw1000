@@ -218,7 +218,8 @@ class ParseTestCase(unittest.TestCase):
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
-        b'\x71': (None, None, None),
+        # placeholder for unknown field 0x71
+        # b'\x71': (None, None, None),
         b'\x72': ('decode_wet', 1, 'leafwet1'),
         b'\x73': ('decode_wet', 1, 'leafwet2'),
         b'\x74': ('decode_wet', 1, 'leafwet3'),
@@ -227,6 +228,8 @@ class ParseTestCase(unittest.TestCase):
         b'\x77': ('decode_wet', 1, 'leafwet6'),
         b'\x78': ('decode_wet', 1, 'leafwet7'),
         b'\x79': ('decode_wet', 1, 'leafwet8'),
+        # undocumented field 0x7A, believed to be rain source selection
+        b'\x7A': ('decode_int', 1, 'rain_source'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x83': ('decode_rain', 4, 'p_rainday'),
