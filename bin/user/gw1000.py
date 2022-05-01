@@ -34,7 +34,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b2                                    Date: ?? May 2022
+Version: 0.5.0b3                                    Date: ?? May 2022
 
 Revision History
     ?? May 2022            v0.5.0
@@ -72,6 +72,8 @@ Revision History
             info (True) or the default debug (False) level
         -   added support for (likely) rain source selection field (0x7A)
             appearing in CMD_READ_RAIN response
+        -   fix issue where day rain uses a different format in CMD_READ_RAIN
+            to that in CMD_GW1000_LIVEDATA
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -349,7 +351,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b2'
+DRIVER_VERSION = '0.5.0b3'
 
 # various defaults used throughout
 # default port used by device
@@ -3778,7 +3780,7 @@ class GatewayCollector(Collector):
         #   size:       the size of field data in bytes
         #   field name: the name of the device field to be used for the decoded
         #               data
-        addressed_data_struct = {
+        live_data_struct = {
             b'\x01': ('decode_temp', 2, 'intemp'),
             b'\x02': ('decode_temp', 2, 'outtemp'),
             b'\x03': ('decode_temp', 2, 'dewpoint'),
@@ -3907,6 +3909,29 @@ class GatewayCollector(Collector):
             b'\x87': ('decode_rain_gain', 20, None),
             b'\x88': ('decode_rain_reset', 3, None)
         }
+        rain_data_struct = {
+            b'\x0D': ('decode_rain', 2, 't_rainevent'),
+            b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
+            b'\x0F': ('decode_rain', 2, 't_rainhour'),
+            b'\x10': ('decode_big_rain', 4, 't_rainday'),
+            b'\x11': ('decode_rain', 2, 't_rainweek'),
+            b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
+            b'\x13': ('decode_big_rain', 4, 't_rainyear'),
+            b'\x14': ('decode_big_rain', 4, 't_raintotals'),
+            # undocumented field 0x7A, believed to be rain source selection
+            b'\x7A': ('decode_int', 1, 'rain_source'),
+            b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
+            b'\x81': ('decode_rain', 2, 'p_rainevent'),
+            b'\x83': ('decode_big_rain', 4, 'p_rainday'),
+            b'\x84': ('decode_big_rain', 4, 'p_rainweek'),
+            b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
+            b'\x86': ('decode_big_rain', 4, 'p_rainyear'),
+            # field 0x87 and 0x88 hold device parameter data that is not
+            # included in the loop packets, hence the device field is not
+            # used (None).
+            b'\x87': ('decode_rain_gain', 20, None),
+            b'\x88': ('decode_rain_reset', 3, None)
+        }
         # tuple of field codes for device rain related fields in the live data
         # so we can isolate these fields
         rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
@@ -3944,7 +3969,7 @@ class GatewayCollector(Collector):
             ....
             6-2nd last byte
                     data structure follows the structure of
-                    Parser.addressed_data_struct in the format:
+                    Parser.live_data_struct in the format:
                         address (byte)
                         data    length: as per second element of tuple
                                 decode: Parser method as per first element of
@@ -3972,7 +3997,7 @@ class GatewayCollector(Collector):
                     # the current field, wrap in a try..except in case we
                     # encounter a field address we do not know about
                     try:
-                        decode_str, field_size, field = self.addressed_data_struct[payload[index:index + 1]]
+                        decode_str, field_size, field = self.live_data_struct[payload[index:index + 1]]
                     except KeyError:
                         # We struck a field 'address' we do not know how to
                         # process. We can't skip to the next field so all we
@@ -4003,9 +4028,62 @@ class GatewayCollector(Collector):
             # return the parsed response
             return data
 
-        # we can use the same parse method for parsing CMD_READ_RAIN as we use
-        # for CMD_GW1000_LIVEDATA
-        parse_read_rain = parse_livedata
+        def parse_read_rain(self, response):
+            """Parse data from a CMD_READ_RAIN API response.
+
+            Parse the raw sensor data obtained from the CMD_READ_RAIN API
+            command and create a dict of sensor observations/status data.
+
+            Returns a dict of observations/status data.
+            """
+
+            # obtain the payload size, it's a big endian short (two byte) integer
+            payload_size = struct.unpack(">H", response[3:5])[0]
+            # obtain the payload
+            payload = response[5:5 + payload_size - 4]
+            # initialise a dict to hold our parsed data
+            data = dict()
+            # do we have any payload data to operate on
+            if len(payload) > 0:
+                # we have payload data
+                # set a counter to keep track of where we are in the payload
+                index = 0
+                # work through the payload until we reach the end
+                while index < len(payload) - 1:
+                    # obtain the decode function, field size and field name for
+                    # the current field, wrap in a try..except in case we
+                    # encounter a field address we do not know about
+                    try:
+                        decode_str, field_size, field = self.rain_data_struct[payload[index:index + 1]]
+                    except KeyError:
+                        # We struck a field 'address' we do not know how to
+                        # process. We can't skip to the next field so all we
+                        # can really do is accept the data we have so far, log
+                        # the issue and ignore the remaining data.
+                        # are we logging as info or debug, get an appropriate log function
+                        if self.log_unknown_fields:
+                            log_fn = loginf
+                        else:
+                            log_fn = logdbg
+                        # now call it
+                        log_fn("Unknown field address '%s' detected. "
+                               "Remaining data '%s' ignored." % (bytes_to_hex(payload[index:index + 1]),
+                                                                 bytes_to_hex(payload[index + 1:])))
+                        # and break, there is nothing more we can with this
+                        # data
+                        break
+                    else:
+                        _field_data = getattr(self, decode_str)(payload[index + 1:index + 1 + field_size],
+                                                                field)
+                        # do we have any decoded data?
+                        if _field_data is not None:
+                            # we have decoded data so add the decoded data to
+                            # our data dict
+                            data.update(_field_data)
+                        # we are finished with this field, move onto the next
+                        index += field_size + 1
+            # return the parsed response
+            return data
 
         def parse_read_raindata(self, response):
             """Parse data from a CMD_READ_RAINDATA API response.
