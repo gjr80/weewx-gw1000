@@ -34,7 +34,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b3                                    Date: ?? May 2022
+Version: 0.5.0b4                                    Date: ?? May 2022
 
 Revision History
     ?? May 2022            v0.5.0
@@ -72,8 +72,8 @@ Revision History
             info (True) or the default debug (False) level
         -   added support for (likely) rain source selection field (0x7A)
             appearing in CMD_READ_RAIN response
-        -   fix issue where day rain uses a different format in CMD_READ_RAIN
-            to that in CMD_GW1000_LIVEDATA
+        -   fix issue where day rain and week rain use a different format in
+            CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -351,7 +351,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b3'
+DRIVER_VERSION = '0.5.0b4'
 
 # various defaults used throughout
 # default port used by device
@@ -3914,7 +3914,7 @@ class GatewayCollector(Collector):
             b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
             b'\x0F': ('decode_rain', 2, 't_rainhour'),
             b'\x10': ('decode_big_rain', 4, 't_rainday'),
-            b'\x11': ('decode_rain', 2, 't_rainweek'),
+            b'\x11': ('decode_big_rain', 4, 't_rainweek'),
             b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
             b'\x13': ('decode_big_rain', 4, 't_rainyear'),
             b'\x14': ('decode_big_rain', 4, 't_raintotals'),
