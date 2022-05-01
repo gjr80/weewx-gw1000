@@ -5944,9 +5944,9 @@ class DirectGateway(object):
         piezo = ['p_rainrate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
                  'gain1', 'gain2', 'gain3', 'gain4', 'gain5']
         reset = ['day_reset', 'week_reset', 'annual_reset']
-        source_lookup = {0: 'no selection',
-                         1: 'traditional gauge',
-                         2: 'piezo gauge'
+        source_lookup = {0: 'No selection',
+                         1: 'Traditional rain gauge',
+                         2: 'Piezoelectric rain gauge'
                          }
         # wrap in a try..except in case there is an error
         try:
@@ -5976,7 +5976,8 @@ class DirectGateway(object):
         else:
             print()
             if 'rain_source' in rain_data:
-                print("    Rain source selected: %s" % source_lookup.get(rain_data['rain_source'], "unknown selection"))
+                print("    Rainfall data priority: %s" % source_lookup.get(rain_data['rain_source'],
+                                                                           "unknown selection"))
                 print()
             if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
