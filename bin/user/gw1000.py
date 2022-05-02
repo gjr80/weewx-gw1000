@@ -74,6 +74,8 @@ Revision History
             appearing in CMD_READ_RAIN response
         -   fix issue where day rain and week rain use a different format in
             CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
+        -   fix issue where sensor ID is incorrectly displayed for sensors with
+            an ID ending in one or more zeros (issue 48)
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -6607,7 +6609,7 @@ class DirectGateway(object):
                         battery_desc = sensors.batt_state_desc(address, sensor_data.get('battery'))
                         battery_desc_text = " (%s)" % battery_desc if battery_desc is not None else ""
                         battery_str = "%s%s" % (sensor_data.get('battery'), battery_desc_text)
-                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').strip('0'),
+                        state = "sensor ID: %s  signal: %s  battery: %s" % (sensor_data.get('id').lstrip('0'),
                                                                             sensor_data.get('signal'),
                                                                             battery_str)
                         # print the formatted data
