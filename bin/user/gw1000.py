@@ -3940,6 +3940,69 @@ class GatewayCollector(Collector):
             self.debug_rain = debug_rain
             self.debug_wind = debug_wind
 
+        def parse_addressed_data(self, payload, structure):
+            """Parse an address structure API response payload.
+
+            Parses the data payload of an API response that uses an addressed
+            data structure, ie each data element is in the format
+
+            <address byte> <data byte(s)>
+
+            Data elements may be in any order and the data portion of each data
+            element may consist of one or mor bytes.
+
+            payload:   API response payload to be parsed, bytestring
+            structure: dict keyed by data element address and containing the
+                       decode function, field size and the field name to be
+                       used as the key against which the decoded data is to be
+                       stored in the result dict
+
+            Returns a dict of decoded data keyed by destination field name
+            """
+
+            # initialise a dict to hold our parsed data
+            data = dict()
+            # do we have any payload data to operate on
+            if len(payload) > 0:
+                # we have payload data
+                # set a counter to keep track of where we are in the payload
+                index = 0
+                # work through the payload until we reach the end
+                while index < len(payload) - 1:
+                    # obtain the decode function, field size and field name for
+                    # the current field, wrap in a try..except in case we
+                    # encounter a field address we do not know about
+                    try:
+                        decode_fn_str, field_size, field = structure[payload[index:index + 1]]
+                    except KeyError:
+                        # We struck a field 'address' we do not know how to
+                        # process. We can't skip to the next field so all we
+                        # can really do is accept the data we have so far, log
+                        # the issue and ignore the remaining data.
+                        # are we logging as info or debug, get an appropriate log function
+                        if self.log_unknown_fields:
+                            log_fn = loginf
+                        else:
+                            log_fn = logdbg
+                        # now call it
+                        log_fn("Unknown field address '%s' detected. "
+                               "Remaining data '%s' ignored." % (bytes_to_hex(payload[index:index + 1]),
+                                                                 bytes_to_hex(payload[index + 1:])))
+                        # and break, there is nothing more we can with this
+                        # data
+                        break
+                    else:
+                        _field_data = getattr(self, decode_fn_str)(payload[index + 1:index + 1 + field_size],
+                                                                   field)
+                        # do we have any decoded data?
+                        if _field_data is not None:
+                            # we have decoded data so add the decoded data to
+                            # our data dict
+                            data.update(_field_data)
+                        # we are finished with this field, move onto the next
+                        index += field_size + 1
+            return data
+
         def parse_livedata(self, response):
             """Parse data from a CMD_GW1000_LIVEDATA API response.
 
@@ -3972,49 +4035,9 @@ class GatewayCollector(Collector):
             payload_size = struct.unpack(">H", response[3:5])[0]
             # obtain the payload
             payload = response[5:5 + payload_size - 4]
-            # initialise a dict to hold our parsed data
-            data = dict()
-            # do we have any payload data to operate on
-            if len(payload) > 0:
-                # we have payload data
-                # set a counter to keep track of where we are in the payload
-                index = 0
-                # work through the payload until we reach the end
-                while index < len(payload) - 1:
-                    # obtain the decode function, field size and field name for
-                    # the current field, wrap in a try..except in case we
-                    # encounter a field address we do not know about
-                    try:
-                        decode_str, field_size, field = self.live_data_struct[payload[index:index + 1]]
-                    except KeyError:
-                        # We struck a field 'address' we do not know how to
-                        # process. We can't skip to the next field so all we
-                        # can really do is accept the data we have so far, log
-                        # the issue and ignore the remaining data.
-                        # are we logging as info or debug, get an appropriate log function
-                        if self.log_unknown_fields:
-                            log_fn = loginf
-                        else:
-                            log_fn = logdbg
-                        # now call it
-                        log_fn("Unknown field address '%s' detected. "
-                               "Remaining data '%s' ignored." % (bytes_to_hex(payload[index:index + 1]),
-                                                                 bytes_to_hex(payload[index + 1:])))
-                        # and break, there is nothing more we can with this
-                        # data
-                        break
-                    else:
-                        _field_data = getattr(self, decode_str)(payload[index + 1:index + 1 + field_size],
-                                                                field)
-                        # do we have any decoded data?
-                        if _field_data is not None:
-                            # we have decoded data so add the decoded data to
-                            # our data dict
-                            data.update(_field_data)
-                        # we are finished with this field, move onto the next
-                        index += field_size + 1
-            # return the parsed response
-            return data
+            # this is addressed data, so we can call parse_addressed_data() and
+            # return the result
+            return self.parse_addressed_data(payload, self.live_data_struct)
 
         def parse_read_rain(self, response):
             """Parse data from a CMD_READ_RAIN API response.
@@ -4023,55 +4046,34 @@ class GatewayCollector(Collector):
             command and create a dict of sensor observations/status data.
 
             Returns a dict of observations/status data.
+
+            Response consists of a variable number of bytes determined by the
+            connected sensors. Decode as follows:
+            Byte(s)     Data            Format          Comments
+            1-2         header          -               fixed header 0xFFFF
+            3           command code    byte            0x57
+            4-5         size            unsigned short
+            ....
+            6-2nd last byte
+                    data structure follows the structure of
+                    Parser.rain_data_struct in the format:
+                        address (byte)
+                        data    length: as per second element of tuple
+                                decode: Parser method as per first element of
+                                        tuple
+            ....
+            last byte   checksum        byte            LSB of the sum of the
+                                                        command, size and data
+                                                        bytes
             """
 
             # obtain the payload size, it's a big endian short (two byte) integer
             payload_size = struct.unpack(">H", response[3:5])[0]
             # obtain the payload
             payload = response[5:5 + payload_size - 4]
-            # initialise a dict to hold our parsed data
-            data = dict()
-            # do we have any payload data to operate on
-            if len(payload) > 0:
-                # we have payload data
-                # set a counter to keep track of where we are in the payload
-                index = 0
-                # work through the payload until we reach the end
-                while index < len(payload) - 1:
-                    # obtain the decode function, field size and field name for
-                    # the current field, wrap in a try..except in case we
-                    # encounter a field address we do not know about
-                    try:
-                        decode_str, field_size, field = self.rain_data_struct[payload[index:index + 1]]
-                    except KeyError:
-                        # We struck a field 'address' we do not know how to
-                        # process. We can't skip to the next field so all we
-                        # can really do is accept the data we have so far, log
-                        # the issue and ignore the remaining data.
-                        # are we logging as info or debug, get an appropriate log function
-                        if self.log_unknown_fields:
-                            log_fn = loginf
-                        else:
-                            log_fn = logdbg
-                        # now call it
-                        log_fn("Unknown field address '%s' detected. "
-                               "Remaining data '%s' ignored." % (bytes_to_hex(payload[index:index + 1]),
-                                                                 bytes_to_hex(payload[index + 1:])))
-                        # and break, there is nothing more we can with this
-                        # data
-                        break
-                    else:
-                        _field_data = getattr(self, decode_str)(payload[index + 1:index + 1 + field_size],
-                                                                field)
-                        # do we have any decoded data?
-                        if _field_data is not None:
-                            # we have decoded data so add the decoded data to
-                            # our data dict
-                            data.update(_field_data)
-                        # we are finished with this field, move onto the next
-                        index += field_size + 1
-            # return the parsed response
-            return data
+            # this is addressed data, so we can call parse_addressed_data() and
+            # return the result
+            return self.parse_addressed_data(payload, self.rain_data_struct)
 
         def parse_read_raindata(self, response):
             """Parse data from a CMD_READ_RAINDATA API response.
