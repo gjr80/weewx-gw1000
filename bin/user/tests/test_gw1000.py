@@ -117,6 +117,7 @@ class SensorsTestCase(unittest.TestCase):
 class ParseTestCase(unittest.TestCase):
     """Test the GatewayCollector Parser class."""
 
+    # decode structure for CMD_GW1000_LIVEDATA
     live_data_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -229,6 +230,7 @@ class ParseTestCase(unittest.TestCase):
         b'\x78': ('decode_wet', 1, 'leafwet7'),
         b'\x79': ('decode_wet', 1, 'leafwet8')
     }
+    # decode structure for CMD_READ_RAIN
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
@@ -330,6 +332,7 @@ class ParseTestCase(unittest.TestCase):
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
                            'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751}
                  }
+    # CMD_READ_RAIN test response and decoded data - piezo gauge only
     read_rain_piezo = {'response': 'FF FF 57 00 37 80 00 06 83 00 00 00 4B 84 00 00 '
                                    '00 52 85 00 00 00 BB 86 00 00 00 BB 81 00 4B 87 '
                                    '00 0A 01 F4 00 64 00 E6 01 CC 01 EA 01 4A 00 DE '
@@ -354,6 +357,8 @@ class ParseTestCase(unittest.TestCase):
                                 'week_reset': 1,
                                 'annual_reset': 6}
                        }
+    # CMD_READ_RAIN test response and decoded data - traditional and piezo
+    # gauges
     read_rain_both = {'response': 'FF FF 57 00 54 0E 00 00 10 00 00 00 00 11 '
                                   '00 00 00 00 12 00 00 00 00 13 00 00 0C 11 '
                                   '0D 00 00 0F 00 64 80 00 00 83 00 00 00 00 '
@@ -388,6 +393,7 @@ class ParseTestCase(unittest.TestCase):
                                'week_reset': 0,
                                'annual_reset': 0}
                       }
+    # CMD_READ_RAINDATA test response and decoded data
     # TODO. Perhaps have a non-zero value for rainrate
     read_raindata = {'response': 'FF FF 34 17 00 00 00 00 00 00 00 34 '
                                  '00 00 00 34 00 00 01 7B 00 00 09 25 5D',
@@ -524,11 +530,11 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data)),
                              self.parsed_response)
 
-        # test parse_read_rain() piezo only
+        # test parse_read_rain() with piezo gauge only
         self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain_piezo['response'])),
                              self.read_rain_piezo['data'])
 
-        # test parse_read_rain() with both piezo and tradiaitionl
+        # test parse_read_rain() with both traditional and piezo gauges
         self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain_both['response'])),
                              self.read_rain_both['data'])
 
