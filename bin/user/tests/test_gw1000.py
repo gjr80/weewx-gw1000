@@ -117,7 +117,7 @@ class SensorsTestCase(unittest.TestCase):
 class ParseTestCase(unittest.TestCase):
     """Test the GatewayCollector Parser class."""
 
-    addressed_data_struct = {
+    live_data_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
         b'\x03': ('decode_temp', 2, 'dewpoint'),
@@ -227,13 +227,22 @@ class ParseTestCase(unittest.TestCase):
         b'\x76': ('decode_wet', 1, 'leafwet5'),
         b'\x77': ('decode_wet', 1, 'leafwet6'),
         b'\x78': ('decode_wet', 1, 'leafwet7'),
-        b'\x79': ('decode_wet', 1, 'leafwet8'),
+        b'\x79': ('decode_wet', 1, 'leafwet8')
+    }
+    rain_data_struct = {
+        b'\x0D': ('decode_rain', 2, 't_rainevent'),
+        b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
+        b'\x0F': ('decode_rain', 2, 't_rainhour'),
+        b'\x10': ('decode_big_rain', 4, 't_rainday'),
+        b'\x11': ('decode_big_rain', 4, 't_rainweek'),
+        b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
+        b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         # undocumented field 0x7A, believed to be rain source selection
         b'\x7A': ('decode_int', 1, 'rain_source'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
-        b'\x83': ('decode_rain', 4, 'p_rainday'),
-        b'\x84': ('decode_rain', 4, 'p_rainweek'),
+        b'\x83': ('decode_big_rain', 4, 'p_rainday'),
+        b'\x84': ('decode_big_rain', 4, 'p_rainweek'),
         b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
         b'\x86': ('decode_big_rain', 4, 'p_rainyear'),
         b'\x87': ('decode_rain_gain', 20, None),
@@ -321,30 +330,64 @@ class ParseTestCase(unittest.TestCase):
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
                            'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751}
                  }
-    read_rain = {'response': 'FF FF 57 00 37 80 00 06 83 00 00 00 4B 84 00 00 '
-                             '00 52 85 00 00 00 BB 86 00 00 00 BB 81 00 4B 87 '
-                             '00 0A 01 F4 00 64 00 E6 01 CC 01 EA 01 4A 00 DE '
-                             '00 6E 00 14 88 09 01 06 FC',
-                 'data': {'p_rainrate': 0.6,
-                          'p_rainevent': 7.5,
-                          'p_rainday': 7.5,
-                          'p_rainweek': 8.2,
-                          'p_rainmonth': 18.7,
-                          'p_rainyear': 18.7,
-                          'gain0': 0.1,
-                          'gain1': 5.0,
-                          'gain2': 1.0,
-                          'gain3': 2.3,
-                          'gain4': 4.6,
-                          'gain5': 4.9,
-                          'gain6': 3.3,
-                          'gain7': 2.22,
-                          'gain8': 1.1,
-                          'gain9': 0.2,
-                          'day_reset': 9,
-                          'week_reset': 1,
-                          'annual_reset': 6}
-                 }
+    read_rain_piezo = {'response': 'FF FF 57 00 37 80 00 06 83 00 00 00 4B 84 00 00 '
+                                   '00 52 85 00 00 00 BB 86 00 00 00 BB 81 00 4B 87 '
+                                   '00 0A 01 F4 00 64 00 E6 01 CC 01 EA 01 4A 00 DE '
+                                   '00 6E 00 14 88 09 01 06 FC',
+                       'data': {'p_rainrate': 0.6,
+                                'p_rainevent': 7.5,
+                                'p_rainday': 7.5,
+                                'p_rainweek': 8.2,
+                                'p_rainmonth': 18.7,
+                                'p_rainyear': 18.7,
+                                'gain0': 0.1,
+                                'gain1': 5.0,
+                                'gain2': 1.0,
+                                'gain3': 2.3,
+                                'gain4': 4.6,
+                                'gain5': 4.9,
+                                'gain6': 3.3,
+                                'gain7': 2.22,
+                                'gain8': 1.1,
+                                'gain9': 0.2,
+                                'day_reset': 9,
+                                'week_reset': 1,
+                                'annual_reset': 6}
+                       }
+    read_rain_both = {'response': 'FF FF 57 00 54 0E 00 00 10 00 00 00 00 11 '
+                                  '00 00 00 00 12 00 00 00 00 13 00 00 0C 11 '
+                                  '0D 00 00 0F 00 64 80 00 00 83 00 00 00 00 '
+                                  '84 00 00 00 00 85 00 00 00 00 86 00 00 0C '
+                                  '72 81 00 00 87 00 64 00 64 00 64 00 64 00 '
+                                  '64 00 64 00 64 00 64 00 64 00 64 88 00 00 '
+                                  '00 24',
+                      'data': {'t_rainrate': 0.0,
+                               't_rainevent': 0.0,
+                               't_rainhour': 10.0,
+                               't_rainday': 0.0,
+                               't_rainweek': 0.0,
+                               't_rainmonth': 0.0,
+                               't_rainyear': 308.9,
+                               'p_rainrate': 0.0,
+                               'p_rainevent': 0.0,
+                               'p_rainday': 0.0,
+                               'p_rainweek': 0.0,
+                               'p_rainmonth': 0.0,
+                               'p_rainyear': 318.6,
+                               'gain0': 1.0,
+                               'gain1': 1.0,
+                               'gain2': 1.0,
+                               'gain3': 1.0,
+                               'gain4': 1.0,
+                               'gain5': 1.0,
+                               'gain6': 1.0,
+                               'gain7': 1.0,
+                               'gain8': 1.0,
+                               'gain9': 1.0,
+                               'day_reset': 0,
+                               'week_reset': 0,
+                               'annual_reset': 0}
+                      }
     # TODO. Perhaps have a non-zero value for rainrate
     read_raindata = {'response': 'FF FF 34 17 00 00 00 00 00 00 00 34 '
                                  '00 00 00 34 00 00 01 7B 00 00 09 25 5D',
@@ -462,8 +505,11 @@ class ParseTestCase(unittest.TestCase):
     def test_constants(self):
         """Test constants"""
 
-        # test addressed_data_struct
-        self.assertEqual(self.parser.addressed_data_struct, self.addressed_data_struct)
+        # test live_data_struct
+        self.assertEqual(self.parser.live_data_struct, self.live_data_struct)
+
+        # test rain_data_struct
+        self.assertEqual(self.parser.rain_data_struct, self.rain_data_struct)
 
         # test rain_field_codes
         self.assertEqual(self.parser.rain_field_codes, self.rain_field_codes)
@@ -478,9 +524,13 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data)),
                              self.parsed_response)
 
-        # test parse_read_rain()
-        self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain['response'])),
-                             self.read_rain['data'])
+        # test parse_read_rain() piezo only
+        self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain_piezo['response'])),
+                             self.read_rain_piezo['data'])
+
+        # test parse_read_rain() with both piezo and tradiaitionl
+        self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain_both['response'])),
+                             self.read_rain_both['data'])
 
         # test parse_read_raindata()
         self.assertDictEqual(self.parser.parse_read_raindata(response=hex_to_bytes(self.read_raindata['response'])),
