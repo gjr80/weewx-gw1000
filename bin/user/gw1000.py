@@ -3894,20 +3894,7 @@ class GatewayCollector(Collector):
             b'\x76': ('decode_wet', 1, 'leafwet5'),
             b'\x77': ('decode_wet', 1, 'leafwet6'),
             b'\x78': ('decode_wet', 1, 'leafwet7'),
-            b'\x79': ('decode_wet', 1, 'leafwet8'),
-            # undocumented field 0x7A, believed to be rain source selection
-            b'\x7A': ('decode_int', 1, 'rain_source'),
-            b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
-            b'\x81': ('decode_rain', 2, 'p_rainevent'),
-            b'\x83': ('decode_rain', 4, 'p_rainday'),
-            b'\x84': ('decode_rain', 4, 'p_rainweek'),
-            b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
-            b'\x86': ('decode_big_rain', 4, 'p_rainyear'),
-            # field 0x87 and 0x88 hold device parameter data that is not
-            # included in the loop packets, hence the device field is not
-            # used (None).
-            b'\x87': ('decode_rain_gain', 20, None),
-            b'\x88': ('decode_rain_reset', 3, None)
+            b'\x79': ('decode_wet', 1, 'leafwet8')
         }
         rain_data_struct = {
             b'\x0D': ('decode_rain', 2, 't_rainevent'),
@@ -3917,7 +3904,6 @@ class GatewayCollector(Collector):
             b'\x11': ('decode_big_rain', 4, 't_rainweek'),
             b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
             b'\x13': ('decode_big_rain', 4, 't_rainyear'),
-            b'\x14': ('decode_big_rain', 4, 't_raintotals'),
             # undocumented field 0x7A, believed to be rain source selection
             b'\x7A': ('decode_int', 1, 'rain_source'),
             b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
