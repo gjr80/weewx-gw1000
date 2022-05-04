@@ -603,6 +603,7 @@ class Gateway(object):
         'wh25_batt': 'wh25_batt',
         'wh24_batt': 'wh24_batt',
         'wh65_batt': 'wh65_batt',
+        'wh32_batt': 'wh32_batt',
         'wh31_ch1_batt': 'wh31_ch1_batt',
         'wh31_ch2_batt': 'wh31_ch2_batt',
         'wh31_ch3_batt': 'wh31_ch3_batt',
@@ -665,6 +666,7 @@ class Gateway(object):
         'wh25_sig': 'wh25_sig',
         'wh24_sig': 'wh24_sig',
         'wh65_sig': 'wh65_sig',
+        'wh32_sig': 'wh32_sig',
         'wh31_ch1_sig': 'wh31_ch1_sig',
         'wh31_ch2_sig': 'wh31_ch2_sig',
         'wh31_ch3_sig': 'wh31_ch3_sig',
@@ -822,8 +824,8 @@ class Gateway(object):
         # to the gateway device. In terms of TH data the process is transparent
         # and we do not need to know if a WH32 or other sensor is providing
         # outdoor TH data but in terms of battery state we need to know so the
-        # battery  state data can be reported against the correct sensor.
-        use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', False))
+        # battery state data can be reported against the correct sensor.
+        use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', True))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
         self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
@@ -1662,6 +1664,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[wh65_batt]]
             extractor = last
+        [[wh32_batt]]
+            extractor = last
         [[wh31_ch1_batt]]
             extractor = last
         [[wh31_ch2_batt]]
@@ -1773,6 +1777,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[wh25_sig]]
             extractor = last
         [[wh65_sig]]
+            extractor = last
+        [[wh32_sig]]
             extractor = last
         [[wh31_ch1_sig]]
             extractor = last
@@ -2375,7 +2381,7 @@ class GatewayCollector(Collector):
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_wh32=False, show_battery=False, log_unknown_fields=False,
+                 use_wh32=True, show_battery=False, log_unknown_fields=False,
                  debug_rain=False, debug_wind=False, debug_sensors=False):
         """Initialise our class."""
 
@@ -2390,8 +2396,12 @@ class GatewayCollector(Collector):
         # period in seconds to wait before polling again, default is
         # default_retry_wait seconds
         self.retry_wait = retry_wait
-        # are we using a WH32 sensor
-        self.use_wh32 = use_wh32
+        # are we using a WH32 sensor, if so tell our sensor id decoding we have
+        # a WH32, otherwise it will default to WH26.
+        if use_wh32:
+            # set the WH24 sensor id decode dict entry
+            self.sensor_ids[b'\x05']['name'] = 'wh32'
+            self.sensor_ids[b'\x05']['long_name'] = 'WH32'
         # get a station object to do the handle the interaction with the API
         self.station = GatewayCollector.Station(ip_address=ip_address,
                                                 port=port,
@@ -2414,8 +2424,7 @@ class GatewayCollector(Collector):
         # start off logging failures
         self.log_failures = True
         # get a parser object to parse any data from the station
-        self.parser = GatewayCollector.Parser(is_wh24=is_wh24,
-                                              log_unknown_fields=log_unknown_fields,
+        self.parser = GatewayCollector.Parser(log_unknown_fields=log_unknown_fields,
                                               debug_rain=debug_rain,
                                               debug_wind=debug_wind)
         # get a sensors object to handle sensor ID data
@@ -3930,10 +3939,7 @@ class GatewayCollector(Collector):
         # so we can isolate these fields
         wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
-        def __init__(self, is_wh24=False, log_unknown_fields=True,
-                     debug_rain=False, debug_wind=False):
-            # do we have a WH24 or a WH65
-            self.is_wh24 = is_wh24
+        def __init__(self, log_unknown_fields=True, debug_rain=False, debug_wind=False):
             # do we log unknown fields at info or leave at debug
             self.log_unknown_fields = log_unknown_fields
             # get debug_rain and debug_wind
@@ -5591,6 +5597,7 @@ class DirectGateway(object):
         'wh25_batt': 'group_count',
         'wh24_batt': 'group_count',
         'wh65_batt': 'group_count',
+        'wh32_batt': 'group_count',
         'wh31_ch1_batt': 'group_count',
         'wh31_ch2_batt': 'group_count',
         'wh31_ch3_batt': 'group_count',
@@ -5649,6 +5656,7 @@ class DirectGateway(object):
         'wh25_sig': 'group_count',
         'wh24_sig': 'group_count',
         'wh65_sig': 'group_count',
+        'wh32_sig': 'group_count',
         'wh31_ch1_sig': 'group_count',
         'wh31_ch2_sig': 'group_count',
         'wh31_ch3_sig': 'group_count',
