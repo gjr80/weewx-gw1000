@@ -34,10 +34,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b4                                    Date: ?? May 2022
+Version: 0.5.0b5                                    Date: 1 June 2022
 
 Revision History
-    ?? May 2022            v0.5.0
+    ?? June 2022           v0.5.0
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
@@ -76,6 +76,11 @@ Revision History
             CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
         -   fix issue where sensor ID is incorrectly displayed for sensors with
             an ID ending in one or more zeros (issue 48)
+        -   removed gateway device field 't_rainhour' from the default field
+            map
+        -   --live-data output now indicates the unit group being used
+        -   fake battery state data received from WH40 devices that do not emit
+            battery state is now ignored
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -572,7 +577,6 @@ class Gateway(object):
         'rain': 't_rain',
         'stormRain': 't_rainevent',
         'rainRate': 't_rainrate',
-        'hourRain': 't_rainhour',
         'dayRain': 't_rainday',
         'weekRain': 't_rainweek',
         'monthRain': 't_rainmonth',
@@ -2310,7 +2314,7 @@ class GatewayCollector(Collector):
         b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
         b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
         b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
-        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_volt_tenth'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'wh40_batt_volt'},
         b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
         b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
         b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
@@ -5302,7 +5306,7 @@ class GatewayCollector(Collector):
                             return "OK"
                         else:
                             return 'Unknown'
-                    elif batt_fn == 'batt_volt' or batt_fn == 'batt_volt_tenth':
+                    elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt_tenth']:
                         if value <= 1.2:
                             return "low"
                         else:
@@ -5345,6 +5349,44 @@ class GatewayCollector(Collector):
             return round(0.02 * batt, 2)
 
         @staticmethod
+        def wh40_batt_volt_tenth(batt):
+            """Decode WH40 battery state.
+
+            Initial WH40 devices did not provide battery state information. API
+            versions up to and including v.1.6.4 reported WH40 battery state
+            via a single bit. API v1.6.5 and later report WH40 battery state in
+            a single byte in 100mV increments. It appears that API v1.6.5 and
+            later return a fixed value of 0x10 (decodes to 1.6V) for WH40
+            battery state for WH40 devices that do not report battery state.
+            WH40 devices that do report battery state appear to return a value
+            in a single byte in 10mV increments rather than 100mV increments as
+            documented in the Ecowitt LAN/Wi-Fi Gateway API
+            documentation v1.6.4. There is no known way to identify via the API
+            whether a given WH40 reports battery state information or not.
+
+            Consequently, decoding of WH40 battery state data is handled as
+            follows:
+
+            -   the WH40 battery state data is decoded as per the API
+                documentation as a value in 100mV increments
+            -   if the decoded value is <2.0V the device is assumed to be a
+                non-battery state reporting WH40 and the value None is returned
+            -   if the decoded value is >=2.0V the device is assumed to be a
+                battery state reporting WH40 and the value returned is the WH40
+                battery state data decoded in 10mV increments
+
+            For WH40 that report battery state data a decoded value of <=1.2V
+            is considered low.
+            """
+
+            if round(0.1 * batt, 1) < 2.0:
+                # assume we have a non-battery state reporting WH40
+                return None
+            else:
+                # assume we have a battery state reporting WH40
+                return round(0.01 * batt, 2)
+
+        @staticmethod
         def batt_volt_tenth(batt):
             """Decode a voltage battery state in 100mV increments.
 
@@ -5352,7 +5394,8 @@ class GatewayCollector(Collector):
             with <=1.2V considered low.
             """
 
-            return round(0.1 * batt, 1)
+            return None
+            # return round(0.1 * batt, 1)
 
 
 # ============================================================================
@@ -6686,11 +6729,12 @@ class DirectGateway(object):
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
             if self.opts.units.lower() == 'us':
-                c = weewx.units.StdUnitConverters[weewx.US]
+                _unit_system = weewx.US
             elif self.opts.units.lower() == 'metricwx':
-                c = weewx.units.StdUnitConverters[weewx.METRICWX]
+                _unit_system = weewx.METRICWX
             else:
-                c = weewx.units.StdUnitConverters[weewx.METRIC]
+                _unit_system = weewx.METRIC
+            c = weewx.units.StdUnitConverters[_unit_system]
             # Now get a formatter, we could use the
             # weewx.units.default_unit_format_dict but we need voltages
             # formatted to two decimal places. So take a copy of the default
@@ -6714,6 +6758,8 @@ class DirectGateway(object):
                 # and add the converted and formatted value to our dict
                 result[key] = key_vh.toString(None_string='None')
             # finally, sort our dict by key and print the data
+            print()
+            print("Displaying data using the WeeWX %s unit group." % weewx.units.unit_nicknames.get(_unit_system))
             print()
             print("%s live sensor data (%s): %s" % (collector.station.model,
                                                     weeutil.weeutil.timestamp_to_string(datetime),
