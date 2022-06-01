@@ -358,7 +358,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b4'
+DRIVER_VERSION = '0.5.0b5'
 
 # various defaults used throughout
 # default port used by device
