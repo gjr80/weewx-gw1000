@@ -57,6 +57,7 @@ import user.gw1000
 # TODO. Check utc_data data and result are correct
 # TODO. Check count_data data and result are correct
 # TODO. Add decode firmware check refer issue #31
+# TODO. Add check for each decode function in Gateway.sensor_ids
 
 TEST_SUITE_NAME = "Gateway driver"
 TEST_SUITE_VERSION = "0.5.0"
@@ -87,26 +88,26 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_volt(101), 2.02)
         self.assertEqual(self.sensors.batt_volt(255), 5.1)
 
-        # voltage battery states (method wh40_batt_volt_tenth())
+        # voltage battery states (method wh40_batt_volt())
         # first check if ignore_legacy_wh40_battery is True
         # legacy WH40
-        self.assertIsNone(self.sensors.wh40_batt_volt_tenth(0))
-        self.assertIsNone(self.sensors.wh40_batt_volt_tenth(15))
-        self.assertIsNone(self.sensors.wh40_batt_volt_tenth(19))
+        self.assertIsNone(self.sensors.wh40_batt_volt(0))
+        self.assertIsNone(self.sensors.wh40_batt_volt(15))
+        self.assertIsNone(self.sensors.wh40_batt_volt(19))
         # contemporary WH40
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(20), 0.20)
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(150), 1.50)
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(255), 2.55)
+        self.assertEqual(self.sensors.wh40_batt_volt(20), 0.20)
+        self.assertEqual(self.sensors.wh40_batt_volt(150), 1.50)
+        self.assertEqual(self.sensors.wh40_batt_volt(255), 2.55)
         # now check if ignore_legacy_wh40_battery is False
         self.sensors.ignore_wh40_batt = False
         # legacy WH40
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(0), 0.0)
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(15), 1.5)
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(19), 1.9)
+        self.assertEqual(self.sensors.wh40_batt_volt(0), 0.0)
+        self.assertEqual(self.sensors.wh40_batt_volt(15), 1.5)
+        self.assertEqual(self.sensors.wh40_batt_volt(19), 1.9)
         # contemporary WH40
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(20), 0.20)
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(150), 1.50)
-        self.assertEqual(self.sensors.wh40_batt_volt_tenth(255), 2.55)
+        self.assertEqual(self.sensors.wh40_batt_volt(20), 0.20)
+        self.assertEqual(self.sensors.wh40_batt_volt(150), 1.50)
+        self.assertEqual(self.sensors.wh40_batt_volt(255), 2.55)
 
         # voltage battery states (method batt_volt_tenth())
         self.assertEqual(self.sensors.batt_volt_tenth(0), 0.00)

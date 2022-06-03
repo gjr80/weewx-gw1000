@@ -5330,7 +5330,7 @@ class GatewayCollector(Collector):
                             return "OK"
                         else:
                             return 'Unknown'
-                    elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt_tenth']:
+                    elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt']:
                         if value <= 1.2:
                             return "low"
                         else:
@@ -5372,7 +5372,7 @@ class GatewayCollector(Collector):
 
             return round(0.02 * batt, 2)
 
-        def wh40_batt_volt_tenth(self, batt):
+        def wh40_batt_volt(self, batt):
             """Decode WH40 battery state.
 
             Initial WH40 devices did not provide battery state information. API
