@@ -1409,6 +1409,29 @@ class Gw1000TestCase(unittest.TestCase):
     mock_sys_params_resp = b'\xff\xff0\x0b\x00\x01b7\rj^\x02\xac'
     # mocked get_firmware() response
     mock_get_firm_resp = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+    # mocked get_sensor_id() response
+    mock_sensor_id_resp = 'FF FF 3C 01 54 00 FF FF FF FE FF 00 01 FF FF FF ' \
+                          'FE FF 00 02 FF FF FF FE FF 00 03 FF FF FF FE 1F ' \
+                          '00 05 00 00 00 E4 00 04 06 00 00 00 5B 00 04 07 ' \
+                          '00 00 00 BE 00 04 08 00 00 00 D0 00 04 09 00 00 ' \
+                          '00 52 00 04 0A 00 00 00 6C 00 04 0B 00 00 00 C8 ' \
+                          '00 04 0C 00 00 00 EE 00 04 0D FF FF FF FE 00 00 ' \
+                          '0E 00 00 CD 19 0D 04 0F 00 00 CB D1 0D 04 10 FF ' \
+                          'FF FF FE 1F 00 11 00 00 CD 04 1F 00 12 FF FF FF ' \
+                          'FE 1F 00 13 FF FF FF FE 1F 00 14 FF FF FF FE 1F ' \
+                          '00 15 FF FF FF FE 1F 00 16 00 00 C4 97 06 04 17 ' \
+                          'FF FF FF FE 0F 00 18 FF FF FF FE 0F 00 19 FF FF ' \
+                          'FF FE 0F 00 1A 00 00 D3 D3 05 00 1B FF FF FF FE ' \
+                          '0F 00 1C FF FF FF FE 0F 00 1D FF FF FF FE 0F 00 ' \
+                          '1E FF FF FF FE 0F 00 1F 00 00 2A E7 40 04 20 FF ' \
+                          'FF FF FE FF 00 21 FF FF FF FE FF 00 22 FF FF FF ' \
+                          'FE FF 00 23 FF FF FF FE FF 00 24 FF FF FF FE FF ' \
+                          '00 25 FF FF FF FE FF 00 26 FF FF FF FE FF 00 27 ' \
+                          'FF FF FF FE 0F 00 28 FF FF FF FE FF 00 29 FF FF ' \
+                          'FF FE FF 00 2A FF FF FF FE FF 00 2B FF FF FF FE ' \
+                          'FF 00 2C FF FF FF FE FF 00 2D FF FF FF FE FF 00 ' \
+                          '2E FF FF FF FE FF 00 2F FF FF FF FE FF 00 30 FF ' \
+                          'FF FF FE FF 00 F4'
 
     @classmethod
     def setUpClass(cls):
@@ -1441,10 +1464,11 @@ class Gw1000TestCase(unittest.TestCase):
         # save the service config dict for use later
         cls.gw1000_svc_config = config
 
+    @patch.object(user.gw1000.GatewayCollector.Station, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_system_params')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
-    def test_map(self, mock_get_mac, mock_get_firmware, mock_get_sys):
+    def test_map(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test GW1000Service GW1000 to WeeWX mapping
 
         Tests:
@@ -1460,6 +1484,8 @@ class Gw1000TestCase(unittest.TestCase):
         mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
         # get_system_params() - system parameters (bytestring)
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(Gw1000TestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # get a mapped  version of our GW1000 test data
@@ -1471,10 +1497,11 @@ class Gw1000TestCase(unittest.TestCase):
         # check that the usUnits field is set to weewx.METRICWX
         self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
 
+    @patch.object(user.gw1000.GatewayCollector.Station, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_system_params')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
-    def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys):
+    def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test GW1000Service correctly calculates WeeWX field rain
 
         Tests:
@@ -1488,7 +1515,10 @@ class Gw1000TestCase(unittest.TestCase):
         mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
+        # get_system_params - system parameters (bytestring)
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(Gw1000TestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # set some GW1000 service parameters to enable rain related tests
@@ -1521,10 +1551,11 @@ class Gw1000TestCase(unittest.TestCase):
                                6.4,
                                places=3)
 
+    @patch.object(user.gw1000.GatewayCollector.Station, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_system_params')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
-    def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys):
+    def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
 
         Tests:
@@ -1540,7 +1571,10 @@ class Gw1000TestCase(unittest.TestCase):
         mock_get_mac.return_value = Gw1000TestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
+        # get_system_params - system parameters (bytestring)
         mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(Gw1000TestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # take a copy of our test data as we will be changing it
