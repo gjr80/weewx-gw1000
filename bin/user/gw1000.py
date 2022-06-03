@@ -5410,8 +5410,7 @@ class GatewayCollector(Collector):
             with <=1.2V considered low.
             """
 
-            return None
-            # return round(0.1 * batt, 1)
+            return round(0.1 * batt, 1)
 
 
 # ============================================================================
