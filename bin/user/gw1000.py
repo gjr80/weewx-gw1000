@@ -2048,7 +2048,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                'is %d seconds' % (self.max_tries,
                                   self.retry_wait))
         logdbg('GatewayDriver: broadcast address is %s:%d, broadcast '
-               'timeout is %d seconds' % (self.broadcast_address,
+               'timeout is %d seconds' % (self.broadcast_address.decode(),
                                           self.broadcast_port,
                                           self.broadcast_timeout))
         logdbg('GatewayDriver: socket timeout is %d seconds' % self.socket_timeout)
@@ -3593,9 +3593,9 @@ class GatewayCollector(Collector):
                 s.connect((self.ip_address, self.port))
                 # if required log the packet we are sending
                 if weewx.debug >= 3:
-                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                               self.ip_address.decode(),
-                                                               self.port))
+                    logdbg("Sending packet '%s' to %s:%d" % (bytes_to_hex(packet),
+                                                             self.ip_address.decode(),
+                                                             self.port))
                 # send the packet
                 s.sendall(packet)
                 # obtain the response, we assume here the response will be less
