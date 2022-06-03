@@ -88,9 +88,22 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_volt(255), 5.1)
 
         # voltage battery states (method wh40_batt_volt_tenth())
+        # first check if ignore_legacy_wh40_battery is True
+        # legacy WH40
         self.assertIsNone(self.sensors.wh40_batt_volt_tenth(0))
         self.assertIsNone(self.sensors.wh40_batt_volt_tenth(15))
         self.assertIsNone(self.sensors.wh40_batt_volt_tenth(19))
+        # contemporary WH40
+        self.assertEqual(self.sensors.wh40_batt_volt_tenth(20), 0.20)
+        self.assertEqual(self.sensors.wh40_batt_volt_tenth(150), 1.50)
+        self.assertEqual(self.sensors.wh40_batt_volt_tenth(255), 2.55)
+        # now check if ignore_legacy_wh40_battery is False
+        self.sensors.ignore_wh40_batt = False
+        # legacy WH40
+        self.assertEqual(self.sensors.wh40_batt_volt_tenth(0), 0.0)
+        self.assertEqual(self.sensors.wh40_batt_volt_tenth(15), 1.5)
+        self.assertEqual(self.sensors.wh40_batt_volt_tenth(19), 1.9)
+        # contemporary WH40
         self.assertEqual(self.sensors.wh40_batt_volt_tenth(20), 0.20)
         self.assertEqual(self.sensors.wh40_batt_volt_tenth(150), 1.50)
         self.assertEqual(self.sensors.wh40_batt_volt_tenth(255), 2.55)
