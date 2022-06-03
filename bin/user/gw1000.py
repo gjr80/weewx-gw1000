@@ -79,8 +79,8 @@ Revision History
         -   removed gateway device field 't_rainhour' from the default field
             map
         -   --live-data output now indicates the unit group being used
-        -   fake battery state data received from WH40 devices that do not emit
-            battery state is now ignored
+        -   battery state data received from WH40 devices that do not emit
+            battery state is now ignored by default and the value None returned
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -830,6 +830,10 @@ class Gateway(object):
         # outdoor TH data but in terms of battery state we need to know so the
         # battery state data can be reported against the correct sensor.
         use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', True))
+        # do we ignore battery state data from legacy WH40 sensors that do not
+        # provide valid battery state data
+        ignore_wh40_batt = weeutil.weeutil.tobool(gw_config.get('ignore_legacy_wh40_battery',
+                                                                True))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
         self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
@@ -863,6 +867,7 @@ class Gateway(object):
                                           max_tries=self.max_tries,
                                           retry_wait=self.retry_wait,
                                           use_wh32=use_wh32,
+                                          ignore_wh40_batt=ignore_wh40_batt,
                                           show_battery=self.show_battery,
                                           log_unknown_fields=log_unknown_fields,
                                           debug_rain=self.debug_rain,
@@ -2385,8 +2390,9 @@ class GatewayCollector(Collector):
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_wh32=True, show_battery=False, log_unknown_fields=False,
-                 debug_rain=False, debug_wind=False, debug_sensors=False):
+                 use_wh32=True, ignore_wh40_batt=True, show_battery=False,
+                 log_unknown_fields=False, debug_rain=False, debug_wind=False,
+                 debug_sensors=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2432,7 +2438,8 @@ class GatewayCollector(Collector):
                                               debug_rain=debug_rain,
                                               debug_wind=debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = GatewayCollector.Sensors(show_battery=show_battery,
+        self.sensors_obj = GatewayCollector.Sensors(ignore_wh40_batt=ignore_wh40_batt,
+                                                    show_battery=show_battery,
                                                     debug_sensors=debug_sensors)
         # create a thread property
         self.thread = None
@@ -3059,7 +3066,7 @@ class GatewayCollector(Collector):
             data payload whereby the first character of the device AP SSID is a
             non-printable ASCII character. The WSView app appears to ignore or
             not display this character nor does it appear to be used elsewhere.
-            Consequently this character is ignored.
+            Consequently, this character is ignored.
 
             raw_data:   a bytestring containing a validated (structure and
                         checksum verified) raw data response to the
@@ -5125,9 +5132,13 @@ class GatewayCollector(Collector):
         # the sensor is registering.
         not_registered = ('fffffffe', 'ffffffff')
 
-        def __init__(self, sensor_id_data=None, show_battery=False, debug_sensors=False):
+        def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
+                     show_battery=False, debug_sensors=False):
             """Initialise myself"""
 
+            # do we ignore battery state data from legacy WH40 sensors that do
+            # not provide valid battery state data
+            self.ignore_wh40_batt = ignore_wh40_batt
             # set the show_battery property
             self.show_battery = show_battery
             # initialise a dict to hold the parsed sensor data
@@ -5348,8 +5359,7 @@ class GatewayCollector(Collector):
 
             return round(0.02 * batt, 2)
 
-        @staticmethod
-        def wh40_batt_volt_tenth(batt):
+        def wh40_batt_volt_tenth(self, batt):
             """Decode WH40 battery state.
 
             Initial WH40 devices did not provide battery state information. API
@@ -5380,8 +5390,14 @@ class GatewayCollector(Collector):
             """
 
             if round(0.1 * batt, 1) < 2.0:
-                # assume we have a non-battery state reporting WH40
-                return None
+                # assume we have a non-battery state reporting WH40, do we
+                # ignore the result or pass it on
+                if self.ignore_wh40_batt:
+                    # we are ignoring the result so return None
+                    return None
+                else:
+                    # we are not ignoring the result so return the result
+                    return round(0.1 * batt, 1)
             else:
                 # assume we have a battery state reporting WH40
                 return round(0.01 * batt, 2)
