@@ -33,6 +33,12 @@ v0.5.0
     CMD_READ_RAIN response
 -   fix issue where day rain and week rain use a different format in
     CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
+-   fix issue where sensor ID is incorrectly displayed for sensors with an ID
+    ending in one or more zeros (issue 48)
+-   removed gateway device field 't_rainhour' from the default field map
+-   --live-data output now indicates the unit group being used
+-   fake battery state data received from WH40 devices that do not emit battery
+    state is now ignored
 v0.4.2
 *   fix bug in Station.rediscover()
 v0.4.1
