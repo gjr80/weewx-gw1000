@@ -2441,6 +2441,17 @@ class GatewayCollector(Collector):
         self.sensors_obj = GatewayCollector.Sensors(ignore_wh40_batt=ignore_wh40_batt,
                                                     show_battery=show_battery,
                                                     debug_sensors=debug_sensors)
+        # update the sensors object
+        self.update_sensor_id_data()
+        # do we have a legacy WH40 and how are we handling its battery state
+        # data
+        if b'\x03' in self.sensors_obj.connected_addresses and self.sensors_obj.legacy_wh40:
+            # we have a connected legacy WH40
+            if ignore_wh40_batt:
+                _msg = 'Legacy WH40 detected, WH40 battery state data will be ignored'
+            else:
+                _msg = 'Legacy WH40 detected, WH40 battery state data will be reported'
+            loginf(_msg)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -5141,6 +5152,8 @@ class GatewayCollector(Collector):
             self.ignore_wh40_batt = ignore_wh40_batt
             # set the show_battery property
             self.show_battery = show_battery
+            # initialise legacy WH40 flag
+            self.legacy_wh40 = None
             # initialise a dict to hold the parsed sensor data
             self.sensor_data = dict()
             # parse the raw sensor ID data and store the results in my parsed
@@ -5390,8 +5403,10 @@ class GatewayCollector(Collector):
             """
 
             if round(0.1 * batt, 1) < 2.0:
-                # assume we have a non-battery state reporting WH40, do we
-                # ignore the result or pass it on
+                # assume we have a non-battery state reporting WH40
+                # first set the legacy_wh40 flag
+                self.legacy_wh40 = True
+                # then do we ignore the result or pass it on
                 if self.ignore_wh40_batt:
                     # we are ignoring the result so return None
                     return None
@@ -5400,6 +5415,8 @@ class GatewayCollector(Collector):
                     return round(0.1 * batt, 1)
             else:
                 # assume we have a battery state reporting WH40
+                # first reset the legacy_wh40 flag
+                self.legacy_wh40 = False
                 return round(0.01 * batt, 2)
 
         @staticmethod
