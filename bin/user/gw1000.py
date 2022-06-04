@@ -192,6 +192,18 @@ GW1100/GW2000 using firmware v2.1.4 do not. If field 0x7A data is available the
 Ecowitt Gateway driver uses the data when running the driver directly with the
 --get-all-rain-data command line option.
 
+3.  WH40 battery state data contained in the CMD_READ_SENSOR_ID_NEW response is
+documented as a single byte representing 10x the battery voltage. However,
+Ecowitt has confirmed that early WH40 hardware does not send any battery state
+data. Whilst no battery state data is transmitted by early WH40 hardware, the
+API reports a value of 0x10 (decodes to 1.6V) for these devices. Ecowitt has
+also confirmed that later revisions of the WH40 do in fact report battery state
+data. However, anecdotal evidence shows that the battery state is reported as
+100x the battery voltage not 10x as stated in the API documentation.
+Consequently, the Ecowitt Gateway driver now discards the bogus 0x10 battery
+data (1.6V) reported by early WH40 hardware and WH40 battery voltage is
+reported as None for these devices. Battery state data for later WH40 hardware
+that does report battery voltage is decoded and passed through to WeeWX.
 
 Before using this driver:
 
