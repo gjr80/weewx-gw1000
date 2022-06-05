@@ -34,7 +34,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b5                                    Date: 1 June 2022
+Version: 0.5.0b5                                    Date: ?? June 2022
 
 Revision History
     ?? June 2022           v0.5.0
