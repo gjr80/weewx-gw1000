@@ -10,11 +10,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                       Installer for Ecowitt Gateway Driver
 
-Version: 0.5.0b4                                      Date: ?? May 2022
+Version: 0.5.0b5                                      Date: ?? June 2022
 
 Revision History
-    ?? May 2022         v0.5.0
+    ?? June 2022        v0.5.0
         -   changed descriptive name of extension
+        -   changed reference to 'GW1000 driver' to 'Ecowitt gateway driver'
         -   redesignated WH35 as WN35
         -   added accumulator extractor entries for WN34 and WS90 battery and
             signal state data
@@ -54,7 +55,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.5.0b4"
+GW1000_VERSION = "0.5.0b5"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -377,7 +378,7 @@ def loader():
 class Gw1000Installer(ExtensionInstaller):
     def __init__(self):
         if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
-            msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('GW1000 driver ', GW1000_VERSION)),
+            msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('Ecowitt gateway driver ', GW1000_VERSION)),
                                                                  REQUIRED_VERSION,
                                                                  weewx.__version__)
             raise weewx.UnsupportedFeature(msg)
