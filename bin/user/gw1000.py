@@ -34,10 +34,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b4                                    Date: ?? May 2022
+Version: 0.5.0b5                                    Date: ?? June 2022
 
 Revision History
-    ?? May 2022            v0.5.0
+    ?? June 2022           v0.5.0
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
@@ -76,6 +76,16 @@ Revision History
             CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
         -   fix issue where sensor ID is incorrectly displayed for sensors with
             an ID ending in one or more zeros (issue 48)
+        -   removed gateway device field 't_rainhour' from the default field
+            map
+        -   --live-data output now indicates the unit group being used
+        -   battery state data received from WH40 devices that do not emit
+            battery state is now ignored by default and the value None returned
+        -   rename a number of calibration/offset related command line options
+            to better align with the labels/names now used in the WSView Plus
+            app v2.0.32
+        -   implement --get-mulch-t-cal command line option to display WN34
+            temperature calibration data
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -187,6 +197,28 @@ GW1100/GW2000 using firmware v2.1.4 do not. If field 0x7A data is available the
 Ecowitt Gateway driver uses the data when running the driver directly with the
 --get-all-rain-data command line option.
 
+3.  WH40 battery state data contained in the CMD_READ_SENSOR_ID_NEW response is
+documented as a single byte representing 10x the battery voltage. However,
+Ecowitt has confirmed that early WH40 hardware does not send any battery state
+data. Whilst no battery state data is transmitted by early WH40 hardware, the
+API reports a value of 0x10 (decodes to 1.6V) for these devices. Ecowitt has
+also confirmed that later revisions of the WH40 do in fact report battery state
+data. However, anecdotal evidence shows that the battery state is reported as
+100x the battery voltage not 10x as stated in the API documentation.
+Consequently, the Ecowitt Gateway driver now discards the bogus 0x10 battery
+data (1.6V) reported by early WH40 hardware and WH40 battery voltage is
+reported as None for these devices. Battery state data for later WH40 hardware
+that does report battery voltage is decoded and passed through to WeeWX.
+
+4.  Yet to released/named API command code 0x59 provides @N34 temperature
+calibration data. Calibration data is provided in standardised Ecowitt gateway
+device API response packet. Packet uses two bytes for packet size. Header,
+command code and checksum are standard values/formats. Data structure is two
+bytes per sensor, first byte is sensor address (0x63 to 0x6A) and second byte
+is tenths C calibration value. Calibration value may be from +10C to -10C. Data
+is included only for connected sensors. This support should be considered
+experimental.
+
 
 Before using this driver:
 
@@ -243,7 +275,7 @@ or --test-service command line options can be used to confirm correct operation
 of the Ecowitt Gateway driver as a driver or as a service respectively.
 
 
-Installing and CConfiguring the Ecowitt Gateway Driver
+Installing and Configuring the Ecowitt Gateway Driver
 
 Refer to the included readme.txt for basic installation instructions. Refer to
 the Ecowitt Gateway driver wiki (https://github.com/gjr80/weewx-gw1000/wiki)
@@ -302,14 +334,18 @@ try:
 
     log = logging.getLogger(__name__)
 
+
     def logdbg(msg):
         log.debug(msg)
+
 
     def loginf(msg):
         log.info(msg)
 
+
     def logerr(msg):
         log.error(msg)
+
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -317,8 +353,10 @@ try:
     def log_traceback_critical(prefix=''):
         log_traceback(log.critical, prefix=prefix)
 
+
     def log_traceback_error(prefix=''):
         log_traceback(log.error, prefix=prefix)
+
 
     def log_traceback_debug(prefix=''):
         log_traceback(log.debug, prefix=prefix)
@@ -328,17 +366,22 @@ except ImportError:
     import syslog
     from weeutil.weeutil import log_traceback
 
+
     def logmsg(level, msg):
         syslog.syslog(level, 'gw1000: %s' % msg)
+
 
     def logdbg(msg):
         logmsg(syslog.LOG_DEBUG, msg)
 
+
     def loginf(msg):
         logmsg(syslog.LOG_INFO, msg)
 
+
     def logerr(msg):
         logmsg(syslog.LOG_ERR, msg)
+
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -346,14 +389,16 @@ except ImportError:
     def log_traceback_critical(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_CRIT)
 
+
     def log_traceback_error(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
+
 
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b4'
+DRIVER_VERSION = '0.5.0b5'
 
 # various defaults used throughout
 # default port used by device
@@ -572,7 +617,6 @@ class Gateway(object):
         'rain': 't_rain',
         'stormRain': 't_rainevent',
         'rainRate': 't_rainrate',
-        'hourRain': 't_rainhour',
         'dayRain': 't_rainday',
         'weekRain': 't_rainweek',
         'monthRain': 't_rainmonth',
@@ -826,6 +870,10 @@ class Gateway(object):
         # outdoor TH data but in terms of battery state we need to know so the
         # battery state data can be reported against the correct sensor.
         use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', True))
+        # do we ignore battery state data from legacy WH40 sensors that do not
+        # provide valid battery state data
+        ignore_wh40_batt = weeutil.weeutil.tobool(gw_config.get('ignore_legacy_wh40_battery',
+                                                                True))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
         self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
@@ -859,6 +907,7 @@ class Gateway(object):
                                           max_tries=self.max_tries,
                                           retry_wait=self.retry_wait,
                                           use_wh32=use_wh32,
+                                          ignore_wh40_batt=ignore_wh40_batt,
                                           show_battery=self.show_battery,
                                           log_unknown_fields=log_unknown_fields,
                                           debug_rain=self.debug_rain,
@@ -982,9 +1031,9 @@ class Gateway(object):
         period value for field rain. Try the 'big' (four byte) counters
         starting at the longest period and working our way down. This should
         only need be done once.
-        
-        This is further complicated by the introduction of 'piezo' rain with 
-        the WS90. Do a second round of checks on the piezo rain equivalents and 
+
+        This is further complicated by the introduction of 'piezo' rain with
+        the WS90. Do a second round of checks on the piezo rain equivalents and
         create piezo equivalent properties.
 
         data: dic of parsed device API data
@@ -1018,7 +1067,7 @@ class Gateway(object):
                 loginf("No suitable field found for rain")
 
         # now do the same for piezo rain
-        
+
         # Do we have a confirmed field to use for calculating piezo rain? If we
         # do we can skip this otherwise we need to look for one.
         if not self.piezo_rain_mapping_confirmed:
@@ -1050,10 +1099,10 @@ class Gateway(object):
         field between successive periods. 'rain' is only calculated if the
         field to be used has been selected and the designated field exists.
 
-        This is further complicated by the introduction of 'piezo' rain with 
-        the WS90. Do a second round of calculations on the piezo rain 
+        This is further complicated by the introduction of 'piezo' rain with
+        the WS90. Do a second round of calculations on the piezo rain
         equivalents and calculate the piezo rain field.
-        
+
         data: dict of parsed device API data
         """
 
@@ -1073,8 +1122,8 @@ class Gateway(object):
             self.last_rain = new_total
 
         # now do the same for piezo rain
-        
-        # have we decided on a field to use for piezo rain and is the field 
+
+        # have we decided on a field to use for piezo rain and is the field
         # present
         if self.piezo_rain_mapping_confirmed and self.piezo_rain_total_field in data:
             # yes on both counts, so get the new total
@@ -1947,7 +1996,6 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
     @staticmethod
     def modify_config(config_dict):
-
         import weecfg
 
         # set loop_on_init
@@ -1962,7 +2010,7 @@ indefinitely. Set to '0' to attempt startup once only or '1' to
 attempt startup indefinitely."""
         print()
         loop_on_init = int(weecfg.prompt_with_options(label, dflt, ['0', '1']))
-        loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init, )))
+        loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init,)))
         config_dict.merge(loop_on_init_dict)
         if len(config_dict.comments['loop_on_init']) == 0:
             config_dict.comments['loop_on_init'] = ['',
@@ -2039,7 +2087,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                'is %d seconds' % (self.max_tries,
                                   self.retry_wait))
         logdbg('GatewayDriver: broadcast address is %s:%d, broadcast '
-               'timeout is %d seconds' % (self.broadcast_address,
+               'timeout is %d seconds' % (self.broadcast_address.decode(),
                                           self.broadcast_port,
                                           self.broadcast_timeout))
         logdbg('GatewayDriver: socket timeout is %d seconds' % self.socket_timeout)
@@ -2095,7 +2143,8 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     if self.debug_loop:
                         if 'datetime' in queue_data:
                             loginf('GatewayDriver: Received %s data: %s %s' % (self.collector.station.model,
-                                                                               timestamp_to_string(queue_data['datetime']),
+                                                                               timestamp_to_string(
+                                                                                   queue_data['datetime']),
                                                                                natural_sort_dict(queue_data)))
                         else:
                             loginf('GatewayDriver: Received %s data: %s' % (self.collector.station.model,
@@ -2107,7 +2156,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # debug_rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
                             self.log_rain_data(queue_data,
-                                               'GatewayDriver: Received %s data'% self.collector.station.model)
+                                               'GatewayDriver: Received %s data' % self.collector.station.model)
                         if self.debug_wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
@@ -2135,7 +2184,8 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     if self.debug_loop:
                         if 'datetime' in mapped_data:
                             loginf('GatewayDriver: Mapped %s data: %s %s' % (self.collector.station.model,
-                                                                             timestamp_to_string(mapped_data['datetime']),
+                                                                             timestamp_to_string(
+                                                                                 mapped_data['datetime']),
                                                                              natural_sort_dict(mapped_data)))
                         else:
                             loginf('GatewayDriver: Mapped %s data: %s' % (self.collector.station.model,
@@ -2199,7 +2249,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                         else:
                             # it's not so log it
                             logerr('GatewayDriver: Caught unexpected exception %s: %s' % (e.__class__.__name__,
-                                                                                         e))
+                                                                                          e))
                             # then raise it, WeeWX will decide what to do
                             raise e
                 # if it's None then its a signal the Collector needs to shutdown
@@ -2310,7 +2360,7 @@ class GatewayCollector(Collector):
         b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
         b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
         b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
-        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'batt_volt_tenth'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'wh40_batt_volt'},
         b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
         b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
         b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
@@ -2381,8 +2431,9 @@ class GatewayCollector(Collector):
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
-                 use_wh32=True, show_battery=False, log_unknown_fields=False,
-                 debug_rain=False, debug_wind=False, debug_sensors=False):
+                 use_wh32=True, ignore_wh40_batt=True, show_battery=False,
+                 log_unknown_fields=False, debug_rain=False, debug_wind=False,
+                 debug_sensors=False):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2428,8 +2479,20 @@ class GatewayCollector(Collector):
                                               debug_rain=debug_rain,
                                               debug_wind=debug_wind)
         # get a sensors object to handle sensor ID data
-        self.sensors_obj = GatewayCollector.Sensors(show_battery=show_battery,
+        self.sensors_obj = GatewayCollector.Sensors(ignore_wh40_batt=ignore_wh40_batt,
+                                                    show_battery=show_battery,
                                                     debug_sensors=debug_sensors)
+        # update the sensors object
+        self.update_sensor_id_data()
+        # do we have a legacy WH40 and how are we handling its battery state
+        # data
+        if b'\x03' in self.sensors_obj.connected_addresses and self.sensors_obj.legacy_wh40:
+            # we have a connected legacy WH40
+            if ignore_wh40_batt:
+                _msg = 'Legacy WH40 detected, WH40 battery state data will be ignored'
+            else:
+                _msg = 'Legacy WH40 detected, WH40 battery state data will be reported'
+            loginf(_msg)
         # create a thread property
         self.thread = None
         # we start off not collecting data, it will be turned on later when we
@@ -2578,6 +2641,15 @@ class GatewayCollector(Collector):
         response = self.station.get_mulch_offset()
         # return the parsed response
         return self.parser.parse_get_mulch_offset(response)
+
+    @property
+    def mulch_t_offset(self):
+        """Obtain device multi-channel temperature (WN34) offset data."""
+
+        # obtain the mulch offset data via the API
+        response = self.station.get_mulch_t_offset()
+        # return the parsed response
+        return self.parser.parse_get_mulch_t_offset(response)
 
     @property
     def pm25_offset(self):
@@ -2848,7 +2920,8 @@ class GatewayCollector(Collector):
             'CMD_READ_RSTRAIN_TIME': b'\x55',
             'CMD_WRITE_RSTRAIN_TIME': b'\x56',
             'CMD_READ_RAIN': b'\x57',
-            'CMD_WRITE_RAIN': b'\x58'
+            'CMD_WRITE_RAIN': b'\x58',
+            'CMD_GET_MulCH_T_OFFSET': b'\x59'
         }
         # header used in each API command and response packet
         header = b'\xff\xff'
@@ -3055,7 +3128,7 @@ class GatewayCollector(Collector):
             data payload whereby the first character of the device AP SSID is a
             non-printable ASCII character. The WSView app appears to ignore or
             not display this character nor does it appear to be used elsewhere.
-            Consequently this character is ignored.
+            Consequently, this character is ignored.
 
             raw_data:   a bytestring containing a validated (structure and
                         checksum verified) raw data response to the
@@ -3376,6 +3449,18 @@ class GatewayCollector(Collector):
 
             return self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
 
+        def get_mulch_t_offset(self):
+            """Get multichannel temperature (WN34) offset data.
+
+            Sends the API command to obtain the multichannel temperature (WN34)
+            offset data with retries. If the device cannot be contacted a
+            GWIOError will have been raised by send_cmd_with_retries() which
+            will be passed through by get_mulch_t_offset(). Any code calling
+            get_mulch_t_offset() should be prepared to handle this exception.
+            """
+
+            return self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
+
         def get_pm25_offset(self):
             """Get PM2.5 offset data.
 
@@ -3582,9 +3667,9 @@ class GatewayCollector(Collector):
                 s.connect((self.ip_address, self.port))
                 # if required log the packet we are sending
                 if weewx.debug >= 3:
-                    logdbg("Sending packet '%s' to '%s:%d'" % (bytes_to_hex(packet),
-                                                               self.ip_address.decode(),
-                                                               self.port))
+                    logdbg("Sending packet '%s' to %s:%d" % (bytes_to_hex(packet),
+                                                             self.ip_address.decode(),
+                                                             self.port))
                 # send the packet
                 s.sendall(packet)
                 # obtain the response, we assume here the response will be less
@@ -4171,6 +4256,52 @@ class GatewayCollector(Collector):
             return offset_dict
 
         @staticmethod
+        def parse_get_mulch_t_offset(response):
+            """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
+
+            Response consists of a variable number of bytes determined by the
+            connected sensors. Decode as follows:
+            Byte(s)     Data            Format          Comments
+            1-2         header          -               fixed header 0xFFFF
+            3           command code    byte            0x59
+            4-5         size            unsigned short
+            ....
+            6-2nd last byte
+                two bytes per connected WN34 sensor:
+                        address         byte            sensor address, 0x63 to
+                                                        0x6A incl
+                        temp offset     signed byte     -100 to +100 in tenths C
+                                                        (-10.0 to +10.0)
+            ....
+            last byte   checksum        byte            LSB of the sum of the
+                                                        command, size and data
+                                                        bytes
+            """
+
+            # obtain the payload size, it's a big endian short (two byte) integer
+            size = struct.unpack(">H", response[3:5])[0]
+            loginf("size=%s" % size)
+            # extract the actual data
+            data = response[5:5 + size - 4]
+            loginf("data=%s len(data)=%s" % (bytes_to_hex(data), len(data)))
+            # initialise a counter
+            index = 0
+            # initialise a dict to hold our parsed data
+            offset_dict = {}
+            # iterate over the data
+            while index < len(data):
+                try:
+                    channel = six.byte2int(data[index])
+                except TypeError:
+                    channel = data[index]
+                try:
+                    offset_dict[channel] = struct.unpack("b", data[index + 1])[0] / 10.0
+                except TypeError:
+                    offset_dict[channel] = struct.unpack("b", six.int2byte(data[index + 1]))[0] / 10.0
+                index += 2
+            return offset_dict
+
+        @staticmethod
         def parse_get_pm25_offset(response):
             """Parse data from a CMD_GET_PM25_OFFSET API response.
 
@@ -4205,7 +4336,7 @@ class GatewayCollector(Collector):
                     channel = six.byte2int(data[index])
                 except TypeError:
                     channel = data[index]
-                offset_dict[channel] = struct.unpack(">h", data[index+1:index+3])[0]/10.0
+                offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
                 index += 3
             return offset_dict
 
@@ -5048,7 +5179,7 @@ class GatewayCollector(Collector):
             if len(data) == 20:
                 results = dict()
                 for gain in range(10):
-                    results['gain%d' % gain] = self.decode_gain_100(data[gain*2:gain*2+2])
+                    results['gain%d' % gain] = self.decode_gain_100(data[gain * 2:gain * 2 + 2])
                 return results
             return {}
 
@@ -5121,11 +5252,17 @@ class GatewayCollector(Collector):
         # the sensor is registering.
         not_registered = ('fffffffe', 'ffffffff')
 
-        def __init__(self, sensor_id_data=None, show_battery=False, debug_sensors=False):
+        def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
+                     show_battery=False, debug_sensors=False):
             """Initialise myself"""
 
+            # do we ignore battery state data from legacy WH40 sensors that do
+            # not provide valid battery state data
+            self.ignore_wh40_batt = ignore_wh40_batt
             # set the show_battery property
             self.show_battery = show_battery
+            # initialise legacy WH40 flag
+            self.legacy_wh40 = None
             # initialise a dict to hold the parsed sensor data
             self.sensor_data = dict()
             # parse the raw sensor ID data and store the results in my parsed
@@ -5302,7 +5439,7 @@ class GatewayCollector(Collector):
                             return "OK"
                         else:
                             return 'Unknown'
-                    elif batt_fn == 'batt_volt' or batt_fn == 'batt_volt_tenth':
+                    elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt']:
                         if value <= 1.2:
                             return "low"
                         else:
@@ -5343,6 +5480,53 @@ class GatewayCollector(Collector):
             """
 
             return round(0.02 * batt, 2)
+
+        def wh40_batt_volt(self, batt):
+            """Decode WH40 battery state.
+
+            Initial WH40 devices did not provide battery state information. API
+            versions up to and including v.1.6.4 reported WH40 battery state
+            via a single bit. API v1.6.5 and later report WH40 battery state in
+            a single byte in 100mV increments. It appears that API v1.6.5 and
+            later return a fixed value of 0x10 (decodes to 1.6V) for WH40
+            battery state for WH40 devices that do not report battery state.
+            WH40 devices that do report battery state appear to return a value
+            in a single byte in 10mV increments rather than 100mV increments as
+            documented in the Ecowitt LAN/Wi-Fi Gateway API
+            documentation v1.6.4. There is no known way to identify via the API
+            whether a given WH40 reports battery state information or not.
+
+            Consequently, decoding of WH40 battery state data is handled as
+            follows:
+
+            -   the WH40 battery state data is decoded as per the API
+                documentation as a value in 100mV increments
+            -   if the decoded value is <2.0V the device is assumed to be a
+                non-battery state reporting WH40 and the value None is returned
+            -   if the decoded value is >=2.0V the device is assumed to be a
+                battery state reporting WH40 and the value returned is the WH40
+                battery state data decoded in 10mV increments
+
+            For WH40 that report battery state data a decoded value of <=1.2V
+            is considered low.
+            """
+
+            if round(0.1 * batt, 1) < 2.0:
+                # assume we have a non-battery state reporting WH40
+                # first set the legacy_wh40 flag
+                self.legacy_wh40 = True
+                # then do we ignore the result or pass it on
+                if self.ignore_wh40_batt:
+                    # we are ignoring the result so return None
+                    return None
+                else:
+                    # we are not ignoring the result so return the result
+                    return round(0.1 * batt, 1)
+            else:
+                # assume we have a battery state reporting WH40
+                # first reset the legacy_wh40 flag
+                self.legacy_wh40 = False
+                return round(0.01 * batt, 2)
 
         @staticmethod
         def batt_volt_tenth(batt):
@@ -5861,6 +6045,8 @@ class DirectGateway(object):
             self.get_all_rain_data()
         elif self.opts.get_mulch_offset:
             self.get_mulch_offset()
+        elif self.opts.get_temp_calibration:
+            self.get_mulch_t_offset()
         elif self.opts.get_pm25_offset:
             self.get_pm25_offset()
         elif self.opts.get_co2_offset:
@@ -6058,7 +6244,8 @@ class DirectGateway(object):
             if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
                 _data = rain_data.get('t_rainrate', None)
-                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = "%.1fmm/hr (%.1fin/hr)" % (
+                _data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
                 _data = rain_data.get('t_rainevent', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
@@ -6081,7 +6268,8 @@ class DirectGateway(object):
             if any(field in rain_data for field in piezo):
                 print("    Piezo rain data:")
                 _data = rain_data.get('p_rainrate', None)
-                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = "%.1fmm/hr (%.1fin/hr)" % (
+                _data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
                 _data = rain_data.get('p_rainevent', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
@@ -6168,6 +6356,60 @@ class DirectGateway(object):
                 print()
                 print("%s did not respond." % collector.station.model)
 
+    def get_mulch_t_offset(self):
+        """Display device multichannel temperature (WN34) offset data.
+
+        Obtain and display the multichannel temperature (WN34) offset data from
+        the selected device. The device IP address and port are derived (in
+        order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # wrap in a try..except in case there is an error
+        try:
+            # get a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
+            # identify the device being used
+            print()
+            print("Interrogating %s at %s:%d" % (collector.station.model,
+                                                 collector.station.ip_address.decode(),
+                                                 collector.station.port))
+            # get the mulch temp offset data from the collector object's
+            # mulch_offset property
+            mulch_t_offset_data = collector.mulch_t_offset
+        except GWIOError as e:
+            print()
+            print("Unable to connect to device: %s" % e)
+        except socket.timeout:
+            print()
+            print("Timeout. %s did not respond." % collector.station.model)
+        else:
+            # did we get any mulch temp offset data
+            if mulch_t_offset_data is not None:
+                print()
+                print("Multi-channel Temperature Calibration")
+                # do we have any results to display?
+                if len(mulch_t_offset_data) > 0:
+                    # we have results, now format and display the data
+                    # iterate over each channel for which we have data
+                    for channel in mulch_t_offset_data:
+                        # print the channel and offset data
+                        mulch_str = "    Channel %d: Temperature offset: %5s"
+                        # the API returns channels starting at 0x63, but the WSView
+                        # Plus app displays channels starting at 1, so subtract
+                        # 0x62 (or 98) from our channel number
+                        print(mulch_str % (channel - 98,
+                                           "%2.1f" % mulch_t_offset_data[channel]))
+                else:
+                    # we have no results, so display a suitable message
+                    print("    No Multi-channel temperature sensors found")
+            else:
+                print()
+                print("%s did not respond." % collector.station.model)
+
     def get_pm25_offset(self):
         """Display the device PM2.5 offset data.
 
@@ -6248,7 +6490,7 @@ class DirectGateway(object):
                 print()
                 print("CO2 Calibration")
                 print("%16s: %5s" % ("CO2 offset", "%2.1f" % co2_offset_data['co2']))
-                print("%16s: %5s" % ("PM10 offset","%2.1f" % co2_offset_data['pm10']))
+                print("%16s: %5s" % ("PM10 offset", "%2.1f" % co2_offset_data['pm10']))
                 print("%16s: %5s" % ("PM2.5 offset", "%2.1f" % co2_offset_data['pm25']))
             else:
                 print()
@@ -6289,16 +6531,15 @@ class DirectGateway(object):
                 # now format and display the data
                 print()
                 print("Calibration")
-                print("%26s: %4.1f" % ("Solar radiation gain", calibration_data['solar']))
+                print("%26s: %5.2f" % ("Irradiance gain", calibration_data['solar']))
                 print("%26s: %4.1f" % ("UV gain", calibration_data['uv']))
                 print("%26s: %4.1f" % ("Wind gain", calibration_data['wind']))
-                print("%26s: %4.1f" % ("Rain gain", calibration_data['rain']))
                 print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['intemp'], u'\xb0'))
                 print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['inhum']))
-                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
-                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
                 print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['outtemp'], u'\xb0'))
                 print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['outhum']))
+                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
+                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
                 print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
             else:
                 print()
@@ -6686,11 +6927,12 @@ class DirectGateway(object):
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
             if self.opts.units.lower() == 'us':
-                c = weewx.units.StdUnitConverters[weewx.US]
+                _unit_system = weewx.US
             elif self.opts.units.lower() == 'metricwx':
-                c = weewx.units.StdUnitConverters[weewx.METRICWX]
+                _unit_system = weewx.METRICWX
             else:
-                c = weewx.units.StdUnitConverters[weewx.METRIC]
+                _unit_system = weewx.METRIC
+            c = weewx.units.StdUnitConverters[_unit_system]
             # Now get a formatter, we could use the
             # weewx.units.default_unit_format_dict but we need voltages
             # formatted to two decimal places. So take a copy of the default
@@ -6714,6 +6956,8 @@ class DirectGateway(object):
                 # and add the converted and formatted value to our dict
                 result[key] = key_vh.toString(None_string='None')
             # finally, sort our dict by key and print the data
+            print()
+            print("Displaying data using the WeeWX %s unit group." % weewx.units.unit_nicknames.get(_unit_system))
             print()
             print("%s live sensor data (%s): %s" % (collector.station.model,
                                                     weeutil.weeutil.timestamp_to_string(datetime),
@@ -7079,8 +7323,9 @@ def main():
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]
-       python -m user.gw1000 --get-mulch-offset|--get-pm25-offset|
-            --get-calibration|--get-soil-calibration|--get-co2-offset
+       python -m user.gw1000 --get-calibration|--get-mulch-th-cal|
+            --get-mulch-soil-cal|--get-mulch-t-cal|
+            --get-pm25-cal|--get-co2-cal
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--debug=0|1|2|3]
@@ -7121,22 +7366,25 @@ def main():
     parser.add_option('--get-all-rain-data', dest='get_all_rain', action='store_true',
                       help='display device traditional, piezo and rain reset '
                            'time data')
-    parser.add_option('--get-mulch-offset', dest='get_mulch_offset',
-                      action='store_true',
-                      help='display device multi-channel temperature and '
-                      'humidity offset data')
-    parser.add_option('--get-pm25-offset', dest='get_pm25_offset',
-                      action='store_true',
-                      help='display device PM2.5 offset data')
-    parser.add_option('--get-co2-offset', dest='get_co2_offset',
-                      action='store_true',
-                      help='display device CO2 (WH45) offset data')
     parser.add_option('--get-calibration', dest='get_calibration',
                       action='store_true',
                       help='display device calibration data')
-    parser.add_option('--get-soil-calibration', dest='get_soil_calibration',
+    parser.add_option('--get-mulch-th-cal', dest='get_mulch_offset',
+                      action='store_true',
+                      help='display device multi-channel temperature and '
+                           'humidity calibration data')
+    parser.add_option('--get-mulch-soil-cal', dest='get_soil_calibration',
                       action='store_true',
                       help='display device soil moisture calibration data')
+    parser.add_option('--get-mulch-t-cal', dest='get_temp_calibration',
+                      action='store_true',
+                      help='display device temperature (WN34) calibration data')
+    parser.add_option('--get-pm25-cal', dest='get_pm25_offset',
+                      action='store_true',
+                      help='display device PM2.5 calibration data')
+    parser.add_option('--get-co2-cal', dest='get_co2_offset',
+                      action='store_true',
+                      help='display device CO2 (WH45) calibration data')
     parser.add_option('--get-services', dest='get_services',
                       action='store_true',
                       help='display device weather services configuration data')
