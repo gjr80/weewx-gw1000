@@ -4280,10 +4280,8 @@ class GatewayCollector(Collector):
 
             # obtain the payload size, it's a big endian short (two byte) integer
             size = struct.unpack(">H", response[3:5])[0]
-            loginf("size=%s" % size)
             # extract the actual data
             data = response[5:5 + size - 4]
-            loginf("data=%s len(data)=%s" % (bytes_to_hex(data), len(data)))
             # initialise a counter
             index = 0
             # initialise a dict to hold our parsed data
