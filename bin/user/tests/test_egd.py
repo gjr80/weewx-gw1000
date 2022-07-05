@@ -58,7 +58,6 @@ import user.gw1000
 # TODO. Check utc_data data and result are correct
 # TODO. Check count_data data and result are correct
 # TODO. Add decode firmware check refer issue #31
-# TODO. Add check for each decode function in Gateway.sensor_ids
 
 TEST_SUITE_NAME = "Gateway driver"
 TEST_SUITE_VERSION = "0.5.0"
@@ -1117,7 +1116,7 @@ class ListsAndDictsTestCase(unittest.TestCase):
 
         # test that each entry in the GW1000 default field map appears in the
         # observation group dictionary
-        for w_field, g_field in six.iteritems(self.default_field_map):
+        for w_field, g_field in self.default_field_map.items():
             self.assertIn(g_field,
                           user.gw1000.DirectGateway.gateway_obs_group_dict.keys(),
                           msg="A field from the GW1000 default field map is "
@@ -1125,7 +1124,7 @@ class ListsAndDictsTestCase(unittest.TestCase):
 
 #        # test that each entry in the observation group dictionary is included
 #        # in the GW1000 default field map
-#        for g_field, group in six.iteritems(user.gw1000.DirectGateway.gateway_obs_group_dict):
+#        for g_field, group in user.gw1000.DirectGateway.gateway_obs_group_dict.items():
 #            self.assertIn(g_field,
 #                          self.default_field_map.values(),
 #                          msg="A key from the observation group dictionary is "
@@ -1284,7 +1283,7 @@ class StationTestCase(unittest.TestCase):
         # Check that the class Station command list is complete. This is a
         # simple check for (1) inclusion of the command and (2) the command
         # code (byte) is correct.
-        for cmd, response in six.iteritems(self.commands):
+        for cmd, response in self.commands.items():
             # check for inclusion of the command
             self.assertIn(cmd,
                           station.commands.keys(),
@@ -1302,7 +1301,7 @@ class StationTestCase(unittest.TestCase):
         # This is a simple check that only needs to check for inclusion of the
         # command, the validity of the command code is checked in the earlier
         # iteration.
-        for cmd, code in six.iteritems(station.commands):
+        for cmd, code in station.commands.items():
             # check for inclusion of the command
             self.assertIn(cmd,
                           self.commands.keys(),
@@ -1348,7 +1347,7 @@ class StationTestCase(unittest.TestCase):
         station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
                                                        port=self.test_port)
         # test the command packet built for each API command we know about
-        for cmd, packet in six.iteritems(self.commands):
+        for cmd, packet in self.commands.items():
             self.assertEqual(station.build_cmd_packet(cmd), hex_to_bytes(packet))
         # test a command packet that has a payload
         self.assertEqual(station.build_cmd_packet(self.cmd, hex_to_bytes(self.cmd_payload)),
