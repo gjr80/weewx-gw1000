@@ -1,10 +1,10 @@
 """
-Test suite for the GW1000 driver.
+Test suite for the WeeWX Ecowitt gateway driver.
 
-Copyright (C) 2020-21 Gary Roderick                gjroderick<at>gmail.com
+Copyright (C) 2020-22 Gary Roderick                gjroderick<at>gmail.com
 
-A python unittest based test suite for aspects of the GW1000 driver. The test
-suite tests correct operation of:
+A python3 unittest based test suite for aspects of the Ecowitt gateway driver.
+The test suite tests correct operation of:
 
 -
 
@@ -12,13 +12,13 @@ Version: 0.5.0                                  Date: ?? April 2022
 
 Revision History
     ?? April 2022       v0.5.0
-        -   updated for gateway driver release 0.5.0
+        -   updated for Ecowitt gateway device driver release 0.5.0
     14 October 2021     v0.4.1
         -   no change, version increment only
     27 September 2021   v0.4.0
         -   updated to work with GW1000 driver v0.4.0
     20 March 2021       v0.3.0
-        -   incomplete but works with release v0.3.0 under python3
+        -   incomplete but works with release v0.3.0
         -   initial release
 
 To run the test suite:
@@ -28,7 +28,7 @@ To run the test suite:
 
 -   run the test suite using:
 
-    $ PYTHONPATH=$BIN python3 -m user.tests.test_gw1000 [-v]
+    $ PYTHONPATH=$BIN python3 -m user.tests.test_egd [-v]
 """
 # python imports
 import socket
@@ -36,6 +36,7 @@ import struct
 import unittest
 from unittest.mock import patch
 
+# TODO. Python3 only so remove six
 # Python 2/3 compatibility shims
 import six
 
@@ -66,10 +67,140 @@ TEST_SUITE_VERSION = "0.5.0"
 class SensorsTestCase(unittest.TestCase):
     """Test the Sensors class."""
 
+    # test sensor ID data
+    sensor_id_data = 'FF FF 3C 01 54 00 FF FF FF FE FF 00 01 FF FF FF FE FF 00 '\
+                     '06 00 00 00 5B 00 04 07 00 00 00 BE 00 04 08 00 00 00 D0 00 04 '\
+                     '0F 00 00 CD 19 0D 04 10 00 00 CD 04 1F 00 11 FF FF FF FE 1F 00 '\
+                     '15 FF FF FF FE 1F 00 16 00 00 C4 97 06 04 17 FF FF FF FE 0F 00 '\
+                     '18 FF FF FF FE 0F 00 19 FF FF FF FE 0F 00 1A 00 00 D3 D3 05 03 '\
+                     '1E FF FF FF FE 0F 00 1F 00 00 2A E7 3F 04 34'
+    # processed sensor ID data
+    sensor_data = {b'\x00': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x01': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x06': {'id': '0000005b', 'battery': 0, 'signal': 4},
+                   b'\x07': {'id': '000000be', 'battery': 0, 'signal': 4},
+                   b'\x08': {'id': '000000d0', 'battery': 0, 'signal': 4},
+                   b'\x0f': {'id': '0000cd19', 'battery': 1.3, 'signal': 4},
+                   b'\x10': {'id': '0000cd04', 'battery': None, 'signal': 0},
+                   b'\x11': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x15': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x16': {'id': '0000c497', 'battery': 6, 'signal': 4},
+                   b'\x17': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x18': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x19': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x1a': {'id': '0000d3d3', 'battery': 5, 'signal': 3},
+                   b'\x1e': {'id': 'fffffffe', 'battery': None, 'signal': 0},
+                   b'\x1f': {'id': '00002ae7', 'battery': 1.26, 'signal': 4}}
+    connected_addresses = [b'\x06', b'\x07', b'\x08', b'\x0f',
+                           b'\x10', b'\x16', b'\x1a', b'\x1f']
+    batt_sig_data = {'wh31_ch1_batt': 0, 'wh31_ch1_sig': 4,
+                    'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4,
+                    'wh31_ch3_batt': 0, 'wh31_ch3_sig': 4,
+                    'wh41_ch1_batt': 6, 'wh41_ch1_sig': 4,
+                    'wh51_ch2_batt': 1.3, 'wh51_ch2_sig': 4,
+                    'wh51_ch3_batt': None, 'wh51_ch3_sig': 0,
+                    'wh57_batt': 5, 'wh57_sig': 3,
+                    'wn34_ch1_batt': 1.26, 'wn34_ch1_sig': 4}
+
     def setUp(self):
 
         # get a Sensors object
         self.sensors = user.gw1000.GatewayCollector.Sensors()
+
+    def test_set_sensor_id_data(self):
+        """Test the set_sensor_id_data() method."""
+
+        # test when passed an empty dict
+        self.sensors.set_sensor_id_data(None)
+        self.assertDictEqual(self.sensors.sensor_data, {})
+
+        # test when passed a zero length data bytestring
+        self.sensors.set_sensor_id_data(b'')
+        self.assertDictEqual(self.sensors.sensor_data, {})
+
+        # test when passed a valid bytestring
+        self.sensors.set_sensor_id_data(hex_to_bytes(self.sensor_id_data))
+        self.assertDictEqual(self.sensors.sensor_data, self.sensor_data)
+
+    def test_properties(self):
+        """Test class Sensors.sensor_data related property methods."""
+
+        # test when passed an empty dict
+        self.sensors.set_sensor_id_data(None)
+        # addresses property
+        self.assertSequenceEqual(self.sensors.addresses, {}.keys())
+        # connected_addresses property
+        self.assertListEqual(list(self.sensors.connected_addresses), [])
+        # data property
+        self.assertDictEqual(self.sensors.data, {})
+        # battery_and_signal_data property
+        self.assertDictEqual(self.sensors.battery_and_signal_data, {})
+
+        # test when passed a zero length data bytestring
+        self.sensors.set_sensor_id_data(b'')
+        # addresses property
+        self.assertSequenceEqual(self.sensors.addresses, {}.keys())
+        # connected_addresses property
+        self.assertListEqual(list(self.sensors.connected_addresses), [])
+        # data property
+        self.assertDictEqual(self.sensors.data, {})
+        # battery_and_signal_data property
+        self.assertDictEqual(self.sensors.battery_and_signal_data, {})
+
+        # test when passed a valid bytestring
+        self.sensors.set_sensor_id_data(hex_to_bytes(self.sensor_id_data))
+        # addresses property
+        self.assertSequenceEqual(self.sensors.addresses,
+                                 self.sensor_data.keys())
+        # connected_addresses property
+        self.assertListEqual(list(self.sensors.connected_addresses),
+                             self.connected_addresses)
+        # data property
+        self.assertDictEqual(self.sensors.data, self.sensor_data)
+        # battery_and_signal_data property
+        self.assertDictEqual(self.sensors.battery_and_signal_data, self.batt_sig_data)
+
+    def test_sensor_data_methods(self):
+        """Test Sensors.sensor_data related methods."""
+
+        # test when passed an empty dict
+        self.sensors.set_sensor_id_data(None)
+        # id method
+        self.assertRaises(KeyError, self.sensors.id, b'\x00')
+        # battery_state method
+        self.assertRaises(KeyError, self.sensors.battery_state, b'\x00')
+        # signal_level method
+        self.assertRaises(KeyError, self.sensors.signal_level, b'\x00')
+
+        # test when passed a zero length data bytestring
+        self.sensors.set_sensor_id_data(b'')
+        # id method
+        self.assertRaises(KeyError, self.sensors.id, b'\x00')
+        # battery_state method
+        self.assertRaises(KeyError, self.sensors.battery_state, b'\x00')
+        # signal_level method
+        self.assertRaises(KeyError, self.sensors.signal_level, b'\x00')
+
+        # test when passed a valid bytestring
+        self.sensors.set_sensor_id_data(hex_to_bytes(self.sensor_id_data))
+        # id method
+        # for a non-existent sensor
+        self.assertRaises(KeyError, self.sensors.id, b'\x34')
+        # for an existing sensor
+        self.assertEqual(self.sensors.id(b'\x11'), 'fffffffe')
+        self.assertEqual(self.sensors.id(b'\x1a'), '0000d3d3')
+        # battery_state method
+        # for a non-existent sensor
+        self.assertRaises(KeyError, self.sensors.battery_state, b'\x34')
+        # for an existing sensor
+        self.assertIsNone(self.sensors.battery_state(b'\x11'))
+        self.assertEqual(self.sensors.battery_state(b'\x1a'), 5)
+        # signal_level method
+        # for a non-existent sensor
+        self.assertRaises(KeyError, self.sensors.signal_level, b'\x34')
+        # for an existing sensor
+        self.assertEqual(self.sensors.signal_level(b'\x11'), 0)
+        self.assertEqual(self.sensors.signal_level(b'\x1a'), 3)
 
     def test_battery_methods(self):
         """Test battery state methods"""
@@ -89,7 +220,8 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_volt(255), 5.1)
 
         # voltage battery states (method wh40_batt_volt())
-        # first check if ignore_legacy_wh40_battery is True
+        # first check operation if ignore_legacy_wh40_battery is True
+        self.sensors.ignore_wh40_batt = True
         # legacy WH40
         self.assertIsNone(self.sensors.wh40_batt_volt(0))
         self.assertIsNone(self.sensors.wh40_batt_volt(15))
@@ -98,7 +230,7 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.wh40_batt_volt(20), 0.20)
         self.assertEqual(self.sensors.wh40_batt_volt(150), 1.50)
         self.assertEqual(self.sensors.wh40_batt_volt(255), 2.55)
-        # now check if ignore_legacy_wh40_battery is False
+        # now check operation if ignore_legacy_wh40_battery is False
         self.sensors.ignore_wh40_batt = False
         # legacy WH40
         self.assertEqual(self.sensors.wh40_batt_volt(0), 0.0)
@@ -1063,7 +1195,8 @@ class StationTestCase(unittest.TestCase):
         'CMD_READ_RSTRAIN_TIME': 'FF FF 55 03 58',
         'CMD_WRITE_RSTRAIN_TIME': 'FF FF 56 03 59',
         'CMD_READ_RAIN': 'FF FF 57 03 5A',
-        'CMD_WRITE_RAIN': 'FF FF 58 03 5B'
+        'CMD_WRITE_RAIN': 'FF FF 58 03 5B',
+        'CMD_GET_MulCH_T_OFFSET': 'FF FF 59 03 5C'
     }
     # Station.discover() multiple device discovery response
     discover_multi_resp = [{'mac': b'\xe8h\xe7\x87\x1aO', #'E8:68:E7:87:1A:4F',
@@ -1373,7 +1506,7 @@ class StationTestCase(unittest.TestCase):
         self.assertEqual(station.port, self.test_port)
 
 
-class Gw1000TestCase(unittest.TestCase):
+class GatewayTestCase(unittest.TestCase):
     """Test the GW1000Service.
 
     Uses mock to simulate methods required to run a GW1000 service without a
@@ -1436,7 +1569,7 @@ class Gw1000TestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Setup the Gw1000TestCase to perform its tests."""
+        """Setup the GatewayTestCase to perform its tests."""
 
         # Create a dummy config so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Only include the GW1000
@@ -1458,10 +1591,10 @@ class Gw1000TestCase(unittest.TestCase):
                     'archive_services': 'user.gw1000.GatewayService'}}}
         # set the IP address we will use, if we received an IP address via the
         # command line use it, otherwise use a fake address
-        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else Gw1000TestCase.fake_ip
+        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else GatewayTestCase.fake_ip
         # set the port number we will use, if we received a port number via the
         # command line use it, otherwise use a fake port number
-        config['GW1000']['port'] = cls.port if cls.port is not None else Gw1000TestCase.fake_port
+        config['GW1000']['port'] = cls.port if cls.port is not None else GatewayTestCase.fake_port
         # save the service config dict for use later
         cls.gw1000_svc_config = config
 
@@ -1480,13 +1613,13 @@ class Gw1000TestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = Gw1000TestCase.fake_mac
+        mock_get_mac.return_value = GatewayTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
+        mock_get_firmware.return_value = GatewayTestCase.mock_get_firm_resp
         # get_system_params() - system parameters (bytestring)
-        mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        mock_get_sys.return_value = GatewayTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
-        mock_get_sensor_id.return_value = hex_to_bytes(Gw1000TestCase.mock_sensor_id_resp)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayTestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # get a mapped  version of our GW1000 test data
@@ -1513,13 +1646,13 @@ class Gw1000TestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = Gw1000TestCase.fake_mac
+        mock_get_mac.return_value = GatewayTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
+        mock_get_firmware.return_value = GatewayTestCase.mock_get_firm_resp
         # get_system_params - system parameters (bytestring)
-        mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        mock_get_sys.return_value = GatewayTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
-        mock_get_sensor_id.return_value = hex_to_bytes(Gw1000TestCase.mock_sensor_id_resp)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayTestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # set some GW1000 service parameters to enable rain related tests
@@ -1569,13 +1702,13 @@ class Gw1000TestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = Gw1000TestCase.fake_mac
+        mock_get_mac.return_value = GatewayTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = Gw1000TestCase.mock_get_firm_resp
+        mock_get_firmware.return_value = GatewayTestCase.mock_get_firm_resp
         # get_system_params - system parameters (bytestring)
-        mock_get_sys.return_value = Gw1000TestCase.mock_sys_params_resp
+        mock_get_sys.return_value = GatewayTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
-        mock_get_sensor_id.return_value = hex_to_bytes(Gw1000TestCase.mock_sensor_id_resp)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayTestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
         gw1000_svc = self.get_gw1000_svc(caller='test_map')
         # take a copy of our test data as we will be changing it
@@ -1643,7 +1776,7 @@ class Gw1000TestCase(unittest.TestCase):
                     gw1000_svc = svc
             if gw1000_svc:
                 # tell the user what device we are using
-                if gw1000_svc.collector.station.ip_address.decode() == Gw1000TestCase.fake_ip:
+                if gw1000_svc.collector.station.ip_address.decode() == GatewayTestCase.fake_ip:
                     _stem = "\nUsing mocked GW1x00 at %s:%d ... "
                 else:
                     _stem = "\nUsing real GW1x00 at %s:%d ... "
@@ -1729,22 +1862,24 @@ def main():
 
     # test cases that are production ready
     test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
-                  ListsAndDictsTestCase, StationTestCase, Gw1000TestCase)
+                  ListsAndDictsTestCase, StationTestCase, GatewayTestCase)
 
-    usage = """python -m user.tests.test_gw1000 --help
-           python -m user.tests.test_gw1000 --version
-           python -m user.tests.test_gw1000 [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
+    usage = """python3 -m user.tests.test_eg --help
+           python3 -m user.tests.test_eg --version
+           python3 -m user.tests.test_eg [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
 
         Arguments:
 
            VERBOSITY: Path and file name of the WeeWX configuration file to be used.
-                        Default is weewx.conf.
-           IP_ADDRESS: IP address to use to contact GW1000. If omitted discovery is used.
-           PORT: Port to use to contact GW1000. If omitted discovery is used."""
-    description = 'Test the GW1000 driver code.'
+                      Default is weewx.conf.
+           IP_ADDRESS: IP address to use to contact the gateway device. If omitted 
+                       discovery is used.
+           PORT: Port to use to contact the gateway device. If omitted discovery is 
+                 used."""
+    description = 'Test the Ecowitt gateway driver code.'
     epilog = """You must ensure the WeeWX modules are in your PYTHONPATH. For example:
 
-    PYTHONPATH=/home/weewx/bin python -m user.tests.test_gw1000 --help
+    PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg --help
     """
 
     parser = argparse.ArgumentParser(usage=usage,
@@ -1752,14 +1887,14 @@ def main():
                                      epilog=epilog,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', dest='version', action='store_true',
-                        help='display GW1000 driver test suite version number')
+                        help='display Ecowitt gateway driver test suite version number')
     parser.add_argument('--verbose', dest='verbosity', type=int, metavar="VERBOSITY",
                         default=2,
                         help='How much status to display, 0-2')
     parser.add_argument('--ip-address', dest='ip_address', metavar="IP_ADDRESS",
-                        help='GW1000 IP address to use')
+                        help='Gateway device IP address to use')
     parser.add_argument('--port', dest='port', type=int, metavar="PORT",
-                        help='GW1000 port to use')
+                        help='Gateway device port to use')
     # parse the arguments
     args = parser.parse_args()
 
@@ -1770,11 +1905,11 @@ def main():
         exit(0)
     # run the tests
     # first set the IP address and port to use in StationTestCase and
-    # Gw1000TestCase
+    # GatewayTestCase
     StationTestCase.ip_address = args.ip_address
     StationTestCase.port = args.port
-    Gw1000TestCase.ip_address = args.ip_address
-    Gw1000TestCase.port = args.port
+    GatewayTestCase.ip_address = args.ip_address
+    GatewayTestCase.port = args.port
     # get a test runner with appropriate verbosity
     runner = unittest.TextTestRunner(verbosity=args.verbosity)
     # create a test suite and run the included tests
