@@ -5270,7 +5270,12 @@ class GatewayCollector(Collector):
             self.debug_sensors = debug_sensors
 
         def set_sensor_id_data(self, id_data):
-            """Parse the raw sensor ID data and store the results."""
+            """Parse the raw sensor ID data and store the results.
+
+            id_data: bytestring of sensor ID data
+
+            Tested by SensorsTestCase.test_set_sensor_id_data
+            """
 
             # initialise our parsed sensor ID data dict
             self.sensor_data = {}
@@ -5329,6 +5334,8 @@ class GatewayCollector(Collector):
             - sensors that are attempting to connect to the device
             - device sensor addresses that are searching for a sensor
             - device sensor addresses that are disabled
+
+            Tested by SensorsTestCase.test_properties
             """
 
             # this is simply the list of keys to our sensor data dict
@@ -5345,6 +5352,8 @@ class GatewayCollector(Collector):
             connecting to the device or the device is searching for a sensor
             for that address. If the sensor ID is 'ffffffff' the device sensor
             address is disabled.
+
+            Tested by SensorsTestCase.test_properties
             """
 
             # initialise a list to hold our connected sensor addresses
@@ -5359,22 +5368,34 @@ class GatewayCollector(Collector):
 
         @property
         def data(self):
-            """Obtain the data dict for all known sensors."""
+            """Obtain the data dict for all known sensors.
+
+            Tested by SensorsTestCase.test_properties
+            """
 
             return self.sensor_data
 
         def id(self, address):
-            """Obtain the sensor ID for a given sensor address."""
+            """Obtain the sensor ID for a given sensor address.
+
+            Tested by SensorsTestCase.test_sensor_data_methods
+            """
 
             return self.sensor_data[address]['id']
 
         def battery_state(self, address):
-            """Obtain the sensor battery state for a given sensor address."""
+            """Obtain the sensor battery state for a given sensor address.
+
+            Tested by SensorsTestCase.test_sensor_data_methods
+            """
 
             return self.sensor_data[address]['battery']
 
         def signal_level(self, address):
-            """Obtain the sensor signal level for a given sensor address."""
+            """Obtain the sensor signal level for a given sensor address.
+
+            Tested by SensorsTestCase.test_sensor_data_methods
+            """
 
             return self.sensor_data[address]['signal']
 
@@ -5384,6 +5405,8 @@ class GatewayCollector(Collector):
 
             Iterate over the list of connected sensors and obtain a dict of
             sensor battery state data for each connected sensor.
+
+            Tested by SensorsTestCase.test_properties
             """
 
             # initialise a dict to hold the battery state data
@@ -5412,6 +5435,8 @@ class GatewayCollector(Collector):
 
             A battery state value of None should not occur but if received the
             descriptive text 'unknown' is returned.
+
+            Tested by SensorsTestCase.test_battery_methods
             """
 
             if value is not None:
@@ -5452,6 +5477,8 @@ class GatewayCollector(Collector):
             Battery state is stored in bit 0 as either 0 or 1. If 1 the battery
             is low, if 0 the battery is normal. We need to mask off bits 1 to 7 as
             they are not guaranteed to be set in any particular way.
+
+            Tested by SensorsTestCase.test_battery_methods
             """
 
             return batt & 1
@@ -5465,6 +5492,8 @@ class GatewayCollector(Collector):
             WH43 has shown that battery state 6 also exists when the device is
             run from DC. This does not appear to be documented in the API
             documentation.
+
+            Tested by SensorsTestCase.test_battery_methods
             """
 
             return batt
@@ -5475,6 +5504,8 @@ class GatewayCollector(Collector):
 
             Battery state is stored as integer values of battery voltage/0.02
             with <=1.2V considered low.
+
+            Tested by SensorsTestCase.test_battery_methods
             """
 
             return round(0.02 * batt, 2)
@@ -5507,6 +5538,8 @@ class GatewayCollector(Collector):
 
             For WH40 that report battery state data a decoded value of <=1.2V
             is considered low.
+
+            Tested by SensorsTestCase.test_battery_methods
             """
 
             if round(0.1 * batt, 1) < 2.0:
@@ -5532,6 +5565,8 @@ class GatewayCollector(Collector):
 
             Battery state is stored as integer values of battery voltage/0.1
             with <=1.2V considered low.
+
+            Tested by SensorsTestCase.test_battery_methods
             """
 
             return round(0.1 * batt, 1)
