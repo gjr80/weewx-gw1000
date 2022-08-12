@@ -6285,8 +6285,7 @@ class DirectGateway(object):
             if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
                 _data = rain_data.get('t_rainrate', None)
-                _data_str = "%.1fmm/hr (%.1fin/hr)" % (
-                _data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
                 _data = rain_data.get('t_rainevent', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
@@ -6303,14 +6302,16 @@ class DirectGateway(object):
                 _data = rain_data.get('t_rainyear', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Yearly rain', _data_str))
+                _data = rain_data.get('t_raingain')
+                _data_str = "%.2f" % _data / 100.0 if _data is not None else "---"
+                print("%30s: %s" % ('Rain gain', _data_str))
             else:
                 print("    No traditional rain data available")
             print()
             if any(field in rain_data for field in piezo):
                 print("    Piezo rain data:")
                 _data = rain_data.get('p_rainrate', None)
-                _data_str = "%.1fmm/hr (%.1fin/hr)" % (
-                _data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
                 _data = rain_data.get('p_rainevent', None)
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
