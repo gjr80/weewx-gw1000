@@ -6284,22 +6284,22 @@ class DirectGateway(object):
                 print()
             if any(field in rain_data for field in traditional):
                 print("    Traditional rain data:")
-                _data = rain_data.get('t_rainrate', None)
+                _data = rain_data.get('t_rainrate')
                 _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
-                _data = rain_data.get('t_rainevent', None)
+                _data = rain_data.get('t_rainevent')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Event rain', _data_str))
-                _data = rain_data.get('t_rainday', None)
+                _data = rain_data.get('t_rainday')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Daily rain', _data_str))
-                _data = rain_data.get('t_rainweek', None)
+                _data = rain_data.get('t_rainweek')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Weekly rain', _data_str))
-                _data = rain_data.get('t_rainmonth', None)
+                _data = rain_data.get('t_rainmonth')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Monthly rain', _data_str))
-                _data = rain_data.get('t_rainyear', None)
+                _data = rain_data.get('t_rainyear')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Yearly rain', _data_str))
                 _data = rain_data.get('t_raingain')
@@ -6310,22 +6310,22 @@ class DirectGateway(object):
             print()
             if any(field in rain_data for field in piezo):
                 print("    Piezo rain data:")
-                _data = rain_data.get('p_rainrate', None)
+                _data = rain_data.get('p_rainrate')
                 _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
                 print("%30s: %s)" % ('Rain rate', _data_str))
-                _data = rain_data.get('p_rainevent', None)
+                _data = rain_data.get('p_rainevent')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Event rain', _data_str))
-                _data = rain_data.get('p_rainday', None)
+                _data = rain_data.get('p_rainday')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Daily rain', _data_str))
-                _data = rain_data.get('p_rainweek', None)
+                _data = rain_data.get('p_rainweek')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Weekly rain', _data_str))
-                _data = rain_data.get('p_rainmonth', None)
+                _data = rain_data.get('p_rainmonth')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Monthly rain', _data_str))
-                _data = rain_data.get('p_rainyear', None)
+                _data = rain_data.get('p_rainyear')
                 _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
                 print("%30s: %s" % ('Yearly rain', _data_str))
                 print("%30s: %.2f (%s)" % ('Rain1 gain', rain_data.get('gain1', '--'), '< 4mm/h'))
@@ -6339,10 +6339,10 @@ class DirectGateway(object):
             if any(field in rain_data for field in reset):
                 print("    Rainfall reset time data:")
                 print("%30s: 0%d:00" % ('Daily rainfall reset time', rain_data.get('day_reset', '-----')))
-                _data = rain_data.get('week_reset', None)
+                _data = rain_data.get('week_reset')
                 _data_str = "%s" % calendar.day_name[(_data + 6) % 7] if _data is not None else "-----"
                 print("%30s: %s" % ('Weekly rainfall reset time', _data_str))
-                _data = rain_data.get('annual_reset', None)
+                _data = rain_data.get('annual_reset')
                 _data_str = "%s" % calendar.month_name[_data + 1] if _data is not None else "-----"
                 print("%30s: %s" % ('Annual rainfall reset time', calendar.month_name[rain_data['annual_reset'] + 1]))
             else:
