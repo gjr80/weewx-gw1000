@@ -34,7 +34,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b5                                    Date: ?? June 2022
+Version: 0.5.0b6                                    Date: ?? August 2022
 
 Revision History
     ?? June 2022           v0.5.0
@@ -76,8 +76,9 @@ Revision History
             CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
         -   fix issue where sensor ID is incorrectly displayed for sensors with
             an ID ending in one or more zeros (issue 48)
-        -   removed gateway device field 't_rainhour' from the default field
-            map
+        -   device field 't_rainhour' removed from the default field map IAW
+            API v1.6.6 change of 0x0F rain hour (ITEM_RAINHOUR) to rain gain
+            (ITEM_RAIN_Gain)
         -   --live-data output now indicates the unit group being used
         -   battery state data received from WH40 devices that do not emit
             battery state is now ignored by default and the value None returned
@@ -175,8 +176,8 @@ Revision History
 The Ecowitt LAN/Wi-Fi Gateway API documentation
 
 This driver has been based on the Ecowitt LAN/Wi-Fi Gateway API documentation
-v1.6.4. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
-API documentation v1.6.4 have been made in this driver:
+v1.6.6. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
+API documentation v1.6.6 have been made in this driver:
 
 1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
 returned by the CMD_READ_SSSS API command. The UTC time field is described as
@@ -189,15 +190,7 @@ values for UTC time. The Ecowitt Gateway driver subtracts the system UTC
 offset in seconds from the UTC time returned by the CMD_READ_SSSS command in
 order to obtain the correct UTC time.
 
-2.  The CMD_READ_RAIN API command response contains an undocumented field
-(address 0x7A) that appears to contain the rain source selection set from the
-WSView Plus app. The field data appears to be 0, 1 or 2. At the time of release
-GW1000 devices using firmware v1.7.1 and 1.7.2 include the 0x7A data but
-GW1100/GW2000 using firmware v2.1.4 do not. If field 0x7A data is available the
-Ecowitt Gateway driver uses the data when running the driver directly with the
---get-all-rain-data command line option.
-
-3.  WH40 battery state data contained in the CMD_READ_SENSOR_ID_NEW response is
+2.  WH40 battery state data contained in the CMD_READ_SENSOR_ID_NEW response is
 documented as a single byte representing 10x the battery voltage. However,
 Ecowitt has confirmed that early WH40 hardware does not send any battery state
 data. Whilst no battery state data is transmitted by early WH40 hardware, the
@@ -210,7 +203,7 @@ data (1.6V) reported by early WH40 hardware and WH40 battery voltage is
 reported as None for these devices. Battery state data for later WH40 hardware
 that does report battery voltage is decoded and passed through to WeeWX.
 
-4.  Yet to released/named API command code 0x59 provides @N34 temperature
+3.  Yet to released/named API command code 0x59 provides WN34 temperature
 calibration data. Calibration data is provided in standardised Ecowitt gateway
 device API response packet. Packet uses two bytes for packet size. Header,
 command code and checksum are standard values/formats. Data structure is two
@@ -398,7 +391,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b5'
+DRIVER_VERSION = '0.5.0b6'
 
 # various defaults used throughout
 # default port used by device
@@ -3891,7 +3884,7 @@ class GatewayCollector(Collector):
             b'\x0C': ('decode_speed', 2, 'gustspeed'),
             b'\x0D': ('decode_rain', 2, 't_rainevent'),
             b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-            b'\x0F': ('decode_rain', 2, 't_rainhour'),
+            b'\x0F': ('decode_gain_100', 2, 't_raingain'),
             b'\x10': ('decode_rain', 2, 't_rainday'),
             b'\x11': ('decode_rain', 2, 't_rainweek'),
             b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
@@ -3995,15 +3988,16 @@ class GatewayCollector(Collector):
         rain_data_struct = {
             b'\x0D': ('decode_rain', 2, 't_rainevent'),
             b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-            b'\x0F': ('decode_rain', 2, 't_rainhour'),
+            b'\x0F': ('decode_rain', 2, 't_raingain'),
             b'\x10': ('decode_big_rain', 4, 't_rainday'),
             b'\x11': ('decode_big_rain', 4, 't_rainweek'),
             b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
             b'\x13': ('decode_big_rain', 4, 't_rainyear'),
             # undocumented field 0x7A, believed to be rain source selection
-            b'\x7A': ('decode_int', 1, 'rain_source'),
+            b'\x7A': ('decode_int', 1, 'rain_priority'),
             b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
             b'\x81': ('decode_rain', 2, 'p_rainevent'),
+            b'\x82': ('decode_reserved', 2, 'p_rainhour'),
             b'\x83': ('decode_big_rain', 4, 'p_rainday'),
             b'\x84': ('decode_big_rain', 4, 'p_rainweek'),
             b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
@@ -4090,6 +4084,11 @@ class GatewayCollector(Collector):
                             # we have decoded data so add the decoded data to
                             # our data dict
                             data.update(_field_data)
+                        else:
+                            # we received None from the decode function, this
+                            # usually indicates a field marked as 'reserved' in
+                            # the API documentation
+                            pass
                         # we are finished with this field, move onto the next
                         index += field_size + 1
             return data
@@ -4856,6 +4855,17 @@ class GatewayCollector(Collector):
             # convert the sequence of bytes to unicode characters and assemble as a
             # string and return the result
             return ''.join([chr(x) for x in firmware_t[5:5 + str_length]])
+
+        @staticmethod
+        def decode_reserved(data, field='reserved'):
+            """Decode data that is marked 'reserved'.
+
+            Occasionally some fields are marked as 'reserved' in the API
+            documentation. In such cases the decode routine should return the
+            value None which will cause the data to be ignored.
+            """
+
+            return None
 
         @staticmethod
         def decode_temp(data, field=None):
@@ -5784,7 +5794,7 @@ class DirectGateway(object):
         't_rain': 'group_rain',
         't_rainevent': 'group_rain',
         't_rainrate': 'group_rainrate',
-        't_rainhour': 'group_rain',
+        't_raingain': 'group_rain',
         't_rainday': 'group_rain',
         't_rainweek': 'group_rain',
         't_rainmonth': 'group_rain',
@@ -6270,8 +6280,8 @@ class DirectGateway(object):
             print("Timeout. %s did not respond." % collector.station.model)
         else:
             print()
-            if 'rain_source' in rain_data:
-                print("    Rainfall data priority: %s" % source_lookup.get(rain_data['rain_source'],
+            if 'rain_priority' in rain_data:
+                print("    Rainfall data priority: %s" % source_lookup.get(rain_data['rain_priority'],
                                                                            "unknown selection"))
                 print()
             if any(field in rain_data for field in traditional):
