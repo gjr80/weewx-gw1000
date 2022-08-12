@@ -1648,8 +1648,6 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[stormRain]]
             extractor = last
-        [[hourRain]]
-            extractor = last
         [[dayRain]]
             extractor = last
         [[weekRain]]
