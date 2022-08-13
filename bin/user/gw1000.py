@@ -298,6 +298,7 @@ from __future__ import print_function
 
 import calendar
 import configobj
+import json
 import re
 import socket
 import struct
@@ -308,6 +309,9 @@ from operator import itemgetter
 # Python 2/3 compatibility shims
 import six
 from six.moves import StringIO
+from six.moves import urllib
+from six.moves.urllib.error import HTTPError, URLError
+from six.moves.urllib.parse import urlencode
 
 # WeeWX imports
 import weecfg
@@ -3843,6 +3847,60 @@ class GatewayCollector(Collector):
             # if we made it here re-discovery was unsuccessful so return False
             return False
 
+        def http_request_with_retries(self, request_str, params=None, headers={}):
+            """Send a HTTP request to the device with retries and return the response.
+
+            Send a HTTP request to the device and obtain the response. If the
+            response is valid return the response. If the response is invalid
+            an appropriate exception is raised and the request resent up to
+            self.max_tries times after which the value None is returned.
+
+            request: A string containing a valid API command,
+                 eg: 'CMD_READ_FIRMWARE_VERSION'
+
+            Returns the response as a byte string or the value None.
+            """
+
+            stem = ''.join(['http://', self.ip_address.decode(), '/'])
+            url = ''.join([stem, request_str, '?'])
+            # create a Request object
+            req = urllib.request.Request(url=url, headers=headers)
+            try:
+                # submit the request
+                w = urllib.request.urlopen(req)
+                # Get charset used so we can decode the stream correctly.
+                # Unfortunately the way to get the charset depends on whether
+                # we are running under python2 or python3. Assume python3 but be
+                # prepared to catch the error if python2.
+                try:
+                    char_set = w.headers.get_content_charset()
+                except AttributeError:
+                    # must be python2
+                    char_set = w.headers.getparam('charset')
+                # Now get the response and decode it using the headers character
+                # set, BloomSky does not currently return a character set in its
+                # API response headers so be prepared for charset==None.
+                if char_set is not None:
+                    resp = w.read().decode(char_set)
+                else:
+                    resp = w.read().decode()
+                w.close()
+            except (URLError, socket.timeout) as e:
+                # log the error
+                log.error("Failed to get BloomSky API data")
+                log.error("   **** %s" % e)
+                # and raise it
+                raise
+            else:
+                # convert the response to a JSON object
+                resp_json = json.loads(resp)
+                # log response as required
+                if weewx.debug >= 3:
+                    log.debug("JSON API response: %s" % json.dumps(resp_json))
+                # return the JSON object
+                return resp_json
+
+
     class Parser(object):
         """Class to parse and decode device API response payload data.
 
@@ -5579,6 +5637,44 @@ class GatewayCollector(Collector):
 
             return round(0.1 * batt, 1)
 
+    class HttpRequestorThread(threading.Thread):
+        """Thread in which a HttpRequestor object operates."""
+
+        def __init__(self, requestor):
+            # initialise our parent
+            threading.Thread.__init__(self)
+            # keep reference to the requestor we are supporting
+            self.requestor = requestor
+            self.name = 'gateway-http-requestor'
+
+        def run(self):
+            # rather than letting the thread silently fail if an exception
+            # occurs within the thread, wrap in a try..except so the exception
+            # can be caught and available exception information displayed
+            try:
+                # kick the request off
+                self.requestor.request()
+            except:
+                # we have an exception so log what we can
+                log_traceback_critical('    ****  ')
+
+    class HttpRequestor(object):
+        """Object for making HTTP requests to a gateway device."""
+
+        # a queue object for passing data back to our parent
+        queue = six.moves.queue.Queue()
+
+        def __init__(self, address, request, params=None, headers={}):
+            self.address = address
+            self.request = request
+            self.params = params
+            self.headers = headers
+
+        def startup(self):
+            pass
+
+        def shutdown(self):
+            pass
 
 # ============================================================================
 #                             Utility functions
