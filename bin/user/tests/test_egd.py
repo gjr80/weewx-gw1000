@@ -1267,9 +1267,9 @@ class StationTestCase(unittest.TestCase):
         """Test command dictionaries for completeness.
 
         Tests:
-        1. Station.commands contains all commands
-        2. the command code for each Station.commands agrees with the test suite
-        3. all Station.commands entries are in the test suite
+        1. Station.api_commands contains all api_commands
+        2. the command code for each Station.api_commands agrees with the test suite
+        3. all Station.api_commands entries are in the test suite
         """
 
         # set return values for mocked methods
@@ -1286,26 +1286,26 @@ class StationTestCase(unittest.TestCase):
         for cmd, response in self.commands.items():
             # check for inclusion of the command
             self.assertIn(cmd,
-                          station.commands.keys(),
-                          msg="Command '%s' not found in Station.commands" % cmd)
+                          station.api_commands.keys(),
+                          msg="Command '%s' not found in Station.api_commands" % cmd)
             # check the command code byte is correct
             self.assertEqual(hex_to_bytes(response)[2:3],
-                             station.commands[cmd],
+                             station.api_commands[cmd],
                              msg="Command code for command '%s' in "
-                                 "Station.commands(0x%s) disagrees with "
+                                 "Station.api_commands(0x%s) disagrees with "
                                  "command code in test suite (0x%s)" % (cmd,
-                                                                        bytes_to_hex(station.commands[cmd]),
+                                                                        bytes_to_hex(station.api_commands[cmd]),
                                                                         bytes_to_hex(hex_to_bytes(response)[2:3])))
 
         # Check that we are testing everything in class Station command list.
         # This is a simple check that only needs to check for inclusion of the
         # command, the validity of the command code is checked in the earlier
         # iteration.
-        for cmd, code in station.commands.items():
+        for cmd, code in station.api_commands.items():
             # check for inclusion of the command
             self.assertIn(cmd,
                           self.commands.keys(),
-                          msg="Command '%s' is in Station.commands but it is not being tested" % cmd)
+                          msg="Command '%s' is in Station.api_commands but it is not being tested" % cmd)
 
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
@@ -1333,7 +1333,7 @@ class StationTestCase(unittest.TestCase):
         """Test construction of an API command packet
 
         Tests:
-        1. building a command packet for each command in Station.commands
+        1. building a command packet for each command in Station.api_commands
         2. building a command packet with a payload
         3. building a command packet for an unknown command
         """

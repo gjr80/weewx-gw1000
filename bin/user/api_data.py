@@ -370,7 +370,7 @@ def gather_api_data(ip_address, port, cmd=None,
             print("Device appears to be a '%s'" % model)
         else:
             print("Device model is unknown")
-        # now issue all commands in the manifest
+        # now issue all api_commands in the manifest
         for command in manifest:
             response = send_cmd(command=command, ip_address=ip_address, port=port, max_tries=max_tries,
                                 retry_wait=retry_wait, socket_timeout=socket_timeout)
@@ -384,7 +384,7 @@ def gather_api_data(ip_address, port, cmd=None,
 #
 #   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --run --ip-address=IP_ADDRESS
 #
-# Depending on your system you may need change 'python' in the above commands
+# Depending on your system you may need change 'python' in the above api_commands
 # to 'python2' or 'python3'.
 
 def main():
