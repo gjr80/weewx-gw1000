@@ -242,7 +242,7 @@ requires WeeWX and it's dependencies be installed.
     Note: The driver must be run under the same Python version as WeeWX uses.
           For WeeWX 3.x this is Python 2. If WeeWX 4.0.0 or later is installed
           this may be Python 2 or Python 3. This means that on some systems
-          'python' in the above commands may need to be changed to 'python2'
+          'python' in the above api_commands may need to be changed to 'python2'
           or 'python3'.
 
 3.  The --discover command line option is useful for discovering any gateway
@@ -2349,61 +2349,6 @@ class GatewayCollector(Collector):
     - class Sensors. Allows easy access sensor data from coded API sensor data
     """
 
-    # map of sensor ids to short name, long name and battery byte decode
-    # function
-    sensor_ids = {
-        b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
-        b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
-        b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
-        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'wh40_batt_volt'},
-        b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
-        b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
-        b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
-        b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2', 'batt_fn': 'batt_binary'},
-        b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3', 'batt_fn': 'batt_binary'},
-        b'\x09': {'name': 'wh31_ch4', 'long_name': 'WH31 ch4', 'batt_fn': 'batt_binary'},
-        b'\x0a': {'name': 'wh31_ch5', 'long_name': 'WH31 ch5', 'batt_fn': 'batt_binary'},
-        b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6', 'batt_fn': 'batt_binary'},
-        b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7', 'batt_fn': 'batt_binary'},
-        b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8', 'batt_fn': 'batt_binary'},
-        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_volt_tenth'},
-        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_volt_tenth'},
-        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_volt_tenth'},
-        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_volt_tenth'},
-        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_volt_tenth'},
-        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_volt_tenth'},
-        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_volt_tenth'},
-        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_volt_tenth'},
-        b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
-        b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
-        b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
-        b'\x19': {'name': 'wh41_ch4', 'long_name': 'WH41 ch4', 'batt_fn': 'batt_int'},
-        b'\x1a': {'name': 'wh57', 'long_name': 'WH57', 'batt_fn': 'batt_int'},
-        b'\x1b': {'name': 'wh55_ch1', 'long_name': 'WH55 ch1', 'batt_fn': 'batt_int'},
-        b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
-        b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
-        b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
-        b'\x1f': {'name': 'wn34_ch1', 'long_name': 'WN34 ch1', 'batt_fn': 'batt_volt'},
-        b'\x20': {'name': 'wn34_ch2', 'long_name': 'WN34 ch2', 'batt_fn': 'batt_volt'},
-        b'\x21': {'name': 'wn34_ch3', 'long_name': 'WN34 ch3', 'batt_fn': 'batt_volt'},
-        b'\x22': {'name': 'wn34_ch4', 'long_name': 'WN34 ch4', 'batt_fn': 'batt_volt'},
-        b'\x23': {'name': 'wn34_ch5', 'long_name': 'WN34 ch5', 'batt_fn': 'batt_volt'},
-        b'\x24': {'name': 'wn34_ch6', 'long_name': 'WN34 ch6', 'batt_fn': 'batt_volt'},
-        b'\x25': {'name': 'wn34_ch7', 'long_name': 'WN34 ch7', 'batt_fn': 'batt_volt'},
-        b'\x26': {'name': 'wn34_ch8', 'long_name': 'WN34 ch8', 'batt_fn': 'batt_volt'},
-        b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
-        b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
-        b'\x29': {'name': 'wn35_ch2', 'long_name': 'WN35 ch2', 'batt_fn': 'batt_volt'},
-        b'\x2a': {'name': 'wn35_ch3', 'long_name': 'WN35 ch3', 'batt_fn': 'batt_volt'},
-        b'\x2b': {'name': 'wn35_ch4', 'long_name': 'WN35 ch4', 'batt_fn': 'batt_volt'},
-        b'\x2c': {'name': 'wn35_ch5', 'long_name': 'WN35 ch5', 'batt_fn': 'batt_volt'},
-        b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
-        b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
-        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
-        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
-    }
-    # sensors for which there is no low battery state
-    no_low = ['ws80', 'ws90']
     # list of dicts of weather services that I know about
     services = [{'name': 'ecowitt_net',
                  'long_name': 'Ecowitt.net'
@@ -2468,12 +2413,6 @@ class GatewayCollector(Collector):
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
         # start off logging failures
         self.log_failures = True
-        # get a sensors object to handle sensor ID data
-        self.sensors_obj = GatewayCollector.Sensors(ignore_wh40_batt=ignore_wh40_batt,
-                                                    show_battery=show_battery,
-                                                    debug_sensors=debug_sensors)
-        # update the sensors object
-        self.update_sensor_id_data()
         # do we have a legacy WH40 and how are we handling its battery state
         # data
         if b'\x03' in self.sensors_obj.connected_addresses and self.sensors_obj.legacy_wh40:
@@ -2535,7 +2474,7 @@ class GatewayCollector(Collector):
 
         Return current sensor data, battery state data and signal state data
         for each sensor. The current sensor data consists of sensor data
-        available through multiple API commands. Each API command response is
+        available through multiple API api_commands. Each API command response is
         parsed and the results accumulated in a dictionary. Battery and signal
         state for each sensor is added to this dictionary. The dictionary is
         timestamped and the timestamped accumulated data is returned. If the
@@ -4213,6 +4152,441 @@ class ApiParser(object):
         return None
 
 
+class Sensors(object):
+    """Class to manage device sensor ID data.
+
+    Class Sensors allows access to various elements of sensor ID data via a
+    number of properties and methods when the class is initialised with the
+    device response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID API
+    command.
+
+    A Sensors object can be initialised with sensor ID data on
+    instantiation or an existing Sensors object can be updated by calling
+    the set_sensor_id_data() method and passing the sensor ID data to be
+    used as the only parameter.
+    """
+
+    # map of sensor ids to short name, long name and battery byte decode
+    # function
+    sensor_ids = {
+        b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
+        b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
+        b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'wh40_batt_volt'},
+        b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
+        b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
+        b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
+        b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2', 'batt_fn': 'batt_binary'},
+        b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3', 'batt_fn': 'batt_binary'},
+        b'\x09': {'name': 'wh31_ch4', 'long_name': 'WH31 ch4', 'batt_fn': 'batt_binary'},
+        b'\x0a': {'name': 'wh31_ch5', 'long_name': 'WH31 ch5', 'batt_fn': 'batt_binary'},
+        b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6', 'batt_fn': 'batt_binary'},
+        b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7', 'batt_fn': 'batt_binary'},
+        b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8', 'batt_fn': 'batt_binary'},
+        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_volt_tenth'},
+        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_volt_tenth'},
+        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_volt_tenth'},
+        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_volt_tenth'},
+        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_volt_tenth'},
+        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_volt_tenth'},
+        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_volt_tenth'},
+        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_volt_tenth'},
+        b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
+        b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
+        b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
+        b'\x19': {'name': 'wh41_ch4', 'long_name': 'WH41 ch4', 'batt_fn': 'batt_int'},
+        b'\x1a': {'name': 'wh57', 'long_name': 'WH57', 'batt_fn': 'batt_int'},
+        b'\x1b': {'name': 'wh55_ch1', 'long_name': 'WH55 ch1', 'batt_fn': 'batt_int'},
+        b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
+        b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
+        b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
+        b'\x1f': {'name': 'wn34_ch1', 'long_name': 'WN34 ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wn34_ch2', 'long_name': 'WN34 ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wn34_ch3', 'long_name': 'WN34 ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wn34_ch4', 'long_name': 'WN34 ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wn34_ch5', 'long_name': 'WN34 ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wn34_ch6', 'long_name': 'WN34 ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wn34_ch7', 'long_name': 'WN34 ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wn34_ch8', 'long_name': 'WN34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
+        b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
+        b'\x29': {'name': 'wn35_ch2', 'long_name': 'WN35 ch2', 'batt_fn': 'batt_volt'},
+        b'\x2a': {'name': 'wn35_ch3', 'long_name': 'WN35 ch3', 'batt_fn': 'batt_volt'},
+        b'\x2b': {'name': 'wn35_ch4', 'long_name': 'WN35 ch4', 'batt_fn': 'batt_volt'},
+        b'\x2c': {'name': 'wn35_ch5', 'long_name': 'WN35 ch5', 'batt_fn': 'batt_volt'},
+        b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
+        b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
+        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
+    }
+    # sensors for which there is no low battery state
+    no_low = ['ws80', 'ws90']
+    # Tuple of sensor ID values for sensors that are not registered with
+    # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
+    # the sensor is registering.
+    not_registered = ('fffffffe', 'ffffffff')
+
+    def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
+                 show_battery=False, debug_sensors=False):
+        """Initialise myself"""
+
+        # do we ignore battery state data from legacy WH40 sensors that do
+        # not provide valid battery state data
+        self.ignore_wh40_batt = ignore_wh40_batt
+        # set the show_battery property
+        self.show_battery = show_battery
+        # initialise legacy WH40 flag
+        self.legacy_wh40 = None
+        # initialise a dict to hold the parsed sensor data
+        self.sensor_data = dict()
+        # parse the raw sensor ID data and store the results in my parsed
+        # sensor data dict
+        self.set_sensor_id_data(sensor_id_data)
+        # debug sensors
+        self.debug_sensors = debug_sensors
+
+    def set_sensor_id_data(self, id_data):
+        """Parse the raw sensor ID data and store the results.
+
+        id_data: bytestring of sensor ID data
+
+        Tested by SensorsTestCase.test_set_sensor_id_data
+        """
+
+        # initialise our parsed sensor ID data dict
+        self.sensor_data = {}
+        # do we have any raw sensor ID data
+        if id_data is not None and len(id_data) > 0:
+            # determine the size of the sensor id data, it's a big endian
+            # short (two byte) integer at bytes 4 and 5
+            data_size = struct.unpack(">H", id_data[3:5])[0]
+            # extract the actual sensor id data
+            data = id_data[5:5 + data_size - 4]
+            # initialise a counter
+            index = 0
+            # iterate over the data
+            while index < len(data):
+                # get the sensor address
+                address = data[index:index + 1]
+                # do we know how to decode this address
+                if address in Sensors.sensor_ids.keys():
+                    # get the sensor ID
+                    sensor_id = bytes_to_hex(data[index + 1: index + 5],
+                                             separator='',
+                                             caps=False)
+                    # get the method to be used to decode the battery state
+                    # data
+                    batt_fn = Sensors.sensor_ids[data[index:index + 1]]['batt_fn']
+                    # get the raw battery state data
+                    batt = six.indexbytes(data, index + 5)
+                    # if we are not showing all battery state data then the
+                    # battery state for any sensor with signal == 0 must be set
+                    # to None, otherwise parse the raw battery state data as
+                    # applicable
+                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
+                        batt_state = None
+                    else:
+                        # parse the raw battery state data
+                        batt_state = getattr(self, batt_fn)(batt)
+                    # now add the sensor to our sensor data dict
+                    self.sensor_data[address] = {'id': sensor_id,
+                                                 'battery': batt_state,
+                                                 'signal': six.indexbytes(data, index + 6)
+                                                 }
+                else:
+                    if self.debug_sensors:
+                        loginf("Unknown sensor ID '%s'" % bytes_to_hex(address))
+                # each sensor entry is seven bytes in length so skip to the
+                # start of the next sensor
+                index += 7
+
+    @property
+    def addresses(self):
+        """Obtain a list of sensor addresses.
+
+        This includes all sensor addresses reported by the device, this
+        includes:
+        - sensors that are actually connected to the device
+        - sensors that are attempting to connect to the device
+        - device sensor addresses that are searching for a sensor
+        - device sensor addresses that are disabled
+
+        Tested by SensorsTestCase.test_properties
+        """
+
+        # this is simply the list of keys to our sensor data dict
+        return self.sensor_data.keys()
+
+    @property
+    def connected_addresses(self):
+        """Obtain a list of sensor addresses for connected sensors only.
+
+        Sometimes we only want a list of addresses for sensors that are
+        actually connected to the gateway device. We can filter out those
+        addresses that do not have connected sensors by looking at the
+        sensor ID. If the sensor ID is 'fffffffe' either the sensor is
+        connecting to the device or the device is searching for a sensor
+        for that address. If the sensor ID is 'ffffffff' the device sensor
+        address is disabled.
+
+        Tested by SensorsTestCase.test_properties
+        """
+
+        # initialise a list to hold our connected sensor addresses
+        connected_list = list()
+        # iterate over all sensors
+        for address, data in six.iteritems(self.sensor_data):
+            # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
+            # must be connected
+            if data['id'] not in self.not_registered:
+                connected_list.append(address)
+        return connected_list
+
+    @property
+    def data(self):
+        """Obtain the data dict for all known sensors.
+
+        Tested by SensorsTestCase.test_properties
+        """
+
+        return self.sensor_data
+
+    def id(self, address):
+        """Obtain the sensor ID for a given sensor address.
+
+        Tested by SensorsTestCase.test_sensor_data_methods
+        """
+
+        return self.sensor_data[address]['id']
+
+    def battery_state(self, address):
+        """Obtain the sensor battery state for a given sensor address.
+
+        Tested by SensorsTestCase.test_sensor_data_methods
+        """
+
+        return self.sensor_data[address]['battery']
+
+    def signal_level(self, address):
+        """Obtain the sensor signal level for a given sensor address.
+
+        Tested by SensorsTestCase.test_sensor_data_methods
+        """
+
+        return self.sensor_data[address]['signal']
+
+    @property
+    def battery_and_signal_data(self):
+        """Obtain a dict of sensor battery state and signal level data.
+
+        Iterate over the list of connected sensors and obtain a dict of
+        sensor battery state data for each connected sensor.
+
+        Tested by SensorsTestCase.test_properties
+        """
+
+        # initialise a dict to hold the battery state data
+        data = {}
+        # iterate over our connected sensors
+        for sensor in self.connected_addresses:
+            # get the sensor name
+            sensor_name = Sensors.sensor_ids[sensor]['name']
+            # create the sensor battery state field for this sensor
+            data[''.join([sensor_name, '_batt'])] = self.battery_state(sensor)
+            # create the sensor signal level field for this sensor
+            data[''.join([sensor_name, '_sig'])] = self.signal_level(sensor)
+        # return our data
+        return data
+
+    @staticmethod
+    def batt_state_desc(address, value):
+        """Determine the battery state description for a given sensor.
+
+        Given a sensor address and battery state value determine
+        appropriate battery state descriptive text, eg 'low', 'OK' etc.
+        Descriptive text is based on Ecowitt API documentation. None is
+        returned for sensors for which the API documentation provides no
+        suitable battery state data, or for which descriptive battery state
+        text cannot be inferred.
+
+        A battery state value of None should not occur but if received the
+        descriptive text 'unknown' is returned.
+
+        Tested by SensorsTestCase.test_battery_methods
+        """
+
+        if value is not None:
+            if Sensors.sensor_ids[address].get('name') in GatewayCollector.no_low:
+                # we have a sensor for which no low battery cut-off
+                # data exists
+                return None
+            else:
+                batt_fn = Sensors.sensor_ids[address].get('batt_fn')
+                if batt_fn == 'batt_binary':
+                    if value == 0:
+                        return "OK"
+                    elif value == 1:
+                        return "low"
+                    else:
+                        return 'Unknown'
+                elif batt_fn == 'batt_int':
+                    if value <= 1:
+                        return "low"
+                    elif value == 6:
+                        return "DC"
+                    elif value <= 5:
+                        return "OK"
+                    else:
+                        return 'Unknown'
+                elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt']:
+                    if value <= 1.2:
+                        return "low"
+                    else:
+                        return "OK"
+        else:
+            return 'Unknown'
+
+    @staticmethod
+    def batt_binary(batt):
+        """Decode a binary battery state.
+
+        Battery state is stored in bit 0 as either 0 or 1. If 1 the battery
+        is low, if 0 the battery is normal. We need to mask off bits 1 to 7 as
+        they are not guaranteed to be set in any particular way.
+
+        Tested by SensorsTestCase.test_battery_methods
+        """
+
+        return batt & 1
+
+    @staticmethod
+    def batt_int(batt):
+        """Decode a integer battery state.
+
+        According to the API documentation battery state is stored as an
+        integer from 0 to 5 with <=1 being considered low. Experience with
+        WH43 has shown that battery state 6 also exists when the device is
+        run from DC. This does not appear to be documented in the API
+        documentation.
+
+        Tested by SensorsTestCase.test_battery_methods
+        """
+
+        return batt
+
+    @staticmethod
+    def batt_volt(batt):
+        """Decode a voltage battery state in 2mV increments.
+
+        Battery state is stored as integer values of battery voltage/0.02
+        with <=1.2V considered low.
+
+        Tested by SensorsTestCase.test_battery_methods
+        """
+
+        return round(0.02 * batt, 2)
+
+    def wh40_batt_volt(self, batt):
+        """Decode WH40 battery state.
+
+        Initial WH40 devices did not provide battery state information. API
+        versions up to and including v.1.6.4 reported WH40 battery state
+        via a single bit. API v1.6.5 and later report WH40 battery state in
+        a single byte in 100mV increments. It appears that API v1.6.5 and
+        later return a fixed value of 0x10 (decodes to 1.6V) for WH40
+        battery state for WH40 devices that do not report battery state.
+        WH40 devices that do report battery state appear to return a value
+        in a single byte in 10mV increments rather than 100mV increments as
+        documented in the Ecowitt LAN/Wi-Fi Gateway API
+        documentation v1.6.4. There is no known way to identify via the API
+        whether a given WH40 reports battery state information or not.
+
+        Consequently, decoding of WH40 battery state data is handled as
+        follows:
+
+        -   the WH40 battery state data is decoded as per the API
+            documentation as a value in 100mV increments
+        -   if the decoded value is <2.0V the device is assumed to be a
+            non-battery state reporting WH40 and the value None is returned
+        -   if the decoded value is >=2.0V the device is assumed to be a
+            battery state reporting WH40 and the value returned is the WH40
+            battery state data decoded in 10mV increments
+
+        For WH40 that report battery state data a decoded value of <=1.2V
+        is considered low.
+
+        Tested by SensorsTestCase.test_battery_methods
+        """
+
+        if round(0.1 * batt, 1) < 2.0:
+            # assume we have a non-battery state reporting WH40
+            # first set the legacy_wh40 flag
+            self.legacy_wh40 = True
+            # then do we ignore the result or pass it on
+            if self.ignore_wh40_batt:
+                # we are ignoring the result so return None
+                return None
+            else:
+                # we are not ignoring the result so return the result
+                return round(0.1 * batt, 1)
+        else:
+            # assume we have a battery state reporting WH40
+            # first reset the legacy_wh40 flag
+            self.legacy_wh40 = False
+            return round(0.01 * batt, 2)
+
+    @staticmethod
+    def batt_volt_tenth(batt):
+        """Decode a voltage battery state in 100mV increments.
+
+        Battery state is stored as integer values of battery voltage/0.1
+        with <=1.2V considered low.
+
+        Tested by SensorsTestCase.test_battery_methods
+        """
+
+        return round(0.1 * batt, 1)
+
+class HttpRequestorThread(threading.Thread):
+        """Thread in which a HttpRequestor object operates."""
+
+        def __init__(self, requestor):
+            # initialise our parent
+            threading.Thread.__init__(self)
+            # keep reference to the requestor we are supporting
+            self.requestor = requestor
+            self.name = 'gateway-http-requestor'
+
+        def run(self):
+            # rather than letting the thread silently fail if an exception
+            # occurs within the thread, wrap in a try..except so the exception
+            # can be caught and available exception information displayed
+            try:
+                # kick the request off
+                self.requestor.request()
+            except:
+                # we have an exception so log what we can
+                log_traceback_critical('    ****  ')
+
+class HttpRequestor(object):
+        """Object for making HTTP requests to a gateway device."""
+
+        # a queue object for passing data back to our parent
+        queue = six.moves.queue.Queue()
+
+        def __init__(self, address, request, params=None, headers={}):
+            self.address = address
+            self.request = request
+            self.params = params
+            self.headers = headers
+
+        def startup(self):
+            pass
+
+        def shutdown(self):
+            pass
+
+
 class GatewayApi(object):
     """Class to interact directly with a gateway device via the Ecowitt
        LAN/Wi-Fi Gateway API.
@@ -4227,8 +4601,8 @@ class GatewayApi(object):
     network broadcast address and port.
     """
 
-    # Ecowitt LAN/Wi-Fi Gateway API commands
-    commands = {
+    # Ecowitt LAN/Wi-Fi Gateway API api_commands
+    api_commands = {
         'CMD_WRITE_SSID': b'\x11',
         'CMD_BROADCAST': b'\x12',
         'CMD_READ_ECOWITT': b'\x1E',
@@ -4290,6 +4664,13 @@ class GatewayApi(object):
         self.parser = ApiParser(log_unknown_fields=log_unknown_fields,
                                 debug_rain=debug_rain,
                                 debug_wind=debug_wind)
+
+        # get a Sensors object to parse any API sensor state data
+        self.sensors = Sensors(ignore_wh40_batt=ignore_wh40_batt,
+                               show_battery=show_battery,
+                               debug_sensors=debug_sensors)
+        # update the sensors object
+        self.update_sensor_id_data()
 
         # network broadcast address
         self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -4420,7 +4801,7 @@ class GatewayApi(object):
             else:
                 # check the response is valid
                 try:
-                    self.check_response(response, self.commands['CMD_BROADCAST'])
+                    self.check_response(response, self.api_commands['CMD_BROADCAST'])
                 except InvalidChecksum as e:
                     # the response was not valid, log it and attempt again
                     # if we haven't had too many attempts already
@@ -4631,7 +5012,7 @@ class GatewayApi(object):
         # prepared to catch the exception raised if the device cannot be
         # contacted
         try:
-            # return the validated API response
+            # get the validated API response
             response = self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
         except GWIOError:
             # there was a problem contacting the device, it could be it has
@@ -4657,7 +5038,10 @@ class GatewayApi(object):
         read_raindata() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_RAINDATA')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_RAINDATA')
+        # now return the parsed response
+        return self.parser.parse_read_raindata(response)
 
     def get_system_params(self):
         """Read system parameters.
@@ -4669,7 +5053,10 @@ class GatewayApi(object):
         get_system_params() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_SSSS')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_SSSS')
+        # now return the parsed response
+        return self.parser.parse_read_ssss(response)
 
     def get_ecowitt_net_params(self):
         """Get Ecowitt.net parameters.
@@ -4682,7 +5069,10 @@ class GatewayApi(object):
         exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_ECOWITT')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_ECOWITT')
+        # now return the parsed response
+        return self.parser.parse_read_ecowitt(response)
 
     def get_wunderground_params(self):
         """Get Weather Underground parameters.
@@ -4695,7 +5085,10 @@ class GatewayApi(object):
         exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
+        # now return the parsed response
+        return self.parser.parse_read_wunderground(response)
 
     def get_weathercloud_params(self):
         """Get Weathercloud parameters.
@@ -4708,7 +5101,10 @@ class GatewayApi(object):
         exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
+        # now return the parsed response
+        return self.parser.parse_read_weathercloud(response)
 
     def get_wow_params(self):
         """Get Weather Observations Website parameters.
@@ -4720,7 +5116,10 @@ class GatewayApi(object):
         get_wow_params() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_WOW')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_WOW')
+        # now return the parsed response
+        return self.parser.parse_read_wow(response)
 
     def get_custom_params(self):
         """Get custom server parameters.
@@ -4732,7 +5131,10 @@ class GatewayApi(object):
         get_custom_params() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
+        # now return the parsed response
+        return self.parser.parse_read_customized(response)
 
     def get_usr_path(self):
         """Get user defined custom path.
@@ -4744,7 +5146,10 @@ class GatewayApi(object):
         be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_USR_PATH')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_USR_PATH')
+        # now return the parsed response
+        return self.parser.parse_read_usr_path(response)
 
     def get_mac_address(self):
         """Get device MAC address.
@@ -4756,7 +5161,10 @@ class GatewayApi(object):
         prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_STATION_MAC')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_STATION_MAC')
+        # now return the parsed response
+        return self.parser.parse_read_station_mac(response)
 
     def get_firmware_version(self):
         """Get device firmware version.
@@ -4768,7 +5176,10 @@ class GatewayApi(object):
         should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
+        # now return the parsed response
+        return self.parser.parse_read_firmware_version(response)
 
     def get_sensor_id(self):
         """Get sensor ID data.
@@ -4785,7 +5196,8 @@ class GatewayApi(object):
         # prepared to catch the exception raised if the device cannot be
         # contacted
         try:
-            return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
+            # get the validated API response
+            response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
         except GWIOError:
             # there was a problem contacting the device, it could be it has
             # changed IP address so attempt to rediscover
@@ -4796,7 +5208,10 @@ class GatewayApi(object):
                 # we did rediscover successfully so try again, if it fails
                 # we get another GWIOError exception which will be
                 # raised
-                return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
+                response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
+        # if we made it here we have a validated response so parse it and
+        # return the parsed data
+        return self.sensors.set_sensor_id_data(response)
 
     def get_mulch_offset(self):
         """Get multichannel temperature and humidity offset data.
@@ -4809,7 +5224,10 @@ class GatewayApi(object):
         prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
+        # now return the parsed response
+        return self.parser.parse_get_mulch_offset(response)
 
     def get_mulch_t_offset(self):
         """Get multichannel temperature (WN34) offset data.
@@ -4821,7 +5239,10 @@ class GatewayApi(object):
         get_mulch_t_offset() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
+        # now return the parsed response
+        return self.parser.parse_get_mulch_t_offset(response)
 
     def get_pm25_offset(self):
         """Get PM2.5 offset data.
@@ -4833,7 +5254,10 @@ class GatewayApi(object):
         prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
+        # now return the parsed response
+        return self.parser.parse_read_station_mac(response)
 
     def get_calibration_coefficient(self):
         """Get calibration coefficient data.
@@ -4846,7 +5270,10 @@ class GatewayApi(object):
         exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_GAIN')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_GAIN')
+        # now return the parsed response
+        return self.parser.parse_read_gain(response)
 
     def get_soil_calibration(self):
         """Get soil moisture sensor calibration data.
@@ -4858,7 +5285,10 @@ class GatewayApi(object):
         get_soil_calibration() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
+        # now return the parsed response
+        return self.parser.parse_get_soilhumiad(response)
 
     def get_offset_calibration(self):
         """Get offset calibration data.
@@ -4871,7 +5301,10 @@ class GatewayApi(object):
         exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_CALIBRATION')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_CALIBRATION')
+        # now return the parsed response
+        return self.parser.parse_read_calibration(response)
 
     def get_co2_offset(self):
         """Get WH45 CO2, PM10 and PM2.5 offset data.
@@ -4883,7 +5316,10 @@ class GatewayApi(object):
         get_co2_offset() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
+        # now return the parsed response
+        return self.parser.parse_get_co2_offset(response)
 
     def read_rain(self):
         """Get traditional gauge and piezo gauge rain data.
@@ -4895,7 +5331,10 @@ class GatewayApi(object):
         get_piezo_rain_() should be prepared to handle this exception.
         """
 
-        return self.send_cmd_with_retries('CMD_READ_RAIN')
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_READ_RAIN')
+        # now return the parsed response
+        return self.parser.parse_read_rain(response)
 
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send an API command to the device with retries and return
@@ -4933,7 +5372,7 @@ class GatewayApi(object):
             else:
                 # check the response is valid
                 try:
-                    self.check_response(response, self.commands[cmd])
+                    self.check_response(response, self.api_commands[cmd])
                 except InvalidChecksum as e:
                     # the response was not valid, log it and attempt again
                     # if we haven't had too many attempts already
@@ -4993,11 +5432,11 @@ class GatewayApi(object):
 
         # calculate size
         try:
-            size = len(self.commands[cmd]) + 1 + len(payload) + 1
+            size = len(self.api_commands[cmd]) + 1 + len(payload) + 1
         except KeyError:
             raise UnknownApiCommand("Unknown API command '%s'" % (cmd,))
         # construct the portion of the message for which the checksum is calculated
-        body = b''.join([self.commands[cmd], struct.pack('B', size), payload])
+        body = b''.join([self.api_commands[cmd], struct.pack('B', size), payload])
         # calculate the checksum
         checksum = self.calc_checksum(body)
         # return the constructed message packet
@@ -5015,7 +5454,7 @@ class GatewayApi(object):
         Returns the response as a byte string.
         """
 
-        # create a socket object for sending commands and broadcasting to
+        # create a socket object for sending api_commands and broadcasting to
         # the network, would normally do this using a with statement but
         # with statement support for socket.socket did not appear until
         # python 3.
@@ -5207,12 +5646,27 @@ class GatewayApi(object):
                     loginf("Failed to detect original %s after %d attempts" % (self.model,
                                                                                attempt + 1))
         else:
-            # an IP address was specified so we cannot go searching, log it
+            # an IP address was specified, so we cannot go searching, log it
             if self.log_failures:
                 logdbg("IP address specified in 'weewx.conf', "
                        "re-discovery was not attempted")
         # if we made it here re-discovery was unsuccessful so return False
         return False
+
+
+class GatewayHttp(object):
+    """Class to interact with the gateway device via HTTP requests."""
+
+    def __init__(self, ip_address):
+        """Initialise a HttpRequest object."""
+
+        # the IP address to be used (stored as a string)
+        self.ip_address = ip_address
+        self.thread = None
+
+    def request(self):
+        """Make the HTTP request."""
+        pass
 
     def http_request_with_retries(self, request_str, params=None, headers={}):
         """Send a HTTP request to the device with retries and return the response.
@@ -5266,400 +5720,6 @@ class GatewayApi(object):
                 log.debug("JSON API response: %s" % json.dumps(resp_json))
             # return the JSON object
             return resp_json
-
-
-class Sensors(object):
-    """Class to manage device sensor ID data.
-
-    Class Sensors allows access to various elements of sensor ID data via a
-    number of properties and methods when the class is initialised with the
-    device response to a CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID API
-    command.
-
-    A Sensors object can be initialised with sensor ID data on
-    instantiation or an existing Sensors object can be updated by calling
-    the set_sensor_id_data() method and passing the sensor ID data to be
-    used as the only parameter.
-    """
-
-    # Tuple of sensor ID values for sensors that are not registered with
-    # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
-    # the sensor is registering.
-    not_registered = ('fffffffe', 'ffffffff')
-
-    def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
-                 show_battery=False, debug_sensors=False):
-        """Initialise myself"""
-
-        # do we ignore battery state data from legacy WH40 sensors that do
-        # not provide valid battery state data
-        self.ignore_wh40_batt = ignore_wh40_batt
-        # set the show_battery property
-        self.show_battery = show_battery
-        # initialise legacy WH40 flag
-        self.legacy_wh40 = None
-        # initialise a dict to hold the parsed sensor data
-        self.sensor_data = dict()
-        # parse the raw sensor ID data and store the results in my parsed
-        # sensor data dict
-        self.set_sensor_id_data(sensor_id_data)
-        # debug sensors
-        self.debug_sensors = debug_sensors
-
-    def set_sensor_id_data(self, id_data):
-        """Parse the raw sensor ID data and store the results.
-
-        id_data: bytestring of sensor ID data
-
-        Tested by SensorsTestCase.test_set_sensor_id_data
-        """
-
-        # initialise our parsed sensor ID data dict
-        self.sensor_data = {}
-        # do we have any raw sensor ID data
-        if id_data is not None and len(id_data) > 0:
-            # determine the size of the sensor id data, it's a big endian
-            # short (two byte) integer at bytes 4 and 5
-            data_size = struct.unpack(">H", id_data[3:5])[0]
-            # extract the actual sensor id data
-            data = id_data[5:5 + data_size - 4]
-            # initialise a counter
-            index = 0
-            # iterate over the data
-            while index < len(data):
-                # get the sensor address
-                address = data[index:index + 1]
-                # do we know how to decode this address
-                if address in GatewayCollector.sensor_ids.keys():
-                    # get the sensor ID
-                    sensor_id = bytes_to_hex(data[index + 1: index + 5],
-                                             separator='',
-                                             caps=False)
-                    # get the method to be used to decode the battery state
-                    # data
-                    batt_fn = GatewayCollector.sensor_ids[data[index:index + 1]]['batt_fn']
-                    # get the raw battery state data
-                    batt = six.indexbytes(data, index + 5)
-                    # if we are not showing all battery state data then the
-                    # battery state for any sensor with signal == 0 must be set
-                    # to None, otherwise parse the raw battery state data as
-                    # applicable
-                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
-                        batt_state = None
-                    else:
-                        # parse the raw battery state data
-                        batt_state = getattr(self, batt_fn)(batt)
-                    # now add the sensor to our sensor data dict
-                    self.sensor_data[address] = {'id': sensor_id,
-                                                 'battery': batt_state,
-                                                 'signal': six.indexbytes(data, index + 6)
-                                                 }
-                else:
-                    if self.debug_sensors:
-                        loginf("Unknown sensor ID '%s'" % bytes_to_hex(address))
-                # each sensor entry is seven bytes in length so skip to the
-                # start of the next sensor
-                index += 7
-
-    @property
-    def addresses(self):
-        """Obtain a list of sensor addresses.
-
-        This includes all sensor addresses reported by the device, this
-        includes:
-        - sensors that are actually connected to the device
-        - sensors that are attempting to connect to the device
-        - device sensor addresses that are searching for a sensor
-        - device sensor addresses that are disabled
-
-        Tested by SensorsTestCase.test_properties
-        """
-
-        # this is simply the list of keys to our sensor data dict
-        return self.sensor_data.keys()
-
-    @property
-    def connected_addresses(self):
-        """Obtain a list of sensor addresses for connected sensors only.
-
-        Sometimes we only want a list of addresses for sensors that are
-        actually connected to the gateway device. We can filter out those
-        addresses that do not have connected sensors by looking at the
-        sensor ID. If the sensor ID is 'fffffffe' either the sensor is
-        connecting to the device or the device is searching for a sensor
-        for that address. If the sensor ID is 'ffffffff' the device sensor
-        address is disabled.
-
-        Tested by SensorsTestCase.test_properties
-        """
-
-        # initialise a list to hold our connected sensor addresses
-        connected_list = list()
-        # iterate over all sensors
-        for address, data in six.iteritems(self.sensor_data):
-            # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
-            # must be connected
-            if data['id'] not in self.not_registered:
-                connected_list.append(address)
-        return connected_list
-
-    @property
-    def data(self):
-        """Obtain the data dict for all known sensors.
-
-        Tested by SensorsTestCase.test_properties
-        """
-
-        return self.sensor_data
-
-    def id(self, address):
-        """Obtain the sensor ID for a given sensor address.
-
-        Tested by SensorsTestCase.test_sensor_data_methods
-        """
-
-        return self.sensor_data[address]['id']
-
-    def battery_state(self, address):
-        """Obtain the sensor battery state for a given sensor address.
-
-        Tested by SensorsTestCase.test_sensor_data_methods
-        """
-
-        return self.sensor_data[address]['battery']
-
-    def signal_level(self, address):
-        """Obtain the sensor signal level for a given sensor address.
-
-        Tested by SensorsTestCase.test_sensor_data_methods
-        """
-
-        return self.sensor_data[address]['signal']
-
-    @property
-    def battery_and_signal_data(self):
-        """Obtain a dict of sensor battery state and signal level data.
-
-        Iterate over the list of connected sensors and obtain a dict of
-        sensor battery state data for each connected sensor.
-
-        Tested by SensorsTestCase.test_properties
-        """
-
-        # initialise a dict to hold the battery state data
-        data = {}
-        # iterate over our connected sensors
-        for sensor in self.connected_addresses:
-            # get the sensor name
-            sensor_name = GatewayCollector.sensor_ids[sensor]['name']
-            # create the sensor battery state field for this sensor
-            data[''.join([sensor_name, '_batt'])] = self.battery_state(sensor)
-            # create the sensor signal level field for this sensor
-            data[''.join([sensor_name, '_sig'])] = self.signal_level(sensor)
-        # return our data
-        return data
-
-    @staticmethod
-    def batt_state_desc(address, value):
-        """Determine the battery state description for a given sensor.
-
-        Given a sensor address and battery state value determine
-        appropriate battery state descriptive text, eg 'low', 'OK' etc.
-        Descriptive text is based on Ecowitt API documentation. None is
-        returned for sensors for which the API documentation provides no
-        suitable battery state data, or for which descriptive battery state
-        text cannot be inferred.
-
-        A battery state value of None should not occur but if received the
-        descriptive text 'unknown' is returned.
-
-        Tested by SensorsTestCase.test_battery_methods
-        """
-
-        if value is not None:
-            if GatewayCollector.sensor_ids[address].get('name') in GatewayCollector.no_low:
-                # we have a sensor for which no low battery cut-off
-                # data exists
-                return None
-            else:
-                batt_fn = GatewayCollector.sensor_ids[address].get('batt_fn')
-                if batt_fn == 'batt_binary':
-                    if value == 0:
-                        return "OK"
-                    elif value == 1:
-                        return "low"
-                    else:
-                        return 'Unknown'
-                elif batt_fn == 'batt_int':
-                    if value <= 1:
-                        return "low"
-                    elif value == 6:
-                        return "DC"
-                    elif value <= 5:
-                        return "OK"
-                    else:
-                        return 'Unknown'
-                elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt']:
-                    if value <= 1.2:
-                        return "low"
-                    else:
-                        return "OK"
-        else:
-            return 'Unknown'
-
-    @staticmethod
-    def batt_binary(batt):
-        """Decode a binary battery state.
-
-        Battery state is stored in bit 0 as either 0 or 1. If 1 the battery
-        is low, if 0 the battery is normal. We need to mask off bits 1 to 7 as
-        they are not guaranteed to be set in any particular way.
-
-        Tested by SensorsTestCase.test_battery_methods
-        """
-
-        return batt & 1
-
-    @staticmethod
-    def batt_int(batt):
-        """Decode a integer battery state.
-
-        According to the API documentation battery state is stored as an
-        integer from 0 to 5 with <=1 being considered low. Experience with
-        WH43 has shown that battery state 6 also exists when the device is
-        run from DC. This does not appear to be documented in the API
-        documentation.
-
-        Tested by SensorsTestCase.test_battery_methods
-        """
-
-        return batt
-
-    @staticmethod
-    def batt_volt(batt):
-        """Decode a voltage battery state in 2mV increments.
-
-        Battery state is stored as integer values of battery voltage/0.02
-        with <=1.2V considered low.
-
-        Tested by SensorsTestCase.test_battery_methods
-        """
-
-        return round(0.02 * batt, 2)
-
-    def wh40_batt_volt(self, batt):
-        """Decode WH40 battery state.
-
-        Initial WH40 devices did not provide battery state information. API
-        versions up to and including v.1.6.4 reported WH40 battery state
-        via a single bit. API v1.6.5 and later report WH40 battery state in
-        a single byte in 100mV increments. It appears that API v1.6.5 and
-        later return a fixed value of 0x10 (decodes to 1.6V) for WH40
-        battery state for WH40 devices that do not report battery state.
-        WH40 devices that do report battery state appear to return a value
-        in a single byte in 10mV increments rather than 100mV increments as
-        documented in the Ecowitt LAN/Wi-Fi Gateway API
-        documentation v1.6.4. There is no known way to identify via the API
-        whether a given WH40 reports battery state information or not.
-
-        Consequently, decoding of WH40 battery state data is handled as
-        follows:
-
-        -   the WH40 battery state data is decoded as per the API
-            documentation as a value in 100mV increments
-        -   if the decoded value is <2.0V the device is assumed to be a
-            non-battery state reporting WH40 and the value None is returned
-        -   if the decoded value is >=2.0V the device is assumed to be a
-            battery state reporting WH40 and the value returned is the WH40
-            battery state data decoded in 10mV increments
-
-        For WH40 that report battery state data a decoded value of <=1.2V
-        is considered low.
-
-        Tested by SensorsTestCase.test_battery_methods
-        """
-
-        if round(0.1 * batt, 1) < 2.0:
-            # assume we have a non-battery state reporting WH40
-            # first set the legacy_wh40 flag
-            self.legacy_wh40 = True
-            # then do we ignore the result or pass it on
-            if self.ignore_wh40_batt:
-                # we are ignoring the result so return None
-                return None
-            else:
-                # we are not ignoring the result so return the result
-                return round(0.1 * batt, 1)
-        else:
-            # assume we have a battery state reporting WH40
-            # first reset the legacy_wh40 flag
-            self.legacy_wh40 = False
-            return round(0.01 * batt, 2)
-
-    @staticmethod
-    def batt_volt_tenth(batt):
-        """Decode a voltage battery state in 100mV increments.
-
-        Battery state is stored as integer values of battery voltage/0.1
-        with <=1.2V considered low.
-
-        Tested by SensorsTestCase.test_battery_methods
-        """
-
-        return round(0.1 * batt, 1)
-
-    class HttpRequestorThread(threading.Thread):
-        """Thread in which a HttpRequestor object operates."""
-
-        def __init__(self, requestor):
-            # initialise our parent
-            threading.Thread.__init__(self)
-            # keep reference to the requestor we are supporting
-            self.requestor = requestor
-            self.name = 'gateway-http-requestor'
-
-        def run(self):
-            # rather than letting the thread silently fail if an exception
-            # occurs within the thread, wrap in a try..except so the exception
-            # can be caught and available exception information displayed
-            try:
-                # kick the request off
-                self.requestor.request()
-            except:
-                # we have an exception so log what we can
-                log_traceback_critical('    ****  ')
-
-    class HttpRequestor(object):
-        """Object for making HTTP requests to a gateway device."""
-
-        # a queue object for passing data back to our parent
-        queue = six.moves.queue.Queue()
-
-        def __init__(self, address, request, params=None, headers={}):
-            self.address = address
-            self.request = request
-            self.params = params
-            self.headers = headers
-
-        def startup(self):
-            pass
-
-        def shutdown(self):
-            pass
-
-
-class GatewayHttp(object):
-    """Class to interact with the gateway device via HTTP requests."""
-
-    def __init__(self, ip_address):
-        """Initialise a HttpRequest object."""
-
-        # the IP address to be used (stored as a string)
-        self.ip_address = ip_address
-        self.thread = None
-
-    def request(self):
-        """Make the HTTP request."""
 
     def startup(self):
         """Start a thread to make a HTTP request to the gateway device."""
@@ -5721,9 +5781,9 @@ class GatewayDevice(object):
     1. via the Ecowitt LAN/Wi-Fi Gateway API
     2. via a HTTP request
 
-    The API uses a library of commands for reading and setting various
+    The API uses a library of api_commands for reading and setting various
     parameters in the gateway device. The WeeWX Ecowitt gateway device
-    driver uses a small subset of these commands to obtain sensor data
+    driver uses a small subset of these api_commands to obtain sensor data
     which is presented to WeeWX via loop packets emitted by the driver. API
     communications is socket based and involves exchange of data that must
     be encoded/decoded at the byte/bit level.
@@ -7091,7 +7151,7 @@ class DirectGateway(object):
                                                                             sensor_data.get('signal'),
                                                                             battery_str)
                         # print the formatted data
-                    print("%-10s %s" % (GatewayCollector.sensor_ids[address].get('long_name'), state))
+                    print("%-10s %s" % (Sensors.sensor_ids[address].get('long_name'), state))
             elif len(sensors.data) == 0:
                 print()
                 print("%s did not return any sensor data." % collector.station.model)
@@ -7504,7 +7564,7 @@ class DirectGateway(object):
 
 
 # To use this driver in standalone mode for testing or development, use one of
-# the following commands (depending on your WeeWX install). For setup.py
+# the following api_commands (depending on your WeeWX install). For setup.py
 # installs use:
 #
 #   $ PYTHONPATH=/home/weewx/bin python -m user.gw1000
@@ -7513,13 +7573,13 @@ class DirectGateway(object):
 #
 #   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
 #
-# The above commands will display details of available command line options.
+# The above api_commands will display details of available command line options.
 #
 # Note. Whilst the driver may be run independently of WeeWX the driver still
 # requires WeeWX and it's dependencies be installed. Consequently, if
 # WeeWX 4.0.0 or later is installed the driver must be run under the same
 # Python version as WeeWX uses. This means that on some systems 'python' in the
-# above commands may need to be changed to 'python2' or 'python3'.
+# above api_commands may need to be changed to 'python2' or 'python3'.
 
 def main():
     import optparse
