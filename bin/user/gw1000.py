@@ -291,6 +291,9 @@ for more in-depth installation and configuration information.
 # TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
 # TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
 
+# Refactor TODOS:
+# TODO. self.sensor_ids vs Sensors.sensor_ids
+
 # Python imports
 from __future__ import absolute_import
 from __future__ import division
@@ -2333,20 +2336,24 @@ class Collector(object):
 # ============================================================================
 
 class GatewayCollector(Collector):
-    """Class to collect and return data from an Ecowitt LAN/Wi-Fi Gateway
-    device.
+    """Class to collect data from an Ecowitt LAN/Wi-Fi Gateway device.
 
     A GatewayCollector object is responsible for obtaining data from an Ecowitt
-    LAN/Wi-Fi Gateway device using the Ecowitt LAN/Wi-Fi Gateway device API. A
-    GatewayCollector object also decodes this data and makes it available to
-    WeeWX drivers, services and other components as required. A
-    GatewayCollector object uses the following subordinate classes as
+    LAN/Wi-Fi Gateway device. A GatewayCollector object primarily uses the
+    Ecowitt LAN/Wi-Fi Gateway device API for gathering sensor data but direct
+    HTTP requests are also used to obtain additional device/sensor data not
+    available via the API. A GatewayCollector object also decodes this data and
+    makes it available to WeeWX drivers, services and other components as
+    required. A GatewayCollector object uses the following classes as
     indicated:
-    - class Station. Communicates directly with the gateway device via the API
-                     and obtains and validates gateway device responses.
-    - class Parser.  Parses and decodes the validated gateway response data
-                     returning observational and parametric data
-    - class Sensors. Allows easy access sensor data from coded API sensor data
+    - class gatewayDevice. Communicates directly with the gateway device via
+                           the API and HTTP request and obtains, validates and
+                           parses gateway device responses.
+    - class ApiParser.     Parses and decodes the validated gateway API
+                           response data returning observational and parametric
+                           data
+    - class Sensors.       Decodes raw sensor data obtained from validated
+                           gateway API response data
     """
 
     # list of dicts of weather services that I know about
@@ -2379,14 +2386,6 @@ class GatewayCollector(Collector):
         # initialize my base class:
         super(GatewayCollector, self).__init__()
 
-        # get a GatewayDevice to handle interaction with the gateway device
-        self.gateway = GatewayDevice(ip_address=ip_address, port=port,
-                                     broadcast_address=broadcast_address,
-                                     broadcast_port=broadcast_port,
-                                     socket_timeout=socket_timeout,
-                                     broadcast_timeout=broadcast_timeout,
-                                     max_tries=max_tries, retry_wait=retry_wait)
-
         # interval between polls of the API, use a default
         self.poll_interval = poll_interval
         # how many times to poll the API before giving up, default is
@@ -2395,22 +2394,15 @@ class GatewayCollector(Collector):
         # period in seconds to wait before polling again, default is
         # default_retry_wait seconds
         self.retry_wait = retry_wait
-        # are we using a WH32 sensor, if so tell our sensor id decoding we have
-        # a WH32, otherwise it will default to WH26.
-        if use_wh32:
-            # set the WH24 sensor id decode dict entry
-            self.sensor_ids[b'\x05']['name'] = 'wh32'
-            self.sensor_ids[b'\x05']['long_name'] = 'WH32'
-        # Do we have a WH24 attached? First obtain our system parameters.
-        _sys_params = self.gateway.get_system_params()
-        # WH24 is indicated by the 6th byte being 0
-        is_wh24 = six.indexbytes(_sys_params, 5) == 0
-        # Tell our sensor id decoding whether we have a WH24 or a WH65. By
-        # default, we are coded to use a WH65. Is there a WH24 connected?
-        if is_wh24:
-            # set the WH24 sensor id decode dict entry
-            self.sensor_ids[b'\x00']['name'] = 'wh24'
-            self.sensor_ids[b'\x00']['long_name'] = 'WH24'
+
+        # get a GatewayDevice to handle interaction with the gateway device
+        self.gateway = GatewayDevice(ip_address=ip_address, port=port,
+                                     broadcast_address=broadcast_address,
+                                     broadcast_port=broadcast_port,
+                                     socket_timeout=socket_timeout,
+                                     broadcast_timeout=broadcast_timeout,
+                                     max_tries=max_tries, retry_wait=retry_wait)
+
         # start off logging failures
         self.log_failures = True
         # do we have a legacy WH40 and how are we handling its battery state
@@ -2466,7 +2458,7 @@ class GatewayCollector(Collector):
                 logdbg('Next update in %d seconds' % self.poll_interval)
                 # reset the last poll ts
                 last_poll = now
-            # sleep for a second and then see if its time to poll again
+            # sleep for a second and then see if it's time to poll again
             time.sleep(1)
 
     def get_current_data(self):
@@ -4229,6 +4221,23 @@ class Sensors(object):
     def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
                  show_battery=False, debug_sensors=False):
         """Initialise myself"""
+
+        # are we using a WH32 sensor, if so tell our sensor id decoding we have
+        # a WH32, otherwise it will default to WH26.
+        if use_wh32:
+            # set the WH24 sensor id decode dict entry
+            self.sensor_ids[b'\x05']['name'] = 'wh32'
+            self.sensor_ids[b'\x05']['long_name'] = 'WH32'
+        # Do we have a WH24 attached? First obtain our system parameters.
+        _sys_params = self.gateway.api.get_system_params()
+        # WH24 is indicated by the 6th byte being 0
+        is_wh24 = six.indexbytes(_sys_params, 5) == 0
+        # Tell our sensor id decoding whether we have a WH24 or a WH65. By
+        # default, we are coded to use a WH65. Is there a WH24 connected?
+        if is_wh24:
+            # set the WH24 sensor id decode dict entry
+            self.sensor_ids[b'\x00']['name'] = 'wh24'
+            self.sensor_ids[b'\x00']['long_name'] = 'WH24'
 
         # do we ignore battery state data from legacy WH40 sensors that do
         # not provide valid battery state data
