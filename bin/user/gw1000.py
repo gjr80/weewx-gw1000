@@ -293,6 +293,7 @@ for more in-depth installation and configuration information.
 
 # Refactor TODOS:
 # TODO. self.sensor_ids vs Sensors.sensor_ids
+# TODO. Where should IP address, port and MAC be properties
 
 # Python imports
 from __future__ import absolute_import
@@ -2282,13 +2283,13 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
     def mac_address(self):
         """Return the device MAC address."""
 
-        return self.collector.mac_address
+        return self.collector.gateway.api.get_mac_address()
 
     @property
     def firmware_version(self):
         """Return the device firmware version string."""
 
-        return self.collector.firmware_version
+        return self.collector.gateway.api.get_firmware_version()
 
     @property
     def sensor_id_data(self):
@@ -2524,57 +2525,6 @@ class GatewayCollector(Collector):
         self.sensors_obj.set_sensor_id_data(sensor_id_data)
 
     @property
-    def rain_data(self):
-        """Obtain device rain data.
-
-        Uses the API command CMD_READ_RAINDATA to obtain 'traditional' rain
-        gauge data only. To obtain 'traditional' and 'piezo' rain data use the
-        GatewayCollector.all_rain_data property instead.
-        """
-
-        # obtain the parsed rain data via the API
-        return self.gateway.api.read_raindata()
-
-    @property
-    def all_rain_data(self):
-        """Obtain all device rain data.
-
-        Uses the API command CMD_READ_RAIN to obtain 'traditional' and 'piezo'
-        gauge rain data.
-        """
-
-        # obtain the rain data via the API
-        return self.gateway.api.read_rain()
-
-    @property
-    def mulch_offset(self):
-        """Obtain device multi-channel temperature and humidity offset data."""
-
-        # obtain the mulch offset data via the API
-        return self.gateway.api.get_mulch_offset()
-
-    @property
-    def mulch_t_offset(self):
-        """Obtain device multi-channel temperature (WN34) offset data."""
-
-        # obtain the mulch offset data via the API
-        return self.gateway.api.get_mulch_t_offset()
-
-    @property
-    def pm25_offset(self):
-        """Obtain device PM2.5 offset data."""
-
-        # obtain the PM2.5 offset data via the API
-        return self.gateway.api.get_pm25_offset()
-
-    @property
-    def co2_offset(self):
-        """Obtain device WH45 CO2, PM10 and PM2.5 offset data."""
-
-        # obtain the WH45 offset data via the API
-        return self.gateway.api.get_co2_offset()
-
-    @property
     def calibration(self):
         """Obtain device calibration data."""
 
@@ -2586,88 +2536,6 @@ class GatewayCollector(Collector):
         parsed_cal_coeff.update(parsed_offset)
         # return the parsed data
         return parsed_cal_coeff
-
-    @property
-    def soil_calibration(self):
-        """Obtain device soil moisture sensor calibration data."""
-
-        # obtain the soil moisture calibration data via the API
-        return self.gateway.api.get_soil_calibration()
-
-    @property
-    def system_parameters(self):
-        """Obtain device system parameters."""
-
-        # obtain the system parameters data via the API
-        return self.gateway.api.et_system_params()
-
-    @property
-    def ecowitt_net(self):
-        """Obtain device Ecowitt.net service parameters.
-
-        Also includes the device MAC address.
-        """
-
-        # obtain the system parameters data via the API
-        parsed_ecowitt = self.gateway.api.get_ecowitt_net_params()
-        # add the device MAC address to the parsed data
-        parsed_ecowitt['mac'] = self.mac_address
-        # return the parsed response
-        return parsed_ecowitt
-
-    @property
-    def wunderground(self):
-        """Obtain device Weather Underground service parameters."""
-
-        # obtain the system parameters data via the API
-        return self.gateway.api.get_wunderground_params()
-
-    @property
-    def wow(self):
-        """Obtain device Weather Observations Website service parameters."""
-
-        # obtain the system parameters data via the API
-        return  self.gateway.api.get_wow_params()
-
-    @property
-    def weathercloud(self):
-        """Obtain device Weathercloud service parameters."""
-
-        # obtain the system parameters data via the API
-        return self.gateway.api.get_weathercloud_params()
-
-    @property
-    def custom(self):
-        """Obtain device custom server parameters."""
-
-        # obtain the system parameters data via the API
-        parsed_custom = self.gateway.api.get_custom_params()
-        # the user path is obtained separately, get the user path and add it to
-        # our response
-        parsed_custom.update(self.usr_path)
-        # return the resulting parsed data
-        return parsed_custom
-
-    @property
-    def usr_path(self):
-        """Obtain the device user defined custom paths."""
-
-        # return the device user defined custom path
-        return self.gateway.api.get_usr_path()
-
-    @property
-    def mac_address(self):
-        """Obtain the device MAC address."""
-
-        # obtain the device MAC address bytes
-        return self.gateway.api.get_mac_address()
-
-    @property
-    def firmware_version(self):
-        """Obtain the device firmware version string."""
-
-        # get the firmware bytestring via the API
-        return self.gateway.api.get_firmware_version()
 
     @property
     def sensors(self):
@@ -6397,18 +6265,18 @@ class DirectGateway(object):
                                          port=self.port)
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
-            # get the collector objects system_parameters property
-            sys_params_dict = collector.system_parameters
+            print("Interrogating %s at %s:%d" % (collector.gateway.api.model,
+                                                 collector.gateway.api.ip_address.decode(),
+                                                 collector.gateway.api.port))
+            # get the system_parameters from the API
+            sys_params_dict = collector.gateway.api.get_system_params()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
         except socket.timeout:
             # socket timeout so inform the user
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. %s did not respond." % collector.gateway.api.model)
         else:
             # create a meaningful string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
@@ -6462,7 +6330,7 @@ class DirectGateway(object):
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
             # get the collector objects get_rain_data property
-            rain_data = collector.rain_data
+            rain_data = collector.gateway.api.read_raindata()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6520,10 +6388,10 @@ class DirectGateway(object):
             # device does not support CMD_READ_RAIN. In that case fall back to
             # the rain_data property instead.
             try:
-                rain_data = collector.all_rain_data
+                rain_data = collector.gateway.api.read_rain()
             except UnknownApiCommand:
                 # use the rain_data property
-                rain_data = collector.rain_data
+                rain_data = collector.gateway.api.read_raindata()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6623,9 +6491,8 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the mulch offset data from the collector object's mulch_offset
-            # property
-            mulch_offset_data = collector.mulch_offset
+            # get the mulch offset data from the API
+            mulch_offset_data = collector.gateway.api.get_mulch_offset()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6673,9 +6540,8 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the mulch temp offset data from the collector object's
-            # mulch_offset property
-            mulch_t_offset_data = collector.mulch_t_offset
+            # get the mulch temp offset data via the API
+            mulch_t_offset_data = collector.gateway.api.get_mulch_t_offset()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6726,9 +6592,8 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the PM2.5 offset data from the collector object's pm25_offset
-            # property
-            pm25_offset_data = collector.pm25_offset
+            # get the PM2.5 offset data from the API
+            pm25_offset_data = collector.gateway.api.get_pm25_offset()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6770,9 +6635,8 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the offset data from the collector object's co2_offset
-            # property
-            co2_offset_data = collector.co2_offset
+            # get the offset data from the API
+            co2_offset_data = collector.gateway.api.get_co2_offset()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -6862,9 +6726,8 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # get the calibration data from the collector object's
-            # soil_calibration property
-            calibration_data = collector.soil_calibration
+            # get the calibration data from the API
+            calibration_data = collector.gateway.api.get_soil_calibration()
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -7064,9 +6927,9 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # call the driver objects mac_address() method
             print()
-            print("    MAC address: %s" % collector.mac_address)
+            # get the device MAC address
+            print("    MAC address: %s" % collector.gateway.api.get_mac_address())
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
@@ -7094,9 +6957,9 @@ class DirectGateway(object):
             print("Interrogating %s at %s:%d" % (collector.station.model,
                                                  collector.station.ip_address.decode(),
                                                  collector.station.port))
-            # call the driver objects firmware_version() method
             print()
-            print("    firmware version string: %s" % collector.firmware_version)
+            # get the firmware version via the API
+            print("    firmware version string: %s" % collector.gateway.api.get_firmware_version())
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
