@@ -2492,7 +2492,6 @@ class GatewayCollector(Collector):
             parsed_rain_data = None
         except GWIOError:
             raise
-        # if we made it here our raw data was validated by checksum, now
         # get a timestamp to use in case our data does not come with one
         _timestamp = int(time.time())
         # now update our parsed data with the parsed rain data if we have any
@@ -4424,45 +4423,6 @@ class Sensors(object):
 
         return round(0.1 * batt, 1)
 
-class HttpRequestorThread(threading.Thread):
-        """Thread in which a HttpRequestor object operates."""
-
-        def __init__(self, requestor):
-            # initialise our parent
-            threading.Thread.__init__(self)
-            # keep reference to the requestor we are supporting
-            self.requestor = requestor
-            self.name = 'gateway-http-requestor'
-
-        def run(self):
-            # rather than letting the thread silently fail if an exception
-            # occurs within the thread, wrap in a try..except so the exception
-            # can be caught and available exception information displayed
-            try:
-                # kick the request off
-                self.requestor.request()
-            except:
-                # we have an exception so log what we can
-                log_traceback_critical('    ****  ')
-
-class HttpRequestor(object):
-        """Object for making HTTP requests to a gateway device."""
-
-        # a queue object for passing data back to our parent
-        queue = six.moves.queue.Queue()
-
-        def __init__(self, address, request, params=None, headers={}):
-            self.address = address
-            self.request = request
-            self.params = params
-            self.headers = headers
-
-        def startup(self):
-            pass
-
-        def shutdown(self):
-            pass
-
 
 class GatewayApi(object):
     """Class to interact directly with a gateway device via the Ecowitt
@@ -5534,6 +5494,9 @@ class GatewayApi(object):
 class GatewayHttp(object):
     """Class to interact with the gateway device via HTTP requests."""
 
+    # a queue object for passing data back to our parent
+    queue = six.moves.queue.Queue()
+
     def __init__(self, ip_address):
         """Initialise a HttpRequest object."""
 
@@ -5699,7 +5662,27 @@ class GatewayDevice(object):
         # Get a HttpRequestor object to handle any HTTP requests.
         # We need to decode the IP address as a GatewayApi object store the
         # IP address as a bytestring.
-        self.http = HttpRequestor(ip_address=self.api.ip_address.decode())
+        self.http = GatewayHttp(ip_address=self.api.ip_address.decode())
+
+    @property
+    def ip_address(self):
+        """The gateway device IP address."""
+
+        return self.api.ip_address
+
+    @property
+    def port(self):
+        """The gateway device port number."""
+
+        return self.api.port
+
+    @property
+    def model(self):
+        """Gateway device model."""
+
+        return self.api.model
+
+
 
 
 # ============================================================================
