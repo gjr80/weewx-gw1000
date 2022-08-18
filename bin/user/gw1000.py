@@ -5497,16 +5497,43 @@ class GatewayHttp(object):
     # a queue object for passing data back to our parent
     queue = six.moves.queue.Queue()
 
-    def __init__(self, ip_address):
+    def __init__(self, ip_address, cmd, params=None, headers={}):
         """Initialise a HttpRequest object."""
 
         # the IP address to be used (stored as a string)
         self.ip_address = ip_address
+        # the HTTP 'command' to be sent
+        self.cmd = cmd
+        # any parameters to be included with the HTTP request
+        self.params = params
+        # any headers to be sent with the HTTP request
+        self.headers = headers
         self.thread = None
 
     def request(self):
-        """Make the HTTP request."""
-        pass
+        """Make the HTTP request and return the result."""
+
+        # send the HTTP request, be prepared to catch any exceptions raised
+        # if the request cannot be completed
+        try:
+            # sent the request and obtain the response
+            response = self.http_request_with_retries(request_str, params, headers)
+        except (URLError, socket.timeout) as e:
+            # there was a problem with the request, the error has already been
+            # logged so put None in the queue and exit
+            self.queue.put(None)
+            return
+        except Exception as e:
+            # there was an unknown error with the request, log what we can
+            log.error("HTTP request failed")
+            log.error("   **** %s" % e)
+            # put None in the queue
+            self.queue.put(None)
+            # and exit
+            return
+        else:
+            # we received a response, it should be in JSON format so return it
+            return response
 
     def http_request_with_retries(self, request_str, params=None, headers={}):
         """Send a HTTP request to the device with retries and return the response.
@@ -5595,11 +5622,11 @@ class GatewayHttp(object):
     class HttpThread(threading.Thread):
         """Class to handle gateway device HTTP requests in a thread."""
 
-        def __init__(self, requestor):
+        def __init__(self, http):
             # initialise our parent
             threading.Thread.__init__(self)
             # keep reference to the client we are supporting
-            self.requestor = requestor
+            self.http = http
             self.name = 'gateway-http'
 
         def run(self):
@@ -5608,7 +5635,7 @@ class GatewayHttp(object):
             # can be caught and available exception information displayed
             try:
                 # kick the collection off
-                self.requestor.request()
+                self.http.request()
             except:
                 # we have an exception so log what we can
                 log_traceback_critical('    ****  ')
@@ -5681,8 +5708,6 @@ class GatewayDevice(object):
         """Gateway device model."""
 
         return self.api.model
-
-
 
 
 # ============================================================================
