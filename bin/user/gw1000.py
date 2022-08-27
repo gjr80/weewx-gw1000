@@ -5709,6 +5709,132 @@ class GatewayDevice(object):
 
         return self.api.model
 
+    @property
+    def livedata(self):
+        """Gateway device live data."""
+
+        return self.api.get_livedata()
+
+    @property
+    def livedata(self):
+        """Gateway device live data."""
+
+        return self.api.get_livedata()
+
+    @property
+    def raindata(self):
+        """Gateway device traditional rain gauge data."""
+
+        return self.api.read_raindata()
+
+    @property
+    def system_params(self):
+        """Gateway device system parameters."""
+
+        return self.api.get_system_params()
+
+    @property
+    def ecowitt_net_params(self):
+        """Gateway device Ecowitt.net parameters."""
+
+        return self.api.get_ecowitt_net_params()
+
+    @property
+    def wunderground_params(self):
+        """Gateway device Weather Underground parameters."""
+
+        return self.api.get_wunderground_params()
+
+    @property
+    def weathercloud_params(self):
+        """Gateway device Weathercloud parameters."""
+
+        return self.api.get_weathercloud_params()
+
+    @property
+    def get_wow_params(self):
+        """Gateway device Weather Observations Website parameters."""
+
+        return self.api.get_wow_params()
+
+    @property
+    def custom_params(self):
+        """Gateway device custom server parameters."""
+
+        return self.api.get_custom_params()
+
+    @property
+    def usr_path(self):
+        """Gateway device user defined custom path parameters."""
+
+        return self.api.get_usr_path()
+
+    @property
+    def mac_address(self):
+        """Gateway device MAC address."""
+
+        return self.api.get_mac_address()
+
+    @property
+    def firmware_version(self):
+        """Gateway device firmware version."""
+
+        return self.api.get_firmware_version()
+
+    @property
+    def sensor_id(self):
+        """Gateway device sensor ID data."""
+
+        return self.api.get_sensor_id()
+
+    @property
+    def mulch_offset(self):
+        """Gateway device multichannel temperature and humidity offset data."""
+
+        return self.api.get_mulch_offset()
+
+    @property
+    def mulch_t_offset(self):
+        """Gateway device multichannel temperature (WN34) offset data."""
+
+        return self.api.get_mulch_t_offset()
+
+    @property
+    def pm25_offset(self):
+        """Gateway device PM2.5 offset data."""
+
+        return self.api.get_pm25_offset()
+
+    @property
+    def calibration_coefficient(self):
+        """Gateway device calibration coefficient data."""
+
+        return self.api.get_calibration_coefficient()
+
+    @property
+    def soil_calibration(self):
+        """Gateway device soil calibration data."""
+
+        return self.api.get_soil_calibration()
+
+    @property
+    def offset_calibration(self):
+        """Gateway device offset calibration data."""
+
+        return self.api.get_offset_calibration()
+
+    @property
+    def co2_offset(self):
+        """Gateway device CO2 offset data."""
+
+        return self.api.get_co2_offset()
+
+    @property
+    def rain(self):
+        """Gateway device traditional gauge and piezo gauge rain data."""
+
+        return self.api.read_rain()
+
 
 # ============================================================================
 #                             Utility functions
