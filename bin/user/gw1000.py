@@ -2031,7 +2031,7 @@ attempt startup indefinitely."""
         # now make our updated accumulator config the config dict
         config_dict = configobj.ConfigObj(accum_config_dict)
 
-        # we don't need weecfg any more so remove it from memory
+        # we don't need weecfg anymore so remove it from memory
         del weecfg
         print()
 
