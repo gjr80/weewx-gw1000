@@ -4817,8 +4817,6 @@ class GatewayApi(object):
             # we have a string, now do we have a know model in the string,
             # if so return the model string
             for model in self.known_models:
-                with open("/var/tmp/test.txt", "a") as myfile:
-                    myfile.write("model=%s type(model)=%s t=%s type(t)=%s" % (model, type(model), t, type(t)))
                 if model in t.upper():
                     return model
             # we don't have a known model so return None
@@ -5521,7 +5519,7 @@ class GatewayHttp(object):
 
     # HTTP request commands, note deliberate mis-spelling in get_calibraion_data
     commands = ['get_version', 'get_livedata_info', 'get_ws_settings',
-                'get_calibraion_data', 'get_rain_totals', 'get_device_info',
+                'get_calibration_data', 'get_rain_totals', 'get_device_info',
                 'get_sensors_info', 'get_network_info', 'get_units_info',
                 'get_cli_soilad', 'get_cli_multiCh', 'get_cli_pm25',
                 'get_cli_co2', 'get_piezo_rain']
