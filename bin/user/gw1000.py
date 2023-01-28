@@ -20,7 +20,7 @@ The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where
 it is the source of loop data or it can be operated as a WeeWX service where it
 is used to augment loop data produced by another driver.
 
-Copyright (C) 2020-2022 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-2023 Gary Roderick                   gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,10 +34,18 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.5.0b6                                    Date: ?? August 2022
+Version: 0.6.0a1                                    Date: ?? February 2023
 
 Revision History
-    ?? June 2022           v0.5.0
+    ?? February 2023        v0.6.0
+        -   significant re-structuring of classes used to better delineate
+            responsibilities and prepare for the implementation of the
+            GatewayHttp class
+        -   implement device HTTP requests to obtain additional device/sensor
+            status data not available via API
+        -   fixes error in multi-channel temperature calibration data decode
+        -   change of internal rain field names ?
+    ?? June 2022            v0.5.0b6
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
@@ -314,7 +322,7 @@ from operator import itemgetter
 import six
 from six.moves import StringIO
 from six.moves import urllib
-from six.moves.urllib.error import HTTPError, URLError
+from six.moves.urllib.error import URLError
 from six.moves.urllib.parse import urlencode
 
 # WeeWX imports
@@ -335,18 +343,14 @@ try:
 
     log = logging.getLogger(__name__)
 
-
     def logdbg(msg):
         log.debug(msg)
-
 
     def loginf(msg):
         log.info(msg)
 
-
     def logerr(msg):
         log.error(msg)
-
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -354,10 +358,8 @@ try:
     def log_traceback_critical(prefix=''):
         log_traceback(log.critical, prefix=prefix)
 
-
     def log_traceback_error(prefix=''):
         log_traceback(log.error, prefix=prefix)
-
 
     def log_traceback_debug(prefix=''):
         log_traceback(log.debug, prefix=prefix)
@@ -367,22 +369,17 @@ except ImportError:
     import syslog
     from weeutil.weeutil import log_traceback
 
-
     def logmsg(level, msg):
         syslog.syslog(level, 'gw1000: %s' % msg)
-
 
     def logdbg(msg):
         logmsg(syslog.LOG_DEBUG, msg)
 
-
     def loginf(msg):
         logmsg(syslog.LOG_INFO, msg)
 
-
     def logerr(msg):
         logmsg(syslog.LOG_ERR, msg)
-
 
     # log_traceback() generates the same output but the signature and code is
     # different between v3 and v4. We only need log_traceback at the log.error
@@ -390,16 +387,14 @@ except ImportError:
     def log_traceback_critical(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_CRIT)
 
-
     def log_traceback_error(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_ERR)
-
 
     def log_traceback_debug(prefix=''):
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.5.0b6'
+DRIVER_VERSION = '0.6.0a1'
 
 # various defaults used throughout
 # default port used by device
@@ -469,6 +464,10 @@ class UnknownApiCommand(Exception):
     otherwise valid API response has an unexpected command code."""
 
 
+class UnknownHttpCommand(Exception):
+    """Exception raised when an unknown HTTP command was selected."""
+
+
 class InvalidChecksum(Exception):
     """Exception raised when an API call response contains an invalid
     checksum."""
@@ -477,6 +476,41 @@ class InvalidChecksum(Exception):
 class GWIOError(Exception):
     """Exception raised when an input/output error with the device is
     encountered."""
+
+
+class DebugOptions(object):
+    """Class to simplify use and handling of device debug options."""
+
+    def __init__(self, gw_config_dict):
+        # get any specific debug settings
+        # rain
+        self.debug_rain = weeutil.weeutil.tobool(gw_config_dict.get('debug_rain',
+                                                                    False))
+        # wind
+        self.debug_wind = weeutil.weeutil.tobool(gw_config_dict.get('debug_wind',
+                                                                    False))
+        # loop data
+        self.debug_loop = weeutil.weeutil.tobool(gw_config_dict.get('debug_loop',
+                                                                    False))
+        # sensors
+        self.debug_sensors = weeutil.weeutil.tobool(gw_config_dict.get('debug_sensors',
+                                                                       False))
+
+    @property
+    def rain(self):
+        return self.debug_rain
+
+    @property
+    def wind(self):
+        return self.debug_wind
+
+    @property
+    def loop(self):
+        return self.debug_loop
+
+    @property
+    def sensors(self):
+        return self.debug_sensors
 
 
 # ============================================================================
@@ -883,19 +917,9 @@ class Gateway(object):
         # debug level, this will log them at the info level
         log_unknown_fields = weeutil.weeutil.tobool(gw_config.get('log_unknown_fields',
                                                                   False))
-        # get any specific debug settings
-        # rain
-        self.debug_rain = weeutil.weeutil.tobool(gw_config.get('debug_rain',
-                                                               False))
-        # wind
-        self.debug_wind = weeutil.weeutil.tobool(gw_config.get('debug_wind',
-                                                               False))
-        # loop data
-        self.debug_loop = weeutil.weeutil.tobool(gw_config.get('debug_loop',
-                                                               False))
-        # sensors
-        self.debug_sensors = weeutil.weeutil.tobool(gw_config.get('debug_sensors',
-                                                                  False))
+        # get device specific debug settings
+        self.debug = DebugOptions(gw_config)
+
         # create an GatewayCollector object to interact with the gateway device
         # API
         self.collector = GatewayCollector(ip_address=self.ip_address,
@@ -911,9 +935,7 @@ class Gateway(object):
                                           ignore_wh40_batt=ignore_wh40_batt,
                                           show_battery=self.show_battery,
                                           log_unknown_fields=log_unknown_fields,
-                                          debug_rain=self.debug_rain,
-                                          debug_wind=self.debug_wind,
-                                          debug_sensors=self.debug_sensors)
+                                          debug=self.debug)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
@@ -925,20 +947,14 @@ class Gateway(object):
         # Finally, log any config that is not being pushed any further down.
         # Log specific debug output but only if set ie. True
         debug_list = []
-        if self.debug_rain:
-            debug_list.append("debug_rain is %s" % (self.debug_rain,))
-        if self.debug_wind:
-            debug_list.append("debug_wind is %s" % (self.debug_wind,))
-        if self.debug_loop:
-            debug_list.append("debug_loop is %s" % (self.debug_loop,))
+        if self.debug.rain:
+            debug_list.append("debug_rain is %s" % (self.debug.rain,))
+        if self.debug.wind:
+            debug_list.append("debug_wind is %s" % (self.debug.wind,))
+        if self.debug.loop:
+            debug_list.append("debug_loop is %s" % (self.debug.loop,))
         if len(debug_list) > 0:
             loginf(" ".join(debug_list))
-
-    @property
-    def model(self):
-        """What model device am I using."""
-
-        return self.collector.station.model
 
     def map_data(self, data):
         """Map parsed device data to a WeeWX loop packet.
@@ -1063,7 +1079,7 @@ class Gateway(object):
             # if we found a field log what we are using
             if self.rain_mapping_confirmed:
                 loginf("Using '%s' for rain total" % self.rain_total_field)
-            elif self.debug_rain:
+            elif self.debug.rain:
                 # if debug_rain is set log that we had nothing
                 loginf("No suitable field found for rain")
 
@@ -1089,7 +1105,7 @@ class Gateway(object):
             # if we found a field log what we are using
             if self.piezo_rain_mapping_confirmed:
                 loginf("Using '%s' for piezo rain total" % self.piezo_rain_total_field)
-            elif self.debug_rain:
+            elif self.debug.rain:
                 # if debug_rain is set log that we had nothing
                 loginf("No suitable field found for piezo rain")
 
@@ -1115,7 +1131,7 @@ class Gateway(object):
             # old totals
             data['t_rain'] = self.delta_rain(new_total, self.last_rain)
             # if debug_rain is set log some pertinent values
-            if self.debug_rain:
+            if self.debug.rain:
                 loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
                                                                                          new_total,
                                                                                          data['t_rain']))
@@ -1135,7 +1151,7 @@ class Gateway(object):
                                              self.piezo_last_rain,
                                              descriptor='piezo rain')
             # if debug_rain is set log some pertinent values
-            if self.debug_rain:
+            if self.debug.rain:
                 loginf("calculate_rain: piezo_last_rain=%s piezo_new_total=%s "
                        "calculated p_rain=%s" % (self.piezo_last_rain,
                                                  piezo_new_total,
@@ -1289,19 +1305,19 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
             loginf('GatewayService: %s IP address and port not specified, '
-                   'attempting to discover %s...' % (self.collector.station.model,
-                                                     self.collector.station.model))
+                   'attempting to discover %s...' % (self.collector.device.model,
+                                                     self.collector.device.model))
         elif self.ip_address is None:
             loginf('GatewayService: %s IP address not specified, attempting '
-                   'to discover %s...' % (self.collector.station.model,
-                                          self.collector.station.model))
+                   'to discover %s...' % (self.collector.device.model,
+                                          self.collector.device.model))
         elif self.port is None:
             loginf('Gw1000Service: %s port not specified, attempting '
-                   'to discover %s...' % (self.collector.station.model,
-                                          self.collector.station.model))
-        loginf('GatewayService: %s address is %s:%d' % (self.collector.station.model,
-                                                        self.collector.station.ip_address.decode(),
-                                                        self.collector.station.port))
+                   'to discover %s...' % (self.collector.device.model,
+                                          self.collector.device.model))
+        loginf('GatewayService: %s address is %s:%d' % (self.collector.device.model,
+                                                        self.collector.device.ip_address.decode(),
+                                                        self.collector.device.port))
         loginf('GatewayService: poll interval is %d seconds' % self.poll_interval)
         logdbg('GatewayService: max tries is %d, retry wait time is %d seconds' % (self.max_tries,
                                                                                    self.retry_wait))
@@ -1319,12 +1335,12 @@ class GatewayService(weewx.engine.StdService, Gateway):
         loginf('Gw1000Service: lost contact will be logged every %d seconds' % self.lost_contact_log_period)
         # log specific debug but only if set ie. True
         debug_list = []
-        if self.debug_rain:
-            debug_list.append('debug_rain is %s' % (self.debug_rain,))
-        if self.debug_wind:
-            debug_list.append('debug_wind is %s' % (self.debug_wind,))
-        if self.debug_loop:
-            debug_list.append('debug_loop is %s' % (self.debug_loop,))
+        if self.debug.rain:
+            debug_list.append('debug_rain is %s' % (self.debug.rain,))
+        if self.debug.wind:
+            debug_list.append('debug_wind is %s' % (self.debug.wind,))
+        if self.debug.loop:
+            debug_list.append('debug_loop is %s' % (self.debug.loop,))
         if len(debug_list) > 0:
             loginf('%s: %s' % ('Gw1000Service', ' '.join(debug_list)))
 
@@ -1349,7 +1365,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
 
         # log the loop packet received if necessary, there are several debug
         # settings that may require this
-        if self.debug_loop or self.debug_rain or self.debug_wind:
+        if self.debug.loop or self.debug.rain or self.debug.wind:
             loginf('GatewayService: Processing loop packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                                       natural_sort_dict(event.packet)))
         # we are about to process the queue so reset our cached sensor data
@@ -1367,7 +1383,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
             except six.moves.queue.Empty:
                 # there was nothing in the queue so if required log this and
                 # then break out of the while loop
-                if self.debug_loop or self.debug_rain or self.debug_wind:
+                if self.debug.loop or self.debug.rain or self.debug.wind:
                     loginf('GatewayService: No queued items to process')
                 if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
                     self.lost_con_ts = time.time()
@@ -1392,7 +1408,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     # debug settings that may require this, start from the
                     # highest (most encompassing) and work to the lowest (least
                     # encompassing)
-                    if self.debug_loop:
+                    if self.debug.loop:
                         if 'datetime' in queue_data:
                             # if we have a 'datetime' field it is almost
                             # certainly a sensor data packet
@@ -1405,16 +1421,16 @@ class GatewayService(weewx.engine.StdService, Gateway):
                             loginf('GatewayService: Received queued data: %s' % (natural_sort_dict(queue_data),))
                     else:
                         # perhaps we have individual debugs such as rain or wind
-                        if self.debug_rain:
+                        if self.debug.rain:
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
                             self.log_rain_data(queue_data,
-                                               'GatewayService: Received %s data' % self.collector.station.model)
-                        if self.debug_wind:
+                                               'GatewayService: Received %s data' % self.collector.device.model)
+                        if self.debug.wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
                             self.log_wind_data(queue_data,
-                                               'GatewayService: Received %s data' % self.collector.station.model)
+                                               'GatewayService: Received %s data' % self.collector.device.model)
                     # now process the just received sensor data packet
                     self.process_queued_sensor_data(queue_data, event.packet['dateTime'])
 
@@ -1430,10 +1446,10 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     # process the exception
                     self.process_queued_exception(queue_data)
 
-                # if it's None then it's a signal the Collector needs to shutdown
+                # if it's None then it's a signal the Collector needs to shut down
                 elif queue_data is None:
                     # if debug_loop log what we received
-                    if self.debug_loop:
+                    if self.debug.loop:
                         loginf('GatewayService: Received collector shutdown signal')
                     # we received the signal that the GatewayCollector needs to
                     # shut down, that means we cannot continue so call our shutdown
@@ -1465,37 +1481,37 @@ class GatewayService(weewx.engine.StdService, Gateway):
             # map the raw data to WeeWX loop packet fields
             mapped_data = self.map_data(self.cached_sensor_data)
             # log the mapped data if necessary
-            if self.debug_loop:
-                loginf('GatewayService: Mapped %s data: %s' % (self.collector.station.model,
+            if self.debug.loop:
+                loginf('GatewayService: Mapped %s data: %s' % (self.collector.device.model,
                                                                natural_sort_dict(mapped_data)))
             else:
                 # perhaps we have individual debugs such as rain or wind
-                if self.debug_rain:
+                if self.debug.rain:
                     # debug_rain is set so log the 'rain' field in the
                     # mapped data, if it does not exist say so
                     self.log_rain_data(mapped_data,
-                                       'GatewayService: Mapped %s data' % self.collector.station.model)
-                if self.debug_wind:
+                                       'GatewayService: Mapped %s data' % self.collector.device.model)
+                if self.debug.wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # mapped data, if they do not exist say so
                     self.log_wind_data(mapped_data,
-                                       'GatewayService: Mapped %s data' % self.collector.station.model)
+                                       'GatewayService: Mapped %s data' % self.collector.device.model)
             # and finally augment the loop packet with the mapped data
             self.augment_packet(event.packet, mapped_data)
             # log the augmented packet if necessary, there are several debug
             # settings that may require this, start from the highest (most
             # encompassing) and work to the lowest (least encompassing)
-            if self.debug_loop or weewx.debug >= 2:
+            if self.debug.loop or weewx.debug >= 2:
                 loginf('GatewayService: Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                                     natural_sort_dict(event.packet)))
             else:
                 # perhaps we have individual debugs such as rain or wind
-                if self.debug_rain:
+                if self.debug.rain:
                     # debug_rain is set so log the 'rain' field in the
                     # augmented loop packet, if it does not exist say
                     # so
                     self.log_rain_data(event.packet, 'GatewayService: Augmented packet')
-                if self.debug_wind:
+                if self.debug.wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # loop packet being emitted, if they do not exist
                     # say so
@@ -1567,7 +1583,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         data:   dict containing the data to be used to augment the loop packet
         """
 
-        if self.debug_loop:
+        if self.debug.loop:
             _stem = 'GatewayService: Mapped data will be used to augment loop packet(%s)'
             loginf(_stem % timestamp_to_string(packet['dateTime']))
         # But the mapped data must be converted to the same unit system as
@@ -1577,8 +1593,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # be augmented
         converted_data = converter.convertDict(data)
         # if required log the converted data
-        if self.debug_loop:
-            loginf("GatewayService: Converted %s data: %s" % (self.collector.station.model,
+        if self.debug.loop:
+            loginf("GatewayService: Converted %s data: %s" % (self.collector.device.model,
                                                               natural_sort_dict(converted_data)))
         # now we can freely augment the packet with any of our mapped obs
         for field, data in six.iteritems(converted_data):
@@ -1589,6 +1605,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
             if field not in packet:
                 packet[field] = data
 
+    # TODO. Why have this, isn't failure_logging passed through each instantiation
     def set_failure_logging(self, log_failures):
         """Turn failure logging on or off.
 
@@ -1605,7 +1622,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
 
         self.log_failures = log_failures
         self.collector.log_failures = log_failures
-        self.collector.station.log_failures = log_failures
+        self.collector.device.log_failures = log_failures
 
     def shutDown(self):
         """Shut down the service."""
@@ -2068,19 +2085,19 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         # log the relevant settings/parameters we are using
         if self.ip_address is None and self.port is None:
             loginf('GatewayDriver: %s IP address and port not specified, '
-                   'attempting to discover %s...' % (self.collector.station.model,
-                                                     self.collector.station.model))
+                   'attempting to discover %s...' % (self.collector.device.model,
+                                                     self.collector.device.model))
         elif self.ip_address is None:
             loginf('GatewayDriver: %s IP address not specified, attempting '
-                   'to discover %s...' % (self.collector.station.model,
-                                          self.collector.station.model))
+                   'to discover %s...' % (self.collector.device.model,
+                                          self.collector.device.model))
         elif self.port is None:
             loginf('GatewayDriver: %s port not specified, attempting '
-                   'to discover %s...' % (self.collector.station.model,
-                                          self.collector.station.model))
-        loginf('GatewayDriver: %s address is %s:%d' % (self.collector.station.model,
-                                                       self.collector.station.ip_address.decode(),
-                                                       self.collector.station.port))
+                   'to discover %s...' % (self.collector.device.model,
+                                          self.collector.device.model))
+        loginf('GatewayDriver: %s address is %s:%d' % (self.collector.device.model,
+                                                       self.collector.device.ip_address.decode(),
+                                                       self.collector.device.port))
         loginf('GatewayDriver: poll interval is %d seconds' % self.poll_interval)
         logdbg('GatewayDriver: max tries is %d, retry wait time '
                'is %d seconds' % (self.max_tries,
@@ -2097,12 +2114,12 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         logdbg('GatewayDriver: field map is %s' % natural_sort_dict(self.field_map))
         # log specific debug but only if set ie. True
         debug_list = []
-        if self.debug_rain:
-            debug_list.append('debug_rain is %s' % (self.debug_rain,))
-        if self.debug_wind:
-            debug_list.append('debug_wind is %s' % (self.debug_wind,))
-        if self.debug_loop:
-            debug_list.append('debug_loop is %s' % (self.debug_loop,))
+        if self.debug.rain:
+            debug_list.append('debug_rain is %s' % (self.debug.rain,))
+        if self.debug.wind:
+            debug_list.append('debug_wind is %s' % (self.debug.wind,))
+        if self.debug.loop:
+            debug_list.append('debug_loop is %s' % (self.debug.loop,))
         if len(debug_list) > 0:
             loginf('%s: %s' % ('GatewayDriver', ' '.join(debug_list)))
 
@@ -2139,28 +2156,28 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 if hasattr(queue_data, 'keys'):
                     # we have a dict so assume it is data
                     # log the received data if necessary
-                    if self.debug_loop:
+                    if self.debug.loop:
                         if 'datetime' in queue_data:
-                            loginf('GatewayDriver: Received %s data: %s %s' % (self.collector.station.model,
+                            loginf('GatewayDriver: Received %s data: %s %s' % (self.collector.device.model,
                                                                                timestamp_to_string(
                                                                                    queue_data['datetime']),
                                                                                natural_sort_dict(queue_data)))
                         else:
-                            loginf('GatewayDriver: Received %s data: %s' % (self.collector.station.model,
+                            loginf('GatewayDriver: Received %s data: %s' % (self.collector.device.model,
                                                                             natural_sort_dict(queue_data)))
                     else:
                         # perhaps we have individual debugs such as rain or
                         # wind
-                        if self.debug_rain:
-                            # debug_rain is set so log the 'rain' field in the
+                        if self.debug.rain:
+                            # debug.rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
                             self.log_rain_data(queue_data,
-                                               'GatewayDriver: Received %s data' % self.collector.station.model)
-                        if self.debug_wind:
-                            # debug_wind is set so log the 'wind' fields in the
+                                               'GatewayDriver: Received %s data' % self.collector.device.model)
+                        if self.debug.wind:
+                            # debug.wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
                             self.log_wind_data(queue_data,
-                                               'GatewayDriver: Received %s data' % self.collector.station.model)
+                                               'GatewayDriver: Received %s data' % self.collector.device.model)
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
                     # received data use it otherwise allocate one.
@@ -2180,46 +2197,46 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # map the raw data to WeeWX loop packet fields
                     mapped_data = self.map_data(queue_data)
                     # log the mapped data if necessary
-                    if self.debug_loop:
+                    if self.debug.loop:
                         if 'datetime' in mapped_data:
-                            loginf('GatewayDriver: Mapped %s data: %s %s' % (self.collector.station.model,
+                            loginf('GatewayDriver: Mapped %s data: %s %s' % (self.collector.device.model,
                                                                              timestamp_to_string(
                                                                                  mapped_data['datetime']),
                                                                              natural_sort_dict(mapped_data)))
                         else:
-                            loginf('GatewayDriver: Mapped %s data: %s' % (self.collector.station.model,
+                            loginf('GatewayDriver: Mapped %s data: %s' % (self.collector.device.model,
                                                                           natural_sort_dict(mapped_data)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
-                        if self.debug_rain:
-                            # debug_rain is set so log the 'rain' field in the
+                        if self.debug.rain:
+                            # debug.rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
                             self.log_rain_data(mapped_data,
-                                               'GatewayDriver: Mapped %s data' % self.collector.station.model)
-                        if self.debug_wind:
-                            # debug_wind is set so log the 'wind' fields in the
+                                               'GatewayDriver: Mapped %s data' % self.collector.device.model)
+                        if self.debug.wind:
+                            # debug.wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
                             self.log_wind_data(mapped_data,
-                                               'GatewayDriver: Mapped %s data' % self.collector.station.model)
+                                               'GatewayDriver: Mapped %s data' % self.collector.device.model)
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet if necessary, there are several debug
                     # settings that may require this, start from the highest
                     # (most encompassing) and work to the lowest (least
                     # encompassing)
-                    if self.debug_loop or weewx.debug >= 2:
+                    if self.debug.loop or weewx.debug >= 2:
                         loginf('GatewayDriver: Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
                                                                  natural_sort_dict(packet)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
-                        if self.debug_rain:
-                            # debug_rain is set so log the 'rain' field in the
+                        if self.debug.rain:
+                            # debug.rain is set so log the 'rain' field in the
                             # loop packet being emitted, if it does not exist
                             # say so
                             self.log_rain_data(mapped_data,
                                                'GatewayDriver: Packet %s' % timestamp_to_string(packet['dateTime']))
-                        if self.debug_wind:
-                            # debug_wind is set so log the 'wind' fields in the
+                        if self.debug.wind:
+                            # debug.wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
                             self.log_wind_data(mapped_data,
@@ -2251,10 +2268,11 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                                                                                           e))
                             # then raise it, WeeWX will decide what to do
                             raise e
-                # if it's None then its a signal the Collector needs to shutdown
+                # if it's None then its a signal the Collector needs to shut
+                # down
                 elif queue_data is None:
-                    # if debug_loop log what we received
-                    if self.debug_loop:
+                    # if debug.loop log what we received
+                    if self.debug.loop:
                         loginf('GatewayDriver: Received shutdown signal')
                     # we received the signal to shut down, so call closePort()
                     self.closePort()
@@ -2274,8 +2292,8 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         is None use the driver name.
         """
 
-        if self.collector.station.model is not None:
-            return self.collector.station.model
+        if self.collector.device.model is not None:
+            return self.collector.device.model
         else:
             return DRIVER_NAME
 
@@ -2283,24 +2301,24 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
     def mac_address(self):
         """Return the device MAC address."""
 
-        return self.collector.gateway.api.get_mac_address()
+        return self.collector.device.api.get_mac_address()
 
     @property
     def firmware_version(self):
         """Return the device firmware version string."""
 
-        return self.collector.gateway.api.get_firmware_version()
+        return self.collector.device.api.get_firmware_version()
 
-    @property
-    def sensor_id_data(self):
-        """Return the device sensor identification data.
-
-        The sensor ID data is available via the data property of the Collector
-        objects' sensors property.
-        """
-
-        return self.collector.sensors.data
-
+    # @property
+    # def sensor_id_data(self):
+    #     """Return the device sensor identification data.
+    #
+    #     The sensor ID data is available via the data property of the Collector
+    #     objects' sensors property.
+    #     """
+    #
+    #     return self.collector.sensors.data
+    #
     def closePort(self):
         """Close down the driver port."""
 
@@ -2340,48 +2358,23 @@ class GatewayCollector(Collector):
     """Class to collect data from an Ecowitt LAN/Wi-Fi Gateway device.
 
     A GatewayCollector object is responsible for obtaining data from an Ecowitt
-    LAN/Wi-Fi Gateway device. A GatewayCollector object primarily uses the
-    Ecowitt LAN/Wi-Fi Gateway device API for gathering sensor data but direct
-    HTTP requests are also used to obtain additional device/sensor data not
-    available via the API. A GatewayCollector object also decodes this data and
-    makes it available to WeeWX drivers, services and other components as
-    required. A GatewayCollector object uses the following classes as
-    indicated:
-    - class gatewayDevice. Communicates directly with the gateway device via
-                           the API and HTTP request and obtains, validates and
-                           parses gateway device responses.
-    - class ApiParser.     Parses and decodes the validated gateway API
-                           response data returning observational and parametric
-                           data
-    - class Sensors.       Decodes raw sensor data obtained from validated
-                           gateway API response data
-    """
+    LAN/Wi-Fi Gateway device and passing relevant data to its parent
+    driver/service. A GatewayCollector object uses subordinate classes to
+    obtain data from the gateway device via the Ecowitt LAN/Wi-Fi Gateway
+    device API and direct HTTP requests suitable for passing to its parent
+    driver/service. A GatewayCollector can also be used to obtain device data
+    when the driver is operated in direct mode.
 
-    # list of dicts of weather services that I know about
-    services = [{'name': 'ecowitt_net',
-                 'long_name': 'Ecowitt.net'
-                 },
-                {'name': 'wunderground',
-                 'long_name': 'Wunderground'
-                 },
-                {'name': 'weathercloud',
-                 'long_name': 'Weathercloud'
-                 },
-                {'name': 'wow',
-                 'long_name': 'Weather Observations Website'
-                 },
-                {'name': 'custom',
-                 'long_name': 'Customized'
-                 }
-                ]
+    A GatewayCollector object uses a GatewayDevice object to handle all
+    interaction with the device.
+    """
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
                  use_wh32=True, ignore_wh40_batt=True, show_battery=False,
-                 log_unknown_fields=False, debug_rain=False, debug_wind=False,
-                 debug_sensors=False):
+                 log_unknown_fields=False, debug=DebugOptions({})):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2397,18 +2390,21 @@ class GatewayCollector(Collector):
         self.retry_wait = retry_wait
 
         # get a GatewayDevice to handle interaction with the gateway device
-        self.gateway = GatewayDevice(ip_address=ip_address, port=port,
-                                     broadcast_address=broadcast_address,
-                                     broadcast_port=broadcast_port,
-                                     socket_timeout=socket_timeout,
-                                     broadcast_timeout=broadcast_timeout,
-                                     max_tries=max_tries, retry_wait=retry_wait)
+        self.device = GatewayDevice(ip_address=ip_address, port=port,
+                                    broadcast_address=broadcast_address,
+                                    broadcast_port=broadcast_port,
+                                    socket_timeout=socket_timeout,
+                                    broadcast_timeout=broadcast_timeout,
+                                    max_tries=max_tries, retry_wait=retry_wait,
+                                    use_wh32=use_wh32, ignore_wh40_batt=ignore_wh40_batt,
+                                    show_battery=show_battery,
+                                    log_unknown_fields=log_unknown_fields, debug=debug)
 
         # start off logging failures
         self.log_failures = True
         # do we have a legacy WH40 and how are we handling its battery state
         # data
-        if b'\x03' in self.sensors_obj.connected_addresses and self.sensors_obj.legacy_wh40:
+        if b'\x03' in self.device.api.sensors.connected_addresses and self.device.api.sensors.legacy_wh40:
             # we have a connected legacy WH40
             if ignore_wh40_batt:
                 _msg = 'Legacy WH40 detected, WH40 battery state data will be ignored'
@@ -2422,7 +2418,7 @@ class GatewayCollector(Collector):
         self.collect_data = False
 
     def collect(self):
-        """Collect and queue sensor data by polling the API.
+        """Collect and queue sensor data.
 
         Loop forever waking periodically to see if it is time to quit or
         collect more data. A dictionary of data is placed in the queue on each
@@ -2475,10 +2471,14 @@ class GatewayCollector(Collector):
         raised.
         """
 
-        # First obtain the bulk of the current sensor data via the API. If the
+        # get a timestamp to use in case our data does not come with one
+        _timestamp = int(time.time())
+        # Now obtain the bulk of the current sensor data via the API. If the
         # data cannot be obtained we will see a GWIOError exception which we
         # just let bubble up. Otherwise, we are returned the parsed live data.
-        parsed_data = self.gateway.api.get_livedata()
+        parsed_data = self.device.livedata
+        # add the timestamp to the data dict
+        parsed_data['datetime'] = _timestamp
         # Now get the parsed rain data via the API. If the data cannot be
         # obtained we may see an GWIOError exception or an UnknownApiCommand
         # exception. If we get the UnknownApiCommand exception it is likely due
@@ -2487,78 +2487,70 @@ class GatewayCollector(Collector):
         # just set the raindata response to None. If we get a GWIOError then
         # let it bubble up.
         try:
-            parsed_rain_data = self.gateway.api.read_rain()
+            parsed_rain_data = self.device.rain
         except UnknownApiCommand:
             parsed_rain_data = None
         except GWIOError:
             raise
-        # get a timestamp to use in case our data does not come with one
-        _timestamp = int(time.time())
         # now update our parsed data with the parsed rain data if we have any
         if parsed_rain_data is not None:
             parsed_data.update(parsed_rain_data)
-        # add the timestamp to the data dict
-        parsed_data['datetime'] = _timestamp
         # log the parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Parsed data: %s" % parsed_data)
         # The parsed data does not currently contain any sensor battery state
-        # or signal level data. The battery state and signal level data for
-        # each sensor can be obtained from the API via our Sensors object.
-        # First we need to update our Sensors object with current sensor ID data
-        self.update_sensor_id_data()
-        # now add any sensor battery state and signal level data to the parsed
-        # data
-        parsed_data.update(self.sensors_obj.battery_and_signal_data)
+        # or signal level data so obtain the parsed sensor battery state
+        # and signal level data from our GatewayDevice.
+        try:
+            parsed_sensor_state_data = self.device.sensor_state
+        except GWIOError:
+            raise
+        # now update our parsed data with the parsed sensor state data if we
+        # have any
+        if parsed_sensor_state_data is not None:
+            parsed_data.update(parsed_sensor_state_data)
         # log the processed parsed data but only if debug>=3
         if weewx.debug >= 3:
             logdbg("Processed parsed data: %s" % parsed_data)
         return parsed_data
 
-    def update_sensor_id_data(self):
-        """Update the Sensors object with current sensor ID data."""
-
-        # first get the current sensor ID data
-        sensor_id_data = self.gateway.get_sensor_id()
-        # now use the sensor ID data to re-initialise our sensors object
-        self.sensors_obj.set_sensor_id_data(sensor_id_data)
-
-    @property
-    def calibration(self):
-        """Obtain device calibration data."""
-
-        # obtain the calibration data via the API
-        parsed_cal_coeff = self.gateway.api.get_calibration_coefficient()
-        # obtain the offset calibration data via the API
-        parsed_offset = self.gateway.api.get_offset_calibration()
-        # update our parsed gain data with the parsed offset calibration data
-        parsed_cal_coeff.update(parsed_offset)
-        # return the parsed data
-        return parsed_cal_coeff
-
-    @property
-    def sensors(self):
-        """Get the current Sensors object.
-
-        A Sensors object holds the address, id, battery state and signal level
-        data sensors known to the device. The sensor id value can be used to
-        discriminate between connected sensors, connecting sensors and disabled
-        sensor addresses.
-
-        Before using the GatewayCollector's Sensors object it should be updated
-        with recent sensor ID data via the API
-        """
-
-        # obtain current sensor id data via the API, we may get a GWIOError
-        # exception, if we do let it bubble up
-        response = self.gateway.get_sensor_id()
-        # if we made it here our response was validated by checksum
-        # re-initialise our sensors object with the sensor ID data we just
-        # obtained
-        self.sensors_obj.set_sensor_id_data(response)
-        # return our Sensors object
-        return self.sensors_obj
-
+    # @property
+    # def calibration(self):
+    #     """Obtain device calibration data."""
+    #
+    #     # obtain the calibration data via the API
+    #     parsed_cal_coeff = self.device.api.get_calibration_coefficient()
+    #     # obtain the offset calibration data via the API
+    #     parsed_offset = self.device.api.get_offset_calibration()
+    #     # update our parsed gain data with the parsed offset calibration data
+    #     parsed_cal_coeff.update(parsed_offset)
+    #     # return the parsed data
+    #     return parsed_cal_coeff
+    #
+    # @property
+    # def sensors(self):
+    #     """Get the current Sensors object.
+    #
+    #     A Sensors object holds the address, id, battery state and signal level
+    #     data sensors known to the device. The sensor id value can be used to
+    #     discriminate between connected sensors, connecting sensors and disabled
+    #     sensor addresses.
+    #
+    #     Before using the GatewayCollector's Sensors object it should be updated
+    #     with recent sensor ID data via the API
+    #     """
+    #
+    #     # obtain current sensor id data via the API, we may get a GWIOError
+    #     # exception, if we do let it bubble up
+    #     # TODO. This should return a value
+    #     response = self.device.api.get_sensor_id()
+    #     # if we made it here our response was validated by checksum
+    #     # re-initialise our sensors object with the sensor ID data we just
+    #     # obtained
+    #     self.device.api.sensors.set_sensor_id_data(response)
+    #     # return our Sensors object
+    #     return self.device.api.sensors
+    #
     def startup(self):
         """Start a thread that collects data from the API."""
 
@@ -2757,6 +2749,7 @@ class ApiParser(object):
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
+        # TODO. is this 'decode_rain' or 'decode_gain_100'
         b'\x0F': ('decode_rain', 2, 't_raingain'),
         b'\x10': ('decode_big_rain', 4, 't_rainday'),
         b'\x11': ('decode_big_rain', 4, 't_rainweek'),
@@ -2787,12 +2780,9 @@ class ApiParser(object):
     # so we can isolate these fields
     wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
-    def __init__(self, log_unknown_fields=True, debug_rain=False, debug_wind=False):
+    def __init__(self, log_unknown_fields=True):
         # do we log unknown fields at info or leave at debug
         self.log_unknown_fields = log_unknown_fields
-        # get debug_rain and debug_wind
-        self.debug_rain = debug_rain
-        self.debug_wind = debug_wind
 
     def parse_addressed_data(self, payload, structure):
         """Parse an address structure API response payload.
@@ -3032,14 +3022,15 @@ class ApiParser(object):
         Byte(s)     Data            Format          Comments
         1-2         header          -               fixed header 0xFFFF
         3           command code    byte            0x59
-        4-5         size            unsigned short
+        4-5         size            unsigned big
+                                    endian short
         ....
         6-2nd last byte
-            two bytes per connected WN34 sensor:
+            three bytes per connected WN34 sensor:
                     address         byte            sensor address, 0x63 to
                                                     0x6A incl
-                    temp offset     signed byte     -100 to +100 in tenths C
-                                                    (-10.0 to +10.0)
+                    temp offset     signed big      -100 to +100 in tenths C
+                                    endian short    (-10.0 to +10.0)
         ....
         last byte   checksum        byte            LSB of the sum of the
                                                     command, size and data
@@ -3061,10 +3052,11 @@ class ApiParser(object):
             except TypeError:
                 channel = data[index]
             try:
-                offset_dict[channel] = struct.unpack("b", data[index + 1])[0] / 10.0
+                offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
             except TypeError:
-                offset_dict[channel] = struct.unpack("b", six.int2byte(data[index + 1]))[0] / 10.0
-            index += 2
+                offset_dict[channel] = struct.unpack(">h", six.int2byte(data[index + 1:index + 3]))[0] / 10.0
+
+            index += 3
         return offset_dict
 
     @staticmethod
@@ -3900,11 +3892,11 @@ class ApiParser(object):
         bytes   1-2    temperature        short           C x10
                 3      humidity           unsigned byte   percent
                 4-5    PM10               unsigned short  ug/m3 x10
-                6-7    PM10 24hour avg    unsigned short  ug/m3 x10
+                6-7    PM10 24-hour avg   unsigned short  ug/m3 x10
                 8-9    PM2.5              unsigned short  ug/m3 x10
-                10-11  PM2.5 24 hour avg  unsigned short  ug/m3 x10
+                10-11  PM2.5 24-hour avg  unsigned short  ug/m3 x10
                 12-13  CO2                unsigned short  ppm
-                14-15  CO2 24 our avg     unsigned short  ppm
+                14-15  CO2 24-hour avg    unsigned short  ppm
                 16     battery state      unsigned byte   0-5 <=1 is low
 
         WH45 battery state data is included in the WH45 sensor data (along
@@ -4086,7 +4078,8 @@ class Sensors(object):
     not_registered = ('fffffffe', 'ffffffff')
 
     def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
-                 show_battery=False, debug_sensors=False):
+                 show_battery=False, debug=DebugOptions({}), use_wh32=True,
+                 is_wh24=False):
         """Initialise myself"""
 
         # are we using a WH32 sensor, if so tell our sensor id decoding we have
@@ -4095,10 +4088,6 @@ class Sensors(object):
             # set the WH24 sensor id decode dict entry
             self.sensor_ids[b'\x05']['name'] = 'wh32'
             self.sensor_ids[b'\x05']['long_name'] = 'WH32'
-        # Do we have a WH24 attached? First obtain our system parameters.
-        _sys_params = self.gateway.api.get_system_params()
-        # WH24 is indicated by the 6th byte being 0
-        is_wh24 = six.indexbytes(_sys_params, 5) == 0
         # Tell our sensor id decoding whether we have a WH24 or a WH65. By
         # default, we are coded to use a WH65. Is there a WH24 connected?
         if is_wh24:
@@ -4119,7 +4108,7 @@ class Sensors(object):
         # sensor data dict
         self.set_sensor_id_data(sensor_id_data)
         # debug sensors
-        self.debug_sensors = debug_sensors
+        self.debug = debug
 
     def set_sensor_id_data(self, id_data):
         """Parse the raw sensor ID data and store the results.
@@ -4170,7 +4159,7 @@ class Sensors(object):
                                                  'signal': six.indexbytes(data, index + 6)
                                                  }
                 else:
-                    if self.debug_sensors:
+                    if self.debug.sensors:
                         loginf("Unknown sensor ID '%s'" % bytes_to_hex(address))
                 # each sensor entry is seven bytes in length so skip to the
                 # start of the next sensor
@@ -4292,7 +4281,7 @@ class Sensors(object):
         """
 
         if value is not None:
-            if Sensors.sensor_ids[address].get('name') in GatewayCollector.no_low:
+            if Sensors.sensor_ids[address].get('name') in Sensors.no_low:
                 # we have a sensor for which no low battery cut-off
                 # data exists
                 return None
@@ -4425,8 +4414,8 @@ class Sensors(object):
 
 
 class GatewayApi(object):
-    """Class to interact directly with a gateway device via the Ecowitt
-       LAN/Wi-Fi Gateway API.
+    """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
+    Gateway API.
 
     A GatewayApi object knows how to:
     1.  discover a device via UDP broadcast
@@ -4434,8 +4423,14 @@ class GatewayApi(object):
     3.  receive a response from the API
     4.  verify the response as valid
 
-    A GatewayApi object needs an IP address and port as well as a
-    network broadcast address and port.
+    A GatewayApi object needs an IP address and port as well as a network
+    broadcast address and port.
+
+    A GatewayApi object uses the following classes:
+    - class ApiParser. Parses and decodes the validated gateway API response
+                       data returning observational and parametric data.
+    - class Sensors.   Decodes raw sensor data obtained from validated gateway
+                       API response data
     """
 
     # Ecowitt LAN/Wi-Fi Gateway API api_commands
@@ -4495,19 +4490,12 @@ class GatewayApi(object):
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
                  max_tries=default_max_tries,
-                 retry_wait=default_retry_wait, mac=None):
+                 retry_wait=default_retry_wait, mac=None,
+                 use_wh32=True, ignore_wh40_batt=True, show_battery=False,
+                 log_unknown_fields=False, debug=DebugOptions({})):
 
         # get a parser object to parse any API data
-        self.parser = ApiParser(log_unknown_fields=log_unknown_fields,
-                                debug_rain=debug_rain,
-                                debug_wind=debug_wind)
-
-        # get a Sensors object to parse any API sensor state data
-        self.sensors = Sensors(ignore_wh40_batt=ignore_wh40_batt,
-                               show_battery=show_battery,
-                               debug_sensors=debug_sensors)
-        # update the sensors object
-        self.update_sensor_id_data()
+        self.parser = ApiParser(log_unknown_fields=log_unknown_fields)
 
         # network broadcast address
         self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
@@ -4581,14 +4569,19 @@ class GatewayApi(object):
         else:
             self.mac = mac
         # get my device model
-        try:
-            _firmware_b = self.get_firmware_version()
-        except GWIOError:
-            self.model = None
-        else:
-            _firmware_t = struct.unpack("B" * len(_firmware_b), _firmware_b)
-            _firmware_str = "".join([chr(x) for x in _firmware_t[5:5 + _firmware_t[4]]])
-            self.model = self.get_model_from_firmware(_firmware_str)
+        self.model = self.get_model_from_firmware(self.get_firmware_version())
+
+        # Do we have a WH24 attached? First obtain our system parameters.
+        _sys_params = self.get_system_params()
+        # WH24 is indicated by the sensor_type field being 0
+        is_wh24 = _sys_params.get('sensor_type', 0) == 0
+
+        # get a Sensors object to parse any API sensor state data
+        self.sensors = Sensors(use_wh32=use_wh32, ignore_wh40_batt=ignore_wh40_batt,
+                               show_battery=show_battery, is_wh24=is_wh24,
+                               debug=debug)
+        # update the sensors object
+        self.update_sensor_id_data()
 
     def discover(self):
         """Discover any devices on the local network.
@@ -4824,6 +4817,8 @@ class GatewayApi(object):
             # we have a string, now do we have a know model in the string,
             # if so return the model string
             for model in self.known_models:
+                with open("/var/tmp/test.txt", "a") as myfile:
+                    myfile.write("model=%s type(model)=%s t=%s type(t)=%s" % (model, type(model), t, type(t)))
                 if model in t.upper():
                     return model
             # we don't have a known model so return None
@@ -4908,8 +4903,11 @@ class GatewayApi(object):
 
         # get the validated API response
         response = self.send_cmd_with_retries('CMD_READ_ECOWITT')
-        # now return the parsed response
-        return self.parser.parse_read_ecowitt(response)
+        # parse the response
+        ecowitt = self.parser.parse_read_ecowitt(response)
+        # add the device MAC address to the parsed data
+        ecowitt['mac'] = self.get_mac_address()
+        return ecowitt
 
     def get_wunderground_params(self):
         """Get Weather Underground parameters.
@@ -4970,8 +4968,13 @@ class GatewayApi(object):
 
         # get the validated API response
         response = self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
-        # now return the parsed response
-        return self.parser.parse_read_customized(response)
+        # obtain the parsed response
+        data_dict = self.parser.parse_read_customized(response)
+        # the user path is obtained separately, get the user path and add it to
+        # our response
+        data_dict.update(self.get_usr_path())
+        # return the resulting parsed data
+        return data_dict
 
     def get_usr_path(self):
         """Get user defined custom path.
@@ -5046,9 +5049,18 @@ class GatewayApi(object):
                 # we get another GWIOError exception which will be
                 # raised
                 response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
-        # if we made it here we have a validated response so parse it and
-        # return the parsed data
-        return self.sensors.set_sensor_id_data(response)
+        # if we made it here we have a validated response so return it
+        return response
+
+    def get_current_sensor_state(self):
+        """Get parsed current sensor state data."""
+
+        # first get the current sensor state data
+        current_sensor_data = self.get_sensor_id()
+        # now update our Sensors object with the current data
+        self.sensors.set_sensor_id_data(current_sensor_data)
+        # and return the parsed
+        return self.sensors.battery_and_signal_data
 
     def get_mulch_offset(self):
         """Get multichannel temperature and humidity offset data.
@@ -5094,7 +5106,7 @@ class GatewayApi(object):
         # get the validated API response
         response = self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
         # now return the parsed response
-        return self.parser.parse_read_station_mac(response)
+        return self.parser.parse_get_pm25_offset(response)
 
     def get_calibration_coefficient(self):
         """Get calibration coefficient data.
@@ -5191,9 +5203,9 @@ class GatewayApi(object):
 
         # construct the message packet
         packet = self.build_cmd_packet(cmd, payload)
+        response = None
         # attempt to send up to 'self.max_tries' times
         for attempt in range(self.max_tries):
-            response = None
             # wrap in  try..except so we can catch any errors
             try:
                 response = self.send_cmd(packet)
@@ -5238,7 +5250,7 @@ class GatewayApi(object):
         # if we made it here we failed after self.max_tries attempts
         # first log it
         _msg = ("Failed to obtain response to command '%s' "
-                "after %d attempts" % (cmd, attempt + 1))
+                "after %d attempts" % (cmd, self.max_tries))
         if response is not None or self.log_failures:
             logerr(_msg)
         # then finally, raise a GWIOError exception
@@ -5282,7 +5294,7 @@ class GatewayApi(object):
     def send_cmd(self, packet):
         """Send a command to the API and return the response.
 
-        Send a command to the and return the response. Socket related
+        Send a command to the API and return the response. Socket related
         errors are trapped and raised, code calling send_cmd should be
         prepared to handle such exceptions.
 
@@ -5481,7 +5493,7 @@ class GatewayApi(object):
                 # we exhausted our attempts at re-discovery so log it
                 if self.log_failures:
                     loginf("Failed to detect original %s after %d attempts" % (self.model,
-                                                                               attempt + 1))
+                                                                               self.max_tries))
         else:
             # an IP address was specified, so we cannot go searching, log it
             if self.log_failures:
@@ -5490,155 +5502,268 @@ class GatewayApi(object):
         # if we made it here re-discovery was unsuccessful so return False
         return False
 
+    def update_sensor_id_data(self):
+        """Update the Sensors object with current sensor ID data."""
+
+        # first get the current sensor ID data
+        # TODO. This should return a value
+        sensor_id_data = self.get_sensor_id()
+        # now use the sensor ID data to re-initialise our sensors object
+        self.sensors.set_sensor_id_data(sensor_id_data)
+
+
+# ============================================================================
+#                             GatewayHttp class
+# ============================================================================
 
 class GatewayHttp(object):
-    """Class to interact with the gateway device via HTTP requests."""
+    """Class to interact with a gateway device via HTTP requests."""
 
-    # a queue object for passing data back to our parent
-    queue = six.moves.queue.Queue()
+    # HTTP request commands, note deliberate mis-spelling in get_calibraion_data
+    commands = ['get_version', 'get_livedata_info', 'get_ws_settings',
+                'get_calibraion_data', 'get_rain_totals', 'get_device_info',
+                'get_sensors_info', 'get_network_info', 'get_units_info',
+                'get_cli_soilad', 'get_cli_multiCh', 'get_cli_pm25',
+                'get_cli_co2', 'get_piezo_rain']
 
-    def __init__(self, ip_address, cmd, params=None, headers={}):
+    def __init__(self, ip_address):
         """Initialise a HttpRequest object."""
 
         # the IP address to be used (stored as a string)
         self.ip_address = ip_address
-        # the HTTP 'command' to be sent
-        self.cmd = cmd
-        # any parameters to be included with the HTTP request
-        self.params = params
-        # any headers to be sent with the HTTP request
-        self.headers = headers
-        self.thread = None
 
-    def request(self):
-        """Make the HTTP request and return the result."""
+    def request(self, command_str, data={}, headers={}):
+        """Send a HTTP request to the device and return the response.
 
-        # send the HTTP request, be prepared to catch any exceptions raised
-        # if the request cannot be completed
-        try:
-            # sent the request and obtain the response
-            response = self.http_request_with_retries(request_str, params, headers)
-        except (URLError, socket.timeout) as e:
-            # there was a problem with the request, the error has already been
-            # logged so put None in the queue and exit
-            self.queue.put(None)
-            return
-        except Exception as e:
-            # there was an unknown error with the request, log what we can
-            log.error("HTTP request failed")
-            log.error("   **** %s" % e)
-            # put None in the queue
-            self.queue.put(None)
-            # and exit
-            return
-        else:
-            # we received a response, it should be in JSON format so return it
-            return response
+        Create a HTTP request with optional data and headers. Send the HTTP
+        request to the device as a GET request and obtain the response. The
+        JSON deserialized response is returned. If the response cannot be
+        deserialized the value None is returned. URL or timeout errors are
+        logged and raised.
 
-    def http_request_with_retries(self, request_str, params=None, headers={}):
-        """Send a HTTP request to the device with retries and return the response.
+        command_str: a string containing the command to be sent,
+                     eg: 'get_livedata_info'
+        data: a dict containing key:value pairs representing the data to be
+              sent
+        headers: a dict containing headers to be included in the HTTP request
 
-        Send a HTTP request to the device and obtain the response. If the
-        response is valid return the response. If the response is invalid
-        an appropriate exception is raised and the request resent up to
-        self.max_tries times after which the value None is returned.
-
-        request: A string containing a valid API command,
-             eg: 'CMD_READ_FIRMWARE_VERSION'
-
-        Returns the response as a byte string or the value None.
+        Returns a deserialized JSON object or None
         """
 
-        stem = ''.join(['http://', self.ip_address.decode(), '/'])
-        url = ''.join([stem, request_str, '?'])
-        # create a Request object
-        req = urllib.request.Request(url=url, headers=headers)
-        try:
-            # submit the request
-            w = urllib.request.urlopen(req)
-            # Get charset used so we can decode the stream correctly.
-            # Unfortunately the way to get the charset depends on whether
-            # we are running under python2 or python3. Assume python3 but be
-            # prepared to catch the error if python2.
+        # check if we have a command that we know about
+        if command_str.lower() in GatewayHttp.commands:
+            # first convert any data to a percent-encoded ASCII text string
+            data_enc = urlencode(data)
+            # construct the scheme and host portions of the URL
+            stem = ''.join(['http://', self.ip_address])
+            # now add the 'path'
+            url = '/'.join([stem, command_str])
+            # Finally add the encoded data. We need to add the data in this manner
+            # rather than using the Request object's 'data' parameter so that the
+            # request is sent as a GET request rather than a POST request.
+            full_url = '?'.join([url, data_enc])
+            # create a Request object
+            req = urllib.request.Request(url=full_url, headers=headers)
             try:
-                char_set = w.headers.get_content_charset()
-            except AttributeError:
-                # must be python2
-                char_set = w.headers.getparam('charset')
-            # Now get the response and decode it using the headers character
-            # set, BloomSky does not currently return a character set in its
-            # API response headers so be prepared for charset==None.
-            if char_set is not None:
-                resp = w.read().decode(char_set)
+                # submit the request and obtain the raw response
+                w = urllib.request.urlopen(req)
+                # Get charset used so we can decode the stream correctly.
+                # Unfortunately, the way to get the charset depends on whether we
+                # are running under python2 or python3. Assume python3, but be
+                # prepared to catch the error if python2.
+                try:
+                    char_set = w.headers.get_content_charset()
+                except AttributeError:
+                    # must be python2
+                    char_set = w.headers.getparam('charset')
+                # Now get the response and decode it using the headers character
+                # set. Be prepared for charset==None.
+                if char_set is not None:
+                    resp = w.read().decode(char_set)
+                else:
+                    resp = w.read().decode()
+                # we are finished with the raw response so close it
+                w.close()
+            except (URLError, socket.timeout) as e:
+                # log the error and raise it
+                log.error("Failed to get device data")
+                log.error("   **** %s" % e)
+                raise
             else:
-                resp = w.read().decode()
-            w.close()
-        except (URLError, socket.timeout) as e:
-            # log the error
-            log.error("Failed to get BloomSky API data")
-            log.error("   **** %s" % e)
-            # and raise it
-            raise
+                # we have a response but can it be deserialized it to a python
+                # object, wrap in a try..except in case it cannot be deserialized
+                try:
+                    resp_json = json.loads(resp)
+                except json.JSONDecodeError as e:
+                    # cannot deserialize the response, log it and return None
+                    log.error("Cannot deserialize device response")
+                    log.error("   **** %s" % e)
+                    return None
+                else:
+                    # we have a deserialized response, log it as required
+                    if weewx.debug >= 3:
+                        log.debug("Deserialized HTTP response: %s" % json.dumps(resp_json))
+                    # now return the JSON object
+                    return resp_json
         else:
-            # convert the response to a JSON object
-            resp_json = json.loads(resp)
-            # log response as required
-            if weewx.debug >= 3:
-                log.debug("JSON API response: %s" % json.dumps(resp_json))
-            # return the JSON object
-            return resp_json
+            # an invalid command
+            raise UnknownHttpCommand("Unknown HTTP command '%s'" % command_str)
 
-    def startup(self):
-        """Start a thread to make a HTTP request to the gateway device."""
+    def get_version(self):
+        """Get the device firmware related information.
+
+        Returns a dict or None if no valid data was returned by the device."""
 
         try:
-            self.thread = GatewayHttp.HttpThread(self)
-            self.thread.setDaemon(True)
-            self.thread.setName('GatewayHttpThread')
-            self.thread.start()
-        except threading.ThreadError:
-            logerr("Unable to launch GatewayHttp thread")
-            self.thread = None
+            return self.request('get_version')
+        except (URLError, socket.timeout) as e:
+            return None
 
-    def shutdown(self):
-        """Shut down any HTTP requestor threads.
+    def get_livedata_info(self):
+        """Get live sensor data from the device.
 
-        Most of the time HTTP requestor threads will have run their course and
-        closed, but we may occasionally strike one that is still alive. Tell
-        the thread to stop, then wait for it to finish.
-        """
+        Returns a dict or None if no valid data was returned by the device."""
 
-        # we only need do something if a thread exists
-        if self.thread:
-            # terminate the thread
-            self.thread.join(10.0)
-            # log the outcome
-            if self.thread.is_alive():
-                logerr("Unable to shut down GatewayHttp thread")
-            else:
-                loginf("GatewayHttp thread has been terminated")
-        self.thread = None
+        try:
+            return self.request('get_livedata_info')
+        except (URLError, socket.timeout) as e:
+            return None
 
-    class HttpThread(threading.Thread):
-        """Class to handle gateway device HTTP requests in a thread."""
+    def get_ws_settings(self):
+        """Get weather services settings from the device.
 
-        def __init__(self, http):
-            # initialise our parent
-            threading.Thread.__init__(self)
-            # keep reference to the client we are supporting
-            self.http = http
-            self.name = 'gateway-http'
+        Returns a dict or None if no valid data was returned by the device."""
 
-        def run(self):
-            # rather than letting the thread silently fail if an exception
-            # occurs within the thread, wrap in a try..except so the exception
-            # can be caught and available exception information displayed
-            try:
-                # kick the collection off
-                self.http.request()
-            except:
-                # we have an exception so log what we can
-                log_traceback_critical('    ****  ')
+        try:
+            return self.request('get_ws_settings')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_calibration_data(self):
+        """Get calibration settings from the device.
+
+        Returns a dict or None if no valid data was returned by the device."""
+
+        try:
+            return self.request('get_calibration_data')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_rain_totals(self):
+        """Get rainfall totals and settings from the device.
+
+        Returns a dict or None if no valid data was returned by the device."""
+
+        try:
+            return self.request('get_rain_totals')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_device_info(self):
+        """Get device settings from the device.
+
+        Returns a dict or None if no valid data was returned by the device."""
+
+        try:
+            return self.request('get_device_info')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_sensors_info(self):
+        """Get sensor ID data from the device.
+
+        Combines all pages of available data and returns a single dict or None
+        if no valid data was returned by the device."""
+
+        try:
+            page_1 = self.request('get_sensors_info', data={'page': 1})
+        except (URLError, socket.timeout) as e:
+            page_1 = None
+        try:
+            page_2 = self.request('get_sensors_info', data={'page': 2})
+        except (URLError, socket.timeout) as e:
+            page_2 = None
+        if page_1 is not None and page_2 is not None:
+            return page_1 + page_2
+        elif page_1 is None:
+            return page_2
+        else:
+            return page_1
+
+    def get_network_info(self):
+        """Get network related data/settings from the device.
+
+        Returns a dict or None if no valid data was returned by the device."""
+
+        try:
+            return self.request('get_network_info')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_units_info(self):
+        """Get units settings from the device.
+
+        Returns a dict or None if no valid data was returned by the device."""
+
+        try:
+            return self.request('get_units_info')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_cli_soilad(self):
+        """Get multichannel soil moisture sensor calibration data from the device.
+
+        Returns a list of dicts or None if no valid data was returned by the
+        device."""
+
+        try:
+            return self.request('get_cli_soilad')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_cli_multiCh(self):
+        """Get multichannel temperature/humidity sensor calibration data from
+        the device.
+
+        Returns a list of dicts or None if no valid data was returned by the
+        device."""
+
+        try:
+            return self.request('get_cli_multiCh')
+        except (URLError, socket.timeout) as e:
+            pass
+
+    def get_cli_pm25(self):
+        """Get PM2.5 sensor offset data from the device.
+
+        Returns a list of dicts or None if no valid data was returned by the
+        device."""
+
+        try:
+            return self.request('get_cli_pm25')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_cli_co2(self):
+        """Get CO2 sensor offset data from the device.
+
+        Returns a list of dicts or None if no valid data was returned by the
+        device."""
+
+        try:
+            return self.request('get_cli_co2')
+        except (URLError, socket.timeout) as e:
+            return None
+
+    def get_piezo_rain(self):
+        """Get piezo rain sensor data/settings from the device.
+
+        Returns a dict or None if no valid data was returned by the device."""
+
+        try:
+            return self.request('get_piezo_rain')
+        except (URLError, socket.timeout) as e:
+            return None
 
 
 class GatewayDevice(object):
@@ -5660,17 +5785,42 @@ class GatewayDevice(object):
     parameters. HTTP request communications is HTTP GET based and involves
     the decoding of JSON format message data.
 
-    A GatewayDevice object uses two main child classes; one each for
-    dealing with the API and HTTP requests. A GatewayDevice object handles
-    all communication with a gateway device and provides data to the
-    requesting object via a mix of properties and methods.
+    A GatewayDevice object uses the following classes for interracting with the
+    gateway device:
+
+    - class GatewayApi.  Communicates directly with the gateway device via the
+                         gateway device API and obtains, validates and parses
+                         gateway device responses.
+    - class GatewayHttp. Communicates directly with the gateway device via HTTP
+                         requests to obtain and validates (as far as possible)
+                         gateway device HTTP request responses.
     """
+
+    # list of dicts of weather services that I know about
+    services = [{'name': 'ecowitt_net_params',
+                 'long_name': 'Ecowitt.net'
+                 },
+                {'name': 'wunderground_params',
+                 'long_name': 'Wunderground'
+                 },
+                {'name': 'weathercloud_params',
+                 'long_name': 'Weathercloud'
+                 },
+                {'name': 'wow_params',
+                 'long_name': 'Weather Observations Website'
+                 },
+                {'name': 'custom_params',
+                 'long_name': 'Customized'
+                 }
+                ]
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
                  max_tries=default_max_tries,
-                 retry_wait=default_retry_wait, mac=None):
+                 retry_wait=default_retry_wait, use_wh32=True,
+                 ignore_wh40_batt=True, show_battery=False,
+                 log_unknown_fields=False, debug=DebugOptions({})):
         """Initialise a GatewayDevice object."""
 
         # get a GatewayApi object to handle the interaction with the API
@@ -5681,15 +5831,18 @@ class GatewayDevice(object):
                               socket_timeout=socket_timeout,
                               broadcast_timeout=broadcast_timeout,
                               max_tries=max_tries,
-                              retry_wait=retry_wait)
+                              retry_wait=retry_wait,
+                              use_wh32=use_wh32,
+                              ignore_wh40_batt=ignore_wh40_batt,
+                              show_battery=show_battery,
+                              log_unknown_fields=log_unknown_fields,
+                              debug=debug)
+
+        # get a GatewayHttp object to handle any HTTP requests
+        self.http = GatewayHttp(ip_address=ip_address)
 
         # start off logging failures
         self.log_failures = True
-
-        # Get a HttpRequestor object to handle any HTTP requests.
-        # We need to decode the IP address as a GatewayApi object store the
-        # IP address as a bytestring.
-        self.http = GatewayHttp(ip_address=self.api.ip_address.decode())
 
     @property
     def ip_address(self):
@@ -5708,12 +5861,6 @@ class GatewayDevice(object):
         """Gateway device model."""
 
         return self.api.model
-
-    @property
-    def livedata(self):
-        """Gateway device live data."""
-
-        return self.api.get_livedata()
 
     @property
     def livedata(self):
@@ -5752,7 +5899,7 @@ class GatewayDevice(object):
         return self.api.get_weathercloud_params()
 
     @property
-    def get_wow_params(self):
+    def wow_params(self):
         """Gateway device Weather Observations Website parameters."""
 
         return self.api.get_wow_params()
@@ -5834,6 +5981,45 @@ class GatewayDevice(object):
         """Gateway device traditional gauge and piezo gauge rain data."""
 
         return self.api.read_rain()
+
+    @property
+    def sensor_state(self):
+        """Sensor battery state and signal level data."""
+
+        return self.api.get_current_sensor_state()
+
+    @property
+    def discovered_devices(self):
+        """List of discovered gateway devices.
+
+        Each list element is a dict keyed by 'ip_address', 'port', 'model',
+        'mac' and 'ssid'."""
+
+        return self.api.discover()
+
+    @property
+    def firmware_update_avail(self):
+        """Whether a device firmware update is available or not.
+
+        Return True if a device firmware update is available or False otherwise."""
+
+        version = self.http.get_version()
+        if version is not None and 'newVersion' in version:
+            return True if version['newVersion'] == '1' else False
+        return False
+
+    @property
+    def calibration(self):
+        """Device device calibration data."""
+
+        # obtain the calibration data via the API
+        parsed_cal_coeff = self.api.get_calibration_coefficient()
+        # obtain the offset calibration data via the API
+        parsed_offset = self.api.get_offset_calibration()
+        # update our parsed gain data with the parsed offset calibration data
+        parsed_cal_coeff.update(parsed_offset)
+        # return the parsed data
+        return parsed_cal_coeff
 
 
 # ============================================================================
@@ -5940,7 +6126,7 @@ class DirectGateway(object):
 
     Would normally run a driver directly by calling from main() only, but when
     run directly the gateway driver has many options so pushing the detail into
-    its own class/object makes sense. Also simplifies some of the test suite
+    its own class/object makes sense. Also simplifies some test suite
     routines/calls.
 
     A DirectGateway object is created with just an optparse options dict and a
@@ -6355,6 +6541,7 @@ class DirectGateway(object):
         elif self.opts.get_services:
             self.get_services()
         elif self.opts.mac:
+            # TODO. Rename to remove 'station' ?
             self.station_mac()
         elif self.opts.firmware:
             self.firmware()
@@ -6394,23 +6581,25 @@ class DirectGateway(object):
         }
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.gateway.api.model,
-                                                 collector.gateway.api.ip_address.decode(),
-                                                 collector.gateway.api.port))
-            # get the system_parameters from the API
-            sys_params_dict = collector.gateway.api.get_system_params()
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
+            # get the device system_params property
+            sys_params_dict = device.system_params
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
-            # socket timeout so inform the user
             print()
-            print("Timeout. %s did not respond." % collector.gateway.api.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # create a meaningful string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
@@ -6455,22 +6644,25 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
-            # get the collector objects get_rain_data property
-            rain_data = collector.gateway.api.read_raindata()
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
+            # get the device objects raindata property
+            rain_data = device.raindata
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             print()
             print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['t_rainrate'], rain_data['t_rainrate'] / 25.4))
@@ -6509,29 +6701,32 @@ class DirectGateway(object):
                          }
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
-            # get the rain data from the collector object. First try to get
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
+            # get the rain data from the device object. First try to get
             # all_rain_data but be prepared to catch the exception if our
             # device does not support CMD_READ_RAIN. In that case fall back to
             # the rain_data property instead.
             try:
-                rain_data = collector.gateway.api.read_rain()
+                rain_data = device.rain
             except UnknownApiCommand:
                 # use the rain_data property
-                rain_data = collector.gateway.api.read_raindata()
+                rain_data = device.raindata
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             print()
             if 'rain_priority' in rain_data:
@@ -6617,22 +6812,25 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # get the mulch offset data from the API
-            mulch_offset_data = collector.gateway.api.get_mulch_offset()
+            mulch_offset_data = device.api.get_mulch_offset()
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any mulch offset data
             if mulch_offset_data is not None:
@@ -6651,7 +6849,7 @@ class DirectGateway(object):
                                        "%d" % mulch_offset_data[channel]['hum']))
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def get_mulch_t_offset(self):
         """Display device multichannel temperature (WN34) offset data.
@@ -6666,22 +6864,25 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # get the mulch temp offset data via the API
-            mulch_t_offset_data = collector.gateway.api.get_mulch_t_offset()
+            mulch_t_offset_data = device.mulch_t_offset
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any mulch temp offset data
             if mulch_t_offset_data is not None:
@@ -6704,7 +6905,7 @@ class DirectGateway(object):
                     print("    No Multi-channel temperature sensors found")
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def get_pm25_offset(self):
         """Display the device PM2.5 offset data.
@@ -6718,22 +6919,25 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # get the PM2.5 offset data from the API
-            pm25_offset_data = collector.gateway.api.get_pm25_offset()
+            pm25_offset_data = device.pm25_offset
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any PM2.5 offset data
             if pm25_offset_data is not None:
@@ -6746,7 +6950,7 @@ class DirectGateway(object):
                     print("    Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def get_co2_offset(self):
         """Display the device WH45 CO2, PM10 and PM2.5 offset data.
@@ -6761,22 +6965,25 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # get the offset data from the API
-            co2_offset_data = collector.gateway.api.get_co2_offset()
+            co2_offset_data = device.api.get_co2_offset()
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any offset data
             if co2_offset_data is not None:
@@ -6788,7 +6995,7 @@ class DirectGateway(object):
                 print("%16s: %5s" % ("PM2.5 offset", "%2.1f" % co2_offset_data['pm25']))
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def get_calibration(self):
         """Display the device calibration data.
@@ -6802,23 +7009,26 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # get the calibration data from the collector object's calibration
             # property
-            calibration_data = collector.calibration
+            calibration_data = device.calibration
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any calibration data
             if calibration_data is not None:
@@ -6837,7 +7047,7 @@ class DirectGateway(object):
                 print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def get_soil_calibration(self):
         """Display the device soil moisture sensor calibration data.
@@ -6852,22 +7062,25 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
-            # get the calibration data from the API
-            calibration_data = collector.gateway.api.get_soil_calibration()
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
+            # get the device soil_calibration property
+            calibration_data = device.soil_calibration
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any calibration data
             if calibration_data is not None:
@@ -6889,7 +7102,7 @@ class DirectGateway(object):
                     print("%16s: %d" % ("100% AD", channel_dict['adj_max']))
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def get_services(self):
         """Display the device Weather Services settings.
@@ -6998,33 +7211,36 @@ class DirectGateway(object):
                 print("%22s: %d seconds" % ("Upload Interval", data_dict['interval']))
 
         # look table of functions to use to print weather service settings
-        print_fns = {'ecowitt_net': print_ecowitt_net,
-                     'wunderground': print_wunderground,
-                     'weathercloud': print_weathercloud,
-                     'wow': print_wow,
-                     'custom': print_custom}
+        print_fns = {'ecowitt_net_params': print_ecowitt_net,
+                     'wunderground_params': print_wunderground,
+                     'weathercloud_params': print_weathercloud,
+                     'wow_params': print_wow,
+                     'custom_params': print_custom}
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # get the settings for each service know to the device, store them
             # in a dict keyed by the service name
             services_data = dict()
-            for service in collector.services:
-                services_data[service['name']] = getattr(collector, service['name'])
+            for service in device.services:
+                services_data[service['name']] = getattr(device, service['name'])
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # did we get any service data
             if len(services_data) > 0:
@@ -7033,13 +7249,13 @@ class DirectGateway(object):
                 print("Weather Services")
                 # iterate over the weather services we know about and call the
                 # relevant function to print the services settings
-                for service in collector.services:
+                for service in device.services:
                     print()
                     print("  %s" % (service['long_name'],))
                     print_fns[service['name']](services_data[service['name']])
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def station_mac(self):
         """Display the device hardware MAC address.
@@ -7053,28 +7269,34 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             print()
             # get the device MAC address
-            print("    MAC address: %s" % collector.gateway.api.get_mac_address())
+            print("    MAC address: %s" % device.mac_address)
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
 
     def firmware(self):
-        """Display the device firmware version string.
+        """Display device firmware details.
 
-        Obtain and display the firmware version string from the selected device.
+        Obtain and display the firmware version string from the selected
+        gateway device. User is advised whether a firmware update is available
+        or not.
+
         The device IP address and port are derived (in order) as follows:
         1. command line --ip-address and --port parameters
         2. [GW1000] stanza in the specified config file
@@ -7083,23 +7305,31 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             print()
             # get the firmware version via the API
-            print("    firmware version string: %s" % collector.gateway.api.get_firmware_version())
+            print("    current firmware version is %s" % device.firmware_version)
+            if device.firmware_update_avail:
+                print("    a firmware update is available,")
+                print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
+            else:
+                print("    the device firmware is up to date")
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
 
     def sensors(self):
         """Display the device sensor ID information.
@@ -7111,28 +7341,32 @@ class DirectGateway(object):
         3. by discovery
         """
 
+        # TODO. Need to think about the object structure here as well as who does what
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port,
                                          show_battery=self.show_battery)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
             # first update the collector's sensor ID data
-            collector.update_sensor_id_data()
+            device.api.update_sensor_id_data()
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # now get the sensors property from the collector
-            sensors = collector.sensors
+            sensors = collector.device.api.sensors
             # the sensor ID data is in the sensors data property, did
             # we get any sensor ID data
             if sensors.data is not None and len(sensors.data) > 0:
@@ -7160,10 +7394,10 @@ class DirectGateway(object):
                     print("%-10s %s" % (Sensors.sensor_ids[address].get('long_name'), state))
             elif len(sensors.data) == 0:
                 print()
-                print("%s did not return any sensor data." % collector.station.model)
+                print("Device at %s did not return any sensor data." % (self.ip_address,))
             else:
                 print()
-                print("%s did not respond." % collector.station.model)
+                print("Device at %s did not respond." % (self.ip_address,))
 
     def live_data(self):
         """Display the device live sensor data.
@@ -7180,24 +7414,27 @@ class DirectGateway(object):
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayCollector object
+            # Get a GatewayCollector object, normally we would reach into a
+            # GatewayDevice object for data but in this case the
+            # GatewayCollector get_current_data() method can be used to
+            # assemble all disparate pieces of data for us.
             collector = GatewayCollector(ip_address=self.ip_address,
                                          port=self.port,
                                          show_battery=self.show_battery)
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (collector.station.model,
-                                                 collector.station.ip_address.decode(),
-                                                 collector.station.port))
-            # call the driver objects get_current_data() method to obtain
-            # the live sensor data
+            print("Interrogating %s at %s:%d" % (collector.device.model,
+                                                 collector.device.ip_address.decode(),
+                                                 collector.device.port))
+            # call the GatewayCollector objects get_current_data() method to
+            # obtain the live sensor data
             live_sensor_data_dict = collector.get_current_data()
         except GWIOError as e:
             print()
-            print("Unable to connect to device: %s" % e)
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
         except socket.timeout:
             print()
-            print("Timeout. %s did not respond." % collector.station.model)
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
         else:
             # we have a data dict to work with, but we need to format the
             # values and may need to convert units
@@ -7227,7 +7464,7 @@ class DirectGateway(object):
                 _unit_system = weewx.METRIC
             c = weewx.units.StdUnitConverters[_unit_system]
             # Now get a formatter, we could use the
-            # weewx.units.default_unit_format_dict but we need voltages
+            # weewx.units.default_unit_format_dict, but we need voltages
             # formatted to two decimal places. So take a copy of the default
             # unit format dict, change the 'volt' format to suit and use that.
             gw_unit_format_dict = dict(weewx.units.default_unit_format_dict)
@@ -7252,7 +7489,7 @@ class DirectGateway(object):
             print()
             print("Displaying data using the WeeWX %s unit group." % weewx.units.unit_nicknames.get(_unit_system))
             print()
-            print("%s live sensor data (%s): %s" % (collector.station.model,
+            print("%s live sensor data (%s): %s" % (collector.device.model,
                                                     weeutil.weeutil.timestamp_to_string(datetime),
                                                     weeutil.weeutil.to_sorted_string(result)))
 
@@ -7263,13 +7500,15 @@ class DirectGateway(object):
         # this could take a few seconds so warn the user
         print()
         print("Discovering devices on the local network. Please wait...")
-        # get an GatewayCollector object
+        # we want a GatewayDevice object but to get such an object we first
+        # need a GatewayCollector object
         collector = GatewayCollector()
-        # Call the GatewayCollector object discover() method to obtain a list of
-        # unique devices discovered. Would consider wrapping in a try..except
-        # so we can catch any socket timeout exceptions but the
-        # Station.discover() method should catch any such exceptions for us.
-        device_list = collector.station.discover()
+        # the GatewayDevice object is the collectors device property
+        device = collector.device
+        # Obtain a list of discovered devices. Would consider wrapping in a
+        # try..except so we can catch any socket timeout exceptions but the
+        # GatewayApi.discover() method should catch any such exceptions for us.
+        device_list = device.discovered_devices
         print()
         if len(device_list) > 0:
             # we have at least one result
@@ -7467,9 +7706,9 @@ class DirectGateway(object):
             driver = GatewayDriver(**self.stn_dict)
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (driver.collector.station.model,
-                                                 driver.collector.station.ip_address.decode(),
-                                                 driver.collector.station.port))
+            print("Interrogating %s at %s:%d" % (driver.collector.device.model,
+                                                 driver.collector.device.ip_address.decode(),
+                                                 driver.collector.device.port))
             print()
             # continuously get loop packets and print them to screen
             for pkt in driver.genLoopPackets():
@@ -7543,9 +7782,9 @@ class DirectGateway(object):
             if gw_svc is not None:
                 # identify the device being used
                 print()
-                print("Interrogating %s at %s:%d" % (gw_svc.collector.station.model,
-                                                     gw_svc.collector.station.ip_address.decode(),
-                                                     gw_svc.collector.station.port))
+                print("Interrogating %s at %s:%d" % (gw_svc.collector.device.model,
+                                                     gw_svc.collector.device.ip_address.decode(),
+                                                     gw_svc.collector.device.port))
             print()
             while True:
                 # create an arbitrary loop packet, all it needs is a timestamp, a
@@ -7643,9 +7882,9 @@ def main():
     parser.add_option('--discover', dest='discover', action='store_true',
                       help='discover devices and display device IP address '
                            'and port')
-    parser.add_option('--firmware-version', dest='firmware',
+    parser.add_option('--firmware', dest='firmware',
                       action='store_true',
-                      help='display device firmware version')
+                      help='display device firmware information')
     parser.add_option('--mac-address', dest='mac', action='store_true',
                       help='display device station MAC address')
     parser.add_option('--system-params', dest='sys_params', action='store_true',
