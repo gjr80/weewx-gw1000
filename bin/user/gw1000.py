@@ -5517,7 +5517,7 @@ class GatewayApi(object):
 class GatewayHttp(object):
     """Class to interact with a gateway device via HTTP requests."""
 
-    # HTTP request commands, note deliberate mis-spelling in get_calibraion_data
+    # HTTP request commands
     commands = ['get_version', 'get_livedata_info', 'get_ws_settings',
                 'get_calibration_data', 'get_rain_totals', 'get_device_info',
                 'get_sensors_info', 'get_network_info', 'get_units_info',
@@ -6018,6 +6018,20 @@ class GatewayDevice(object):
         parsed_cal_coeff.update(parsed_offset)
         # return the parsed data
         return parsed_cal_coeff
+
+    @property
+    def ws90_firmware_version(self):
+        """Provide the WH90 firmware version.
+
+        Return the WS90 installed firmware version. If no WS90 is available the
+        value None is returned.
+        """
+
+        sensors = self.http.get_sensors_info()
+        for sensor in sensors:
+            if sensor.get('img') == 'wh90':
+                return sensor.get('version', 'not available')
+        return None
 
 
 # ============================================================================
@@ -7309,19 +7323,25 @@ class DirectGateway(object):
                                          port=self.port)
             # the GatewayDevice object is the collectors device property
             device = collector.device
+            # get the device model, we will use this multiple times
+            model = device.model
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
+            print("Interrogating %s at %s:%d" % (model,
                                                  device.ip_address.decode(),
                                                  device.port))
             print()
             # get the firmware version via the API
-            print("    current firmware version is %s" % device.firmware_version)
+            print("    installed %s firmware version is %s" % (model, device.firmware_version))
+            ws90_fw = device.ws90_firmware_version
+            if ws90_fw is not None:
+                print("    installed WS90 firmware version is %s" % ws90_fw)
+            print()
             if device.firmware_update_avail:
-                print("    a firmware update is available,")
+                print("    a %s firmware update is available," % model)
                 print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
             else:
-                print("    the device firmware is up to date")
+                print("    the %s firmware is up to date" % model)
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
