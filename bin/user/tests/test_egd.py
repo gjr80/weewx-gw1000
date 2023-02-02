@@ -93,18 +93,18 @@ class SensorsTestCase(unittest.TestCase):
     connected_addresses = [b'\x06', b'\x07', b'\x08', b'\x0f',
                            b'\x10', b'\x16', b'\x1a', b'\x1f']
     batt_sig_data = {'wh31_ch1_batt': 0, 'wh31_ch1_sig': 4,
-                    'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4,
-                    'wh31_ch3_batt': 0, 'wh31_ch3_sig': 4,
-                    'wh41_ch1_batt': 6, 'wh41_ch1_sig': 4,
-                    'wh51_ch2_batt': 1.3, 'wh51_ch2_sig': 4,
-                    'wh51_ch3_batt': None, 'wh51_ch3_sig': 0,
-                    'wh57_batt': 5, 'wh57_sig': 3,
-                    'wn34_ch1_batt': 1.26, 'wn34_ch1_sig': 4}
+                     'wh31_ch2_batt': 0, 'wh31_ch2_sig': 4,
+                     'wh31_ch3_batt': 0, 'wh31_ch3_sig': 4,
+                     'wh41_ch1_batt': 6, 'wh41_ch1_sig': 4,
+                     'wh51_ch2_batt': 1.3, 'wh51_ch2_sig': 4,
+                     'wh51_ch3_batt': None, 'wh51_ch3_sig': 0,
+                     'wh57_batt': 5, 'wh57_sig': 3,
+                     'wn34_ch1_batt': 1.26, 'wn34_ch1_sig': 4}
 
     def setUp(self):
 
         # get a Sensors object
-        self.sensors = user.gw1000.GatewayCollector.Sensors()
+        self.sensors = user.gw1000.Sensors()
 
     def test_set_sensor_id_data(self):
         """Test the set_sensor_id_data() method."""
@@ -286,7 +286,7 @@ class ParseTestCase(unittest.TestCase):
         b'\x0C': ('decode_speed', 2, 'gustspeed'),
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-        b'\x0F': ('decode_rain', 2, 't_rainhour'),
+        b'\x0F': ('decode_gain_100', 2, 't_raingain'),
         b'\x10': ('decode_rain', 2, 't_rainday'),
         b'\x11': ('decode_rain', 2, 't_rainweek'),
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
@@ -387,15 +387,16 @@ class ParseTestCase(unittest.TestCase):
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-        b'\x0F': ('decode_rain', 2, 't_rainhour'),
+        b'\x0F': ('decode_rain', 2, 't_raingain'),
         b'\x10': ('decode_big_rain', 4, 't_rainday'),
         b'\x11': ('decode_big_rain', 4, 't_rainweek'),
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         # undocumented field 0x7A, believed to be rain source selection
-        b'\x7A': ('decode_int', 1, 'rain_source'),
+        b'\x7A': ('decode_int', 1, 'rain_priority'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
+        b'\x82': ('decode_reserved', 2, 'p_rainhour'),
         b'\x83': ('decode_big_rain', 4, 'p_rainday'),
         b'\x84': ('decode_big_rain', 4, 'p_rainweek'),
         b'\x85': ('decode_big_rain', 4, 'p_rainmonth'),
@@ -521,7 +522,7 @@ class ParseTestCase(unittest.TestCase):
                                   '00 24',
                       'data': {'t_rainrate': 0.0,
                                't_rainevent': 0.0,
-                               't_rainhour': 10.0,
+                               't_raingain': 10.0,
                                't_rainday': 0.0,
                                't_rainweek': 0.0,
                                't_rainmonth': 0.0,
@@ -654,7 +655,7 @@ class ParseTestCase(unittest.TestCase):
     def setUp(self):
 
         # get a Parser object
-        self.parser = user.gw1000.GatewayCollector.Parser()
+        self.parser = user.gw1000.ApiParser()
         self.maxDiff = None
 
     def tearDown(self):
@@ -1135,7 +1136,23 @@ class StationTestCase(unittest.TestCase):
 
     fake_ip = '192.168.99.99'
     fake_port = 44444
-    fake_mac = b'\xdcO"X\xa2E'
+    mock_mac = 'A1:B2:C3:D4:E5:F6'
+    mock_firmware = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
+    mock_sys_params = {
+        'frequency': 0,
+        'sensor_type': 1,
+        'utc': 1674801882,
+        'timezone_index': 94,
+        'dst_status': False
+    }
+    # test sensor ID data
+    fake_sensor_id_data = 'FF FF 3C 01 54 00 FF FF FF FE FF 00 01 FF FF FF FE FF 00 '\
+                          '06 00 00 00 5B 00 04 07 00 00 00 BE 00 04 08 00 00 00 D0 00 04 '\
+                          '0F 00 00 CD 19 0D 04 10 00 00 CD 04 1F 00 11 FF FF FF FE 1F 00 '\
+                          '15 FF FF FF FE 1F 00 16 00 00 C4 97 06 04 17 FF FF FF FE 0F 00 '\
+                          '18 FF FF FF FE 0F 00 19 FF FF FF FE 0F 00 1A 00 00 D3 D3 05 03 '\
+                          '1E FF FF FF FE 0F 00 1F 00 00 2A E7 3F 04 34'
+
     cmd_read_fware_ver = b'\x50'
     read_fware_cmd_bytes = b'\xff\xffP\x03S'
     read_fware_resp_bytes = b'\xff\xffP\x11\rGW1000_V1.6.1v'
@@ -1237,7 +1254,7 @@ class StationTestCase(unittest.TestCase):
         """Setup the StationTestCase to perform its tests.
 
         Determines the IP address and port to use for the Station tests. A
-        GatewayCollector.Station object is required to perform some of the
+        GatewayCollector.Station object is required to perform some
         StationTestCase tests. If either or both of IP address and port are not
         specified when instantiating a Station object device discovery will be
         initiated which may result in delays or failure of the test case if no
@@ -1245,12 +1262,12 @@ class StationTestCase(unittest.TestCase):
         is always used when instantiating a Station object as part of this test
         case.
 
-        the IP address and port number are determined as follows:
-        - if --ip-address and --port were specifeid on the command line then
-          the specified paramaters are used
-        - if --ip-address is specifed on the command line but --port was not
+        The IP address and port number are determined as follows:
+        - if --ip-address and --port were specified on the command line then
+          the specified parameters are used
+        - if --ip-address is specified on the command line but --port was not
           then port 45000 is used
-        - if --port is specifeid on the command line but --ip-address was not
+        - if --port is specified on the command line but --ip-address was not
           then a fake IP address is used
         - if neither --ip-address or --port number is specified on the command
           line then a fake IP address and port number are used
@@ -1261,9 +1278,14 @@ class StationTestCase(unittest.TestCase):
         # set the port number we will use
         cls.test_port = cls.port if cls.port is not None else StationTestCase.fake_port
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
-    def test_cmd_vocab(self, mock_get_mac, mock_get_firmware):
+#    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_cmd_vocab(self, mock_get_mac, mock_get_firmware, mock_get_sys):#, mock_get_sensor_id):
+#    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+#    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+#    def test_cmd_vocab(self, mock_get_mac, mock_get_firmware):
         """Test command dictionaries for completeness.
 
         Tests:
@@ -1273,13 +1295,19 @@ class StationTestCase(unittest.TestCase):
         """
 
         # set return values for mocked methods
-        # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
-        # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        # get_mac_address - MAC address (string)
+        mock_get_mac.return_value = StationTestCase.mock_mac
+        # get_firmware_version - firmware version (string)
+        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        # get_system_params - system parameters (dict)
+        mock_get_sys.return_value = StationTestCase.mock_sys_params
+#        # get_sensor_id - get sensor IDs (bytestring)
+#        mock_get_sensor_id.return_value = hex_to_bytes(StationTestCase.fake_sensor_id_data)
+
         # get our mocked Station object
-        station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
-                                                       port=self.test_port)
+        # TODO. Should not use 'station'
+        station = user.gw1000.GatewayApi(ip_address=self.test_ip,
+                                         port=self.test_port)
         # Check that the class Station command list is complete. This is a
         # simple check for (1) inclusion of the command and (2) the command
         # code (byte) is correct.
@@ -1307,8 +1335,8 @@ class StationTestCase(unittest.TestCase):
                           self.commands.keys(),
                           msg="Command '%s' is in Station.api_commands but it is not being tested" % cmd)
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_calc_checksum(self, mock_get_mac, mock_get_firmware):
         """Test checksum calculation.
 
@@ -1322,13 +1350,13 @@ class StationTestCase(unittest.TestCase):
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
-        station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
-                                                       port=self.test_port)
+        station = user.gw1000.GatewayApi(ip_address=self.test_ip,
+                                         port=self.test_port)
         # test checksum calculation
         self.assertEqual(station.calc_checksum(b'00112233bbccddee'), 168)
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_build_cmd_packet(self, mock_get_mac, mock_get_firmware):
         """Test construction of an API command packet
 
@@ -1344,8 +1372,8 @@ class StationTestCase(unittest.TestCase):
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
-        station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
-                                                       port=self.test_port)
+        station = user.gw1000.GatewayApi(ip_address=self.test_ip,
+                                         port=self.test_port)
         # test the command packet built for each API command we know about
         for cmd, packet in self.commands.items():
             self.assertEqual(station.build_cmd_packet(cmd), hex_to_bytes(packet))
@@ -1357,8 +1385,8 @@ class StationTestCase(unittest.TestCase):
                           station.build_cmd_packet,
                           cmd='UNKNOWN_COMMAND')
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_decode_broadcast_response(self, mock_get_mac, mock_get_firmware):
         """Test decoding of a broadcast response
 
@@ -1372,16 +1400,18 @@ class StationTestCase(unittest.TestCase):
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
-        station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
-                                                       port=self.test_port)
+        station = user.gw1000.GatewayApi(ip_address=self.test_ip,
+                                         port=self.test_port)
         # get the broadcast response test data as a bytestring
         data = hex_to_bytes(self.broadcast_response_data)
         # test broadcast response decode
         self.assertEqual(station.decode_broadcast_response(data), self.decoded_broadcast_response)
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
-    def test_api_response_validity_check(self, mock_get_mac, mock_get_firmware):
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_api_response_validity_check(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test validity checking of an API response
 
         Tests:
@@ -1397,10 +1427,15 @@ class StationTestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
+        # get_system_params() - system parameters (bytestring)
+        mock_get_sys.return_value = StationTestCase.mock_sys_params
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(StationTestCase.fake_sensor_id_data)
+
         # get our mocked Station object
-        station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
-                                                       port=self.test_port)
+        station = user.gw1000.GatewayApi(ip_address=self.test_ip,
+                                         port=self.test_port)
         # test check_response() with good data, should be no exception
         try:
             station.check_response(self.read_fware_resp_bytes,
@@ -1421,9 +1456,9 @@ class StationTestCase(unittest.TestCase):
                           response=self.read_fware_resp_unex_cmd_bytes,
                           cmd_code=self.cmd_read_fware_ver)
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'discover')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'discover')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_discovery(self, mock_get_mac, mock_get_firmware, mock_discover):
         """Test discovery related methods.
 
@@ -1439,12 +1474,12 @@ class StationTestCase(unittest.TestCase):
         # discover() - list of discovered devices (list of dicts)
         mock_discover.return_value = StationTestCase.discover_multi_resp
         # get our mocked Station object
-        station = user.gw1000.GatewayCollector.Station(ip_address=self.test_ip,
-                                                       port=self.test_port)
+        station = user.gw1000.GatewayApi(ip_address=self.test_ip,
+                                         port=self.test_port)
         # to use discovery we need to fool the Station object into thinking it
         # used discovery to obtain the current devices IP address and port
         station.ip_discovered = True
-        # to speed up testing we can reduce some of the retries and wait times
+        # to speed up testing we can reduce some retries and wait times
         station.max_tries = 1
         station.retry_wait = 3
 
@@ -1597,10 +1632,10 @@ class GatewayTestCase(unittest.TestCase):
         # save the service config dict for use later
         cls.gw1000_svc_config = config
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_sensor_id')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_system_params')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_map(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test GW1000Service GW1000 to WeeWX mapping
 
@@ -1630,10 +1665,10 @@ class GatewayTestCase(unittest.TestCase):
         # check that the usUnits field is set to weewx.METRICWX
         self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_sensor_id')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_system_params')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test GW1000Service correctly calculates WeeWX field rain
 
@@ -1684,10 +1719,10 @@ class GatewayTestCase(unittest.TestCase):
                                6.4,
                                places=3)
 
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_sensor_id')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_system_params')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_firmware_version')
-    @patch.object(user.gw1000.GatewayCollector.Station, 'get_mac_address')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
         """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
 
@@ -1796,7 +1831,7 @@ class GatewayTestCase(unittest.TestCase):
 def hex_to_bytes(hex_string):
     """Takes a string of hex character pairs and returns a string of bytes.
 
-    Allows us to specify a byte string in a little more human readable format.
+    Allows us to specify a byte string in a little more human-readable format.
     Takes a space delimited string of hex pairs and converts to a string of
     bytes. hex_string pairs must be spaced delimited, eg 'AB 2E 3B'.
 
