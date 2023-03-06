@@ -2749,8 +2749,7 @@ class ApiParser(object):
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-        # TODO. is this 'decode_rain' or 'decode_gain_100'
-        b'\x0F': ('decode_rain', 2, 't_raingain'),
+        b'\x0F': ('decode_gain_100', 2, 't_raingain'),
         b'\x10': ('decode_big_rain', 4, 't_rainday'),
         b'\x11': ('decode_big_rain', 4, 't_rainweek'),
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
