@@ -2753,8 +2753,8 @@ class ApiParser(object):
         b'\x11': ('decode_big_rain', 4, 't_rainweek'),
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
-        # undocumented field 0x7A, believed to be rain source selection
         b'\x7A': ('decode_int', 1, 'rain_priority'),
+        b'\x7B': ('decode_int', 1, 'rad_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),
