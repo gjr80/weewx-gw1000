@@ -5549,7 +5549,7 @@ class GatewayHttp(object):
         """
 
         # check if we have a command that we know about
-        if command_str.lower() in GatewayHttp.commands:
+        if command_str in GatewayHttp.commands:
             # first convert any data to a percent-encoded ASCII text string
             data_enc = urlencode(data)
             # construct the scheme and host portions of the URL
