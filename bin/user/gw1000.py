@@ -34,10 +34,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0a1                                    Date: ?? February 2023
+Version: 0.6.0a1                                    Date: ?? March 2023
 
 Revision History
-    ?? February 2023        v0.6.0
+    ?? March 2023        v0.6.0
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
             GatewayHttp class
@@ -45,7 +45,13 @@ Revision History
             status data not available via API
         -   fixes error in multi-channel temperature calibration data decode
         -   change of internal rain field names ?
-    ?? June 2022            v0.5.0b6
+        -   updated IAW Gateway API documentation v1.6.8
+        -   rename a number of calibration/offset related command line options
+            to better align with the labels/names now used in the WSView Plus
+            app v2.0.32
+        -   implement --get-mulch-t-cal command line option to display WN34
+            temperature calibration data
+    13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
         -   added support for GW2000
@@ -90,11 +96,6 @@ Revision History
         -   --live-data output now indicates the unit group being used
         -   battery state data received from WH40 devices that do not emit
             battery state is now ignored by default and the value None returned
-        -   rename a number of calibration/offset related command line options
-            to better align with the labels/names now used in the WSView Plus
-            app v2.0.32
-        -   implement --get-mulch-t-cal command line option to display WN34
-            temperature calibration data
     20 March 2022           v0.4.2
         -   fix bug in Station.rediscover()
     14 October 2021         v0.4.1
@@ -181,12 +182,10 @@ Revision History
         - initial release
 
 
-The Ecowitt LAN/Wi-Fi Gateway API documentation
-
 This driver has been based on the Ecowitt LAN/Wi-Fi Gateway API documentation
-v1.6.6. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
-API documentation v1.6.6 have been made in this driver:
-
+v1.6.8. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
+API documentation v1.6.8 have been made in this driver:
+# TODO. Review these deviations before release
 1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
 returned by the CMD_READ_SSSS API command. The UTC time field is described as
 'UTC time' and is an unsigned long. No other details are provided in the API
@@ -2749,14 +2748,13 @@ class ApiParser(object):
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-        # TODO. is this 'decode_rain' or 'decode_gain_100'
-        b'\x0F': ('decode_rain', 2, 't_raingain'),
+        b'\x0F': ('decode_gain_100', 2, 't_raingain'),
         b'\x10': ('decode_big_rain', 4, 't_rainday'),
         b'\x11': ('decode_big_rain', 4, 't_rainweek'),
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
-        # undocumented field 0x7A, believed to be rain source selection
         b'\x7A': ('decode_int', 1, 'rain_priority'),
+        b'\x7B': ('decode_int', 1, 'rad_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),

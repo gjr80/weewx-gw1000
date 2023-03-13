@@ -387,13 +387,13 @@ class ParseTestCase(unittest.TestCase):
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
-        b'\x0F': ('decode_rain', 2, 't_raingain'),
+        b'\x0F': ('decode_gain_100', 2, 't_raingain'),
         b'\x10': ('decode_big_rain', 4, 't_rainday'),
         b'\x11': ('decode_big_rain', 4, 't_rainweek'),
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
-        # undocumented field 0x7A, believed to be rain source selection
         b'\x7A': ('decode_int', 1, 'rain_priority'),
+        b'\x7B': ('decode_int', 1, 'rad_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),
@@ -1346,7 +1346,7 @@ class StationTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
@@ -1368,7 +1368,7 @@ class StationTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
@@ -1396,7 +1396,7 @@ class StationTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
@@ -1425,7 +1425,7 @@ class StationTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
         # get_system_params() - system parameters (bytestring)
@@ -1468,7 +1468,7 @@ class StationTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.fake_mac
+        mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
         mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # discover() - list of discovered devices (list of dicts)
