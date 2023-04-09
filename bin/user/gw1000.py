@@ -1275,7 +1275,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         self.lost_con_ts = None
         # create a placeholder for our most recent, non-stale queued device
         # sensor data packet
-        self.cached_sensor_data = None
+        self.latest_sensor_data = None
         # log our version number
         loginf('GatewayService: version is %s' % DRIVER_VERSION)
         # log the relevant settings/parameters we are using
@@ -1344,9 +1344,9 @@ class GatewayService(weewx.engine.StdService, Gateway):
         if self.debug_loop or self.debug_rain or self.debug_wind:
             loginf('GatewayService: Processing loop packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                                       natural_sort_dict(event.packet)))
-        # we are about to process the queue so reset our cached sensor data
+        # we are about to process the queue so reset our latest sensor data
         # packet property
-        self.cached_sensor_data = None
+        self.latest_sensor_data = None
         # now process the queue until it is empty
         while True:
             # Get the next item from the queue. Wrap in a try to catch any
@@ -1443,19 +1443,19 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     pass
 
         # we have now finished processing the queue, do we have a sensor data
-        # packet to add to the loo packet
-        if self.cached_sensor_data is not None:
+        # packet to add to the loop packet
+        if self.latest_sensor_data is not None:
             # we have a sensor data packet
             # if not already done so determine which cumulative rain field will
             # be used to determine the per period rain field
             if not self.rain_mapping_confirmed or not self.piezo_rain_mapping_confirmed:
-                self.get_cumulative_rain_field(self.cached_sensor_data)
+                self.get_cumulative_rain_field(self.latest_sensor_data)
             # get the rainfall this period from total
-            self.calculate_rain(self.cached_sensor_data)
+            self.calculate_rain(self.latest_sensor_data)
             # get the lightning strike count this period from total
-            self.calculate_lightning_count(self.cached_sensor_data)
+            self.calculate_lightning_count(self.latest_sensor_data)
             # map the raw data to WeeWX loop packet fields
-            mapped_data = self.map_data(self.cached_sensor_data)
+            mapped_data = self.map_data(self.latest_sensor_data)
             # log the mapped data if necessary
             if self.debug_loop:
                 loginf('GatewayService: Mapped %s data: %s' % (self.collector.station.model,
@@ -1497,10 +1497,10 @@ class GatewayService(weewx.engine.StdService, Gateway):
         """Process a sensor data packet received in the collector queue.
 
         When the queue is processed there may be multiple sensor data packets
-        in the queue but we only want the most recent, non-stale packet. Check
+        in the queue, but we only want the most recent, non-stale packet. Check
         the received sensor packet is timestamped and not stale, if it is not
-        stale and is newer than the previously cached sensor data packet then
-        replace the cached packet with this packet.
+        stale and is newer than the previously saved sensor data packet then
+        replace the saved packet with this packet.
 
         Non-timestamped sensor data packets are discarded.
 
@@ -1513,14 +1513,14 @@ class GatewayService(weewx.engine.StdService, Gateway):
             # now check it is not stale
             if sensor_data['datetime'] > date_time - self.max_age:
                 # the sensor data is not stale, but is it more recent than our
-                # current cached packet
-                if self.cached_sensor_data is None or sensor_data['datetime'] > self.cached_sensor_data['dateTime']:
+                # current saved packet
+                if self.latest_sensor_data is None or sensor_data['datetime'] > self.latest_sensor_data['dateTime']:
                     # this packet is newer, so keep it
-                    self.cached_sensor_data = dict(sensor_data)
-                    # the cached packet will have the timestamp in the field
+                    self.latest_sensor_data = dict(sensor_data)
+                    # the latest packet will have the timestamp in the field
                     # 'datetime', WeeWX requires 'dateTime'. Do the change here
                     # rather than later.
-                    self.cached_sensor_data['dateTime'] = self.cached_sensor_data.pop('datetime')
+                    self.latest_sensor_data['dateTime'] = self.latest_sensor_data.pop('datetime')
 
     def process_queued_exception(self, e):
         """Process an exception received in the collector queue."""
