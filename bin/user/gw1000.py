@@ -50,6 +50,9 @@ Revision History
             app v2.0.32
         -   implement --get-mulch-t-cal command line option to display WN34
             temperature calibration data
+        -   --firmware command line option now displays gateway device and
+            (where available) sensor firmware versions along with a short
+            message if a device firmware update is available
         -   implement gateway device firmware update check and logging
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
@@ -393,7 +396,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0a1'
+DRIVER_VERSION = '0.6.0b1'
 
 # various defaults used throughout
 # default port used by device
