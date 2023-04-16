@@ -10,10 +10,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                       Installer for Ecowitt Gateway Driver
 
-Version: 0.5.0b5                                      Date: ?? June 2022
+Version: 0.6.0.b1                                      Date: 16 April 2023
 
 Revision History
-    ?? June 2022        v0.5.0
+    16 April 2023       v0.6.0b1
+        -   no change, version increment only
+    13 June 2022        v0.5.0
         -   changed descriptive name of extension
         -   changed reference to 'GW1000 driver' to 'Ecowitt gateway driver'
         -   redesignated WH35 as WN35
