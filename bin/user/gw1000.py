@@ -43,7 +43,6 @@ Revision History
         -   implement device HTTP requests to obtain additional device/sensor
             status data not available via API
         -   fixes error in multi-channel temperature calibration data decode
-        -   change of internal rain field names
         -   updated IAW Gateway API documentation v1.6.8
         -   rename a number of calibration/offset related command line options
             to better align with the labels/names now used in the WSView Plus
