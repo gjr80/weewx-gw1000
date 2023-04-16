@@ -12,6 +12,9 @@ v0.6.0b1
     available) sensor firmware versions along with a short message if a device
     firmware update is available
 -   implement gateway device firmware update check and logging
+-   gateway device temperature compensation setting can be displayed using the
+    --system-params command line option (for firmware versions GW2000 all,
+    GW1100 > v2.1.2 and GW1000 > v1.6.9)
 v0.5.0b5
 -   renamed as the Ecowitt Gateway driver/service rather than the former GW1000
     or GW1000/GW1100 driver/service
