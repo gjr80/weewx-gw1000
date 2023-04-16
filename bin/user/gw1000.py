@@ -54,6 +54,9 @@ Revision History
             (where available) sensor firmware versions along with a short
             message if a device firmware update is available
         -   implement gateway device firmware update check and logging
+        -   gateway device temperature compensation setting can be displayed
+            using the --system-params command line option (for firmware
+            versions GW2000 all, GW1100 > v2.1.2 and GW1000 > v1.6.9)
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
@@ -221,6 +224,21 @@ bytes per sensor, first byte is sensor address (0x63 to 0x6A) and second byte
 is tenths C calibration value. Calibration value may be from +10C to -10C. Data
 is included only for connected sensors. This support should be considered
 experimental.
+
+4.  API documentation v1.6.8 lists field 7B as 'Radiation compensation', though
+in the WSView Plus app the field 7B data is displayed against a label
+'Temperature Compensation' for devices WH65/WH69/WS80/WS90. Field 7B is more
+correctly referred to as 'Temperature Compensation' as the setting controls
+whether the outdoor temperature for the listed devices is compensated by an
+Ecowitt formula based on the radiation level (perhaps other fields as well).
+Field 7B is located amidst various rain related fields and bizarrely field 7B
+data is only available through the recent CMD_READ_RAIN API command. As the
+CMD_READ_RAIN command was only recently introduced, some gateway devices using
+old firmware cannot use the CM_READ_RAIN API command meaning field 7B cannot be
+read from some gateway devices using the API. Field 7B can be read once the
+gateway device firmware is updated to a version that support the CMD_READ_RAIN
+command. The field 7B data/'Temperature Compensation' setting can be displayed
+via the --system-params command line option.
 
 
 Before using this driver:
@@ -2545,43 +2563,6 @@ class GatewayCollector(Collector):
             logdbg("Processed parsed data: %s" % parsed_data)
         return parsed_data
 
-    # @property
-    # def calibration(self):
-    #     """Obtain device calibration data."""
-    #
-    #     # obtain the calibration data via the API
-    #     parsed_cal_coeff = self.device.api.get_calibration_coefficient()
-    #     # obtain the offset calibration data via the API
-    #     parsed_offset = self.device.api.get_offset_calibration()
-    #     # update our parsed gain data with the parsed offset calibration data
-    #     parsed_cal_coeff.update(parsed_offset)
-    #     # return the parsed data
-    #     return parsed_cal_coeff
-    #
-    # @property
-    # def sensors(self):
-    #     """Get the current Sensors object.
-    #
-    #     A Sensors object holds the address, id, battery state and signal level
-    #     data sensors known to the device. The sensor id value can be used to
-    #     discriminate between connected sensors, connecting sensors and disabled
-    #     sensor addresses.
-    #
-    #     Before using the GatewayCollector's Sensors object it should be updated
-    #     with recent sensor ID data via the API
-    #     """
-    #
-    #     # obtain current sensor id data via the API, we may get a GWIOError
-    #     # exception, if we do let it bubble up
-    #     # TODO. This should return a value
-    #     response = self.device.api.get_sensor_id()
-    #     # if we made it here our response was validated by checksum
-    #     # re-initialise our sensors object with the sensor ID data we just
-    #     # obtained
-    #     self.device.api.sensors.set_sensor_id_data(response)
-    #     # return our Sensors object
-    #     return self.device.api.sensors
-    #
     def startup(self):
         """Start a thread that collects data from the API."""
 
@@ -2786,7 +2767,7 @@ class ApiParser(object):
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         b'\x7A': ('decode_int', 1, 'rain_priority'),
-        b'\x7B': ('decode_int', 1, 'rad_comp'),
+        b'\x7B': ('decode_int', 1, 'temp_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),
@@ -6621,6 +6602,10 @@ class DirectGateway(object):
             2: '915MHz',
             3: '920MHz'
         }
+        temp_comp_decode = {
+            0: 'off',
+            1: 'on'
+        }
         # wrap in a try..except in case there is an error
         try:
             # we want a GatewayDevice object but to get such an object we first
@@ -6636,6 +6621,17 @@ class DirectGateway(object):
                                                  device.port))
             # get the device system_params property
             sys_params_dict = device.system_params
+            # we need the temperature compensation setting which according to
+            # the v1.6.8 API documentation resides in field 7B but bizarrely is
+            # only available via the CMD_READ_RAIN API command. CMD_READ_RAIN
+            # is a relatively new command so wrap in a try..except just in
+            # case.
+            try:
+                _rain_data = device.rain
+            except GWIOError:
+                temp_comp = None
+            else:
+                temp_comp = _rain_data.get('temp_comp')
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
@@ -6652,12 +6648,19 @@ class DirectGateway(object):
             _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
             # print the system parameters
             print()
-            print("%18s: %s (%s)" % ('frequency',
-                                     sys_params_dict['frequency'],
-                                     freq_str))
-            print("%18s: %s (%s)" % ('sensor type',
+            print("%26s: %s (%s)" % ('sensor type',
                                      sys_params_dict['sensor_type'],
                                      _sensor_type_str))
+            print("%26s: %s (%s)" % ('frequency',
+                                     sys_params_dict['frequency'],
+                                     freq_str))
+            if temp_comp is not None:
+                print("%26s: %s (%s)" % ('Temperature Compensation',
+                                         temp_comp,
+                                         temp_comp_decode.get(temp_comp, 'unknown')))
+            else:
+                print("%26s: unavailable" % 'Temperature Compensation')
+
             # The gateway API returns what is labelled "UTC" but is in fact the
             # current epoch timestamp adjusted by the station timezone offset.
             # So when the timestamp is converted to a human-readable GMT
@@ -6670,9 +6673,9 @@ class DirectGateway(object):
             # this is not possible. We can only do what we can.
             date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                           time.gmtime(sys_params_dict['utc']))
-            print("%18s: %s" % ('date-time', date_time_str))
-            print("%18s: %s" % ('timezone index', sys_params_dict['timezone_index']))
-            print("%18s: %s" % ('DST status', sys_params_dict['dst_status']))
+            print("%26s: %s" % ('date-time', date_time_str))
+            print("%26s: %s" % ('timezone index', sys_params_dict['timezone_index']))
+            print("%26s: %s" % ('DST status', sys_params_dict['dst_status']))
 
     def get_rain_data(self):
         """Display the device rain data.
@@ -6760,6 +6763,7 @@ class DirectGateway(object):
             # the rain_data property instead.
             try:
                 rain_data = device.rain
+                loginf(rain_data)
             except UnknownApiCommand:
                 # use the rain_data property
                 rain_data = device.raindata
