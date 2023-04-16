@@ -6,13 +6,12 @@ gw1000.py
 A WeeWX driver for devices using Ecowitt LAN/Wi-Fi Gateway API.
 
 The WeeWX Ecowitt Gateway driver (known historically as the 'WeeWX GW1000
-driver') utilises the Ecowitt LAN/Wi-Fi Gateway API thus using a pull
-methodology in obtaining data from the gateway device rather than the push
-methodology used by drivers that obtain data from the gateway device via
-Ecowitt or WeatherUnderground format uploads emitted by the device. The API
-approach has the advantage of giving the user more control over when the data
-is obtained from the device plus also giving access to a greater range of
-metrics.
+driver') utilises the Ecowitt LAN/Wi-Fi Gateway API and device HTTP requests to
+pull data from the gateway device. This is in contrast to the push methodology
+used by drivers that obtain data from the gateway device via Ecowitt or
+WeatherUnderground format uploads emitted by the device. The pull approach has
+the advantage of giving the user more control over when the data is obtained
+from the device plus also giving access to a greater range of metrics.
 
 As of the time of release this driver supports the GW1000, GW1100 and GW2000
 gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather stations.
@@ -34,23 +33,24 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0a1                                    Date: ?? March 2023
+Version: 0.6.0b1                                    Date: 16 April 2023
 
 Revision History
-    ?? March 2023        v0.6.0
+    16 April 2023           v0.6.0
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
             GatewayHttp class
         -   implement device HTTP requests to obtain additional device/sensor
             status data not available via API
         -   fixes error in multi-channel temperature calibration data decode
-        -   change of internal rain field names ?
+        -   change of internal rain field names
         -   updated IAW Gateway API documentation v1.6.8
         -   rename a number of calibration/offset related command line options
             to better align with the labels/names now used in the WSView Plus
             app v2.0.32
         -   implement --get-mulch-t-cal command line option to display WN34
             temperature calibration data
+        -   implement gateway device firmware update check and logging
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
@@ -421,6 +421,8 @@ default_poll_interval = 20
 default_lost_contact_log_period = 21600
 # default battery state filtering
 default_show_battery = False
+# default firmware update check interval
+default_fw_check_interval = 86400
 # For packet unit conversion to work correctly each possible WeeWX field needs
 # to be assigned to a unit group. This is normally already taken care of for
 # WeeWX fields that are part of the in-use database schema; however, an Ecowitt
@@ -916,6 +918,13 @@ class Gateway(object):
         # debug level, this will log them at the info level
         log_unknown_fields = weeutil.weeutil.tobool(gw_config.get('log_unknown_fields',
                                                                   False))
+        # how to handle firmware update checks
+        # how often to check for a gateway device firmware update
+        fw_update_check_interval = int(gw_config.get('firmware_update_check_interval',
+                                                     default_fw_check_interval))
+        # whether to log an available firmware update
+        log_fw_update_avail = weeutil.weeutil.tobool(gw_config.get('log_firmware_update_avail',
+                                                                   False))
         # get device specific debug settings
         self.debug = DebugOptions(gw_config)
 
@@ -934,6 +943,8 @@ class Gateway(object):
                                           ignore_wh40_batt=ignore_wh40_batt,
                                           show_battery=self.show_battery,
                                           log_unknown_fields=log_unknown_fields,
+                                          fw_update_check_interval=fw_update_check_interval,
+                                          log_fw_update_avail=log_fw_update_avail,
                                           debug=self.debug)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
@@ -2373,7 +2384,8 @@ class GatewayCollector(Collector):
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
                  use_wh32=True, ignore_wh40_batt=True, show_battery=False,
-                 log_unknown_fields=False, debug=DebugOptions({})):
+                 log_unknown_fields=False, fw_update_check_interval=86400,
+                 log_fw_update_avail=False, debug=DebugOptions({})):
         """Initialise our class."""
 
         # initialize my base class:
@@ -2387,7 +2399,11 @@ class GatewayCollector(Collector):
         # period in seconds to wait before polling again, default is
         # default_retry_wait seconds
         self.retry_wait = retry_wait
-
+        # how to handle checks for a gateway device firmware update
+        # how often to check for a firmware update
+        self.fw_update_check_interval = fw_update_check_interval
+        # whether to log when a firmware update is available
+        self.log_fw_update_avail = log_fw_update_avail
         # get a GatewayDevice to handle interaction with the gateway device
         self.device = GatewayDevice(ip_address=ip_address, port=port,
                                     broadcast_address=broadcast_address,
@@ -2428,6 +2444,8 @@ class GatewayCollector(Collector):
 
         # initialise ts of last time API was polled
         last_poll = 0
+        # initialise ts of last firmware check
+        last_fw_check = 0
         # collect data continuously while we are told to collect data
         while self.collect_data:
             # store the current time
@@ -2454,6 +2472,17 @@ class GatewayCollector(Collector):
                 logdbg('Next update in %d seconds' % self.poll_interval)
                 # reset the last poll ts
                 last_poll = now
+                # do a firmware update check if required
+                if now - last_fw_check > self.fw_update_check_interval and self.log_fw_update_avail:
+                    if self.device.firmware_update_avail:
+                        _msg = "A firmware is available, "\
+                               "current %s firmware version is %s" % (self.device.model,
+                                                                      self.device.firmware_version)
+                        loginf(_msg)
+                        _msg = "    update at http://%s or via "\
+                               "the WSView Plus app" % (self.device.ip_address.decode(), )
+                        loginf(_msg)
+                    last_fw_check = now
             # sleep for a second and then see if it's time to poll again
             time.sleep(1)
 
