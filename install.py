@@ -55,7 +55,7 @@ import weewx
 
 
 REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.5.0b5"
+GW1000_VERSION = "0.6.0b1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]

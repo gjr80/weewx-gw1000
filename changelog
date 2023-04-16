@@ -1,4 +1,18 @@
-v0.5.0
+v0.6.0b1
+-   implement device HTTP requests to obtain additional device/sensor status
+    data not available via API
+-   fix error in multi-channel temperature calibration data decode
+-   change of internal rain field names
+-   updated IAW Gateway API documentation v1.6.8
+-   rename a number of calibration/offset related command line options to
+    better align with the labels/names now used in the WSView Plus app v2.0.32
+-   implement --get-mulch-t-cal command line option to display WN34 temperature
+    calibration data
+-   --firmware command line option now displays gateway device and (where
+    available) sensor firmware versions along with a short message if a device
+    firmware update is available
+-   implement gateway device firmware update check and logging
+v0.5.0b5
 -   renamed as the Ecowitt Gateway driver/service rather than the former GW1000
     or GW1000/GW1100 driver/service
 -   added support for GW2000
@@ -40,78 +54,78 @@ v0.5.0
 -   fake battery state data received from WH40 devices that do not emit battery
     state is now ignored
 v0.4.2
-*   fix bug in Station.rediscover()
+-   fix bug in Station.rediscover()
 v0.4.1
-*   fix incorrect installer version number
+-   fix incorrect installer version number
 v0.4.0
-*   the device model (GW1000/GW1100) is now identified via the API so many
+-   the device model (GW1000/GW1100) is now identified via the API so many
     references to 'GW1000' in console and log output should now be replaced
     with the correct device model
-*   when used as a driver the driver hardware_name property now returns the
+-   when used as a driver the driver hardware_name property now returns the
     device model instead of the driver name (GW1000)
-*   reworked processing of queued data by class Gw1000Service() to fix a bug
+-   reworked processing of queued data by class Gw1000Service() to fix a bug
     resulting is intermittent missing GW1000 data
-*   implemented debug_wind reporting
-*   re-factored debug_rain reporting to report both 'WeeWX' and 'GW1000' rain
+-   implemented debug_wind reporting
+-   re-factored debug_rain reporting to report both 'WeeWX' and 'GW1000' rain
     related fields
-*   battery state data is now set to None for sensors with signal level == 0,
+-   battery state data is now set to None for sensors with signal level == 0,
     can be disabled by setting option show_all_batt = True under [GW1000] in
     weewx.conf or by use of the --show-all-batt command line option
-*   implemented the --units command line option to control the units used when
+-   implemented the --units command line option to control the units used when
     displaying --live-data output, available options are US customary
     (--units=us), Metric (--units=metric) and MetricWx (--units=metricwx)
-*   --live-data now formatted and labelled using WeeWX default formats and
+-   --live-data now formatted and labelled using WeeWX default formats and
     labels
-*   fixed some incorrect command line option descriptions
-*   simplified binary battery state calculation
-*   socket objects are now managed via the 'with' context manager
-*   fixed bug when operated with GW1100 using firmware v2.0.4
-*   implemented limited debug_sensors reporting
-*   implemented a separate broadcast_timeout config option to allow an
+-   fixed some incorrect command line option descriptions
+-   simplified binary battery state calculation
+-   socket objects are now managed via the 'with' context manager
+-   fixed bug when operated with GW1100 using firmware v2.0.4
+-   implemented limited debug_sensors reporting
+-   implemented a separate broadcast_timeout config option to allow an
     increased socket timeout when broadcasting for GW1000/GW1100 devices,
     default value is five seconds
-*   a device is now considered unique if it has a unique MAC address (was
+-   a device is now considered unique if it has a unique MAC address (was
     formerly unique if IP address and port combination were unique)
-*   minor reformatting of --discover console output
-*   WH24 battery and signal state fields are now included in the default field
+-   minor reformatting of --discover console output
+-   WH24 battery and signal state fields are now included in the default field
     map
 v0.3.1
-*   fixed error when broadcast port or socket timeout is specified in
+-   fixed error when broadcast port or socket timeout is specified in
     weewx.conf
-*   fixed bug when decoding firmware version string that gives a truncated
+-   fixed bug when decoding firmware version string that gives a truncated
     result
 v0.3.0
-*   added the --units command line option to allow the output of --live-data to
+-   added the --units command line option to allow the output of --live-data to
     be displayed in specified units (US customary or Metric)
-*   added support for WH35 sensor
-*   when run directly the driver now distinguishes between no sensor ID
+-   added support for WH35 sensor
+-   when run directly the driver now distinguishes between no sensor ID
     response and an empty sensor ID response
-*   reworked battery state, signal level and sensor ID processing to cater for
+-   reworked battery state, signal level and sensor ID processing to cater for
     changes to battery state reporting introduced in GW1000 API v1.6.0 (GW1000
     v1.6.5 firmware)
-*   The GW1000 cumulative daily lightning count field is now included in driver
+-   The GW1000 cumulative daily lightning count field is now included in driver
     loop packets as field 'lightningcount' (the default field name). Previously
     this field was used to derive the WeeWX extended schema field
     'lightning_strike_count' and was not included in loop packets.
-*   fixed incomplete --default-map output
-*   fixes loss of battery state data for some sensors that occurred under
+-   fixed incomplete --default-map output
+-   fixes loss of battery state data for some sensors that occurred under
     GW1000 firmware release v1.6.5 and later
 v0.2.0
-*   added support for WH45 sensor
-*   improved comments in installer/wee_config inserted config stanzas/entries
-*   sensor signal levels added to loop packet
-*   added --get-services command line option to display the GW1000 supported
+-   added support for WH45 sensor
+-   improved comments in installer/wee_config inserted config stanzas/entries
+-   sensor signal levels added to loop packet
+-   added --get-services command line option to display the GW1000 supported
     weather services settings when driver is run directly
-*   added --get-pm25-offset command line option to display GW1000 PM2.5 sensor
+-   added --get-pm25-offset command line option to display GW1000 PM2.5 sensor
     offset settings when driver is run directly
-*   added --get-mulch-offset command line option to display GW1000
+-   added --get-mulch-offset command line option to display GW1000
     multi-channel TH sensor calibration settings when driver is run directly
-*   added --get-soil-calibration command line option to display GW1000 soil
+-   added --get-soil-calibration command line option to display GW1000 soil
     moisture sensor calibration settings when driver is run directly
-*   added --get-calibration command line option to display GW1000 sensor
+-   added --get-calibration command line option to display GW1000 sensor
     calibration settings when driver is run directly
-*   renamed --rain-data command line option to --get-rain-data
-*   renamed various 24 hour average particulate concentration fields
-*   added a check for unknown field addresses when processing sensor data
+-   renamed --rain-data command line option to --get-rain-data
+-   renamed various 24 hour average particulate concentration fields
+-   added a check for unknown field addresses when processing sensor data
 v0.1.0
-*   initial release
+-   initial release
