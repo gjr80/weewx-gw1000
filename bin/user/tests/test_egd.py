@@ -44,6 +44,7 @@ import six
 import weewx
 import user.gw1000
 
+# TODO. Add test to check that all default fields are included in the unit group dict
 # TODO. Check speed_data data and result are correct
 # TODO. Check rain_data data and result are correct
 # TODO. Check rainrate_data data and result are correct
