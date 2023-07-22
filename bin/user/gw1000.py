@@ -54,6 +54,8 @@ Revision History
         -   gateway device temperature compensation setting can be displayed
             using the --system-params command line option (for firmware
             versions GW2000 all, GW1100 > v2.1.2 and GW1000 > v1.6.9)
+        -   added wee_device support
+        -   rationalised driver direct and wee_device actions
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
@@ -300,8 +302,6 @@ the Ecowitt Gateway driver wiki (https://github.com/gjr80/weewx-gw1000/wiki)
 for more in-depth installation and configuration information.
 """
 
-# Standing TODOs:
-# TODO. Review against latest
 # Outstanding TODOs:
 # TODO. Confirm WH26/WH32 sensor ID
 # TODO. Confirm WH26/WH32 battery status
@@ -310,8 +310,6 @@ for more in-depth installation and configuration information.
 # TODO. Confirm WH24 battery status
 # TODO. Confirm WH25 battery status
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. Review queue dwell times
-# TODO. Should service aspects of running the driver directly use [GatewayService] then [GW1000]
 # TODO. Need to re-order sensor output for --sensors to better match app
 # TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
 # TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
