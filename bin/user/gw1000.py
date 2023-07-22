@@ -2094,18 +2094,33 @@ attempt startup indefinitely."""
 # ============================================================================
 
 class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
-    """Configures the Ecowittt Gateway weather station."""
+    """Configures the Ecowitt gateway weather station.
+
+    This class is used by wee_device when interrogating a supported Ecowitt
+    gateway device.
+
+    The Ecowitt gateway device API supports both reading and setting various
+    gateway device parameters; however, at this time the Ecowitt gateway
+    device driver only supports the reading these parameters. The Ecowitt
+    gateway device driver does not support setting these parameters, rather
+    this should be done via the Ecowitt WSView Plus app.
+
+    When used with wee_device this configurator allows station hardware
+    parameters to be displayed. The Ecowitt gateway device driver may also be
+    run directly to test the Ecowitt gateway device driver operation as well as
+    display various driver configuration options (as distinct from gateway
+    device hardware parameters).
+    """
 
     @property
     def description(self):
+        """Description displayed as part of wee_device help information."""
         return "Configures the Ecowitt Gateway weather station."
 
     @property
     def usage(self):
+        """wee_device usage information."""
         return """%prog --help
-       %prog --discover
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--debug=0|1|2|3]
        %prog --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--units=us|metric|metricwx]
@@ -2131,20 +2146,16 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
        %prog --get-services
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--unmask] [--debug=0|1|2|3]
-       %prog --default-map|--driver-map|--service-map
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--debug=0|1|2|3]"""
+            [--unmask] [--debug=0|1|2|3]"""
 
     @property
     def epilog(self):
-        return "Be sure to stop weewxd first before using. Mutating actions will"\
-            " request confirmation before proceeding.\n"
+        """Epilog displayed as part of wee_device help information."""
+        return "Mutating actions will request confirmation before proceeding.\n"
 
     def add_options(self, parser):
-        parser.add_option('--discover', dest='discover', action='store_true',
-                          help='discover devices and display device IP address '
-                               'and port')
+        """Define wee_device option parser options."""
+
         parser.add_option('--live-data', dest='live', action='store_true',
                           help='display device live sensor data')
         parser.add_option('--sensors', dest='sensors', action='store_true',
@@ -2183,14 +2194,6 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
         parser.add_option('--get-services', dest='get_services',
                           action='store_true',
                           help='display device weather services configuration data')
-        parser.add_option('--default-map', dest='map', action='store_true',
-                          help='display the default field map')
-        parser.add_option('--driver-map', dest='driver_map', action='store_true',
-                          help='display the field map that would be used by the gateway '
-                               'driver')
-        parser.add_option('--service-map', dest='service_map', action='store_true',
-                          help='display the field map that would be used by the gateway '
-                               'service')
         parser.add_option('--ip-address', dest='ip_address',
                           help='device IP address to use')
         parser.add_option('--port', dest='port', type=int,
@@ -2217,11 +2220,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
                           help="answer yes to every prompt")
 
     def do_options(self, options, parser, config_dict, prompt):
-
-        # # display driver version number
-        # if options.version:
-        #     print("%s driver version: %s" % (DRIVER_NAME, DRIVER_VERSION))
-        #     exit(0)
+        """Process wee_device option parser options."""
 
         # get station config dict to use
         stn_dict = config_dict.get('GW1000', {})
@@ -2253,8 +2252,6 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
         direct_gw = DirectGateway(options, stn_dict)
         # now let the DirectGateway object process the options
         direct_gw.process_options()
-#        # if we made it here no option was selected so display our help
-#        parser.print_help()
 
 
 # ============================================================================
@@ -5766,7 +5763,7 @@ class GatewayHttp(object):
                     resp = w.read().decode()
                 # we are finished with the raw response so close it
                 w.close()
-            except (URLError, socket.timeout) as e:
+            except (socket.timeout, URLError) as e:
                 # log the error and raise it
                 log.error("Failed to get device data")
                 log.error("   **** %s" % e)
@@ -6212,9 +6209,10 @@ class GatewayDevice(object):
         """
 
         sensors = self.http.get_sensors_info()
-        for sensor in sensors:
-            if sensor.get('img') == 'wh90':
-                return sensor.get('version', 'not available')
+        if sensors is not None:
+            for sensor in sensors:
+                if sensor.get('img') == 'wh90':
+                    return sensor.get('version', 'not available')
         return None
 
 
@@ -6697,14 +6695,14 @@ class DirectGateway(object):
                 # we could not get show_battery from the stn_dict so use the default
                 show_battery = default_show_battery
                 if weewx.debug >= 1:
-                    print("Battery state filtering ('%s') using the default" % show_battery)
+                    print("Battery state filtering is '%s' (using the default)" % show_battery)
             else:
                 if weewx.debug >= 1:
                     print("Port number obtained from station config")
-                    print("Battery state filtering ('%s') obtained from station config" % show_battery)
+                    print("Battery state filtering is '%s' (obtained from station config)" % show_battery)
         else:
             if weewx.debug >= 1:
-                print("Battery state filtering ('%s') obtained from command line options" % show_battery)
+                print("Battery state filtering is '%s' (obtained from command line options)" % show_battery)
         return show_battery
 
     def process_options(self):
@@ -8102,51 +8100,16 @@ def main():
     parser = optparse.OptionParser(usage=usage)
     parser.add_option('--version', dest='version', action='store_true',
                       help='display driver version number')
-    parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
-                      help="Use configuration file CONFIG_FILE.")
-    parser.add_option('--debug', dest='debug', type=int,
-                      help='How much status to display, 0-3')
     parser.add_option('--discover', dest='discover', action='store_true',
                       help='discover devices and display device IP address '
                            'and port')
-    parser.add_option('--firmware', dest='firmware',
-                      action='store_true',
-                      help='display device firmware information')
-    parser.add_option('--mac-address', dest='mac', action='store_true',
-                      help='display device station MAC address')
-    parser.add_option('--system-params', dest='sys_params', action='store_true',
-                      help='display device system parameters')
-    parser.add_option('--sensors', dest='sensors', action='store_true',
-                      help='display device sensor information')
     parser.add_option('--live-data', dest='live', action='store_true',
                       help='display device live sensor data')
-    parser.add_option('--get-rain-data', dest='get_rain', action='store_true',
-                      help='display device traditional rain data only')
-    parser.add_option('--get-all-rain-data', dest='get_all_rain', action='store_true',
-                      help='display device traditional, piezo and rain reset '
-                           'time data')
-    parser.add_option('--get-calibration', dest='get_calibration',
-                      action='store_true',
-                      help='display device calibration data')
-    parser.add_option('--get-mulch-th-cal', dest='get_mulch_offset',
-                      action='store_true',
-                      help='display device multi-channel temperature and '
-                           'humidity calibration data')
-    parser.add_option('--get-mulch-soil-cal', dest='get_soil_calibration',
-                      action='store_true',
-                      help='display device soil moisture calibration data')
-    parser.add_option('--get-mulch-t-cal', dest='get_temp_calibration',
-                      action='store_true',
-                      help='display device temperature (WN34) calibration data')
-    parser.add_option('--get-pm25-cal', dest='get_pm25_offset',
-                      action='store_true',
-                      help='display device PM2.5 calibration data')
-    parser.add_option('--get-co2-cal', dest='get_co2_offset',
-                      action='store_true',
-                      help='display device CO2 (WH45) calibration data')
-    parser.add_option('--get-services', dest='get_services',
-                      action='store_true',
-                      help='display device weather services configuration data')
+    parser.add_option('--test-driver', dest='test_driver', action='store_true',
+                      metavar='TEST_DRIVER', help='exercise the gateway driver')
+    parser.add_option('--test-service', dest='test_service',
+                      action='store_true', metavar='TEST_SERVICE',
+                      help='exercise the gateway service')
     parser.add_option('--default-map', dest='map', action='store_true',
                       help='display the default field map')
     parser.add_option('--driver-map', dest='driver_map', action='store_true',
@@ -8155,11 +8118,6 @@ def main():
     parser.add_option('--service-map', dest='service_map', action='store_true',
                       help='display the field map that would be used by the gateway '
                            'service')
-    parser.add_option('--test-driver', dest='test_driver', action='store_true',
-                      metavar='TEST_DRIVER', help='exercise the gateway driver')
-    parser.add_option('--test-service', dest='test_service',
-                      action='store_true', metavar='TEST_SERVICE',
-                      help='exercise the gateway service')
     parser.add_option('--ip-address', dest='ip_address',
                       help='device IP address to use')
     parser.add_option('--port', dest='port', type=int,
@@ -8178,6 +8136,10 @@ def main():
                       help='unmask sensitive settings')
     parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
                       help='unit system to use when displaying live data')
+    parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
+                      help="Use configuration file CONFIG_FILE.")
+    parser.add_option('--debug', dest='debug', type=int,
+                      help='How much status to display, 0-3')
     (opts, args) = parser.parse_args()
 
     # display driver version number
