@@ -2135,7 +2135,8 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
     @property
     def description(self):
         """Description displayed as part of wee_device help information."""
-        return "Configures the Ecowitt Gateway weather station."
+
+        return "Read data and configuration from an Ecowitt gateway weather station."
 
     @property
     def usage(self):
@@ -2220,8 +2221,6 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
                           help='device IP address to use')
         parser.add_option('--port', dest='port', type=int,
                           help='device port to use')
-        parser.add_option('--poll-interval', dest='poll_interval', type=int,
-                          help='how often to poll the device API')
         parser.add_option('--max-tries', dest='max_tries', type=int,
                           help='max number of attempts to contact the device')
         parser.add_option('--retry-wait', dest='retry_wait', type=int,
@@ -8123,32 +8122,12 @@ def main():
             [--retry-wait=RETRY_WAIT]
             [--show-all-batt]
             [--debug=0|1|2|3]
-       python -m user.gw1000 --sensors
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--show-all-batt]
-            [--debug=0|1|2|3]
        python -m user.gw1000 --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--units=us|metric|metricwx]
             [--ip-address=IP_ADDRESS] [--port=PORT]
             [--show-all-batt]
             [--debug=0|1|2|3]
-       python -m user.gw1000 --firmware-version|--mac-address|
-            --system-params|--get-rain-data|--get-all-rain_data
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]
-       python -m user.gw1000 --get-calibration|--get-mulch-th-cal|
-            --get-mulch-soil-cal|--get-mulch-t-cal|
-            --get-pm25-cal|--get-co2-cal
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug=0|1|2|3]
-       python -m user.gw1000 --get-services
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--unmask] [--debug=0|1|2|3]
        python -m user.gw1000 --default-map|--driver-map|--service-map
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--debug=0|1|2|3]
