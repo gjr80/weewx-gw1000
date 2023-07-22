@@ -47,8 +47,6 @@ Revision History
         -   rename a number of calibration/offset related command line options
             to better align with the labels/names now used in the WSView Plus
             app v2.0.32
-        -   implement --get-mulch-t-cal command line option to display WN34
-            temperature calibration data
         -   --firmware command line option now displays gateway device and
             (where available) sensor firmware versions along with a short
             message if a device firmware update is available
@@ -2173,7 +2171,9 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
     @property
     def epilog(self):
         """Epilog displayed as part of wee_device help information."""
-        return "Mutating actions will request confirmation before proceeding.\n"
+
+        return ""
+        # return "Mutating actions will request confirmation before proceeding.\n"
 
     def add_options(self, parser):
         """Define wee_device option parser options."""
@@ -2271,7 +2271,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
                 syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
 
         # get a DirectGateway object
-        direct_gw = DirectGateway(options, stn_dict)
+        direct_gw = DirectGateway(options, parser, stn_dict)
         # now let the DirectGateway object process the options
         direct_gw.process_options()
 
@@ -3203,7 +3203,7 @@ class ApiParser(object):
             index += 3
         return offset_dict
 
-    @staticmethod
+    # @staticmethod
     # def parse_get_mulch_t_offset(response):
     #     """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
     #
@@ -6132,7 +6132,7 @@ class GatewayDevice(object):
 
         return self.api.get_mulch_offset()
 
-    @property
+    # @property
     # def mulch_t_offset(self):
     #     """Gateway device multichannel temperature (WN34) offset data."""
     #
@@ -6598,11 +6598,12 @@ class DirectGateway(object):
     # list of sensors to be displayed in the sensor ID output
     sensors_list = []
 
-    def __init__(self, opts, stn_dict):
+    def __init__(self, opts, parser, stn_dict):
         """Initialise a DirectGateway object."""
 
         # save the optparse options and station dict
         self.opts = opts
+        self.parser = parser
         self.stn_dict = stn_dict
         # obtain the IP address and port number to use
         self.ip_address = self.ip_from_config_opts()
@@ -6737,47 +6738,48 @@ class DirectGateway(object):
         # run the service with simulator
         elif hasattr(self.opts, 'test_service') and self.opts.test_service:
             self.test_service()
-        elif self.opts.sys_params:
+        elif hasattr(self.opts, 'sys_params') and self.opts.sys_params:
             self.system_params()
-        elif self.opts.get_rain:
+        elif hasattr(self.opts, 'get_rain') and self.opts.get_rain:
             self.get_rain_data()
-        elif self.opts.get_all_rain:
+        elif hasattr(self.opts, 'get_all_rain') and self.opts.get_all_rain:
             self.get_all_rain_data()
-        elif self.opts.get_mulch_offset:
+        elif hasattr(self.opts, 'get_mulch_offset') and self.opts.get_mulch_offset:
             self.get_mulch_offset()
-        # elif self.opts.get_temp_calibration:
+        # elif hasattr(self.opts, 'get_temp_calibration') and self.opts.get_temp_calibration:
         #     self.get_mulch_t_offset()
-        elif self.opts.get_pm25_offset:
+        elif hasattr(self.opts, 'get_pm25_offset') and self.opts.get_pm25_offset:
             self.get_pm25_offset()
-        elif self.opts.get_co2_offset:
+        elif hasattr(self.opts, 'get_co2_offset') and self.opts.get_co2_offset:
             self.get_co2_offset()
-        elif self.opts.get_calibration:
+        elif hasattr(self.opts, 'get_calibration') and self.opts.get_calibration:
             self.get_calibration()
-        elif self.opts.get_soil_calibration:
+        elif hasattr(self.opts, 'get_soil_calibration') and self.opts.get_soil_calibration:
             self.get_soil_calibration()
-        elif self.opts.get_services:
+        elif hasattr(self.opts, 'get_services') and self.opts.get_services:
             self.get_services()
-        elif self.opts.mac:
+        elif hasattr(self.opts, 'mac') and self.opts.mac:
             # TODO. Rename to remove 'station' ?
             self.station_mac()
-        elif self.opts.firmware:
+        elif hasattr(self.opts, 'firmware') and self.opts.firmware:
             self.firmware()
-        elif self.opts.sensors:
+        elif hasattr(self.opts, 'sensors') and self.opts.sensors:
             self.sensors()
-        elif self.opts.live:
+        elif hasattr(self.opts, 'live') and self.opts.live:
             self.live_data()
-        elif self.opts.discover:
+        elif hasattr(self.opts, 'discover') and self.opts.discover:
             self.discover()
-        elif self.opts.map:
+        elif hasattr(self.opts, 'map') and self.opts.map:
             self.field_map()
-        elif self.opts.driver_map:
+        elif hasattr(self.opts, 'driver_map') and self.opts.driver_map:
             self.driver_field_map()
-        elif self.opts.service_map:
+        elif hasattr(self.opts, 'sys_service_mapparams') and self.opts.service_map:
             self.service_field_map()
         else:
             print()
             print("No option selected, nothing done")
             print()
+            self.parser.print_help()
             return
 
     def system_params(self):
@@ -8233,11 +8235,9 @@ def main():
             syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
 
     # get a DirectGateway object
-    direct_gw = DirectGateway(opts, stn_dict)
+    direct_gw = DirectGateway(opts, parser, stn_dict)
     # now let the DirectGateway object process the options
     direct_gw.process_options()
-    # if we made it here no option was selected so display our help
-    parser.print_help()
 
 
 if __name__ == '__main__':
