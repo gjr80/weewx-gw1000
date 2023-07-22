@@ -6180,12 +6180,22 @@ class GatewayDevice(object):
     def firmware_update_avail(self):
         """Whether a device firmware update is available or not.
 
-        Return True if a device firmware update is available or False otherwise."""
+        Return True if a device firmware update is available, False if there is
+        no available firmware update or None if firmware update availability
+        cannot be determined.
+        """
 
+        # get firmware version info
         version = self.http.get_version()
+        # do we have current firmware version info and availability of a new
+        # firmware version ?
         if version is not None and 'newVersion' in version:
+            # we can now determine with certainty whether there is a new
+            # firmware update or not
             return True if version['newVersion'] == '1' else False
-        return False
+        # We cannot determine the availability of a firmware update so return
+        # None
+        return None
 
     @property
     def calibration(self):
@@ -7544,11 +7554,17 @@ class DirectGateway(object):
             if ws90_fw is not None:
                 print("    installed WS90 firmware version is %s" % ws90_fw)
             print()
-            if device.firmware_update_avail:
-                print("    a %s firmware update is available," % model)
+            fw_update_avail = device.firmware_update_avail
+            if fw_update_avail:
+                # we have an available firmware update
+                print("    a firmware update is available for this %s," % model)
                 print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
+            elif fw_update_avail is None:
+                # we don't know if we have an available firmware update
+                print("    could not determine if a firmware update is available for this %s" % model)
             else:
-                print("    the %s firmware is up to date" % model)
+                # there must be no available firmware update
+                print("    the firmware is up to date for this %s" % model)
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
