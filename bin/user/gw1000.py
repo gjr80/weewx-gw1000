@@ -7568,9 +7568,13 @@ class DirectGateway(object):
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print()
+            self.device_connection_help()
         except socket.timeout:
             print()
             print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print()
+            self.device_connection_help()
 
     def sensors(self):
         """Display the device sensor ID information.
@@ -7602,9 +7606,13 @@ class DirectGateway(object):
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print()
+            self.device_connection_help()
         except socket.timeout:
             print()
             print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print()
+            self.device_connection_help()
         else:
             # now get the sensors property from the collector
             sensors = collector.device.api.sensors
@@ -7673,9 +7681,13 @@ class DirectGateway(object):
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print()
+            self.device_connection_help()
         except socket.timeout:
             print()
             print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print()
+            self.device_connection_help()
         else:
             # we have a data dict to work with, but we need to format the
             # values and may need to convert units
@@ -7839,6 +7851,8 @@ class DirectGateway(object):
             print("Unable to connect to device: %s" % e)
             print()
             print("Unable to display actual driver field map")
+            print()
+            self.device_connection_help()
         except KeyboardInterrupt:
             # we have a keyboard interrupt so shut down
             if driver:
@@ -7916,6 +7930,8 @@ class DirectGateway(object):
             print("Unable to connect to device: %s" % e)
             print()
             print("Unable to display actual driver field map")
+            print()
+            self.device_connection_help()
         except KeyboardInterrupt:
             if engine:
                 engine.shutDown()
@@ -7958,6 +7974,8 @@ class DirectGateway(object):
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
+            print()
+            self.device_connection_help()
         except KeyboardInterrupt:
             # we have a keyboard interrupt so shut down
             driver.closePort()
@@ -8044,9 +8062,19 @@ class DirectGateway(object):
         except GWIOError as e:
             print()
             print("Unable to connect to device: %s" % e)
+            print()
+            self.device_connection_help()
         except KeyboardInterrupt:
             engine.shutDown()
         loginf("Gateway service testing complete")
+
+    @staticmethod
+    def device_connection_help():
+        """Console output help message for device connection problems."""
+
+        print("    Things to check include that the correct device IP address is being used,")
+        print("    the device is powered on and the device is not otherwise disconnected from")
+        print("    the local network.")
 
 
 # To use this driver in standalone mode for testing or development, use one of
