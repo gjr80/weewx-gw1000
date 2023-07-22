@@ -509,6 +509,8 @@ class GWIOError(Exception):
 class DebugOptions(object):
     """Class to simplify use and handling of device debug options."""
 
+    debug_groups = ('rain', 'wind', 'loop', 'sensors')
+
     def __init__(self, gw_config_dict):
         # get any specific debug settings
         # rain
@@ -526,19 +528,37 @@ class DebugOptions(object):
 
     @property
     def rain(self):
+        """Are we debugging rain data processing."""
+
         return self.debug_rain
 
     @property
     def wind(self):
+        """Are we debugging wind data processing."""
+
         return self.debug_wind
 
     @property
     def loop(self):
+        """Are we debugging loop data processing."""
+
         return self.debug_loop
 
     @property
     def sensors(self):
+        """Are we debugging sensor processing."""
+
         return self.debug_sensors
+
+    @property
+    def any(self):
+        """Are we performing any debugging."""
+
+        for debug_group in self.debug_groups:
+            if getattr(self, '_'.join(('debug', debug_group))):
+                return True
+        else:
+            return False
 
 
 # ============================================================================
@@ -930,7 +950,7 @@ class Gateway(object):
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
         # to the gateway device. In terms of TH data the process is transparent
         # and we do not need to know if a WH32 or other sensor is providing
-        # outdoor TH data but in terms of battery state we need to know so the
+        # outdoor TH data. But in terms of battery state we need to know so the
         # battery state data can be reported against the correct sensor.
         use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', True))
         # do we ignore battery state data from legacy WH40 sensors that do not
@@ -939,8 +959,8 @@ class Gateway(object):
                                                                 True))
         # do we show all battery state data including nonsense data or do we
         # filter those sensors with signal state == 0
-        self.show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
-                                                                 False))
+        show_battery = weeutil.weeutil.tobool(gw_config.get('show_all_batt',
+                                                            False))
         # whether to log unknown API fields, unknown fields are logged at the
         # debug level, this will log them at the info level
         log_unknown_fields = weeutil.weeutil.tobool(gw_config.get('log_unknown_fields',
@@ -955,6 +975,46 @@ class Gateway(object):
         # get device specific debug settings
         self.debug = DebugOptions(gw_config)
 
+        # log our config/settings that are not being pushed further down before
+        # we obtain a GatewayCollector object, obtaining a gatewayCollector
+        # object may fail due to connectivity issues, this way we at least log
+        # our config which may aid debugging
+
+        if self.ip_address is not None and self.port is not None:
+            loginf('     device address is %s:%d' % (self.ip_address, self.port))
+        elif self.ip_address is None and self.port is not None:
+            loginf('     device IP address not specified, IP address will be obtained by discovery')
+            loginf('     device port is %d' % self.port)
+        elif self.ip_address is not None and self.port is None:
+            loginf('     device IP address is %s' % self.ip_address)
+            loginf('     device port not specified, port will be obtained by discovery')
+        elif self.ip_address is None and self.port is None:
+            loginf('     device IP address and port not specified, address and port will be obtained by discovery')
+        loginf('     poll interval is %d seconds' % self.poll_interval)
+        if self.debug.any or weewx.debug > 0:
+            loginf('     max tries is %d, retry wait time is %d seconds' % (self.max_tries,
+                                                                            self.retry_wait))
+            loginf('     broadcast address is %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address.decode(),
+                                                                                         self.broadcast_port,
+                                                                                         self.broadcast_timeout))
+            loginf('     socket timeout is %d seconds' % self.socket_timeout)
+            # The field map. Field map dict output will be in unsorted key order.
+            # It is easier to read if sorted alphanumerically, but we have keys
+            # such as xxxxx16 that do not sort well. Use a custom natural sort of
+            # the keys in a manually produced formatted dict representation.
+            loginf('     field map is %s' % natural_sort_dict(self.field_map))
+
+        # Log specific debug output but only if set ie. True
+        debug_list = []
+        if self.debug.rain:
+            debug_list.append("debug_rain is %s" % (self.debug.rain,))
+        if self.debug.wind:
+            debug_list.append("debug_wind is %s" % (self.debug.wind,))
+        if self.debug.loop:
+            debug_list.append("debug_loop is %s" % (self.debug.loop,))
+        if len(debug_list) > 0:
+            loginf(" ".join(debug_list))
+
         # create an GatewayCollector object to interact with the gateway device
         # API
         self.collector = GatewayCollector(ip_address=self.ip_address,
@@ -968,7 +1028,7 @@ class Gateway(object):
                                           retry_wait=self.retry_wait,
                                           use_wh32=use_wh32,
                                           ignore_wh40_batt=ignore_wh40_batt,
-                                          show_battery=self.show_battery,
+                                          show_battery=show_battery,
                                           log_unknown_fields=log_unknown_fields,
                                           fw_update_check_interval=fw_update_check_interval,
                                           log_fw_update_avail=log_fw_update_avail,
@@ -981,17 +1041,6 @@ class Gateway(object):
         self.rain_total_field = None
         self.piezo_rain_mapping_confirmed = False
         self.piezo_rain_total_field = None
-        # Finally, log any config that is not being pushed any further down.
-        # Log specific debug output but only if set ie. True
-        debug_list = []
-        if self.debug.rain:
-            debug_list.append("debug_rain is %s" % (self.debug.rain,))
-        if self.debug.wind:
-            debug_list.append("debug_wind is %s" % (self.debug.wind,))
-        if self.debug.loop:
-            debug_list.append("debug_loop is %s" % (self.debug.loop,))
-        if len(debug_list) > 0:
-            loginf(" ".join(debug_list))
 
     def map_data(self, data):
         """Map parsed device data to a WeeWX loop packet.
@@ -1310,8 +1359,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
     def __init__(self, engine, config_dict):
         """Initialise a GatewayService object."""
 
-        # extract the gateway service config dictionary
-        # first look for [Gw1000Service]
+        # first extract the gateway service config dictionary, try looking for
+        # [Gw1000Service]
         if 'GW1000Service' in config_dict:
             # we have a [GW1000Service] config stanza so use it
             gw_config_dict = config_dict['GW1000Service']
@@ -1319,10 +1368,14 @@ class GatewayService(weewx.engine.StdService, Gateway):
             # we don't have a [GW1000Service] stana so use [GW1000] if it
             # exists otherwise use an empty config
             gw_config_dict = config_dict.get('GW1000', {})
-        # initialize my superclasses
-        super(GatewayService, self).__init__(engine, config_dict)
-        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
 
+        # Log our driver version first. Normally we would call our superclass
+        # initialisation method first; however, that involves establishing a
+        # network connection to the gateway device and it may fail. Doing our
+        # logging first will aid in remote debugging.
+
+        # log our version number
+        loginf('GatewayService: version is %s' % DRIVER_VERSION)
         # age (in seconds) before API data is considered too old to use, use a
         # default
         self.max_age = int(gw_config_dict.get('max_age', default_max_age))
@@ -1330,6 +1383,19 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # an extended lost contact period
         self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
                                                               default_lost_contact_log_period))
+        if self.debug.any or weewx.debug > 0:
+            loginf("     max age of API data to be used is %d seconds" % self.max_age)
+            # The field map. Field map dict output will be in unsorted key order.
+            # It is easier to read if sorted alphanumerically but we have keys such
+            # as xxxxx16 that do not sort well. Use a custom natural sort of the
+            # keys in a manually produced formatted dict representation.
+            loginf('     field map is %s' % natural_sort_dict(self.field_map))
+            loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
+
+        # initialize my superclasses
+        super(GatewayService, self).__init__(engine, config_dict)
+        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
+
         # set failure logging on
         self.log_failures = True
         # reset the lost contact timestamp
@@ -1337,50 +1403,6 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # create a placeholder for our most recent, non-stale queued device
         # sensor data packet
         self.latest_sensor_data = None
-        # log our version number
-        loginf('GatewayService: version is %s' % DRIVER_VERSION)
-        # log the relevant settings/parameters we are using
-        if self.ip_address is None and self.port is None:
-            loginf('GatewayService: %s IP address and port not specified, '
-                   'attempting to discover %s...' % (self.collector.device.model,
-                                                     self.collector.device.model))
-        elif self.ip_address is None:
-            loginf('GatewayService: %s IP address not specified, attempting '
-                   'to discover %s...' % (self.collector.device.model,
-                                          self.collector.device.model))
-        elif self.port is None:
-            loginf('Gw1000Service: %s port not specified, attempting '
-                   'to discover %s...' % (self.collector.device.model,
-                                          self.collector.device.model))
-        loginf('GatewayService: %s address is %s:%d' % (self.collector.device.model,
-                                                        self.collector.device.ip_address.decode(),
-                                                        self.collector.device.port))
-        loginf('GatewayService: poll interval is %d seconds' % self.poll_interval)
-        logdbg('GatewayService: max tries is %d, retry wait time is %d seconds' % (self.max_tries,
-                                                                                   self.retry_wait))
-        logdbg('GatewayService: broadcast address %s:%d, '
-               'broadcast timeout is %d seconds' % (self.broadcast_address,
-                                                    self.broadcast_port,
-                                                    self.broadcast_timeout))
-        logdbg('GatewayService: socket timeout is %d seconds' % self.socket_timeout)
-        loginf("GatewayService: max age of API data to be used is %d seconds" % self.max_age)
-        # The field map. Field map dict output will be in unsorted key order.
-        # It is easier to read if sorted alphanumerically but we have keys such
-        # as xxxxx16 that do not sort well. Use a custom natural sort of the
-        # keys in a manually produced formatted dict representation.
-        logdbg('Gw1000Service: field map is %s' % natural_sort_dict(self.field_map))
-        loginf('Gw1000Service: lost contact will be logged every %d seconds' % self.lost_contact_log_period)
-        # log specific debug but only if set ie. True
-        debug_list = []
-        if self.debug.rain:
-            debug_list.append('debug_rain is %s' % (self.debug.rain,))
-        if self.debug.wind:
-            debug_list.append('debug_wind is %s' % (self.debug.wind,))
-        if self.debug.loop:
-            debug_list.append('debug_loop is %s' % (self.debug.loop,))
-        if len(debug_list) > 0:
-            loginf('%s: %s' % ('Gw1000Service', ' '.join(debug_list)))
-
         # start the Gw1000Collector in its own thread
         self.collector.startup()
         # bind our self to the relevant WeeWX events
@@ -2278,52 +2300,15 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
     def __init__(self, **stn_dict):
         """Initialise a gateway device driver object."""
 
-        # now initialize my superclasses
-        super(GatewayDriver, self).__init__(**stn_dict)
+        # Log our driver version first. Normally we would call our superclass
+        # initialisation method first; however, that involves establishing a
+        # network connection to the gateway device and it may fail. Doing our
+        # logging first will aid in remote debugging.
 
         # log our version number
         loginf('GatewayDriver: version is %s' % DRIVER_VERSION)
-        # log the relevant settings/parameters we are using
-        if self.ip_address is None and self.port is None:
-            loginf('GatewayDriver: %s IP address and port not specified, '
-                   'attempting to discover %s...' % (self.collector.device.model,
-                                                     self.collector.device.model))
-        elif self.ip_address is None:
-            loginf('GatewayDriver: %s IP address not specified, attempting '
-                   'to discover %s...' % (self.collector.device.model,
-                                          self.collector.device.model))
-        elif self.port is None:
-            loginf('GatewayDriver: %s port not specified, attempting '
-                   'to discover %s...' % (self.collector.device.model,
-                                          self.collector.device.model))
-        loginf('GatewayDriver: %s address is %s:%d' % (self.collector.device.model,
-                                                       self.collector.device.ip_address.decode(),
-                                                       self.collector.device.port))
-        loginf('GatewayDriver: poll interval is %d seconds' % self.poll_interval)
-        logdbg('GatewayDriver: max tries is %d, retry wait time '
-               'is %d seconds' % (self.max_tries,
-                                  self.retry_wait))
-        logdbg('GatewayDriver: broadcast address is %s:%d, broadcast '
-               'timeout is %d seconds' % (self.broadcast_address.decode(),
-                                          self.broadcast_port,
-                                          self.broadcast_timeout))
-        logdbg('GatewayDriver: socket timeout is %d seconds' % self.socket_timeout)
-        # The field map. Field map dict output will be in unsorted key order.
-        # It is easier to read if sorted alphanumerically, but we have keys
-        # such as xxxxx16 that do not sort well. Use a custom natural sort of
-        # the keys in a manually produced formatted dict representation.
-        logdbg('GatewayDriver: field map is %s' % natural_sort_dict(self.field_map))
-        # log specific debug but only if set ie. True
-        debug_list = []
-        if self.debug.rain:
-            debug_list.append('debug_rain is %s' % (self.debug.rain,))
-        if self.debug.wind:
-            debug_list.append('debug_wind is %s' % (self.debug.wind,))
-        if self.debug.loop:
-            debug_list.append('debug_loop is %s' % (self.debug.loop,))
-        if len(debug_list) > 0:
-            loginf('%s: %s' % ('GatewayDriver', ' '.join(debug_list)))
-
+        # now initialize my superclasses
+        super(GatewayDriver, self).__init__(**stn_dict)
         # start the Gw1000Collector in its own thread
         self.collector.startup()
 
@@ -2595,6 +2580,30 @@ class GatewayCollector(Collector):
         self.fw_update_check_interval = fw_update_check_interval
         # whether to log when a firmware update is available
         self.log_fw_update_avail = log_fw_update_avail
+        # log our config options before obtaining a GatewayDevice object, this
+        # will help in remote debugging should the device be uncontactable
+        if self.log_fw_update_avail:
+            logdbg('     firmware update checks will occur and will be logged')
+            logdbg('     firmware update check interval is %d' % self.fw_update_check_interval)
+        else:
+            logdbg('     firmware update checks will not occur')
+        if use_wh32:
+            logdbg("     sensor ID decoding will use 'WH32'")
+        else:
+            logdbg("     sensor ID decoding will use 'WH26'")
+        if ignore_wh40_batt:
+            logdbg('     battery state data will be ignored for legacy WH40')
+        else:
+            logdbg('     battery state data will be reported for legacy WH40')
+        if show_battery:
+            logdbg("     battery state will be reported for all sensors")
+        else:
+            logdbg("     battery state will not be reported for sensors with no signal data")
+        if log_unknown_fields:
+            logdbg('     unknown fields will be reported')
+        else:
+            logdbg('     unknown fields will be ignored')
+
         # get a GatewayDevice to handle interaction with the gateway device
         self.device = GatewayDevice(ip_address=ip_address, port=port,
                                     broadcast_address=broadcast_address,
@@ -4739,6 +4748,10 @@ class GatewayApi(object):
         # it repeatedly later
         self.ip_address = ip_address.encode()
         self.port = port
+        # if we discovered our ip address or port log the device address being
+        # used
+        if self.ip_discovered or self.port_discovered:
+            loginf('     Using discovered address %s:%d' % (ip_address, port))
         self.max_tries = max_tries
         self.retry_wait = retry_wait
         # start off logging failures
