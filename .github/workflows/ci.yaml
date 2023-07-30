@@ -1,0 +1,48 @@
+name: CI
+
+on: [push, workflow_dispatch]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - run: |
+        sudo apt update
+        sudo apt install --yes --no-install-recommends \
+          python3-configobj \
+          python3-cheetah \
+          python3-ephem \
+          python3-mock \
+          python3-mysqldb \
+          python3-serial \
+          python3-usb \
+          python3-pip \
+          mariadb-client \
+          mariadb-server \
+          rsync \
+          sqlite
+
+    - uses: actions/checkout@v3
+
+    - name: pip install
+      run: |
+        python3 -m pip install --user "Pillow>=9.2"
+        # python3 -m pip install --user mkdocs
+        # python3 -m pip install --user mkdocs-material
+
+    # - name: Setup tests
+    #   run: |
+    #     sudo make test-setup-ci
+
+    - name: Launch tests
+      run: |
+        PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg 
+
+    - name: Archive test-results
+      if: success() || failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: build/test-results
