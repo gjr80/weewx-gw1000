@@ -41,11 +41,11 @@ jobs:
         echo "-----pwd-----"
         pwd
 
-        echo "-----ls-----"
-        ls
+        echo "-----ls -hail-----"
+        ls -hail
 
-        echo "-----ls src/-----"
-        ls src/
+        echo "-----ls bin/-----"
+        ls -hail bin/
 
         echo "----PYTHONPATH------"
         PWD=$(pwd)
