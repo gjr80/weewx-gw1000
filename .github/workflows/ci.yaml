@@ -38,7 +38,7 @@ jobs:
 
     - name: Launch tests
       run: |
-        PYTHONPATH="bin:bin/user/tests" python3 test_eg.py
+        PYTHONPATH="bin:bin/user/tests" python3 bin/user/tests/test_eg.py
         # PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg 
 
     - name: Archive test-results
