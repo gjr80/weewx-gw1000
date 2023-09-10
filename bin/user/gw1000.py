@@ -33,10 +33,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0b1                                    Date: 16 April 2023
+Version: 0.6.0b2                                    Date: 2 September 2023
 
 Revision History
-    16 April 2023           v0.6.0
+    2 September 2023        v0.6.0b2
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
             GatewayHttp class
@@ -968,8 +968,6 @@ class Gateway(object):
         # whether to log an available firmware update
         log_fw_update_avail = weeutil.weeutil.tobool(gw_config.get('log_firmware_update_avail',
                                                                    False))
-        # get device specific debug settings
-        self.debug = DebugOptions(gw_config)
 
         # log our config/settings that are not being pushed further down before
         # we obtain a GatewayCollector object, obtaining a gatewayCollector
@@ -1379,6 +1377,9 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # an extended lost contact period
         self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
                                                               default_lost_contact_log_period))
+        # get device specific debug settings
+        self.debug = DebugOptions(gw_config_dict)
+
         if self.debug.any or weewx.debug > 0:
             loginf("     max age of API data to be used is %d seconds" % self.max_age)
             # The field map. Field map dict output will be in unsorted key order.
@@ -2304,6 +2305,8 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
 
         # log our version number
         loginf('GatewayDriver: version is %s' % DRIVER_VERSION)
+        # get device specific debug settings
+        self.debug = DebugOptions(stn_dict)
         # now initialize my superclasses
         super(GatewayDriver, self).__init__(**stn_dict)
         # start the Gw1000Collector in its own thread
@@ -2943,6 +2946,7 @@ class ApiParser(object):
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         b'\x7A': ('decode_int', 1, 'rain_priority'),
+        # TODO. Should this be 'temp_comp' or 'rain_comp'
         b'\x7B': ('decode_int', 1, 'temp_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
@@ -3789,6 +3793,8 @@ class ApiParser(object):
         6+f     checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Returns a unicode string
         """
 
         # create a format string so the firmware string can be unpacked into
@@ -5203,6 +5209,8 @@ class GatewayApi(object):
         been raised by send_cmd_with_retries() which will be passed through
         by get_firmware_version(). Any code calling get_firmware_version()
         should be prepared to handle this exception.
+
+        Returns a unicode string
         """
 
         # get the validated API response
