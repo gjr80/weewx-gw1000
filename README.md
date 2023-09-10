@@ -24,11 +24,11 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
     - download the Ecowitt Gateway driver extension package:
 
-            $ wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.6.0b2/gw1000-0.6.0b2.tar.gz
+            wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.6.0b2/gw1000-0.6.0b2.tar.gz
 
     - install the Ecowitt Gateway driver extension:
 
-            $ wee_extension --install=/var/tmp/gw1000-0.6.0b2.tar.gz
+            wee_extension --install=/var/tmp/gw1000-0.6.0b2.tar.gz
             
         **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -44,11 +44,11 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
         
 4.  Test the Ecowitt Gateway driver by running the driver file directly using the *--test-driver* command line option:
 
-        $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-driver
+        PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-driver
 
     for WeeWX *setup.py* installs or for WeeWX package installs use:
 
-        $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-driver
+        PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-driver
     
     **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -62,7 +62,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 5.  Configure the driver:
 
-        $ wee_config --reconfigure --driver=user.gw1000
+        wee_config --reconfigure --driver=user.gw1000
 
     **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -72,15 +72,15 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 7.  Once satisfied that the Ecowitt Gateway driver is operating correctly you can restart the WeeWX daemon:
 
-        $ sudo /etc/init.d/weewx restart
+        sudo /etc/init.d/weewx restart
         
     or
 
-        $ sudo service weewx restart
+        sudo service weewx restart
 
     or
 
-        $ sudo systemctl restart weewx
+        sudo systemctl restart weewx
 
 8.  You may wish to refer to the [Ecowitt Gateway driver wiki](https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on customising the operation of the Ecowitt Gateway driver and integrating gateway device data into WeeWX generated reports. 
 
@@ -100,11 +100,11 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 4. Test the Ecowitt Gateway service by running the driver file directly using the *--test-service* command line option:
 
-        $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-service
+        PYTHONPATH=/home/weewx/bin python -m user.gw1000 --test-service
 
     for WeeWX *setup.py* installs or for WeeWX package installs use:
 
-        $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-service
+        PYTHONPATH=/usr/share/weewx python -m user.gw1000 --test-service
     
     **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
@@ -122,15 +122,15 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 7. Once satisfied that the Ecowitt Gateway service is operating correctly you can restart the WeeWX daemon:
 
-        $ sudo /etc/init.d/weewx restart
+        sudo /etc/init.d/weewx restart
 
     or
 
-        $ sudo service weewx restart
+        sudo service weewx restart
 
     or
 
-        $ sudo systemctl restart weewx
+        sudo systemctl restart weewx
 
 8. You may wish to refer to the [GW1000 driver wiki](https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on customising the operation of the Ecowitt Gateway driver and integrating gateway device data into WeeWX generated reports. 
 
