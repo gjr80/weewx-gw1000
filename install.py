@@ -46,7 +46,6 @@ Revision History
 
 # python imports
 import configobj
-from distutils.version import StrictVersion
 from setup import ExtensionInstaller
 
 # import StringIO, use six.moves due to python2/python3 differences
@@ -56,8 +55,8 @@ from six.moves import StringIO
 import weewx
 
 
-REQUIRED_VERSION = "3.7.0"
-GW1000_VERSION = "0.6.0b1"
+REQUIRED_WEEWX_VERSION = "3.7.0"
+GW1000_VERSION = "0.6.0b3"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -372,6 +371,26 @@ gw1000_config = """
 # construct our config dict
 gw1000_dict = configobj.ConfigObj(StringIO(gw1000_config))
 
+def version_compare(v1, v2):
+    """Basic 'distutils' and 'packaging' free version comparison.
+
+    v1 and v2 are WeeWX version numbers in string format.
+
+    Returns:
+        0 if v1 and v2 are the same
+        -1 if v1 is less than v2
+        +1 if v1 is greater than v2
+    """
+
+    import itertools
+    mash = itertools.zip_longest(v1.split('.'), v2.split('.'), fillvalue='0')
+    for x1, x2 in mash:
+        if x1 > x2:
+            return 1
+        if x1 < x2:
+            return -1
+    return 0
+
 
 def loader():
     return Gw1000Installer()
@@ -379,9 +398,9 @@ def loader():
 
 class Gw1000Installer(ExtensionInstaller):
     def __init__(self):
-        if StrictVersion(weewx.__version__) < StrictVersion(REQUIRED_VERSION):
+        if version_compare(weewx.__version__, REQUIRED_WEEWX_VERSION) < 0:
             msg = "%s requires WeeWX %s or greater, found %s" % (''.join(('Ecowitt gateway driver ', GW1000_VERSION)),
-                                                                 REQUIRED_VERSION,
+                                                                 REQUIRED_WEEWX_VERSION,
                                                                  weewx.__version__)
             raise weewx.UnsupportedFeature(msg)
         super(Gw1000Installer, self).__init__(
