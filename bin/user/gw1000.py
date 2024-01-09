@@ -19,7 +19,7 @@ The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where
 it is the source of loop data or it can be operated as a WeeWX service where it
 is used to augment loop data produced by another driver.
 
-Copyright (C) 2020-2023 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2020-2024 Gary Roderick                   gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,10 +33,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0b2                                    Date: 2 September 2023
+Version: 0.6.0b3                                    Date: 9 January 2024
 
 Revision History
-    2 September 2023        v0.6.0b2
+    9 January 2024          v0.6.0b3
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
             GatewayHttp class
@@ -409,7 +409,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0b2'
+DRIVER_VERSION = '0.6.0b3'
 
 # various defaults used throughout
 # default port used by device
