@@ -33,10 +33,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0b3                                    Date: 9 January 2024
+Version: 0.6.0b4                                    Date: 23 January 2024
 
 Revision History
-    9 January 2024          v0.6.0b3
+    9 January 2024          v0.6.0b4
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
             GatewayHttp class
@@ -409,7 +409,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0b3'
+DRIVER_VERSION = '0.6.0b4'
 
 # various defaults used throughout
 # default port used by device
@@ -1382,11 +1382,6 @@ class GatewayService(weewx.engine.StdService, Gateway):
 
         if self.debug.any or weewx.debug > 0:
             loginf("     max age of API data to be used is %d seconds" % self.max_age)
-            # The field map. Field map dict output will be in unsorted key order.
-            # It is easier to read if sorted alphanumerically but we have keys such
-            # as xxxxx16 that do not sort well. Use a custom natural sort of the
-            # keys in a manually produced formatted dict representation.
-            loginf('     field map is %s' % natural_sort_dict(self.field_map))
             loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
 
         # initialize my superclasses
