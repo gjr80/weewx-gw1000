@@ -33,10 +33,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0b4                                    Date: 23 January 2024
+Version: 0.6.0b5                                    Date: 24 January 2024
 
 Revision History
-    9 January 2024          v0.6.0b4
+    d Mmmmmm 2024           v0.6.0
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
             GatewayHttp class
@@ -409,7 +409,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0b4'
+DRIVER_VERSION = '0.6.0b5'
 
 # various defaults used throughout
 # default port used by device
@@ -888,6 +888,23 @@ class Gateway(object):
                     _dummy = field_map.pop(k)
             # now we can update the field map with the extensions
             field_map.update(extensions)
+        # We must have a mapping from gateway field 'datetime' to the WeeWX
+        # packet field 'dateTime', too many parts of the driver depend on this.
+        # So check to ensure this mapping is in place, the user could have
+        # removed or altered it. If the mapping is not there add it in.
+        # initialise the key that maps 'datetime'
+        d_key = None
+        # iterate over the field map entries
+        for k, v in six.iteritems(field_map):
+            # if the mapping is for 'datetime' save the key and break
+            if v == 'datetime':
+                d_key = k
+                break
+        # if we have a mapping for 'datetime' delete that field map entry
+        if d_key:
+            field_map.pop(d_key)
+        # add the required mapping
+        field_map['dateTime'] = 'datetime'
         # we now have our final field map
         self.field_map = field_map
         # network broadcast address and port
@@ -1432,9 +1449,10 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 # very long
                 queue_data = self.collector.queue.get(True, 0.5)
             except six.moves.queue.Empty:
-                # there was nothing in the queue so if required log this and
-                # then break out of the while loop
-                if self.debug.loop or self.debug.rain or self.debug.wind:
+                # the queue is now empty, but that may be because we have
+                # already processed any queued data, log if necessary and break
+                # out of the while loop
+                if self.latest_sensor_data is None and (self.debug.loop or self.debug.rain or self.debug.wind):
                     loginf('GatewayService: No queued items to process')
                 if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
                     self.lost_con_ts = time.time()
@@ -1586,16 +1604,13 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # first up check we have a field 'datetime' and that it is not None
         if 'datetime' in sensor_data and sensor_data['datetime'] is not None:
             # now check it is not stale
+            # TODO. Perhaps debu glog dropping of queued data?
             if sensor_data['datetime'] > date_time - self.max_age:
                 # the sensor data is not stale, but is it more recent than our
                 # current saved packet
                 if self.latest_sensor_data is None or sensor_data['datetime'] > self.latest_sensor_data['dateTime']:
                     # this packet is newer, so keep it
                     self.latest_sensor_data = dict(sensor_data)
-                    # the latest packet will have the timestamp in the field
-                    # 'datetime', WeeWX requires 'dateTime'. Do the change here
-                    # rather than later.
-                    self.latest_sensor_data['dateTime'] = self.latest_sensor_data.pop('datetime')
 
     def process_queued_exception(self, e):
         """Process an exception received in the collector queue."""
@@ -2518,11 +2533,9 @@ Gw1000Driver = GatewayDriver
 class Collector(object):
     """Base class for a client that polls an API."""
 
-    # a queue object for passing data back to the driver
-    queue = six.moves.queue.Queue()
-
     def __init__(self):
-        pass
+        # creat a queue object for passing data back to the driver/service
+        self.queue = six.moves.queue.Queue()
 
     def startup(self):
         pass
