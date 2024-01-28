@@ -1611,7 +1611,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
             if sensor_data['datetime'] > date_time - self.max_age:
                 # the sensor data is not stale, but is it more recent than our
                 # current saved packet
-                if self.latest_sensor_data is None or sensor_data['datetime'] > self.latest_sensor_data['dateTime']:
+                if self.latest_sensor_data is None or sensor_data['datetime'] > self.latest_sensor_data['datetime']:
                     # this packet is newer, so keep it
                     self.latest_sensor_data = dict(sensor_data)
             elif self.debug.loop or weewx.debug >= 2:
