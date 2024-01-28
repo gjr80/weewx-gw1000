@@ -33,7 +33,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0b5                                    Date: 24 January 2024
+Version: 0.6.0b6                                    Date: 28 January 2024
 
 Revision History
     d Mmmmmm 2024           v0.6.0
@@ -42,6 +42,8 @@ Revision History
             GatewayHttp class
         -   implement device HTTP requests to obtain additional device/sensor
             status data not available via API
+        -   fixed issue that prevented use of the driver as both a driver and a
+            service under a single WeeWX instance
         -   fixes error in multi-channel temperature calibration data decode
         -   updated IAW Gateway API documentation v1.6.8
         -   rename a number of calibration/offset related command line options
@@ -54,8 +56,10 @@ Revision History
         -   gateway device temperature compensation setting can be displayed
             using the --system-params command line option (for firmware
             versions GW2000 all, GW1100 > v2.1.2 and GW1000 > v1.6.9)
-        -   added wee_device support
-        -   rationalised driver direct and wee_device actions
+        -   added wee_device/weectl device support
+        -   rationalised driver direct and wee_device/weectl device actions
+        -   the discarding on non-timestamped and stale packets is now logged
+            by the GatewayService when debug_loop is set or debug >= 2
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
@@ -71,7 +75,7 @@ Revision History
         -   refactored GatewayDriver, GatewayService and Gateway class
             initialisations to facilitate running the GatewayDriver and
             GatewayService simultaneously
-        -   GatewayService now defaults to using a [GatewayService] stanza but
+        -   GatewayService now defaults to using a [GW1000Service] stanza but
             if not found will drop back to the legacy [GW1000] stanza
         -   the source of GatewayDriver and GatewayService log output is now
             clearly identified
@@ -1604,13 +1608,21 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # first up check we have a field 'datetime' and that it is not None
         if 'datetime' in sensor_data and sensor_data['datetime'] is not None:
             # now check it is not stale
-            # TODO. Perhaps debu glog dropping of queued data?
             if sensor_data['datetime'] > date_time - self.max_age:
                 # the sensor data is not stale, but is it more recent than our
                 # current saved packet
                 if self.latest_sensor_data is None or sensor_data['datetime'] > self.latest_sensor_data['dateTime']:
                     # this packet is newer, so keep it
                     self.latest_sensor_data = dict(sensor_data)
+            elif self.debug.loop or weewx.debug >= 2:
+                # the sensor data is stale and we have debug settings that
+                # dictate we log the discard
+                loginf('GatewayService: Discarded packet with '
+                       'timestamp %s' % timestamp_to_string(sensor_data['datetime']))
+        elif self.debug.loop or weewx.debug >= 2:
+            # the sensor data is not timestamped so it will be discarded and we
+            # have debug settings that dictate we log the discard
+            loginf('GatewayService: Discarded non-timestamped packet')
 
     def process_queued_exception(self, e):
         """Process an exception received in the collector queue."""
