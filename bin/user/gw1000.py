@@ -58,7 +58,7 @@ Revision History
             versions GW2000 all, GW1100 > v2.1.2 and GW1000 > v1.6.9)
         -   added wee_device/weectl device support
         -   rationalised driver direct and wee_device/weectl device actions
-        -   the discarding on non-timestamped and stale packets is now logged
+        -   the discarding of non-timestamped and stale packets is now logged
             by the GatewayService when debug_loop is set or debug >= 2
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
