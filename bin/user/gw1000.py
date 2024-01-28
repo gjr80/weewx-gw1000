@@ -413,7 +413,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0b5'
+DRIVER_VERSION = '0.6.0b6'
 
 # various defaults used throughout
 # default port used by device
@@ -2702,6 +2702,11 @@ class GatewayCollector(Collector):
                         _msg = "    update at http://%s or via "\
                                "the WSView Plus app" % (self.device.ip_address.decode(), )
                         loginf(_msg)
+                        curr_msg = self.device.firmware_update_message
+                        if curr_msg is not None:
+                            loginf("    firmware update message: '%s'" % curr_msg)
+                        else:
+                            loginf("    no firmware update message found")
                     last_fw_check = now
             # sleep for a second and then see if it's time to poll again
             time.sleep(1)
@@ -6236,6 +6241,25 @@ class GatewayDevice(object):
         return None
 
     @property
+    def firmware_update_message(self):
+        """The device firmware update message.
+
+        Returns the 'curr_msg' field in the 'get_device_info' response in the
+        device HTTP API. This field is usually used for firmware update release
+        notes.
+
+        Returns a string containing the 'curr_msg' field contents of the
+        'get_device_info' response. Return None if the 'get_device_info'
+        response could not be obtained or the 'curr_msg' field was not included
+        in the 'get_device_info' response.
+        """
+
+        # get device info
+        device_info = self.http.get_device_info()
+        # return the 'curr_msg' field contents or None
+        return device_info.get('curr_msg') if device_info is not None else None
+
+    @property
     def calibration(self):
         """Device device calibration data."""
 
@@ -7597,8 +7621,32 @@ class DirectGateway(object):
             fw_update_avail = device.firmware_update_avail
             if fw_update_avail:
                 # we have an available firmware update
+                # obtain the 'curr_msg' from the device HTTP API
+                # 'get_device_info' command, this field usually contains the
+                # firmware change details
+                curr_msg = device.firmware_update_message
+                # now print the firmware update details
                 print("    a firmware update is available for this %s," % model)
                 print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
+                # if we have firmware update details print them
+                if curr_msg is not None:
+                    print()
+                    # Ecowitt have not documented the HTTP API calls so we are
+                    # not exactly sure what the 'curr_msg' field is used for,
+                    # it might be for other things as well
+                    print("    likely firmware update message:")
+                    # multi-line messages seem to have \r\n at the end of each
+                    # line, split the string so we can format it a little better
+                    if '\r\n' in curr_msg:
+                        for line in curr_msg.split('\r\n'):
+                            # print each line
+                            print("      %s" % line)
+                    else:
+                        # print as a single line
+                        print("      %s" % curr_msg)
+                else:
+                    # we had no 'curr_msg' for one reason or another
+                    print("    no firmware update message found")
             elif fw_update_avail is None:
                 # we don't know if we have an available firmware update
                 print("    could not determine if a firmware update is available for this %s" % model)
