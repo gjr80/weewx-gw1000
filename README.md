@@ -24,11 +24,11 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
     - download the Ecowitt Gateway driver extension package:
 
-          wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.6.0b3/gw1000-0.6.0b3.tar.gz
+          wget -P /var/tmp https://github.com/gjr80/weewx-gw1000/releases/download/v0.6.0b6/gw1000-0.6.0b6.tar.gz
 
     - install the Ecowitt Gateway driver extension:
 
-          wee_extension --install=/var/tmp/gw1000-0.6.0b3.tar.gz
+          wee_extension --install=/var/tmp/gw1000-0.6.0b6.tar.gz
             
         **Note:** Depending on your system/installation the above command may need to be prefixed with *sudo*.
 
