@@ -2,7 +2,8 @@ v0.6.0b3
 -   implement device HTTP requests to obtain additional device/sensor status
     data not available via API
 -   fix error in multi-channel temperature calibration data decode
--   updated IAW Gateway API documentation v1.6.8
+-   updated IAW Gateway API documentation v1.6.9
+-   added support for free heap memory field
 -   fixed issue that prevented use of the driver as both a driver and a service
     under a single WeeWX instance
 -   rename a number of calibration/offset related command line options to

@@ -45,7 +45,8 @@ Revision History
         -   fixed issue that prevented use of the driver as both a driver and a
             service under a single WeeWX instance
         -   fixes error in multi-channel temperature calibration data decode
-        -   updated IAW Gateway API documentation v1.6.8
+        -   updated IAW Gateway API documentation v1.6.9
+        -   added support for free heap memory field
         -   rename a number of calibration/offset related command line options
             to better align with the labels/names now used in the WSView Plus
             app v2.0.32
@@ -691,7 +692,8 @@ class Gateway(object):
         # 'lightning_strike_count' is the WeeWX extended schema per period
         # lightning count field that is derived from the device cumulative
         # 'lightningcount' field
-        'lightning_strike_count': 'lightning_strike_count'
+        'lightning_strike_count': 'lightning_strike_count',
+        'heap_free': 'heap_free'
     }
     # Rain related fields default field map, merged into default_field_map to
     # give the overall default field map. Kept separate to make it easier to
@@ -1797,6 +1799,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[pm10_24h_avg]]
             extractor = last
         [[co2_24h_avg]]
+            extractor = last
+        [[heap_free]]
             extractor = last
         [[wh40_batt]]
             extractor = last
@@ -2946,6 +2950,7 @@ class ApiParser(object):
         b'\x68': ('decode_wn34', 3, 'temp14'),
         b'\x69': ('decode_wn34', 3, 'temp15'),
         b'\x6A': ('decode_wn34', 3, 'temp16'),
+        b'\x6C': ('decode_memory', 4, 'heap_free'),
         # WH45 battery data is not obtained from live data rather it is
         # obtained from sensor ID data
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
@@ -4069,6 +4074,7 @@ class ApiParser(object):
     decode_co2 = decode_dir
     decode_wet = decode_humid
     decode_int = decode_humid
+    decode_memory = decode_count
 
     def decode_wn34(self, data, field=None):
         """Decode WN34 sensor data.
@@ -6525,6 +6531,7 @@ class DirectGateway(object):
         'leafwet6': 'group_percent',
         'leafwet7': 'group_percent',
         'leafwet8': 'group_percent',
+        'heap_free': 'group_data',
         'wh40_batt': 'group_volt',
         'wh26_batt': 'group_count',
         'wh25_batt': 'group_count',
