@@ -15,6 +15,7 @@ Version: 0.6.0.b6                                      Date: 28 January 2024
 Revision History
     9 January 2024      v0.6.0b6
         -   remove distutils.StrictVersion dependency
+        -   added extractor config for heap_free
     13 June 2022        v0.5.0
         -   changed descriptive name of extension
         -   changed reference to 'GW1000 driver' to 'Ecowitt gateway driver'
@@ -132,6 +133,8 @@ gw1000_config = """
     [[pm10_24h_avg]]
         extractor = last
     [[co2_24h_avg]]
+        extractor = last
+    [[heap_free]]
         extractor = last
     [[wh40_batt]]
         extractor = last
