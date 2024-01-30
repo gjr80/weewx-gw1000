@@ -193,8 +193,8 @@ Revision History
 
 
 This driver has been based on the Ecowitt LAN/Wi-Fi Gateway API documentation
-v1.6.8. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
-API documentation v1.6.8 have been made in this driver:
+v1.6.9. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
+API documentation v1.6.9 have been made in this driver:
 # TODO. Review these deviations before release
 1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
 returned by the CMD_READ_SSSS API command. The UTC time field is described as
