@@ -70,7 +70,7 @@ commands = {
     # 'CMD_READ_USR_PATH': b'\x51',
     # 'CMD_GET_CO2_OFFSET': b'\x53',
     # 'CMD_READ_RSTRAIN_TIME': b'\x55',
-    # 'CMD_READ_RAIN': b'\x57'
+    'CMD_READ_RAIN': {'code': b'\x57', 'parse_fn': 'rain'}
 }
 # header used in each API command and response packet
 header = b'\xff\xff'
@@ -151,6 +151,24 @@ def parse_ssss(response):
     result['data'].append(f"{response[10:11].hex(' ').upper():<12} {_decode_str:<14}(Timezone index)")
     _decode_str = f"({_parsed_ssss['dst_status']})"
     result['data'].append(f"{response[11:12].hex(' ').upper():<12} {_decode_str:<14}(DST status)")
+    result['checksum'] = response[-1:].hex(' ').upper()
+    return result
+
+
+def parse_rain(response):
+    """Parse a CMD_READ_RAIN response."""
+
+    result = dict()
+    result['all'] = split_str(response.hex(' ').upper())
+    result['header'] = response[:2].hex(' ').upper()
+    result['cmd_code'] = response[2:3].hex(' ').upper()
+    result['size'] = response[3:5].hex(' ').upper()
+    _data = response[5:-1]
+    api_parser = user.gw1000.ApiParser()
+    _read_rain = api_parser.parse_read_rain(response)
+    print("_read_rain=%s" % (_read_rain,))
+    result['data'] = ['fred',]
+    # result['data'] = [f"{_data.hex(' ').upper()} ({api_parser.parse_read_firmware_version(response)})",]
     result['checksum'] = response[-1:].hex(' ').upper()
     return result
 
@@ -340,7 +358,8 @@ def main():
        python3 -m user.gw_api_data --version
        python3 -m user.gw_api_data --cmd
             --cmd=CMD_READ_STATION_MAC | CMD_GW1000_LIVEDATA |
-                  CMD_READ_SSSS | CMD_READ_FIRMWARE_VERSION
+                  CMD_READ_SSSS | CMD_READ_FIRMWARE_VERSION |
+                  CMD_READ_RAIN
             --ip-address=IP_ADDRESS
             [--port=PORT]"""
 
