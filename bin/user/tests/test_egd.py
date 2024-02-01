@@ -1120,7 +1120,7 @@ class ListsAndDictsTestCase(unittest.TestCase):
         # observation group dictionary
         for w_field, g_field in self.default_field_map.items():
             self.assertIn(g_field,
-                          user.gw1000.DirectGateway.gateway_obs_group_dict.keys(),
+                          user.gw1000.DirectGateway.gw_direct_obs_group_dict.keys(),
                           msg="A field from the GW1000 default field map is "
                               "missing from the observation group dictionary")
 
