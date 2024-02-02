@@ -22,6 +22,10 @@ v0.6.0b3
     GW1100 > v2.1.2 and GW1000 > v1.6.9)
 -   the discarding of non-timestamped and stale packets is now logged by the
     GatewayService when debug_loop is set or debug >= 2
+-   'kilobyte' and 'megabyte' are added to unit group 'group_data' on
+    driver/service startup
+-   unit groups are now assigned to all WeeWX fields in the default field map
+    that are not included in the default WeeWX wview_extended schema
 -   removed distutils.StrictVersion dependency from installer
 v0.5.0b5
 -   renamed as the Ecowitt Gateway driver/service rather than the former GW1000

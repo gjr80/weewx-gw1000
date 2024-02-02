@@ -33,7 +33,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0b6                                    Date: 28 January 2024
+Version: 0.6.0b7                                    Date: 1 February 2024
 
 Revision History
     d Mmmmmm 2024           v0.6.0
@@ -61,6 +61,11 @@ Revision History
         -   rationalised driver direct and wee_device/weectl device actions
         -   the discarding of non-timestamped and stale packets is now logged
             by the GatewayService when debug_loop is set or debug >= 2
+        -   unit groups are now assigned to all WeeWX fields in the default
+            field map that are not included in the default WeeWX wview_extended
+            schema
+        -   'kilobyte' and 'megabyte' are added to unit group 'group_data' on
+            driver/service startup
     13 June 2022            v0.5.0b5
         -   renamed as the Ecowitt Gateway driver/service rather than the
             former GW1000 or GW1000/GW1100 driver/service
@@ -414,7 +419,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0b6'
+DRIVER_VERSION = '0.6.0b7'
 
 # various defaults used throughout
 # default port used by device
@@ -453,28 +458,217 @@ default_fw_check_interval = 86400
 
 # define the default groups to use for WeeWX fields in the default field map
 # but not in the (WeeWX default) wview_extended schema
-default_groups = {'extraTemp9': 'group_temperature',
-                  'extraTemp10': 'group_temperature',
-                  'extraTemp11': 'group_temperature',
-                  'extraTemp12': 'group_temperature',
-                  'extraTemp13': 'group_temperature',
-                  'extraTemp14': 'group_temperature',
-                  'extraTemp15': 'group_temperature',
-                  'extraTemp16': 'group_temperature',
-                  'extraTemp17': 'group_temperature',
-                  'stormRain': 'group_rain',
-                  'dayRain': 'group_rain',
-                  'weekRain': 'group_rain',
-                  'monthRain': 'group_rain',
-                  'yearRain': 'group_rain',
-                  'totalRain': 'group_rain',
-                  'p_rain': 'group_rain',
-                  'p_rainRate': 'group_rainrate',
-                  'p_stormRain': 'group_rain',
-                  'p_dayRain': 'group_rain',
-                  'p_weekRain': 'group_rain',
-                  'p_monthRain': 'group_rain',
-                  'p_yearRain': 'group_rain'}
+# default_groups = {'extraTemp9': 'group_temperature',
+#                   'extraTemp10': 'group_temperature',
+#                   'extraTemp11': 'group_temperature',
+#                   'extraTemp12': 'group_temperature',
+#                   'extraTemp13': 'group_temperature',
+#                   'extraTemp14': 'group_temperature',
+#                   'extraTemp15': 'group_temperature',
+#                   'extraTemp16': 'group_temperature',
+#                   'extraTemp17': 'group_temperature',
+#                   'weekRain': 'group_rain',
+#                   'p_rain': 'group_rain',
+#                   'p_rainRate': 'group_rainrate',
+#                   'p_stormRain': 'group_rain',
+#                   'p_dayRain': 'group_rain',
+#                   'p_weekRain': 'group_rain',
+#                   'p_monthRain': 'group_rain',
+#                   'p_yearRain': 'group_rain'}
+
+default_groups = {
+    'relbarometer': 'group_pressure',
+    'luminosity': 'group_illuminance',
+    'uvradiation': 'group_radiation',
+    'extraHumid17': 'group_percent',
+    'extraTemp9': 'group_temperature',
+    'extraTemp10': 'group_temperature',
+    'extraTemp11': 'group_temperature',
+    'extraTemp12': 'group_temperature',
+    'extraTemp13': 'group_temperature',
+    'extraTemp14': 'group_temperature',
+    'extraTemp15': 'group_temperature',
+    'extraTemp16': 'group_temperature',
+    'extraTemp17': 'group_temperature',
+    'pm2_52': 'group_concentration',
+    'pm2_53': 'group_concentration',
+    'pm2_54': 'group_concentration',
+    'pm2_55': 'group_concentration',
+    'pm10': 'group_concentration',
+    'soilTemp5': 'group_temperature',
+    'soilMoist5': 'group_percent',
+    'soilTemp6': 'group_temperature',
+    'soilMoist6': 'group_percent',
+    'soilTemp7': 'group_temperature',
+    'soilMoist7': 'group_percent',
+    'soilTemp8': 'group_temperature',
+    'soilMoist8': 'group_percent',
+    'soilTemp9': 'group_temperature',
+    'soilMoist9': 'group_percent',
+    'soilTemp10': 'group_temperature',
+    'soilMoist10': 'group_percent',
+    'soilTemp11': 'group_temperature',
+    'soilMoist11': 'group_percent',
+    'soilTemp12': 'group_temperature',
+    'soilMoist12': 'group_percent',
+    'soilTemp13': 'group_temperature',
+    'soilMoist13': 'group_percent',
+    'soilTemp14': 'group_temperature',
+    'soilMoist14': 'group_percent',
+    'soilTemp15': 'group_temperature',
+    'soilMoist15': 'group_percent',
+    'soilTemp16': 'group_temperature',
+    'soilMoist16': 'group_percent',
+    'pm2_51_24h_avg': 'group_concentration',
+    'pm2_52_24h_avg': 'group_concentration',
+    'pm2_53_24h_avg': 'group_concentration',
+    'pm2_54_24h_avg': 'group_concentration',
+    'pm2_55_24h_avg': 'group_concentration',
+    'pm10_24h_avg': 'group_concentration',
+    'co2_24h_avg': 'group_fraction',
+    'leak1': 'group_count',
+    'leak2': 'group_count',
+    'leak3': 'group_count',
+    'leak4': 'group_count',
+    'lightning_last_det_time': 'group_time',
+    'lightningcount': 'group_count',
+    't_raingain': 'group_rain',
+    'totalRain': 'group_rain',
+    'weekRain': 'group_rain',
+    'p_rain': 'group_rain',
+    'p_rainRate': 'group_rainrate',
+    'p_stormRain': 'group_rain',
+    'p_dayRain': 'group_rain',
+    'p_weekRain': 'group_rain',
+    'p_monthRain': 'group_rain',
+    'p_yearRain': 'group_rain',
+    'daymaxwind': 'group_speed',
+    'leafWet3': 'group_percent',
+    'leafWet4': 'group_percent',
+    'leafWet5': 'group_percent',
+    'leafWet6': 'group_percent',
+    'leafWet7': 'group_percent',
+    'leafWet8': 'group_percent',
+    'heap_free': 'group_data',
+    'wh40_batt': 'group_volt',
+    'wh26_batt': 'group_count',
+    'wh25_batt': 'group_count',
+    'wh24_batt': 'group_count',
+    'wh65_batt': 'group_count',
+    'wh32_batt': 'group_count',
+    'wh31_ch1_batt': 'group_count',
+    'wh31_ch2_batt': 'group_count',
+    'wh31_ch3_batt': 'group_count',
+    'wh31_ch4_batt': 'group_count',
+    'wh31_ch5_batt': 'group_count',
+    'wh31_ch6_batt': 'group_count',
+    'wh31_ch7_batt': 'group_count',
+    'wh31_ch8_batt': 'group_count',
+    'wn34_ch1_batt': 'group_volt',
+    'wn34_ch2_batt': 'group_volt',
+    'wn34_ch3_batt': 'group_volt',
+    'wn34_ch4_batt': 'group_volt',
+    'wn34_ch5_batt': 'group_volt',
+    'wn34_ch6_batt': 'group_volt',
+    'wn34_ch7_batt': 'group_volt',
+    'wn34_ch8_batt': 'group_volt',
+    'wn35_ch1_batt': 'group_volt',
+    'wn35_ch2_batt': 'group_volt',
+    'wn35_ch3_batt': 'group_volt',
+    'wn35_ch4_batt': 'group_volt',
+    'wn35_ch5_batt': 'group_volt',
+    'wn35_ch6_batt': 'group_volt',
+    'wn35_ch7_batt': 'group_volt',
+    'wn35_ch8_batt': 'group_volt',
+    'wh41_ch1_batt': 'group_count',
+    'wh41_ch2_batt': 'group_count',
+    'wh41_ch3_batt': 'group_count',
+    'wh41_ch4_batt': 'group_count',
+    'wh45_batt': 'group_count',
+    'wh51_ch1_batt': 'group_volt',
+    'wh51_ch2_batt': 'group_volt',
+    'wh51_ch3_batt': 'group_volt',
+    'wh51_ch4_batt': 'group_volt',
+    'wh51_ch5_batt': 'group_volt',
+    'wh51_ch6_batt': 'group_volt',
+    'wh51_ch7_batt': 'group_volt',
+    'wh51_ch8_batt': 'group_volt',
+    'wh51_ch9_batt': 'group_volt',
+    'wh51_ch10_batt': 'group_volt',
+    'wh51_ch11_batt': 'group_volt',
+    'wh51_ch12_batt': 'group_volt',
+    'wh51_ch13_batt': 'group_volt',
+    'wh51_ch14_batt': 'group_volt',
+    'wh51_ch15_batt': 'group_volt',
+    'wh51_ch16_batt': 'group_volt',
+    'wh55_ch1_batt': 'group_count',
+    'wh55_ch2_batt': 'group_count',
+    'wh55_ch3_batt': 'group_count',
+    'wh55_ch4_batt': 'group_count',
+    'wh57_batt': 'group_count',
+    'wh68_batt': 'group_volt',
+    'ws80_batt': 'group_volt',
+    'ws90_batt': 'group_volt',
+    'wh40_sig': 'group_count',
+    'wh26_sig': 'group_count',
+    'wh25_sig': 'group_count',
+    'wh24_sig': 'group_count',
+    'wh65_sig': 'group_count',
+    'wh32_sig': 'group_count',
+    'wh31_ch1_sig': 'group_count',
+    'wh31_ch2_sig': 'group_count',
+    'wh31_ch3_sig': 'group_count',
+    'wh31_ch4_sig': 'group_count',
+    'wh31_ch5_sig': 'group_count',
+    'wh31_ch6_sig': 'group_count',
+    'wh31_ch7_sig': 'group_count',
+    'wh31_ch8_sig': 'group_count',
+    'wn34_ch1_sig': 'group_count',
+    'wn34_ch2_sig': 'group_count',
+    'wn34_ch3_sig': 'group_count',
+    'wn34_ch4_sig': 'group_count',
+    'wn34_ch5_sig': 'group_count',
+    'wn34_ch6_sig': 'group_count',
+    'wn34_ch7_sig': 'group_count',
+    'wn34_ch8_sig': 'group_count',
+    'wn35_ch1_sig': 'group_count',
+    'wn35_ch2_sig': 'group_count',
+    'wn35_ch3_sig': 'group_count',
+    'wn35_ch4_sig': 'group_count',
+    'wn35_ch5_sig': 'group_count',
+    'wn35_ch6_sig': 'group_count',
+    'wn35_ch7_sig': 'group_count',
+    'wn35_ch8_sig': 'group_count',
+    'wh41_ch1_sig': 'group_count',
+    'wh41_ch2_sig': 'group_count',
+    'wh41_ch3_sig': 'group_count',
+    'wh41_ch4_sig': 'group_count',
+    'wh45_sig': 'group_count',
+    'wh51_ch1_sig': 'group_count',
+    'wh51_ch2_sig': 'group_count',
+    'wh51_ch3_sig': 'group_count',
+    'wh51_ch4_sig': 'group_count',
+    'wh51_ch5_sig': 'group_count',
+    'wh51_ch6_sig': 'group_count',
+    'wh51_ch7_sig': 'group_count',
+    'wh51_ch8_sig': 'group_count',
+    'wh51_ch9_sig': 'group_count',
+    'wh51_ch10_sig': 'group_count',
+    'wh51_ch11_sig': 'group_count',
+    'wh51_ch12_sig': 'group_count',
+    'wh51_ch13_sig': 'group_count',
+    'wh51_ch14_sig': 'group_count',
+    'wh51_ch15_sig': 'group_count',
+    'wh51_ch16_sig': 'group_count',
+    'wh55_ch1_sig': 'group_count',
+    'wh55_ch2_sig': 'group_count',
+    'wh55_ch3_sig': 'group_count',
+    'wh55_ch4_sig': 'group_count',
+    'wh57_sig': 'group_count',
+    'wh68_sig': 'group_count',
+    'ws80_sig': 'group_count',
+    'ws90_sig': 'group_count'
+}
 
 # merge the default unit groups into weewx.units.obs_group_dict, but so we
 # don't undo any user customisation elsewhere only merge those fields that do
@@ -579,7 +773,7 @@ class Gateway(object):
     # correlation to the WeeWX wview_extended schema or
     # weewx.units.obs_group_dict. If there is a related but different field in
     # the wview_extended schema then a WeeWX field name with a similar format
-    # is used. Otherwise fields are passed through as is.
+    # is used. Otherwise, fields are passed through as is.
     # Field map format is:
     #   WeeWX field name: Gateway device field name
     default_field_map = {
@@ -1721,6 +1915,9 @@ Gw1000Service = GatewayService
 # ============================================================================
 
 def loader(config_dict, engine):
+    # first define conversions and default labels and formats for units used
+    # by the gateway driver
+    define_units()
     return GatewayDriver(**config_dict[DRIVER_NAME])
 
 
@@ -2293,6 +2490,9 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
             # now raise the log level if required
             if weewx.debug > 0:
                 syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
+
+        # define custom unit settings used by the gateway driver
+        define_units()
 
         # get a DirectGateway object
         direct_gw = DirectGateway(options, parser, stn_dict)
@@ -6297,6 +6497,80 @@ class GatewayDevice(object):
 #                             Utility functions
 # ============================================================================
 
+def define_units():
+    """Define formats and conversions used by the driver.
+
+    This could be done in user/extensions.py or the driver. The
+    user/extensions.py approach will make the conversions and formats available
+    for all drivers and services, but requires manual editing of the file by
+    the user. Inclusion in the driver removes the need for the user to edit
+    user/extensions.py, but means the conversions and formats are only defined
+    when the driver is being used. Given the specialised nature of the
+    conversions and formats the latter is an acceptable approach. In any case,
+    there is nothing preventing the user manually adding these entries to
+    user/extensions.py.
+
+    As of v5.0.0 WeeWX defines the unit group 'group_data' with member units
+    'byte' and 'bit'. We will define additional group_data member units of
+    'kilobyte' and 'megabyte'.
+
+    All additions to the core conversion, label and format dicts are done in a
+    way that do not overwrite and previous customisations the user may have
+    made through another driver or user/extensions.py.
+    """
+
+    # add kilobyte and megabyte conversions
+    if 'byte' not in weewx.units.conversionDict:
+        # 'byte' is not a key in the conversion dict, so we add all conversions
+        weewx.units.conversionDict['byte'] = {'bit': lambda x: x * 8,
+                                              'kilobyte': lambda x: x / 1024.0,
+                                              'megabyte': lambda x: x / 1024.0 ** 2}
+    else:
+        # byte already exists as a key in the conversion dict, so we add all
+        # conversions individually if they do not already exist
+        if 'bit' not in weewx.units.conversionDict['byte'].keys():
+            weewx.units.conversionDict['byte']['bit'] = lambda x: x * 8
+        if 'kilobyte' not in weewx.units.conversionDict['byte'].keys():
+            weewx.units.conversionDict['byte']['kilobyte'] = lambda x: x / 1024.0
+        if 'megabyte' not in weewx.units.conversionDict['byte'].keys():
+            weewx.units.conversionDict['byte']['megabyte'] = lambda x: x / 1024.0 ** 2
+    if 'kilobyte' not in weewx.units.conversionDict:
+        weewx.units.conversionDict['kilobyte'] = {'bit': lambda x: x * 8192,
+                                                  'byte': lambda x: x * 1024,
+                                                  'megabyte': lambda x: x / 1024.0}
+    else:
+        # kilobyte already exists as a key in the conversion dict, so we add
+        # all conversions individually if they do not already exist
+        if 'bit' not in weewx.units.conversionDict['kilobyte'].keys():
+            weewx.units.conversionDict['kilobyte']['bit'] = lambda x: x * 8192
+        if 'byte' not in weewx.units.conversionDict['kilobyte'].keys():
+            weewx.units.conversionDict['kilobyte']['byte'] = lambda x: x * 1024
+        if 'megabyte' not in weewx.units.conversionDict['kilobyte'].keys():
+            weewx.units.conversionDict['kilobyte']['megabyte'] = lambda x: x / 1024.0
+    if 'megabyte' not in weewx.units.conversionDict:
+        weewx.units.conversionDict['megabyte'] = {'bit': lambda x: x * 8 * 1024 ** 2,
+                                                  'byte': lambda x: x * 1024 ** 2,
+                                                  'kilobyte': lambda x: x * 1024}
+    else:
+        # megabyte already exists as a key in the conversion dict, so we add
+        # all conversions individually if they do not already exist
+        if 'bit' not in weewx.units.conversionDict['megabyte'].keys():
+            weewx.units.conversionDict['megabyte']['bit'] = lambda x: x * 8 * 1024 ** 2
+        if 'byte' not in weewx.units.conversionDict['megabyte'].keys():
+            weewx.units.conversionDict['megabyte']['byte'] = lambda x: x * 1024 ** 2
+        if 'kilobyte' not in weewx.units.conversionDict['megabyte'].keys():
+            weewx.units.conversionDict['megabyte']['kilobyte'] = lambda x: x * 1024
+
+    # set default formats and labels for byte, kilobyte and megabyte, but only
+    # if they do not already exist
+    weewx.units.default_unit_format_dict['byte'] = weewx.units.default_unit_format_dict.get('byte') or '%.d'
+    weewx.units.default_unit_label_dict['byte'] = weewx.units.default_unit_label_dict.get('byte') or u' B'
+    weewx.units.default_unit_format_dict['kilobyte'] = weewx.units.default_unit_format_dict.get('kilobyte') or '%.3f'
+    weewx.units.default_unit_label_dict['kilobyte'] = weewx.units.default_unit_label_dict.get('kilobyte') or u' kB'
+    weewx.units.default_unit_format_dict['megabyte'] = weewx.units.default_unit_format_dict.get('megabyte') or '%.3f'
+    weewx.units.default_unit_label_dict['megabyte'] = weewx.units.default_unit_label_dict.get('megabyte') or u' MB'
+
+
 def natural_sort_keys(source_dict):
     """Return a naturally sorted list of keys for a dict."""
 
@@ -6406,9 +6680,9 @@ class DirectGateway(object):
     options.
     """
 
-    # gateway observation group dict, this maps all device 'fields' to a WeeWX
-    # unit group
-    gateway_obs_group_dict = {
+    # gateway direct observation group dict, this maps all device 'fields' to a 
+    # WeeWX unit group
+    gw_direct_obs_group_dict = {
         'intemp': 'group_temperature',
         'outtemp': 'group_temperature',
         'dewpoint': 'group_temperature',
@@ -7800,7 +8074,7 @@ class DirectGateway(object):
             # ListOfDicts does not support .update and we want to use the
             # device entry should there already be an entry of the same name in
             # weewx.units.obs_group_dict (eg 'rain')
-            weewx.units.obs_group_dict.prepend(DirectGateway.gateway_obs_group_dict)
+            weewx.units.obs_group_dict.prepend(DirectGateway.gw_direct_obs_group_dict)
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
             if self.opts.units.lower() == 'us':
@@ -8292,6 +8566,9 @@ def main():
         # now raise the log level if required
         if weewx.debug > 0:
             syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
+
+    # define custom unit settings used by the gateway driver
+    define_units()
 
     # get a DirectGateway object
     direct_gw = DirectGateway(opts, parser, stn_dict)

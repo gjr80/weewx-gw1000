@@ -99,6 +99,53 @@ def split_str(str, out=None):
     return out
 
 
+def process_addressed_data(data, parser, data_struct):
+
+    # initialise a list to hold data for each field
+    fields = []
+    # set our position index
+    index = 0
+    while index < len(data) - 1:
+        # obtain the field code
+        field_code = data[index:index + 1]
+        try:
+            # obtain the decode function, field size and field name
+            fn, size, field_name = data_struct[field_code]
+        except KeyError as e:
+            # we don't know about this field, maybe it is a new field
+            print(f"Possible unknown field '{field_code.hex(' ').upper()}'")
+            print()
+            # or maybe it's something other than a new field, in that case
+            # raise the exception so we can see what happened and where
+            raise
+        else:
+            # obtain the field data
+            field_data = data[index + 1:index + 1 + size]
+            # do we have any field data?
+            if field_data is not None:
+                field_data_str = f"{field_data.hex(' ').upper():<14}"
+                # obtain the decoded field data if we know how
+                if hasattr(parser, fn):
+                    dec_str = f"({getattr(parser, fn)(field_data)})"
+                    name_str = f"({field_name})"
+                    decoded = f"{dec_str:<10} {name_str}"
+                    # decoded = "(%s)" % getattr(api_parser, fn)(field_data)
+                else:
+                    decoded = '(unknown)'
+                # we have data so add it to our result list
+                fields.append('   '.join([field_code.hex(' ').upper(),
+                                          field_data_str,
+                                          decoded]))
+            else:
+                # this shouldn't happen, but it could mean the field is
+                # marked as 'reserved' in the API documentation
+                pass
+            # we are finished with this field, move onto the next field
+            index += size + 1
+    # return our data
+    return fields
+
+
 def parse_mac(response):
     """Parse a CMD_READ_STATION_MAC response."""
 
@@ -163,12 +210,8 @@ def parse_rain(response):
     result['header'] = response[:2].hex(' ').upper()
     result['cmd_code'] = response[2:3].hex(' ').upper()
     result['size'] = response[3:5].hex(' ').upper()
-    _data = response[5:-1]
     api_parser = user.gw1000.ApiParser()
-    _read_rain = api_parser.parse_read_rain(response)
-    print("_read_rain=%s" % (_read_rain,))
-    result['data'] = ['fred',]
-    # result['data'] = [f"{_data.hex(' ').upper()} ({api_parser.parse_read_firmware_version(response)})",]
+    result['data'] = process_addressed_data(response[5:-1], api_parser, api_parser.rain_data_struct)
     result['checksum'] = response[-1:].hex(' ').upper()
     return result
 
@@ -176,56 +219,13 @@ def parse_rain(response):
 def parse_livedata(response):
     """Parse a CMD_GW1000_LIVEDATA response."""
 
-    def into_rows(data):
-
-        api_parser = user.gw1000.ApiParser()
-        # initialise a list to hold data for each field
-        fields = []
-        # set our position index
-        index = 0
-        while index < len(data) - 1:
-            # obtain the field code
-            field_code = data[index:index + 1]
-            try:
-                # obtain the decode function, field size and field name
-                fn, size, field_name = api_parser.live_data_struct[field_code]
-            except KeyError as e:
-                # we don't know about this field, maybe it is a new field
-                print(f"Possible unknown field '{field_code.hex(' ').upper()}'")
-                print()
-                # or maybe it's something other than a new field, in that case
-                # raise the exception so we can see what happened and where
-                raise
-            else:
-                # obtain the field data
-                field_data = data[index + 1:index + 1 + size]
-                # do we have any field data?
-                if field_data is not None:
-                    field_data_str = f"{field_data.hex(' ').upper():<14}"
-                    # obtain the decoded field data if we know how
-                    if hasattr(api_parser, fn):
-                        decoded = "(%s)" % getattr(api_parser, fn)(field_data)
-                    else:
-                        decoded = '(unknown)'
-                    # we have data so add it to our result list
-                    fields.append('   '.join([field_code.hex(' ').upper(),
-                                              field_data_str,
-                                              decoded]))
-                else:
-                    # this shouldn't happen, but it could mean the field is
-                    # marked as 'reserved' in the API documentation
-                    pass
-                # we are finished with this field, move onto the next field
-                index += size + 1
-        # return our data
-        return fields
-
     result = dict()
     result['all'] = split_str(response.hex(' ').upper())
     result['header'] = response[:2].hex(' ').upper()
     result['cmd_code'] = response[2:3].hex(' ').upper()
     result['size'] = response[3:5].hex(' ').upper()
-    result['data'] = into_rows(response[5:-1])
+    api_parser = user.gw1000.ApiParser()
+    result['data'] = process_addressed_data(response[5:-1], api_parser, api_parser.live_data_struct)
     result['checksum'] = response[-1:].hex(' ').upper()
     return result
 
