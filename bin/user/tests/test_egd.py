@@ -370,6 +370,7 @@ class ParseTestCase(unittest.TestCase):
         b'\x68': ('decode_wn34', 3, 'temp14'),
         b'\x69': ('decode_wn34', 3, 'temp15'),
         b'\x6A': ('decode_wn34', 3, 'temp16'),
+        b'\x6C': ('decode_memory', 4, 'heap_free'),
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
                                       'co2', 'co2_24h_avg')),
@@ -394,7 +395,7 @@ class ParseTestCase(unittest.TestCase):
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         b'\x7A': ('decode_int', 1, 'rain_priority'),
-        b'\x7B': ('decode_int', 1, 'rad_comp'),
+        b'\x7B': ('decode_int', 1, 'radiation_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),
@@ -523,7 +524,7 @@ class ParseTestCase(unittest.TestCase):
                                   '00 24',
                       'data': {'t_rainrate': 0.0,
                                't_rainevent': 0.0,
-                               't_raingain': 10.0,
+                               't_raingain': 1.0,
                                't_rainday': 0.0,
                                't_rainweek': 0.0,
                                't_rainmonth': 0.0,
@@ -1137,7 +1138,7 @@ class StationTestCase(unittest.TestCase):
 
     fake_ip = '192.168.99.99'
     fake_port = 44444
-    mock_mac = 'A1:B2:C3:D4:E5:F6'
+    mock_mac = 'A1:B2:C3:D4:E5:F6' # b'A1:B2:C3:D4:E5:F6'
     mock_firmware = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
     mock_sys_params = {
         'frequency': 0,
@@ -1212,21 +1213,20 @@ class StationTestCase(unittest.TestCase):
         'CMD_READ_RSTRAIN_TIME': 'FF FF 55 03 58',
         'CMD_WRITE_RSTRAIN_TIME': 'FF FF 56 03 59',
         'CMD_READ_RAIN': 'FF FF 57 03 5A',
-        'CMD_WRITE_RAIN': 'FF FF 58 03 5B',
-        'CMD_GET_MulCH_T_OFFSET': 'FF FF 59 03 5C'
+        'CMD_WRITE_RAIN': 'FF FF 58 03 5B'
     }
     # Station.discover() multiple device discovery response
-    discover_multi_resp = [{'mac': b'\xe8h\xe7\x87\x1aO', #'E8:68:E7:87:1A:4F',
+    discover_multi_resp = [{'mac': 'E8:68:E7:87:1A:4F', # b'\xe8h\xe7\x87\x1aO'
                             'ip_address': '192.168.50.3',
                             'port': 45001,
                             'ssid': 'GW1100C-WIFI1A4F V2.0.9',
                             'model': 'GW1100'},
-                           {'mac': b'\xdcO"X\xa2E', #'DC:4F:22:58:A2:45'
+                           {'mac': 'DC:4F:22:58:A2:45', # b'\xdcO"X\xa2E'
                             'ip_address': '192.168.50.6',
                             'port': 45002,
                             'ssid': 'GW1000-WIFIA245 V1.6.7',
                             'model': 'GW1000'},
-                           {'mac': b'P\x02\x91\xe3\xd3h', #'50:02:91:E3:D3:68',
+                           {'mac': '50:02:91:E3:D3:68', # b'P\x02\x91\xe3\xd3h'
                             'ip_address': '192.168.50.7',
                             'port': 45003,
                             'ssid': 'GW1000-WIFID368 V1.6.8',
@@ -1349,7 +1349,7 @@ class StationTestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = StationTestCase.mock_firmware
         # get our mocked Station object
         station = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                          port=self.test_port)
@@ -1371,7 +1371,8 @@ class StationTestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        ## b'\xff\xffP\x11\rGW1000_V1.6.8}'
         # get our mocked Station object
         station = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                          port=self.test_port)
@@ -1399,7 +1400,7 @@ class StationTestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = StationTestCase.mock_firmware
         # get our mocked Station object
         station = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                          port=self.test_port)
@@ -1428,7 +1429,7 @@ class StationTestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
+        mock_get_firmware.return_value = StationTestCase.mock_firmware
         # get_system_params() - system parameters (bytestring)
         mock_get_sys.return_value = StationTestCase.mock_sys_params
         # get_sensor_id - get sensor IDs (bytestring)
@@ -1471,7 +1472,7 @@ class StationTestCase(unittest.TestCase):
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+        mock_get_firmware.return_value = StationTestCase.mock_firmware
         # discover() - list of discovered devices (list of dicts)
         mock_discover.return_value = StationTestCase.discover_multi_resp
         # get our mocked Station object
@@ -1575,9 +1576,17 @@ class GatewayTestCase(unittest.TestCase):
     # amount to increment delta measurements
     increment = 5.6
     # mocked read_system_parameters() output
-    mock_sys_params_resp = b'\xff\xff0\x0b\x00\x01b7\rj^\x02\xac'
+    # mock_sys_params_resp = b'\xff\xff0\x0b\x00\x01b7\rj^\x02\xac'
+    mock_sys_params_resp = {
+        'frequency': 0,
+        'sensor_type': 1,
+        'utc': 1647775082,
+        'timezone_index': 94,
+        'dst_status': True
+    }
     # mocked get_firmware() response
-    mock_get_firm_resp = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+    # mock_get_firm_resp = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+    mock_get_firm_resp = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
     # mocked get_sensor_id() response
     mock_sensor_id_resp = 'FF FF 3C 01 54 00 FF FF FF FE FF 00 01 FF FF FF ' \
                           'FE FF 00 02 FF FF FF FE FF 00 03 FF FF FF FE 1F ' \
@@ -1811,12 +1820,12 @@ class GatewayTestCase(unittest.TestCase):
                     gw1000_svc = svc
             if gw1000_svc:
                 # tell the user what device we are using
-                if gw1000_svc.collector.station.ip_address.decode() == GatewayTestCase.fake_ip:
+                if gw1000_svc.collector.device.ip_address.decode() == GatewayTestCase.fake_ip:
                     _stem = "\nUsing mocked GW1x00 at %s:%d ... "
                 else:
                     _stem = "\nUsing real GW1x00 at %s:%d ... "
-                print(_stem % (gw1000_svc.collector.station.ip_address.decode(),
-                               gw1000_svc.collector.station.port),
+                print(_stem % (gw1000_svc.collector.device.ip_address.decode(),
+                               gw1000_svc.collector.device.port),
                       end='')
             else:
                 # we could not get the GW1000 service for some reason, shutdown
@@ -1898,6 +1907,7 @@ def main():
     # test cases that are production ready
     test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
                   ListsAndDictsTestCase, StationTestCase, GatewayTestCase)
+#                  ListsAndDictsTestCase, GatewayTestCase)
 
     usage = """python3 -m user.tests.test_eg --help
            python3 -m user.tests.test_eg --version
