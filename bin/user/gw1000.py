@@ -2976,8 +2976,7 @@ class ApiParser(object):
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         b'\x7A': ('decode_int', 1, 'rain_priority'),
-        # TODO. Should this be 'temp_comp' or 'rain_comp'
-        b'\x7B': ('decode_int', 1, 'temp_comp'),
+        b'\x7B': ('decode_int', 1, 'radiation_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),
@@ -6856,7 +6855,7 @@ class DirectGateway(object):
             2: '915MHz',
             3: '920MHz'
         }
-        temp_comp_decode = {
+        radiation_comp_decode = {
             0: 'off',
             1: 'on'
         }
@@ -6875,17 +6874,17 @@ class DirectGateway(object):
                                                  device.port))
             # get the device system_params property
             sys_params_dict = device.system_params
-            # we need the temperature compensation setting which according to
-            # the v1.6.8 API documentation resides in field 7B but bizarrely is
+            # we need the radiation compensation setting which according to the
+            # v1.6.9 API documentation resides in field 7B, but bizarrely is
             # only available via the CMD_READ_RAIN API command. CMD_READ_RAIN
             # is a relatively new command so wrap in a try..except just in
             # case.
             try:
                 _rain_data = device.rain
             except GWIOError:
-                temp_comp = None
+                radiation_comp = None
             else:
-                temp_comp = _rain_data.get('temp_comp')
+                radiation_comp = _rain_data.get('radiation_comp')
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
@@ -6908,10 +6907,10 @@ class DirectGateway(object):
             print("%26s: %s (%s)" % ('frequency',
                                      sys_params_dict['frequency'],
                                      freq_str))
-            if temp_comp is not None:
+            if radiation_comp is not None:
                 print("%26s: %s (%s)" % ('Temperature Compensation',
-                                         temp_comp,
-                                         temp_comp_decode.get(temp_comp, 'unknown')))
+                                         radiation_comp,
+                                         radiation_comp_decode.get(radiation_comp, 'unknown')))
             else:
                 print("%26s: unavailable" % 'Temperature Compensation')
 
