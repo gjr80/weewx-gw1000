@@ -200,7 +200,7 @@ Revision History
 This driver is based on the Ecowitt LAN/Wi-Fi Gateway API documentation v1.6.9.
 However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway API
 documentation v1.6.9 have been made in this driver:
-# TODO. Review these deviations before release
+
 1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
 returned by the CMD_READ_SSSS API command. The UTC time field is described as
 'UTC time' and is an unsigned long. No other details are provided in the API
@@ -226,13 +226,15 @@ reported as None for these devices. Battery state data for later WH40 hardware
 that does report battery voltage is decoded and passed through to WeeWX.
 
 3.  Yet to released/named API command code 0x59 provides WN34 temperature
-calibration data. Calibration data is provided in standardised Ecowitt gateway
-device API response packet format. The API response uses two bytes for packet
-size. Header, command code and checksum are standard values/formats. Data
-structure is two bytes per sensor, first byte is sensor address (0x63 to 0x6A)
-and second byte is tenths C calibration value (or calibration value x 10).
-Calibration value may be from +10C to -10C. Data is included only for connected
-sensors. This support should be considered experimental.
+calibration data. This API command is referred to as 'CMD_GET_MulCH_T_OFFSET'
+within the driver and has been implemented as of v0.6.0. Calibration data is
+provided in standardised Ecowitt gateway device API response packet format.
+The API response uses two bytes for packet size. Header, command code and
+checksum are standard values/formats. Data structure is two bytes per sensor,
+first byte is sensor address (0x63 to 0x6A) and second byte is tenths C
+calibration value (or calibration value x 10). Calibration value may be from
++10C to -10C. Data is included only for connected sensors. This support should
+be considered experimental.
 
 4.  API documentation v1.6.9 lists field 7B as 'Radiation compensation', though
 in the WSView Plus app the field 7B data is displayed against a label
