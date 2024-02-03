@@ -1,4 +1,4 @@
-v0.6.0b3
+v0.6.0b7
 -   implement device HTTP requests to obtain additional device/sensor status
     data not available via API
 -   fix error in multi-channel temperature calibration data decode
