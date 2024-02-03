@@ -197,20 +197,20 @@ Revision History
         - initial release
 
 
-This driver has been based on the Ecowitt LAN/Wi-Fi Gateway API documentation
-v1.6.9. However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway
-API documentation v1.6.9 have been made in this driver:
+This driver is based on the Ecowitt LAN/Wi-Fi Gateway API documentation v1.6.9.
+However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway API
+documentation v1.6.9 have been made in this driver:
 # TODO. Review these deviations before release
 1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
 returned by the CMD_READ_SSSS API command. The UTC time field is described as
 'UTC time' and is an unsigned long. No other details are provided in the API
-documentation. Rather than being a Unix epoch timestamp the UTC time data
+documentation. Rather than being a Unix epoch timestamp, the UTC time data
 appears to be a Unix epoch timestamp that is offset from UTC time by the
 gateway device timezone. In other words, two gateway devices in different
 timezones that have their system time correctly set will return different
-values for UTC time. The Ecowitt Gateway driver subtracts the system UTC
-offset in seconds from the UTC time returned by the CMD_READ_SSSS command in
-order to obtain the correct UTC time.
+values for UTC time via the CMD_READ_SSSS command. The Ecowitt Gateway driver
+subtracts the system UTC offset in seconds from the UTC time returned by the
+CMD_READ_SSSS command in order to obtain the correct UTC time.
 
 2.  WH40 battery state data contained in the CMD_READ_SENSOR_ID_NEW response is
 documented as a single byte representing 10x the battery voltage. However,
@@ -227,14 +227,14 @@ that does report battery voltage is decoded and passed through to WeeWX.
 
 3.  Yet to released/named API command code 0x59 provides WN34 temperature
 calibration data. Calibration data is provided in standardised Ecowitt gateway
-device API response packet. Packet uses two bytes for packet size. Header,
-command code and checksum are standard values/formats. Data structure is two
-bytes per sensor, first byte is sensor address (0x63 to 0x6A) and second byte
-is tenths C calibration value. Calibration value may be from +10C to -10C. Data
-is included only for connected sensors. This support should be considered
-experimental.
+device API response packet format. The API response uses two bytes for packet
+size. Header, command code and checksum are standard values/formats. Data
+structure is two bytes per sensor, first byte is sensor address (0x63 to 0x6A)
+and second byte is tenths C calibration value (or calibration value x 10).
+Calibration value may be from +10C to -10C. Data is included only for connected
+sensors. This support should be considered experimental.
 
-4.  API documentation v1.6.8 lists field 7B as 'Radiation compensation', though
+4.  API documentation v1.6.9 lists field 7B as 'Radiation compensation', though
 in the WSView Plus app the field 7B data is displayed against a label
 'Temperature Compensation' for devices WH65/WH69/WS80/WS90. Field 7B is more
 correctly referred to as 'Temperature Compensation' as the setting controls
@@ -243,9 +243,9 @@ Ecowitt formula based on the radiation level (perhaps other fields as well).
 Field 7B is located amidst various rain related fields and bizarrely field 7B
 data is only available through the recent CMD_READ_RAIN API command. As the
 CMD_READ_RAIN command was only recently introduced, some gateway devices using
-old firmware cannot use the CM_READ_RAIN API command meaning field 7B cannot be
-read from some gateway devices using the API. Field 7B can be read once the
-gateway device firmware is updated to a version that support the CMD_READ_RAIN
+old firmware cannot use the CMD_READ_RAIN API command meaning field 7B cannot
+be read from some gateway devices using the API. Field 7B can be read once the
+gateway device firmware is updated to a version that supports the CMD_READ_RAIN
 command. The field 7B data/'Temperature Compensation' setting can be displayed
 via the --system-params command line option.
 
@@ -2427,9 +2427,9 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
         parser.add_option('--get-mulch-soil-cal', dest='get_soil_calibration',
                           action='store_true',
                           help='display device soil moisture calibration data')
-        # parser.add_option('--get-mulch-t-cal', dest='get_temp_calibration',
-        #                   action='store_true',
-        #                   help='display device temperature (WN34) calibration data')
+        parser.add_option('--get-mulch-t-cal', dest='get_temp_calibration',
+                          action='store_true',
+                          help='display device temperature (WN34) calibration data')
         parser.add_option('--get-pm25-cal', dest='get_pm25_offset',
                           action='store_true',
                           help='display device PM2.5 calibration data')
@@ -3176,7 +3176,7 @@ class ApiParser(object):
         b'\x12': ('decode_big_rain', 4, 't_rainmonth'),
         b'\x13': ('decode_big_rain', 4, 't_rainyear'),
         b'\x7A': ('decode_int', 1, 'rain_priority'),
-        b'\x7B': ('decode_int', 1, 'radiation_comp'),
+        b'\x7B': ('decode_int', 1, 'temperature_comp'),
         b'\x80': ('decode_rainrate', 2, 'p_rainrate'),
         b'\x81': ('decode_rain', 2, 'p_rainevent'),
         b'\x82': ('decode_reserved', 2, 'p_rainhour'),
@@ -3433,52 +3433,52 @@ class ApiParser(object):
             index += 3
         return offset_dict
 
-    # @staticmethod
-    # def parse_get_mulch_t_offset(response):
-    #     """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
-    #
-    #     Response consists of a variable number of bytes determined by the
-    #     connected sensors. Decode as follows:
-    #     Byte(s)     Data            Format          Comments
-    #     1-2         header          -               fixed header 0xFFFF
-    #     3           command code    byte            0x59
-    #     4-5         size            unsigned big
-    #                                 endian short
-    #     ....
-    #     6-2nd last byte
-    #         three bytes per connected WN34 sensor:
-    #                 address         byte            sensor address, 0x63 to
-    #                                                 0x6A incl
-    #                 temp offset     signed big      -100 to +100 in tenths C
-    #                                 endian short    (-10.0 to +10.0)
-    #     ....
-    #     last byte   checksum        byte            LSB of the sum of the
-    #                                                 command, size and data
-    #                                                 bytes
-    #     """
-    #
-    #     # obtain the payload size, it's a big endian short (two byte) integer
-    #     size = struct.unpack(">H", response[3:5])[0]
-    #     # extract the actual data
-    #     data = response[5:5 + size - 4]
-    #     # initialise a counter
-    #     index = 0
-    #     # initialise a dict to hold our parsed data
-    #     offset_dict = {}
-    #     # iterate over the data
-    #     while index < len(data):
-    #         try:
-    #             channel = six.byte2int(data[index])
-    #         except TypeError:
-    #             channel = data[index]
-    #         try:
-    #             offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
-    #         except TypeError:
-    #             offset_dict[channel] = struct.unpack(">h", six.int2byte(data[index + 1:index + 3]))[0] / 10.0
-    #
-    #         index += 3
-    #     return offset_dict
-    #
+    @staticmethod
+    def parse_get_mulch_t_offset(response):
+        """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
+
+        Response consists of a variable number of bytes determined by the
+        connected sensors. Decode as follows:
+        Byte(s)     Data            Format          Comments
+        1-2         header          -               fixed header 0xFFFF
+        3           command code    byte            0x59
+        4-5         size            unsigned big
+                                    endian short
+        ....
+        6-2nd last byte
+            three bytes per connected WN34 sensor:
+                    address         byte            sensor address, 0x63 to
+                                                    0x6A incl
+                    temp offset     signed big      -100 to +100 in tenths C
+                                    endian short    (-10.0 to +10.0)
+        ....
+        last byte   checksum        byte            LSB of the sum of the
+                                                    command, size and data
+                                                    bytes
+        """
+
+        # obtain the payload size, it's a big endian short (two byte) integer
+        size = struct.unpack(">H", response[3:5])[0]
+        # extract the actual data
+        data = response[5:5 + size - 4]
+        # initialise a counter
+        index = 0
+        # initialise a dict to hold our parsed data
+        offset_dict = {}
+        # iterate over the data
+        while index < len(data):
+            try:
+                channel = six.byte2int(data[index])
+            except TypeError:
+                channel = data[index]
+            try:
+                offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
+            except TypeError:
+                offset_dict[channel] = struct.unpack(">h", six.int2byte(data[index + 1:index + 3]))[0] / 10.0
+
+            index += 3
+        return offset_dict
+
     @staticmethod
     def parse_get_pm25_offset(response):
         """Parse data from a CMD_GET_PM25_OFFSET API response.
@@ -4900,8 +4900,8 @@ class GatewayApi(object):
         'CMD_READ_RSTRAIN_TIME': b'\x55',
         'CMD_WRITE_RSTRAIN_TIME': b'\x56',
         'CMD_READ_RAIN': b'\x57',
-        'CMD_WRITE_RAIN': b'\x58'
-        # 'CMD_GET_MulCH_T_OFFSET': b'\x59'
+        'CMD_WRITE_RAIN': b'\x58',
+        'CMD_GET_MulCH_T_OFFSET': b'\x59'
     }
     # header used in each API command and response packet
     header = b'\xff\xff'
@@ -5505,21 +5505,21 @@ class GatewayApi(object):
         # now return the parsed response
         return self.parser.parse_get_mulch_offset(response)
 
-    # def get_mulch_t_offset(self):
-    #     """Get multichannel temperature (WN34) offset data.
-    #
-    #     Sends the API command to obtain the multichannel temperature (WN34)
-    #     offset data with retries. If the device cannot be contacted a
-    #     GWIOError will have been raised by send_cmd_with_retries() which
-    #     will be passed through by get_mulch_t_offset(). Any code calling
-    #     get_mulch_t_offset() should be prepared to handle this exception.
-    #     """
-    #
-    #     # get the validated API response
-    #     response = self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
-    #     # now return the parsed response
-    #     return self.parser.parse_get_mulch_t_offset(response)
-    #
+    def get_mulch_t_offset(self):
+        """Get multichannel temperature (WN34) offset data.
+
+        Sends the API command to obtain the multichannel temperature (WN34)
+        offset data with retries. If the device cannot be contacted a
+        GWIOError will have been raised by send_cmd_with_retries() which
+        will be passed through by get_mulch_t_offset(). Any code calling
+        get_mulch_t_offset() should be prepared to handle this exception.
+        """
+
+        # get the validated API response
+        response = self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
+        # now return the parsed response
+        return self.parser.parse_get_mulch_t_offset(response)
+
     def get_pm25_offset(self):
         """Get PM2.5 offset data.
 
@@ -6367,12 +6367,12 @@ class GatewayDevice(object):
 
         return self.api.get_mulch_offset()
 
-    # @property
-    # def mulch_t_offset(self):
-    #     """Gateway device multichannel temperature (WN34) offset data."""
-    #
-    #     return self.api.get_mulch_t_offset()
-    #
+    @property
+    def mulch_t_offset(self):
+        """Gateway device multichannel temperature (WN34) offset data."""
+
+        return self.api.get_mulch_t_offset()
+
     @property
     def pm25_offset(self):
         """Gateway device PM2.5 offset data."""
@@ -7075,8 +7075,8 @@ class DirectGateway(object):
             self.get_all_rain_data()
         elif hasattr(self.opts, 'get_mulch_offset') and self.opts.get_mulch_offset:
             self.get_mulch_offset()
-        # elif hasattr(self.opts, 'get_temp_calibration') and self.opts.get_temp_calibration:
-        #     self.get_mulch_t_offset()
+        elif hasattr(self.opts, 'get_temp_calibration') and self.opts.get_temp_calibration:
+            self.get_mulch_t_offset()
         elif hasattr(self.opts, 'get_pm25_offset') and self.opts.get_pm25_offset:
             self.get_pm25_offset()
         elif hasattr(self.opts, 'get_co2_offset') and self.opts.get_co2_offset:
@@ -7129,7 +7129,7 @@ class DirectGateway(object):
             2: '915MHz',
             3: '920MHz'
         }
-        radiation_comp_decode = {
+        temperature_comp_decode = {
             0: 'off',
             1: 'on'
         }
@@ -7156,9 +7156,9 @@ class DirectGateway(object):
             try:
                 _rain_data = device.rain
             except GWIOError:
-                radiation_comp = None
+                temperature_comp = None
             else:
-                radiation_comp = _rain_data.get('radiation_comp')
+                temperature_comp = _rain_data.get('temperature_comp')
         except GWIOError as e:
             print()
             print("Unable to connect to device at %s: %s" % (self.ip_address, e))
@@ -7181,10 +7181,10 @@ class DirectGateway(object):
             print("%26s: %s (%s)" % ('frequency',
                                      sys_params_dict['frequency'],
                                      freq_str))
-            if radiation_comp is not None:
+            if temperature_comp is not None:
                 print("%26s: %s (%s)" % ('Temperature Compensation',
-                                         radiation_comp,
-                                         radiation_comp_decode.get(radiation_comp, 'unknown')))
+                                         temperature_comp,
+                                         temperature_comp_decode.get(temperature_comp, 'unknown')))
             else:
                 print("%26s: unavailable" % 'Temperature Compensation')
 
@@ -7424,62 +7424,62 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    # def get_mulch_t_offset(self):
-    #     """Display device multichannel temperature (WN34) offset data.
-    #
-    #     Obtain and display the multichannel temperature (WN34) offset data from
-    #     the selected device. The device IP address and port are derived (in
-    #     order) as follows:
-    #     1. command line --ip-address and --port parameters
-    #     2. [GW1000] stanza in the specified config file
-    #     3. by discovery
-    #     """
-    #
-    #     # wrap in a try..except in case there is an error
-    #     try:
-    #         # we want a GatewayDevice object but to get such an object we first
-    #         # need a GatewayCollector object
-    #         collector = GatewayCollector(ip_address=self.ip_address,
-    #                                      port=self.port)
-    #         # the GatewayDevice object is the collectors device property
-    #         device = collector.device
-    #         # identify the device being used
-    #         print()
-    #         print("Interrogating %s at %s:%d" % (device.model,
-    #                                              device.ip_address.decode(),
-    #                                              device.port))
-    #         # get the mulch temp offset data via the API
-    #         mulch_t_offset_data = device.mulch_t_offset
-    #     except GWIOError as e:
-    #         print()
-    #         print("Unable to connect to device at %s: %s" % (self.ip_address, e))
-    #     except socket.timeout:
-    #         print()
-    #         print("Timeout. Device at %s did not respond." % (self.ip_address,))
-    #     else:
-    #         # did we get any mulch temp offset data
-    #         if mulch_t_offset_data is not None:
-    #             print()
-    #             print("Multi-channel Temperature Calibration")
-    #             # do we have any results to display?
-    #             if len(mulch_t_offset_data) > 0:
-    #                 # we have results, now format and display the data
-    #                 # iterate over each channel for which we have data
-    #                 for channel in mulch_t_offset_data:
-    #                     # print the channel and offset data
-    #                     mulch_str = "    Channel %d: Temperature offset: %5s"
-    #                     # the API returns channels starting at 0x63, but the WSView
-    #                     # Plus app displays channels starting at 1, so subtract
-    #                     # 0x62 (or 98) from our channel number
-    #                     print(mulch_str % (channel - 98,
-    #                                        "%2.1f" % mulch_t_offset_data[channel]))
-    #             else:
-    #                 # we have no results, so display a suitable message
-    #                 print("    No Multi-channel temperature sensors found")
-    #         else:
-    #             print()
-    #             print("Device at %s did not respond." % (self.ip_address,))
-    #
+    def get_mulch_t_offset(self):
+        """Display device multichannel temperature (WN34) offset data.
+
+        Obtain and display the multichannel temperature (WN34) offset data from
+        the selected device. The device IP address and port are derived (in
+        order) as follows:
+        1. command line --ip-address and --port parameters
+        2. [GW1000] stanza in the specified config file
+        3. by discovery
+        """
+
+        # wrap in a try..except in case there is an error
+        try:
+            # we want a GatewayDevice object but to get such an object we first
+            # need a GatewayCollector object
+            collector = GatewayCollector(ip_address=self.ip_address,
+                                         port=self.port)
+            # the GatewayDevice object is the collectors device property
+            device = collector.device
+            # identify the device being used
+            print()
+            print("Interrogating %s at %s:%d" % (device.model,
+                                                 device.ip_address.decode(),
+                                                 device.port))
+            # get the mulch temp offset data via the API
+            mulch_t_offset_data = device.mulch_t_offset
+        except GWIOError as e:
+            print()
+            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+        except socket.timeout:
+            print()
+            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+        else:
+            # did we get any mulch temp offset data
+            if mulch_t_offset_data is not None:
+                print()
+                print("Multi-channel Temperature Calibration")
+                # do we have any results to display?
+                if len(mulch_t_offset_data) > 0:
+                    # we have results, now format and display the data
+                    # iterate over each channel for which we have data
+                    for channel in mulch_t_offset_data:
+                        # print the channel and offset data
+                        mulch_str = "    Channel %d: Temperature offset: %5s"
+                        # the API returns channels starting at 0x63, but the WSView
+                        # Plus app displays channels starting at 1, so subtract
+                        # 0x62 (or 98) from our channel number
+                        print(mulch_str % (channel - 98,
+                                           "%2.1f" % mulch_t_offset_data[channel]))
+                else:
+                    # we have no results, so display a suitable message
+                    print("    No Multi-channel temperature sensors found")
+            else:
+                print()
+                print("Device at %s did not respond." % (self.ip_address,))
+
     def get_pm25_offset(self):
         """Display the device PM2.5 offset data.
 
