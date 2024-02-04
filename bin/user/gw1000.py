@@ -6781,7 +6781,6 @@ class DirectGateway(object):
         't_rain': 'group_rain',
         't_rainevent': 'group_rain',
         't_rainrate': 'group_rainrate',
-        't_raingain': 'group_rain',
         't_rainday': 'group_rain',
         't_rainweek': 'group_rain',
         't_rainmonth': 'group_rain',
