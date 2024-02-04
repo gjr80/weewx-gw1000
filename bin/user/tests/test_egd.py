@@ -1104,45 +1104,39 @@ class ListsAndDictsTestCase(unittest.TestCase):
 
     def setUp(self):
 
-        # construct the default field map
-        default_field_map = dict(user.gw1000.Gateway.default_field_map)
-        # now add in the rain field map
-        default_field_map.update(user.gw1000.Gateway.rain_field_map)
-        # now add in the wind field map
-        default_field_map.update(user.gw1000.Gateway.wind_field_map)
-        # now add in the battery state field map
-        default_field_map.update(user.gw1000.Gateway.battery_field_map)
-        # now add in the sensor signal field map
-        default_field_map.update(user.gw1000.Gateway.sensor_signal_field_map)
-        # and save it for later
-        self.default_field_map = default_field_map
+        # construct the default field map and save for later, note we construct
+        # the default field map by passing gw1000.Gateway.construct_field_map
+        # an empty config dict
+        self.default_field_map = user.gw1000.Gateway.construct_field_map({})
 
     def test_dicts(self):
         """Test dicts for consistency"""
 
-        # # test that each entry in the GW1000 default field map appears in the
-        # # default_groups observation group dictionary
-        # for w_field, g_field in self.default_field_map.items():
-        #     self.assertIn(g_field,
-        #                   user.gw1000.default_groups.keys(),
-        #                   msg="A field from the GW1000 default field map is "
-        #                       "missing from the default_groups observation group dictionary")
-
-        # test that each entry in the GW1000 default field map appears in the
-        # DirectGateway observation group dictionary
+        # test that each WeeWX field in the driver default field map is
+        # assigned a unit group, either in the gw1000.default_groups or
+        # weewx.units.obs_group_dict observation group dictionaries
         for w_field, g_field in self.default_field_map.items():
+            if w_field not in weewx.units.obs_group_dict.keys():
+                self.assertIn(g_field,
+                              user.gw1000.default_groups.keys(),
+                              msg="A field from the driver default field map is "
+                                  "missing from the default_groups observation group dictionary")
+
+        # test that each gateway device field in the driver default field map
+        # appears in the DirectGateway observation group dictionary
+        for g_field in self.default_field_map.values():
             self.assertIn(g_field,
                           user.gw1000.DirectGateway.gw_direct_obs_group_dict.keys(),
-                          msg="A field from the GW1000 default field map is "
+                          msg="A field from the driver default field map is "
                               "missing from the observation group dictionary")
 
-        # test that each entry in the observation group dictionary is included
-        # in the GW1000 default field map
-        for g_field, group in user.gw1000.DirectGateway.gw_direct_obs_group_dict.items():
+        # test that each gateway device field entry in the observation group
+        # dictionary is included in the driver default field map
+        for g_field in user.gw1000.DirectGateway.gw_direct_obs_group_dict.keys():
             self.assertIn(g_field,
                           self.default_field_map.values(),
                           msg="A key from the observation group dictionary is "
-                              "missing from the GW1000 default field map")
+                              "missing from the driver default field map")
 
 
 class StationTestCase(unittest.TestCase):
@@ -1297,9 +1291,6 @@ class StationTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_cmd_vocab(self, mock_get_mac, mock_get_firmware,
                        mock_get_sys, mock_get_sensor_id):
-#    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
-#    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
-#    def test_cmd_vocab(self, mock_get_mac, mock_get_firmware):
         """Test command dictionaries for completeness.
 
         Tests:
