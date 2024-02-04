@@ -1050,65 +1050,8 @@ class Gateway(object):
     def __init__(self, **gw_config):
         """Initialise a Gateway object."""
 
-        # construct the field map, first obtain the field map from our config
-        field_map = gw_config.get('field_map')
-        # obtain any field map extensions from our config
-        extensions = gw_config.get('field_map_extensions', {})
-        # if we have no field map then use the default
-        if field_map is None:
-            # obtain the default field map
-            field_map = dict(Gateway.default_field_map)
-            # now add in the rain field map
-            field_map.update(Gateway.rain_field_map)
-            # now add in the wind field map
-            field_map.update(Gateway.wind_field_map)
-            # now add in the battery state field map
-            field_map.update(Gateway.battery_field_map)
-            # now add in the sensor signal field map
-            field_map.update(Gateway.sensor_signal_field_map)
-        # If a user wishes to map a device field differently to that in the
-        # default map they can include an entry in field_map_extensions, but if
-        # we just update the field map dict with the field map extensions that
-        # will leave two entries for that device field in the field map; the
-        # original field map entry as well as the entry from the extended map.
-        # So if we have field_map_extensions we need to first go through the
-        # field map and delete any entries that map device fields that are
-        # included in the field_map_extensions.
-        # we only need process the field_map_extensions if we have any
-        if len(extensions) > 0:
-            # first make a copy of the field map because we will be iterating
-            # over it and changing it
-            field_map_copy = dict(field_map)
-            # iterate over each key, value pair in the copy of the field map
-            for k, v in six.iteritems(field_map_copy):
-                # if the 'value' (ie the device field) is in the field map
-                # extensions we will be mapping that device field elsewhere so
-                # pop that field map entry out of the field map so we don't end
-                # up with multiple mappings for a device field
-                if v in extensions.values():
-                    # pop the field map entry
-                    _dummy = field_map.pop(k)
-            # now we can update the field map with the extensions
-            field_map.update(extensions)
-        # We must have a mapping from gateway field 'datetime' to the WeeWX
-        # packet field 'dateTime', too many parts of the driver depend on this.
-        # So check to ensure this mapping is in place, the user could have
-        # removed or altered it. If the mapping is not there add it in.
-        # initialise the key that maps 'datetime'
-        d_key = None
-        # iterate over the field map entries
-        for k, v in six.iteritems(field_map):
-            # if the mapping is for 'datetime' save the key and break
-            if v == 'datetime':
-                d_key = k
-                break
-        # if we have a mapping for 'datetime' delete that field map entry
-        if d_key:
-            field_map.pop(d_key)
-        # add the required mapping
-        field_map['dateTime'] = 'datetime'
-        # we now have our final field map
-        self.field_map = field_map
+        # obtain the field map to be used
+        self.field_map = self.construct_field_map(gw_config)
         # network broadcast address and port
         self.broadcast_address = str.encode(gw_config.get('broadcast_address',
                                                           default_broadcast_address))
@@ -1254,6 +1197,70 @@ class Gateway(object):
         self.rain_total_field = None
         self.piezo_rain_mapping_confirmed = False
         self.piezo_rain_total_field = None
+
+    @staticmethod
+    def construct_field_map(self, **gw_config):
+        """Given a gateway device config construct the field map."""
+
+        # first obtain the field map from our config
+        field_map = gw_config.get('field_map')
+        # obtain any field map extensions from our config
+        extensions = gw_config.get('field_map_extensions', {})
+        # if we have no field map then use the default
+        if field_map is None:
+            # obtain the default field map
+            field_map = dict(Gateway.default_field_map)
+            # now add in the rain field map
+            field_map.update(Gateway.rain_field_map)
+            # now add in the wind field map
+            field_map.update(Gateway.wind_field_map)
+            # now add in the battery state field map
+            field_map.update(Gateway.battery_field_map)
+            # now add in the sensor signal field map
+            field_map.update(Gateway.sensor_signal_field_map)
+        # If a user wishes to map a device field differently to that in the
+        # default map they can include an entry in field_map_extensions, but if
+        # we just update the field map dict with the field map extensions that
+        # will leave two entries for that device field in the field map; the
+        # original field map entry as well as the entry from the extended map.
+        # So if we have field_map_extensions we need to first go through the
+        # field map and delete any entries that map device fields that are
+        # included in the field_map_extensions.
+        # we only need process the field_map_extensions if we have any
+        if len(extensions) > 0:
+            # first make a copy of the field map because we will be iterating
+            # over it and changing it
+            field_map_copy = dict(field_map)
+            # iterate over each key, value pair in the copy of the field map
+            for k, v in six.iteritems(field_map_copy):
+                # if the 'value' (ie the device field) is in the field map
+                # extensions we will be mapping that device field elsewhere so
+                # pop that field map entry out of the field map so we don't end
+                # up with multiple mappings for a device field
+                if v in extensions.values():
+                    # pop the field map entry
+                    _dummy = field_map.pop(k)
+            # now we can update the field map with the extensions
+            field_map.update(extensions)
+        # We must have a mapping from gateway field 'datetime' to the WeeWX
+        # packet field 'dateTime', too many parts of the driver depend on this.
+        # So check to ensure this mapping is in place, the user could have
+        # removed or altered it. If the mapping is not there add it in.
+        # initialise the key that maps 'datetime'
+        d_key = None
+        # iterate over the field map entries
+        for k, v in six.iteritems(field_map):
+            # if the mapping is for 'datetime' save the key and break
+            if v == 'datetime':
+                d_key = k
+                break
+        # if we have a mapping for 'datetime' delete that field map entry
+        if d_key:
+            field_map.pop(d_key)
+        # add the required mapping
+        field_map['dateTime'] = 'datetime'
+        # we now have our final field map
+        return field_map
 
     def map_data(self, data):
         """Map parsed device data to a WeeWX loop packet.
