@@ -4,7 +4,12 @@ on: [workflow_dispatch]
 
 jobs:
   ci:
+    name: Ecowitt gateway driver test on ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.6", "3.7"]
 
     steps:
 
@@ -17,6 +22,11 @@ jobs:
 
     - name: Checkout weewx-gw1000 repo
       uses: actions/checkout@v4
+
+    - name: Python version
+      uses: actions/setup-python@v4
+      with:
+        pyrthon-version : {{ matrix.python-version }}
 
     - name: Install WeeWX and setup the test environment 
       run: |
