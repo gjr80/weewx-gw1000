@@ -21,6 +21,14 @@ jobs:
         python3 -m venv ~/weewx-venv
         source ~/weewx-venv/bin/activate
         python3 -m pip install weewx
+        weectl station create --driver=simulator \
+          --location=CI \
+          --altitude=46,meter \
+          --latitude=-27 \
+          --longitude=152 \
+          --register=n \
+          --units=us \
+          --no-prompt
 
     # - name: Setup tests
     #   run: |
