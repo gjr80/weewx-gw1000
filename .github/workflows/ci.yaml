@@ -29,7 +29,7 @@ jobs:
     - name: Launch tests
       run: |
 
-        PYHTONPATH=~/weewx-data/bin python3 -m user.tests.test_egd
+        PYTHONPATH=~/weewx-data/bin python3 -m user.tests.test_egd
         # PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg 
 
 #    - name: Archive test-results
