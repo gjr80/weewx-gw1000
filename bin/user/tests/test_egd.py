@@ -38,10 +38,6 @@ import struct
 import unittest
 from unittest.mock import patch
 
-# TODO. Python3 only so remove six
-# Python 2/3 compatibility shims
-import six
-
 # WeeWX imports
 import weewx
 import weewx.units
@@ -1962,11 +1958,7 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     # elements can be formatted with {:02X}
     format_str = "{:02X}" if caps else "{:02x}"
     try:
-        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-    except ValueError:
-        # most likely we are running python3 and iterable is not a bytestring,
-        # try again coercing iterable to a bytestring
-        return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
+        return separator.join(format_str.format(c) for c in iterable)
     except (TypeError, AttributeError):
         # TypeError - 'iterable' is not iterable
         # AttributeError - likely because separator is None
