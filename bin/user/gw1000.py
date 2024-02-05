@@ -460,24 +460,6 @@ default_fw_check_interval = 86400
 
 # define the default groups to use for WeeWX fields in the default field map
 # but not in the (WeeWX default) wview_extended schema
-# default_groups = {'extraTemp9': 'group_temperature',
-#                   'extraTemp10': 'group_temperature',
-#                   'extraTemp11': 'group_temperature',
-#                   'extraTemp12': 'group_temperature',
-#                   'extraTemp13': 'group_temperature',
-#                   'extraTemp14': 'group_temperature',
-#                   'extraTemp15': 'group_temperature',
-#                   'extraTemp16': 'group_temperature',
-#                   'extraTemp17': 'group_temperature',
-#                   'weekRain': 'group_rain',
-#                   'p_rain': 'group_rain',
-#                   'p_rainRate': 'group_rainrate',
-#                   'p_stormRain': 'group_rain',
-#                   'p_dayRain': 'group_rain',
-#                   'p_weekRain': 'group_rain',
-#                   'p_monthRain': 'group_rain',
-#                   'p_yearRain': 'group_rain'}
-
 default_groups = {
     'relbarometer': 'group_pressure',
     'luminosity': 'group_illuminance',
@@ -672,13 +654,6 @@ default_groups = {
     'ws90_sig': 'group_count'
 }
 
-# merge the default unit groups into weewx.units.obs_group_dict, but so we
-# don't undo any user customisation elsewhere only merge those fields that do
-# not already exits in weewx.units.obs_group_dict
-for obs, group in six.iteritems(default_groups):
-    if obs not in weewx.units.obs_group_dict.keys():
-        weewx.units.obs_group_dict[obs] = group
-
 
 # ============================================================================
 #                         Gateway API error classes
@@ -752,7 +727,7 @@ class DebugOptions(object):
         """Are we performing any debugging."""
 
         for debug_group in self.debug_groups:
-            if getattr(self, '_'.join(('debug', debug_group))):
+            if getattr(self, debug_group):
                 return True
         else:
             return False
@@ -1123,6 +1098,8 @@ class Gateway(object):
         # debug level, this will log them at the info level
         log_unknown_fields = weeutil.weeutil.tobool(gw_config.get('log_unknown_fields',
                                                                   False))
+        # define unit labels, formats and assign unit groups
+        define_units()
         # how to handle firmware update checks
         # how often to check for a gateway device firmware update
         fw_update_check_interval = int(gw_config.get('firmware_update_check_interval',
@@ -1924,9 +1901,6 @@ Gw1000Service = GatewayService
 # ============================================================================
 
 def loader(config_dict, engine):
-    # first define conversions and default labels and formats for units used
-    # by the gateway driver
-    define_units()
     return GatewayDriver(**config_dict[DRIVER_NAME])
 
 
@@ -6578,6 +6552,14 @@ def define_units():
     weewx.units.default_unit_label_dict['kilobyte'] = weewx.units.default_unit_label_dict.get('kilobyte') or u' kB'
     weewx.units.default_unit_format_dict['megabyte'] = weewx.units.default_unit_format_dict.get('megabyte') or '%.3f'
     weewx.units.default_unit_label_dict['megabyte'] = weewx.units.default_unit_label_dict.get('megabyte') or u' MB'
+
+    # merge the default unit groups into weewx.units.obs_group_dict, but so we
+    # don't undo any user customisation elsewhere only merge those fields that do
+    # not already exits in weewx.units.obs_group_dict
+    for obs, group in six.iteritems(default_groups):
+        if obs not in weewx.units.obs_group_dict.keys():
+            weewx.units.obs_group_dict[obs] = group
+
 
 
 def natural_sort_keys(source_dict):
