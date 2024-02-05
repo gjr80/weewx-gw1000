@@ -8,15 +8,15 @@ jobs:
 
     steps:
 
-    # install required packages
-    - run: |
+    - name: install packages
+      run: |
         sudo apt update
         sudo apt install --yes --no-install-recommends \
           python3-pip \
           python3-venv
 
-    # checkout the weewx-gw1000 repo
-    - uses: actions/checkout@v4
+    - name: checkout weewx-gw1000 repo
+      uses: actions/checkout@v4
 
     # install WeeWX and setup the test environment
     - name: pip install
