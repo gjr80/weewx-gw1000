@@ -8,18 +8,17 @@ jobs:
 
     steps:
 
-    - name: install packages
+    - name: Install packages
       run: |
         sudo apt update
         sudo apt install --yes --no-install-recommends \
           python3-pip \
           python3-venv
 
-    - name: checkout weewx-gw1000 repo
+    - name: Checkout weewx-gw1000 repo
       uses: actions/checkout@v4
 
-    # install WeeWX and setup the test environment
-    - name: pip install
+    - name: Install WeeWX and setup the test environment 
       run: |
         # install WeeWX in a venv via pip
         python3 -m venv ~/weewx-venv
@@ -41,11 +40,11 @@ jobs:
         # copy the test suite file
         cp ~/work/weewx-gw1000/weewx-gw1000/bin/user/tests/test_egd.py ~/weewx-data/bin/user/tests/
 
-    # run the test suite
-    - name: Launch tests
+    - name: Launch test suite
       run: |
-
+        # activate the venv
         source ~/weewx-venv/bin/activate
+        # run the test suite
         PYTHONPATH=~/weewx-data/bin python3 -m user.tests.test_egd 
 
 #    - name: Archive test-results
