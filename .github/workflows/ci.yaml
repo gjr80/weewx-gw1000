@@ -33,10 +33,10 @@ jobs:
           --no-prompt
         weectl extension install ~/work/weewx-gw1000/weewx-gw1000 --yes
         ls -ail ~/work/weewx-gw1000/weewx-gw1000
-        mkdir ~/weewx-data/bin/tests
-        cp ~/work/weewx-gw1000/weewx-gw1000/tests/test_egd.py ~/weewx-data/bin/tests/
-        ls -ail ~/weewx-data/bin/
-        ls -ail ~/weewx-data/bin/tests/
+        mkdir ~/weewx-data/bin/user/tests
+        cp ~/work/weewx-gw1000/weewx-gw1000/bin/user/tests/test_egd.py ~/weewx-data/bin/user/tests/
+        ls -ail ~/weewx-data/bin/user/
+        ls -ail ~/weewx-data/bin/user/tests/
 
     # - name: Setup tests
     #   run: |
