@@ -4,7 +4,7 @@ on: [workflow_dispatch]
 
 jobs:
   ci:
-    name: Ecowitt gateway driver test on ${{ matrix.python-version }}
+    name: Test under Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
 
     strategy:
