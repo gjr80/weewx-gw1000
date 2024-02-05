@@ -15,8 +15,6 @@ jobs:
           python3-venv
 
     - uses: actions/checkout@v4
-      with:
-        submodules: 'recursive'
 
     - name: pip install
       run: |
