@@ -38,16 +38,11 @@ import struct
 import unittest
 from unittest.mock import patch
 
-# TODO. Python3 only so remove six
-# Python 2/3 compatibility shims
-import six
-
 # WeeWX imports
 import weewx
 import weewx.units
 import user.gw1000
 
-# TODO. Add test to check that all default fields are included in the unit group dict
 # TODO. Check speed_data data and result are correct
 # TODO. Check rain_data data and result are correct
 # TODO. Check rainrate_data data and result are correct
@@ -65,6 +60,75 @@ import user.gw1000
 
 TEST_SUITE_NAME = "Gateway driver"
 TEST_SUITE_VERSION = "0.6.0b7"
+
+
+class DebugOptionsTestCase(unittest.TestCase):
+    """Test the DebugOptions class."""
+
+    # the debug option groups we know about
+    debug_groups = ('rain', 'wind', 'loop', 'sensors')
+
+    def setUp(self):
+
+        # construct a debug option dict with all options set to 'true', this
+        # mimics a configobj config dict
+        debug_dict = {}
+        for group in self.debug_groups:
+            debug_dict['debug_%s' % group] = 'true'
+        self.debug_dict = debug_dict
+
+    def test_properties(self):
+        """Test the setting of object properties on initialisation."""
+
+        # check the default
+        debug_options = user.gw1000.DebugOptions({})
+        for group in self.debug_groups:
+            self.assertFalse(getattr(debug_options, group))
+        # check 'any' property
+        self.assertFalse(debug_options.any)
+
+        # check all True
+        debug_options = user.gw1000.DebugOptions(self.debug_dict)
+        for group in self.debug_groups:
+            self.assertTrue(getattr(debug_options, group))
+        # check 'any' property
+        self.assertTrue(debug_options.any)
+
+        # check when just one debug option is True
+        # iterate over each of our debug groups, this is the group that will be
+        # set True for the test
+        for true_group in self.debug_groups:
+            # now set all other debug_xxxx entries to false in our debug config
+            # dict
+            for group in self.debug_groups:
+                self.debug_dict['debug_%s' % group] = 'true' if group == true_group else 'false'
+            # get a fresh DebugOptions object
+            debug_options = user.gw1000.DebugOptions(self.debug_dict)
+            # now check the DebugOptions object properties are set as expected
+            for group in self.debug_groups:
+                # the property for the group under test should be set True, all
+                # others should be False
+                if group == true_group:
+                    self.assertTrue(getattr(debug_options, group))
+                else:
+                    self.assertFalse(getattr(debug_options, group))
+            # check 'any' property, it should be True
+            self.assertTrue(debug_options.any)
+            # now do the same checks but this time for a debug config dict
+            # that consists of solely the group under test
+            self.debug_dict = {'debug_%s' % true_group: 'true'}
+            # get a fresh DebugOptions object
+            debug_options = user.gw1000.DebugOptions(self.debug_dict)
+            # now check the DebugOptions object properties are set as expected
+            for group in self.debug_groups:
+                # the property for the group under test should be set True, all
+                # others should be False
+                if group == true_group:
+                    self.assertTrue(getattr(debug_options, group))
+                else:
+                    self.assertFalse(getattr(debug_options, group))
+            # check 'any' property, it should be True
+            self.assertTrue(debug_options.any)
 
 
 class SensorsTestCase(unittest.TestCase):
@@ -1115,9 +1179,9 @@ class ListsAndDictsTestCase(unittest.TestCase):
         # test that each WeeWX field in the driver default field map is
         # assigned a unit group, either in the gw1000.default_groups or
         # weewx.units.obs_group_dict observation group dictionaries
-        for w_field, g_field in self.default_field_map.items():
+        for w_field in self.default_field_map.keys():
             if w_field not in weewx.units.obs_group_dict.keys():
-                self.assertIn(g_field,
+                self.assertIn(w_field,
                               user.gw1000.default_groups.keys(),
                               msg="A field from the driver default field map is "
                                   "missing from the default_groups observation group dictionary")
@@ -1894,11 +1958,7 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     # elements can be formatted with {:02X}
     format_str = "{:02X}" if caps else "{:02x}"
     try:
-        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
-    except ValueError:
-        # most likely we are running python3 and iterable is not a bytestring,
-        # try again coercing iterable to a bytestring
-        return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
+        return separator.join(format_str.format(c) for c in iterable)
     except (TypeError, AttributeError):
         # TypeError - 'iterable' is not iterable
         # AttributeError - likely because separator is None
@@ -1937,9 +1997,9 @@ def main():
     import argparse
 
     # test cases that are production ready
-    test_cases = (SensorsTestCase, ParseTestCase, UtilitiesTestCase,
-                  ListsAndDictsTestCase, StationTestCase, GatewayTestCase)
-#                  ListsAndDictsTestCase, GatewayTestCase)
+    test_cases = (DebugOptionsTestCase, SensorsTestCase, ParseTestCase,
+                  UtilitiesTestCase, ListsAndDictsTestCase, StationTestCase,
+                  GatewayTestCase)
 
     usage = """python3 -m user.tests.test_eg --help
            python3 -m user.tests.test_eg --version

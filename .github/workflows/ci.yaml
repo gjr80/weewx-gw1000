@@ -4,59 +4,62 @@ on: [workflow_dispatch]
 
 jobs:
   ci:
+    name: Test under Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
 
-    - run: |
+    - name: Install packages
+      run: |
         sudo apt update
         sudo apt install --yes --no-install-recommends \
-          python3-configobj \
-          python3-cheetah \
-          python3-ephem \
-          python3-mock \
-          python3-mysqldb \
-          python3-serial \
-          python3-usb \
           python3-pip \
-          mariadb-client \
-          mariadb-server \
-          rsync \
-          sqlite
+          python3-venv
 
-    - uses: actions/checkout@v3
+    - name: Checkout weewx-gw1000 repo
+      uses: actions/checkout@v4
 
-    - name: pip install
-      run: |
-        python3 -m pip install --user "Pillow>=9.2"
-        # python3 -m pip install --user mkdocs
-        # python3 -m pip install --user mkdocs-material
-
-    # - name: Setup tests
-    #   run: |
-    #     sudo make test-setup-ci
-
-    - name: Launch tests
-      run: |
-        echo "-----pwd-----"
-        pwd
-
-        echo "-----ls -hail-----"
-        ls -hail
-
-        echo "-----ls bin/-----"
-        ls -hail bin/
-
-        echo "----PYTHONPATH------"
-        PWD=$(pwd)
-        export PYTHONPATH=$PWD/bin:$PYTHONPATH
-        echo "----PYTHONPATH------"
-        python3 -m user.tests.test_egd
-        # PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg 
-
-    - name: Archive test-results
-      if: success() || failure()
-      uses: actions/upload-artifact@v3
+    - name: Set Python version - ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
       with:
-        name: test-results
-        path: build/test-results
+        python-version : ${{ matrix.python-version }}
+
+    - name: Install WeeWX and setup the test environment 
+      run: |
+        # install WeeWX in a venv via pip
+        python3 -m venv ~/weewx-venv
+        source ~/weewx-venv/bin/activate
+        python3 -m pip install weewx
+        # create a station
+        weectl station create --driver=weewx.drivers.simulator \
+          --location=CI \
+          --altitude=46,meter \
+          --latitude=-27 \
+          --longitude=152 \
+          --register=n \
+          --units=us \
+          --no-prompt
+        # install the Gateway driver extension
+        weectl extension install ~/work/weewx-gw1000/weewx-gw1000 --yes
+        # create a directory to hold the test suites, it is not created by the installer
+        mkdir ~/weewx-data/bin/user/tests
+        # copy the test suite file
+        cp ~/work/weewx-gw1000/weewx-gw1000/bin/user/tests/test_egd.py ~/weewx-data/bin/user/tests/
+
+    - name: Launch test suite
+      run: |
+        # activate the venv
+        source ~/weewx-venv/bin/activate
+        # run the test suite
+        PYTHONPATH=~/weewx-data/bin python3 -m user.tests.test_egd 
+
+#    - name: Archive test-results
+#      if: success() || failure()
+#      uses: actions/upload-artifact@v3
+#      with:
+#        name: test-results
+#        path: build/test-results
