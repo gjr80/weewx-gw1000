@@ -8,21 +8,24 @@ jobs:
 
     steps:
 
+    # install required packages
     - run: |
         sudo apt update
         sudo apt install --yes --no-install-recommends \
           python3-pip \
           python3-venv
 
+    # checkout the weewx-gw1000 repo
     - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
+    # install WeeWX and setup the test environment
     - name: pip install
       run: |
+        # install WeeWX in a venv via pip
         python3 -m venv ~/weewx-venv
         source ~/weewx-venv/bin/activate
         python3 -m pip install weewx
+        # create a station
         weectl station create --driver=weewx.drivers.simulator \
           --location=CI \
           --altitude=46,meter \
@@ -31,26 +34,17 @@ jobs:
           --register=n \
           --units=us \
           --no-prompt
+        # install the Gateway driver extension
         weectl extension install ~/work/weewx-gw1000/weewx-gw1000 --yes
-        ls -ail ~/work/weewx-gw1000/weewx-gw1000
+        # create a directory to hold the test suites, it is not created by the installer
         mkdir ~/weewx-data/bin/user/tests
+        # copy the test suite file
         cp ~/work/weewx-gw1000/weewx-gw1000/bin/user/tests/test_egd.py ~/weewx-data/bin/user/tests/
-        ls -ail ~/weewx-data/bin/user/
-        ls -ail ~/weewx-data/bin/user/tests/
 
-    # - name: Setup tests
-    #   run: |
-    #     sudo make test-setup-ci
-
+    # run the test suite
     - name: Launch tests
       run: |
 
-        pwd
-        # ls -ail /
-        # ls -ail
-        # ls -ail ~
-        # ls -ail ~/work/weewx-gw1000/weewx-gw1000
-        # ls -ail ~/weewx-data/bin/user
         source ~/weewx-venv/bin/activate
         PYTHONPATH=~/weewx-data/bin python3 -m user.tests.test_egd 
 
