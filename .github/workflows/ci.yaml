@@ -42,7 +42,7 @@ jobs:
         ls -ail /
         ls -ail
         ls -ail ~
-        ls -ail ~/work/weewx-gw1000
+        ls -ail ~/work/weewx-gw1000/weewx-gw1000
         # PYTHONPATH=~/weewx-data/bin python3 -m user.tests.test_egd
         # PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg 
 
