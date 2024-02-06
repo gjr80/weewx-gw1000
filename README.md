@@ -28,7 +28,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
     **Note:** The exact command syntax to invoke *weectl* on your system will depend on the installer used to install WeeWX. Refer to [Installation methods](http://weewx.com/docs/5.0/usersguide/installing/#installation-methods) in the WeeWX [User's Guide](http://weewx.com/docs/5.0/usersguide/introduction/).
 
-    For a WeeWX package installs:
+    For WeeWX package installs:
 
         weectl extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip 
  
@@ -42,7 +42,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
         source ~/weewx-venv/bin/activate
         python3 ~/weewx/src/weectl.py extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
-3.  Test the Ecowitt Gateway driver by running the driver file directly using the *--test-driver* command line option. For package installs use:
+3.  Test the Ecowitt Gateway driver by running the driver file directly using the *--test-driver* command line option. For WeeWX package installs use:
 
         PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py --test-driver --ip-address=device_ip_address
 
@@ -66,7 +66,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
     **Note:** You will only see loop packets and not archive records when running the driver directly. This is because you are seeing output not from WeeWX, but rather directly from the driver. 
 
-4.  Select and configure the driver. For a package install use:
+4.  Select and configure the driver. For WeeWX package installs use:
 
         weectl station reconfigure --driver=user.gw1000
 
@@ -110,7 +110,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
                ....
                data_services = user.gw1000.GatewayService
 
-4. Test the Ecowitt Gateway service by running the driver file directly using the *--test-service* command line option. For package installs use:
+4. Test the Ecowitt Gateway service by running the driver file directly using the *--test-service* command line option. For WeeWX package installs use:
 
         PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py --test-service --ip-address=device_ip_address
 
@@ -154,39 +154,13 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
 7.  You may wish to refer to the [GW1000 driver wiki](https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on customising the operation of the Ecowitt Gateway driver and integrating gateway device data into WeeWX generated reports. 
 
+
 ## Upgrade Instructions
 
 **Note:** Before upgrading the Ecowitt Gateway driver, check the [Instructions for specific versions](https://github.com/gjr80/weewx-gw1000/wiki/Upgrade-Guide#instructions-for-specific-versions) section of the Ecowitt Gateway driver [Upgrade Guide](https://github.com/gjr80/weewx-gw1000/wiki/Upgrade-Guide) to see if any specific actions are required as part of the upgrade.
 
 To upgrade from an earlier version of the Ecowitt Gateway driver or GW1000 driver (installed as either a WeeWX driver or a WeeWX service) simply install the Ecowitt Gateway driver version you wish to upgrade to as per the [Installation Instructions](#installation-instructions) above.
 
-
-## Downgrade Instructions
-
-To downgrade to an earlier release:
-
-1.  Uninstall the currently installed Ecowitt Gateway driver (or GW1000 driver) using the [*weectl* utility](http://weewx.com/docs/5.0/utilities/weectl-extension/#uninstall-an-extension). 
-
-    **Note:** The exact command syntax to invoke *weectl* on your system will depend on the installer used to install WeeWX. Refer to [Installation methods](http://weewx.com/docs/5.0/usersguide/installing/#installation-methods) in the WeeWX [User's Guide](http://weewx.com/docs/5.0/usersguide/introduction/).
-
-    For a WeeWX package installs:
-
-        weectl extension uninstall GW1000 
- 
-    For WeeWX *pip* installs the Python virtual environment must be activated before the extension is installed:
-
-        source ~/weewx-venv/bin/activate
-        weectl extension uninstall GW1000
-
-    For WeeWX installs from *git* the Python virtual environment must be activated before the extension is installed:
-
-        source ~/weewx-venv/bin/activate
-        python3 ~/weewx/src/weectl.py extension uninstall GW1000
-
-2.  Locate the Ecowitt Gateway driver version you wish to downgrade to on the 
-3. and then install the desired release as per the [Installation Instructions](#installation-instructions) above. 
-
-**Note:** Care should be taken when downgrading to an earlier release as subsequent releases may have entailed enduring changes; for example database schema changes, that are not undone by simply uninstalling the driver.
 
 ## Support
 

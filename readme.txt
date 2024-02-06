@@ -57,7 +57,7 @@ utility (http://weewx.com/docs/5. 0/utilities/weectl-extension/#install-an-exten
           (http://weewx.com/docs/5.0/usersguide/installing/#installation-methods)
           in the WeeWX User's Guide (http://weewx.com/docs/5.0/usersguide/introduction/).
 
-    For a WeeWX package installs:
+    For WeeWX package installs:
 
         weectl extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
@@ -73,7 +73,7 @@ utility (http://weewx.com/docs/5. 0/utilities/weectl-extension/#install-an-exten
             https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
 3.  Test the Ecowitt Gateway driver by running the driver file directly using
-the --test-driver command line option. For package installs use:
+the --test-driver command line option. For WeeWX package installs use:
 
         PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py \
         --test-driver --ip-address=device_ip_address
@@ -106,7 +106,7 @@ the --test-driver command line option. For package installs use:
           the driver directly. This is because you are seeing output not from
           WeeWX, but rather directly from the driver.
 
-4.  Select and configure the driver. For a package install use:
+4.  Select and configure the driver. For WeeWX package installs use:
 
         weectl station reconfigure --driver=user.gw1000
 
@@ -164,7 +164,7 @@ something like:
             data_services = user.gw1000.GatewayService
 
 4.  Test the Ecowitt Gateway service by running the driver file directly using
-the --test-service command line option.For package installs use:
+the --test-service command line option.For WeeWX package installs use:
 
         PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py \
         --test-service --ip-address=device_ip_address
@@ -238,17 +238,6 @@ To upgrade from an earlier version of the Ecowitt Gateway driver or GW1000
 driver (installed as either a WeeWX driver or a WeeWX service) simply install
 the Ecowitt Gateway driver version you wish to upgrade to as per the
 Installation Instructions above.
-
-
-Downgrade Instructions
-
-To downgrade to an earlier release first uninstall the currently installed
-Ecowitt Gateway driver (or GW1000 driver) and then install the desired release
-as per the Installation Instructions above.
-
-Note: Care should be taken when downgrading to an earlier release as subsequent
-      releases may have entailed enduring changes; for example database schema
-      changes, that are not undone by simply uninstalling the GW1000 driver.
 
 
 Support
