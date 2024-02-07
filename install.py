@@ -374,6 +374,7 @@ gw1000_config = """
 # construct our config dict
 gw1000_dict = configobj.ConfigObj(StringIO(gw1000_config))
 
+
 def version_compare(v1, v2):
     """Basic 'distutils' and 'packaging' free version comparison.
 
