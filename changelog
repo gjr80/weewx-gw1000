@@ -1,4 +1,4 @@
-v0.6.0b7
+v0.6.0
 -   implement device HTTP requests to obtain additional device/sensor status
     data not available via API
 -   fix error in multi-channel temperature calibration data decode
@@ -6,6 +6,7 @@ v0.6.0b7
 -   added support for free heap memory field
 -   fixed issue that prevented use of the driver as both a driver and a service
     under a single WeeWX instance
+-   added wee_device/weectl device support
 -   rename a number of calibration/offset related command line options to
     better align with the labels/names now used in the WSView Plus app v2.0.32
 -   implement --get-mulch-t-cal command line option to display WN34 temperature
