@@ -1,13 +1,13 @@
 Ecowitt Gateway (formerly GW1000) Driver
 
 Note: The instructions and links in this readme have been produced for
-WeeWX v5. In general the same concepts apply to earlier WeeWX versions;
-however, the detailed steps and commands required will likely be different.
-If you wish to persist with an earlier WeeWX version you may wish to refer to
-the legacy installation instructions
-(https://github.com/gjr80/weewx-gw1000/wiki/Legacy-installation-instructions).
-Alternatively, you may find it easier to just upgrade to WeeWX v5 - after all
-it is free.
+      WeeWX v5. In general, the same concepts apply to earlier WeeWX versions;
+      however, the detailed steps and commands required will be different. If
+      you wish to persist with an earlier WeeWX version you may wish to refer
+      to the legacy installation instructions
+      (https://github.com/gjr80/weewx-gw1000/wiki/Legacy-installation-instructions).
+      Alternatively, you may find it easier to just upgrade to WeeWX v5 -
+      after all it is free.
 
 Note: General support issues for the Ecowitt Gateway driver should be raised in
       the Google Groups weewx-user forum
@@ -16,6 +16,7 @@ Note: General support issues for the Ecowitt Gateway driver should be raised in
       used for specific bugs in the Ecowitt Gateway driver code. It is
       recommended that even if an Ecowitt Gateway driver bug is suspected users
       first post to the Google Groups weewx-user forum.
+
 
 Description
 
@@ -28,15 +29,18 @@ the push methodology used by other drivers. This has the advantage of giving
 the user more control over when the data is obtained from the gateway device.
 
 The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where
-it is the source of loop data for a WeeWX instance or it can be operated as a
-WeeWX service where it is used to augment loop data produced by another driver.
+it is the source of loop data, or it can be operated as a WeeWX service where
+it is used to augment loop data produced by another driver.
+
 
 Pre-Requisites
 
 The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate
 under Python2 or Python 3.
 
+
 Installation Instructions
+
 
 Installation as a WeeWX driver
 
@@ -50,30 +54,35 @@ installation, first install WeeWX (http://weewx.com/docs/5.0/usersguide/installi
 and configure WeeWX to use the simulator driver.
 
 2.  Install the latest version of the Ecowitt Gateway driver using the weectl
-utility (http://weewx.com/docs/5. 0/utilities/weectl-extension/#install-an-extension).
+utility (http://weewx.com/docs/5.0/utilities/weectl-extension/#install-an-extension).
 
     Note: The exact command syntax to invoke weectl on your system will depend
           on the installer used to install WeeWX. Refer to Installation methods
           (http://weewx.com/docs/5.0/usersguide/installing/#installation-methods)
-          in the WeeWX User's Guide (http://weewx.com/docs/5.0/usersguide/introduction/).
+          in the WeeWX User's Guide
+          (http://weewx.com/docs/5.0/usersguide/introduction/).
 
     For WeeWX package installs:
 
         weectl extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
-    For WeeWX *pip* installs the Python virtual environment must be activated before the extension is installed:
+    For WeeWX *pip* installs the Python virtual environment must be activated
+    before the extension is installed:
 
         source ~/weewx-venv/bin/activate
         weectl extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
-    For WeeWX installs from *git* the Python virtual environment must be activated before the extension is installed:
+    For WeeWX installs from *git* the Python virtual environment must be
+    activated before the extension is installed:
 
         source ~/weewx-venv/bin/activate
         python3 ~/weewx/src/weectl.py extension install \
             https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
 3.  Test the Ecowitt Gateway driver by running the driver file directly using
-the --test-driver command line option. For WeeWX package installs use:
+the --test-driver command line option.
+
+    For WeeWX package installs use:
 
         PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py \
         --test-driver --ip-address=device_ip_address
@@ -106,7 +115,9 @@ the --test-driver command line option. For WeeWX package installs use:
           the driver directly. This is because you are seeing output not from
           WeeWX, but rather directly from the driver.
 
-4.  Select and configure the driver. For WeeWX package installs use:
+4.  Select and configure the driver.
+
+    For WeeWX package installs use:
 
         weectl station reconfigure --driver=user.gw1000
 
@@ -123,10 +134,12 @@ the --test-driver command line option. For WeeWX package installs use:
         python3 ~/weewx/src/weectl.py station reconfigure --driver=user.gw1000
 
 
-6.  You may choose to run WeeWX directly (http://weewx.com/docs/usersguide.htm#Running_directly)
-to observe the loop packets and archive records being generated by WeeWX.
+5.  You may choose to run WeeWX directly
+(http://weewx.com/docs/usersguide.htm#Running_directly) to observe the loop
+packets and archive records being generated by WeeWX. If WeeWX is already
+running stop WeeWX before running the driver directly.
 
-7.  Once satisfied that the Ecowitt Gateway driver is operating correctly you
+6.  Once satisfied that the Ecowitt Gateway driver is operating correctly you
 can restart the WeeWX daemon:
 
     sudo /etc/init.d/weewx restart
@@ -139,7 +152,7 @@ can restart the WeeWX daemon:
 
     sudo systemctl restart weewx
 
-8.  You may wish to refer to the Ecowitt Gateway driver wiki
+7.  You may wish to refer to the Ecowitt Gateway driver wiki
 (https://github.com/gjr80/weewx-gw1000/wiki) for further guidance on
 customising the operation of the Ecowitt Gateway driver and integrating gateway
 device data into WeeWX generated reports.
@@ -148,7 +161,8 @@ device data into WeeWX generated reports.
 Installation as a WeeWX service
 
 1.  Install WeeWX (refer to http://weewx.com/docs/5.0/usersguide/installing/)
-and configure it to use either the simulator or another driver of your choice.
+and configure it to use either the simulator driver or another driver of your
+choice.
 
 2.  Install the Ecowitt Gateway driver extension using the weectl utility as
 per Installation as a WeeWX driver at step 2 above.
@@ -164,7 +178,9 @@ something like:
             data_services = user.gw1000.GatewayService
 
 4.  Test the Ecowitt Gateway service by running the driver file directly using
-the --test-service command line option.For WeeWX package installs use:
+the --test-service command line option.
+
+    For WeeWX package installs use:
 
         PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py \
         --test-service --ip-address=device_ip_address
@@ -190,18 +206,26 @@ the --test-service command line option.For WeeWX package installs use:
 
     where device_ip_address is the IP address of the gateway device being used.
 
-    You should observe loop packets being emitted on a regular basis. Once
-    finished press ctrl-c to exit.
+    You should observe loop packets being emitted on a regular basis.
+
+    Note: When the Ecowitt Gateway driver is run directly with the
+          --test-service command line option a series of simulated loop packets
+          are emitted every 10 seconds to simulate a running WeeWX instance.
+          The gateway device is polled and the gateway device data added to the
+          loop packets when available. As the default gateway device poll
+          interval is 20 seconds not all loop packets will be augmented with
+          gateway device data.
 
     Note: You will only see loop packets and not archive records when running
-          the driver directly. This is because you are seeing output not from
-          WeeWX, but rather directly from the driver.
+          the service directly. This is because you are seeing the direct
+          output of the simulated loop packets and the Ecowitt Gateway service
+          and not WeeWX.
 
 5.  You may choose to run WeeWX directly
 (http://weewx.com/docs/5.0/usersguide/running/#running-directly) to observe
 the loop packets and archive records being generated by WeeWX. Note that
 depending on the frequency of the loop packets emitted by the in-use driver and
-the polling interval of the Ecowitt Gateway service not all loop packets may
+the polling interval of the Ecowitt Gateway service, not all loop packets may
 include gateway device data; however, provided the gateway device polling
 interval is less than the frequency of the loop packets emitted by the in-use
 driver each archive record should contain gateway device data.
@@ -244,10 +268,11 @@ Support
 
 General support issues for the Ecowitt Gateway driver should be raised in the
 Google Groups weewx-user forum (https://groups.google.com/g/weewx-user). The
-Ecowitt Gateway driver Issues Page (https://github.com/gjr80/weewx-gw1000/issues)
-should only be used for specific bugs in the Ecowitt Gateway driver code. It is
-recommended that even if an Ecowitt Gateway driver bug is suspected users first
-post to the Google Groups weewx-user forum.
+Ecowitt Gateway driver Issues Page
+(https://github.com/gjr80/weewx-gw1000/issues) should only be used for specific
+bugs in the Ecowitt Gateway driver code. It is recommended that even if an
+Ecowitt Gateway driver bug is suspected users first post to the Google Groups
+weewx-user forum.
 
 
 Licensing

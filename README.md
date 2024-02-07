@@ -136,9 +136,9 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
  
     where *device_ip_address* is the IP address of the gateway device being used.
 
-    You should observe loop packets being emitted on a regular basis. Once finished press *ctrl-c* to exit.
+    You should observe loop packets being emitted on a regular basis.
 
-    **Note:** When the Ecowitt Gateway driver is run directly with the *--test-service* command line option a series of simulated loop packets are emitted every 10 seconds to simulate a running WeeWX instance. The gateway device is polled and the gateway device data added to the loop packets when available. As the default gateway device poll interval is 60 seconds not all loop packets will be augmented with gateway device data.
+    **Note:** When the Ecowitt Gateway driver is run directly with the *--test-service* command line option a series of simulated loop packets are emitted every 10 seconds to simulate a running WeeWX instance. The gateway device is polled and the gateway device data added to the loop packets when available. As the default gateway device poll interval is 20 seconds not all loop packets will be augmented with gateway device data.
 
     **Note:** You will only see loop packets and not archive records when running the service directly. This is because you are seeing the direct output of the simulated loop packets and the Ecowitt Gateway service and not WeeWX.
 
