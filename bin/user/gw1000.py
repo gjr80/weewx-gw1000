@@ -3447,15 +3447,8 @@ class ApiParser(object):
         offset_dict = {}
         # iterate over the data
         while index < len(data):
-            try:
-                channel = data[index]
-            except TypeError:
-                channel = data[index]
-            try:
-                offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
-            except TypeError:
-                offset_dict[channel] = struct.unpack(">h", six.int2byte(data[index + 1:index + 3]))[0] / 10.0
-
+            channel = data[index]
+            offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
             index += 3
         return offset_dict
 
@@ -6609,12 +6602,13 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     # assume 'iterable' can be iterated by iterbytes and the individual
     # elements can be formatted with {:02X}
     format_str = "{:02X}" if caps else "{:02x}"
+    # TODO. Need to verify use of iterable and str.encode(iterable) do what we want
     try:
-        return separator.join(format_str.format(c) for c in six.iterbytes(iterable))
+        return separator.join(format_str.format(c) for c in iterable)
     except ValueError:
         # most likely we are running python3 and iterable is not a bytestring,
         # try again coercing iterable to a bytestring
-        return separator.join(format_str.format(c) for c in six.iterbytes(six.b(iterable)))
+        return separator.join(format_str.format(c) for c in str.encode(iterable))
     except (TypeError, AttributeError):
         # TypeError - 'iterable' is not iterable
         # AttributeError - likely because separator is None
