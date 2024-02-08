@@ -2957,8 +2957,8 @@ class GatewayCollector(Collector):
         try:
             self.thread = GatewayCollector.CollectorThread(self)
             self.collect_data = True
-            self.thread.setDaemon(True)
-            self.thread.setName('GatewayCollectorThread')
+            self.thread.daemon = True
+            self.thread.name = 'GatewayCollectorThread'
             self.thread.start()
         except threading.ThreadError:
             logerr("Unable to launch GatewayCollector thread")
