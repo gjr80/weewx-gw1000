@@ -347,6 +347,9 @@ import socket
 import struct
 import threading
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from operator import itemgetter
 
 # WeeWX imports
@@ -5953,7 +5956,7 @@ class GatewayHttp(object):
         # check if we have a command that we know about
         if command_str in GatewayHttp.commands:
             # first convert any data to a percent-encoded ASCII text string
-            data_enc = urlencode(data)
+            data_enc = urllib.parse.urlencode(data)
             # construct the scheme and host portions of the URL
             stem = ''.join(['http://', self.ip_address])
             # now add the 'path'
@@ -5984,7 +5987,7 @@ class GatewayHttp(object):
                     resp = w.read().decode()
                 # we are finished with the raw response so close it
                 w.close()
-            except (socket.timeout, URLError) as e:
+            except (socket.timeout, urllib.error.URLError) as e:
                 # log the error and raise it
                 log.error("Failed to get device data")
                 log.error("   **** %s" % e)
@@ -6016,7 +6019,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_version')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_livedata_info(self):
@@ -6026,7 +6029,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_livedata_info')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_ws_settings(self):
@@ -6036,7 +6039,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_ws_settings')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_calibration_data(self):
@@ -6046,7 +6049,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_calibration_data')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_rain_totals(self):
@@ -6056,7 +6059,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_rain_totals')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_device_info(self):
@@ -6066,7 +6069,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_device_info')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_sensors_info(self):
@@ -6077,11 +6080,11 @@ class GatewayHttp(object):
 
         try:
             page_1 = self.request('get_sensors_info', data={'page': 1})
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             page_1 = None
         try:
             page_2 = self.request('get_sensors_info', data={'page': 2})
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             page_2 = None
         if page_1 is not None and page_2 is not None:
             return page_1 + page_2
@@ -6097,7 +6100,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_network_info')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_units_info(self):
@@ -6107,7 +6110,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_units_info')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_cli_soilad(self):
@@ -6118,7 +6121,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_soilad')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_cli_multiCh(self):
@@ -6130,7 +6133,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_multiCh')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             pass
 
     def get_cli_pm25(self):
@@ -6141,7 +6144,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_pm25')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_cli_co2(self):
@@ -6152,7 +6155,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_co2')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
     def get_piezo_rain(self):
@@ -6162,7 +6165,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_piezo_rain')
-        except (URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout) as e:
             return None
 
 
