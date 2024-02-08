@@ -1176,7 +1176,7 @@ class Gateway(object):
         self.piezo_rain_total_field = None
 
     @staticmethod
-    def construct_field_map(self, **gw_config):
+    def construct_field_map(**gw_config):
         """Given a gateway device config construct the field map."""
 
         # first obtain the field map from our config
@@ -1252,7 +1252,7 @@ class Gateway(object):
         _result = {'usUnits': weewx.METRICWX}
         # iterate over each of the key, value pairs in the field map
         for weewx_field, data_field in self.field_map.items():
-            # if the field to be mapped exists in the data obtain it's
+            # if the field to be mapped exists in the data obtain its
             # value and map it to the packet
             if data_field in data:
                 _result[weewx_field] = data.get(data_field)
@@ -2665,7 +2665,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                                                                                           e))
                             # then raise it, WeeWX will decide what to do
                             raise e
-                # if it's None then its a signal the Collector needs to shut
+                # if it's None then it's a signal the Collector needs to shut
                 # down
                 elif queue_data is None:
                     # if debug.loop log what we received
@@ -3668,7 +3668,7 @@ class ApiParser(object):
                 ad_select = data[index + 4]
             except TypeError:
                 ad_select = data[index + 4]
-            # get 'Customize' setting 1 = enable, 0 = customised
+            # get 'Customize' setting 1 = enable, 0 = customized
             cal_dict[channel]['ad_select'] = ad_select
             try:
                 min_ad = data[index + 5]
@@ -4602,7 +4602,7 @@ class Sensors(object):
         connected_list = list()
         # iterate over all sensors
         for address, data in self.sensor_data.items():
-            # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
+            # if the sensor ID is neither 'fffffffe' nor 'ffffffff' then it
             # must be connected
             if data['id'] not in self.not_registered:
                 connected_list.append(address)
@@ -4727,7 +4727,7 @@ class Sensors(object):
 
     @staticmethod
     def batt_int(batt):
-        """Decode a integer battery state.
+        """Decode an integer battery state.
 
         According to the API documentation battery state is stored as an
         integer from 0 to 5 with <=1 being considered low. Experience with
@@ -5937,7 +5937,7 @@ class GatewayHttp(object):
         # the IP address to be used (stored as a string)
         self.ip_address = ip_address
 
-    def request(self, command_str, data={}, headers={}):
+    def request(self, command_str, data=None, headers=None):
         """Send a HTTP request to the device and return the response.
 
         Create a HTTP request with optional data and headers. Send the HTTP
@@ -5956,9 +5956,11 @@ class GatewayHttp(object):
         """
 
         # check if we have a command that we know about
+        data_dict = {} if data is None else data
+        headers_dict = {} if headers is None else headers
         if command_str in GatewayHttp.commands:
             # first convert any data to a percent-encoded ASCII text string
-            data_enc = urllib.parse.urlencode(data)
+            data_enc = urllib.parse.urlencode(data_dict)
             # construct the scheme and host portions of the URL
             stem = ''.join(['http://', self.ip_address])
             # now add the 'path'
@@ -5968,7 +5970,7 @@ class GatewayHttp(object):
             # request is sent as a GET request rather than a POST request.
             full_url = '?'.join([url, data_enc])
             # create a Request object
-            req = urllib.request.Request(url=full_url, headers=headers)
+            req = urllib.request.Request(url=full_url, headers=headers_dict)
             try:
                 # submit the request and obtain the raw response
                 w = urllib.request.urlopen(req)
@@ -6021,7 +6023,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_version')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_livedata_info(self):
@@ -6031,7 +6033,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_livedata_info')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_ws_settings(self):
@@ -6041,7 +6043,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_ws_settings')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_calibration_data(self):
@@ -6051,7 +6053,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_calibration_data')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_rain_totals(self):
@@ -6061,7 +6063,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_rain_totals')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_device_info(self):
@@ -6071,7 +6073,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_device_info')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_sensors_info(self):
@@ -6082,11 +6084,11 @@ class GatewayHttp(object):
 
         try:
             page_1 = self.request('get_sensors_info', data={'page': 1})
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             page_1 = None
         try:
             page_2 = self.request('get_sensors_info', data={'page': 2})
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             page_2 = None
         if page_1 is not None and page_2 is not None:
             return page_1 + page_2
@@ -6102,7 +6104,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_network_info')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_units_info(self):
@@ -6112,7 +6114,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_units_info')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_cli_soilad(self):
@@ -6123,7 +6125,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_soilad')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_cli_multiCh(self):
@@ -6135,7 +6137,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_multiCh')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             pass
 
     def get_cli_pm25(self):
@@ -6146,7 +6148,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_pm25')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_cli_co2(self):
@@ -6157,7 +6159,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_cli_co2')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
     def get_piezo_rain(self):
@@ -6167,7 +6169,7 @@ class GatewayHttp(object):
 
         try:
             return self.request('get_piezo_rain')
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout):
             return None
 
 
@@ -6190,7 +6192,7 @@ class GatewayDevice(object):
     parameters. HTTP request communications is HTTP GET based and involves
     the decoding of JSON format message data.
 
-    A GatewayDevice object uses the following classes for interracting with the
+    A GatewayDevice object uses the following classes for interacting with the
     gateway device:
 
     - class GatewayApi.  Communicates directly with the gateway device via the
@@ -7010,9 +7012,9 @@ class DirectGateway(object):
     def show_battery_from_config_opts(self):
         """Determine whether to filter nonsense battery state data.
 
-        Determine the whether to filter nonsense battery state data given a
-        station config dict and command line options. The decision to filter is
-        made as follows:
+        Determine whether to filter nonsense battery state data given a station
+        config dict and command line options. The decision to filter is made as
+        follows:
         - if specified use the show_battery option from the command line
         - if show_battery was not specified on the command line obtain the
           show_battery option from the station config dict
