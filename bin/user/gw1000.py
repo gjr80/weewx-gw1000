@@ -1580,6 +1580,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # an extended lost contact period
         self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
                                                               default_lost_contact_log_period))
+        # TODO. this should be moved to class Gateway __init__
         # get device specific debug settings
         self.debug = DebugOptions(gw_config_dict)
 
@@ -2514,6 +2515,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
 
         # log our version number
         loginf('GatewayDriver: version is %s' % DRIVER_VERSION)
+        # TODO. this should be moved to class Gateway __init__
         # get device specific debug settings
         self.debug = DebugOptions(stn_dict)
         # now initialize my superclasses
