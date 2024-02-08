@@ -33,9 +33,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0                                     Date: 7 February 2024
+Version: 0.7.0a1                                   Date: X Xxxxxxxxx 202x
 
 Revision History
+    X Xxxxxxxxxx 202x       v0.7.0
+        -
     7 February 2024         v0.6.0
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
@@ -337,20 +339,15 @@ from __future__ import print_function
 
 import calendar
 import configobj
+import io
 import json
+import queue
 import re
 import socket
 import struct
 import threading
 import time
 from operator import itemgetter
-
-# Python 2/3 compatibility shims
-import six
-from six.moves import StringIO
-from six.moves import urllib
-from six.moves.urllib.error import URLError
-from six.moves.urllib.parse import urlencode
 
 # WeeWX imports
 import weecfg
@@ -421,7 +418,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0'
+DRIVER_VERSION = '0.7.0a1'
 
 # various defaults used throughout
 # default port used by device
@@ -1209,7 +1206,7 @@ class Gateway(object):
             # over it and changing it
             field_map_copy = dict(field_map)
             # iterate over each key, value pair in the copy of the field map
-            for k, v in six.iteritems(field_map_copy):
+            for k, v in field_map_copy.items():
                 # if the 'value' (ie the device field) is in the field map
                 # extensions we will be mapping that device field elsewhere so
                 # pop that field map entry out of the field map so we don't end
@@ -1226,7 +1223,7 @@ class Gateway(object):
         # initialise the key that maps 'datetime'
         d_key = None
         # iterate over the field map entries
-        for k, v in six.iteritems(field_map):
+        for k, v in field_map.items():
             # if the mapping is for 'datetime' save the key and break
             if v == 'datetime':
                 d_key = k
@@ -1251,7 +1248,7 @@ class Gateway(object):
         # parsed device API data uses the METRICWX unit system
         _result = {'usUnits': weewx.METRICWX}
         # iterate over each of the key, value pairs in the field map
-        for weewx_field, data_field in six.iteritems(self.field_map):
+        for weewx_field, data_field in self.field_map.items():
             # if the field to be mapped exists in the data obtain it's
             # value and map it to the packet
             if data_field in data:
@@ -1272,7 +1269,7 @@ class Gateway(object):
         msg_list = []
         # iterate over our rain_field_map keys (the 'WeeWX' fields) and values
         # (the 'device' fields) we are interested in
-        for weewx_field, gw_field in six.iteritems(Gateway.rain_field_map):
+        for weewx_field, gw_field in Gateway.rain_field_map.items():
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
@@ -1305,7 +1302,7 @@ class Gateway(object):
         msg_list = []
         # iterate over our wind_field_map keys (the 'WeeWX' fields) and values
         # (the 'device' fields) we are interested in
-        for weewx_field, gw_field in six.iteritems(Gateway.wind_field_map):
+        for weewx_field, gw_field in Gateway.wind_field_map.items():
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
@@ -1634,7 +1631,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 # get the next item from the collector queue, but don't dwell
                 # very long
                 queue_data = self.collector.queue.get(True, 0.5)
-            except six.moves.queue.Empty:
+            except queue.Empty:
                 # the queue is now empty, but that may be because we have
                 # already processed any queued data, log if necessary and break
                 # out of the while loop
@@ -1857,7 +1854,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
             loginf("GatewayService: Converted %s data: %s" % (self.collector.device.model,
                                                               natural_sort_dict(converted_data)))
         # now we can freely augment the packet with any of our mapped obs
-        for field, data in six.iteritems(converted_data):
+        for field, data in converted_data.items():
             # Any existing packet fields, whether they contain data or are
             # None, are respected and left alone. Only fields from the
             # converted data that do not already exist in the packet are
@@ -2287,7 +2284,7 @@ indefinitely. Set to '0' to attempt startup once only or '1' to
 attempt startup indefinitely."""
         print()
         loop_on_init = int(weecfg.prompt_with_options(label, dflt, ['0', '1']))
-        loop_on_init_dict = configobj.ConfigObj(StringIO(loop_on_init_config % (loop_on_init,)))
+        loop_on_init_dict = configobj.ConfigObj(io.StringIO(loop_on_init_config % (loop_on_init,)))
         config_dict.merge(loop_on_init_dict)
         if len(config_dict.comments['loop_on_init']) == 0:
             config_dict.comments['loop_on_init'] = ['',
@@ -2302,7 +2299,7 @@ attempt startup indefinitely."""
         # set the accumulator extractor functions
         print("""Setting accumulator extractor functions.""")
         # construct our default accumulator config dict
-        accum_config_dict = configobj.ConfigObj(StringIO(Gw1000ConfEditor.accum_config))
+        accum_config_dict = configobj.ConfigObj(io.StringIO(Gw1000ConfEditor.accum_config))
         # merge the existing config dict into our default accumulator config
         # dict so that we keep any changes made to [Accumulator] by the user
         accum_config_dict.merge(config_dict)
@@ -2535,7 +2532,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
             try:
                 # get any data from the collector queue
                 queue_data = self.collector.queue.get(True, 10)
-            except six.moves.queue.Empty:
+            except queue.Empty:
                 # there was nothing in the queue so continue
                 pass
             else:
@@ -2734,7 +2731,7 @@ class Collector(object):
 
     def __init__(self):
         # creat a queue object for passing data back to the driver/service
-        self.queue = six.moves.queue.Queue()
+        self.queue = queue.Queue()
 
     def startup(self):
         pass
@@ -3351,7 +3348,7 @@ class ApiParser(object):
         """
 
         # determine the size of the rain data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
@@ -3391,7 +3388,7 @@ class ApiParser(object):
         """
 
         # determine the size of the mulch offset data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a counter
@@ -3401,18 +3398,18 @@ class ApiParser(object):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                channel = data[index]
             except TypeError:
                 channel = data[index]
             offset_dict[channel] = {}
             try:
                 offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
             except TypeError:
-                offset_dict[channel]['hum'] = struct.unpack("b", six.int2byte(data[index + 1]))[0]
+                offset_dict[channel]['hum'] = struct.unpack("b", bytes([data[index + 1]]))[0]
             try:
                 offset_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
             except TypeError:
-                offset_dict[channel]['temp'] = struct.unpack("b", six.int2byte(data[index + 2]))[0] / 10.0
+                offset_dict[channel]['temp'] = struct.unpack("b", bytes([data[index + 2]]))[0] / 10.0
             index += 3
         return offset_dict
 
@@ -3451,7 +3448,7 @@ class ApiParser(object):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                channel = data[index]
             except TypeError:
                 channel = data[index]
             try:
@@ -3484,7 +3481,7 @@ class ApiParser(object):
         """
 
         # determine the size of the PM2.5 offset data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a counter
@@ -3494,7 +3491,7 @@ class ApiParser(object):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                channel = data[index]
             except TypeError:
                 channel = data[index]
             offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
@@ -3521,7 +3518,7 @@ class ApiParser(object):
         """
 
         # determine the size of the WH45 offset data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
@@ -3560,7 +3557,7 @@ class ApiParser(object):
         """
 
         # determine the size of the calibration data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
@@ -3601,7 +3598,7 @@ class ApiParser(object):
         """
 
         # determine the size of the calibration data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
@@ -3611,14 +3608,14 @@ class ApiParser(object):
         try:
             cal_dict['inhum'] = struct.unpack("b", data[2])[0]
         except TypeError:
-            cal_dict['inhum'] = struct.unpack("b", six.int2byte(data[2]))[0]
+            cal_dict['inhum'] = struct.unpack("b", bytes([data[2]]))[0]
         cal_dict['abs'] = struct.unpack(">l", data[3:7])[0] / 10.0
         cal_dict['rel'] = struct.unpack(">l", data[7:11])[0] / 10.0
         cal_dict['outtemp'] = struct.unpack(">h", data[11:13])[0] / 10.0
         try:
             cal_dict['outhum'] = struct.unpack("b", data[13])[0]
         except TypeError:
-            cal_dict['outhum'] = struct.unpack("b", six.int2byte(data[13]))[0]
+            cal_dict['outhum'] = struct.unpack("b", bytes([data[13]]))[0]
         cal_dict['dir'] = struct.unpack(">h", data[14:16])[0]
         # return the parsed response
         return cal_dict
@@ -3649,7 +3646,7 @@ class ApiParser(object):
         """
 
         # determine the size of the calibration data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
@@ -3659,24 +3656,24 @@ class ApiParser(object):
         # iterate over the data
         while index < len(data):
             try:
-                channel = six.byte2int(data[index])
+                channel = data[index]
             except TypeError:
                 channel = data[index]
             cal_dict[channel] = {}
             try:
-                humidity = six.byte2int(data[index + 1])
+                humidity = data[index + 1]
             except TypeError:
                 humidity = data[index + 1]
             cal_dict[channel]['humidity'] = humidity
             cal_dict[channel]['ad'] = struct.unpack(">h", data[index + 2:index + 4])[0]
             try:
-                ad_select = six.byte2int(data[index + 4])
+                ad_select = data[index + 4]
             except TypeError:
                 ad_select = data[index + 4]
             # get 'Customize' setting 1 = enable, 0 = customised
             cal_dict[channel]['ad_select'] = ad_select
             try:
-                min_ad = six.byte2int(data[index + 5])
+                min_ad = data[index + 5]
             except TypeError:
                 min_ad = data[index + 5]
             cal_dict[channel]['adj_min'] = min_ad
@@ -3704,16 +3701,16 @@ class ApiParser(object):
         """
 
         # determine the size of the system parameters data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
-        data_dict['frequency'] = six.indexbytes(data, 0)
-        data_dict['sensor_type'] = six.indexbytes(data, 1)
+        data_dict['frequency'] = data[0]
+        data_dict['sensor_type'] = data[1]
         data_dict['utc'] = self.decode_utc(data[2:6])
-        data_dict['timezone_index'] = six.indexbytes(data, 6)
-        data_dict['dst_status'] = six.indexbytes(data, 7) != 0
+        data_dict['timezone_index'] = data[6]
+        data_dict['dst_status'] = data[7] != 0
         # return the parsed response
         return data_dict
 
@@ -3733,12 +3730,12 @@ class ApiParser(object):
         """
 
         # determine the size of the system parameters data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
-        data_dict['interval'] = six.indexbytes(data, 0)
+        data_dict['interval'] = data[0]
         # return the parsed response
         return data_dict
 
@@ -3768,15 +3765,15 @@ class ApiParser(object):
         """
 
         # determine the size of the system parameters data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
         # obtain the required data from the response decoding any bytestrings
-        id_size = six.indexbytes(data, 0)
+        id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
-        password_size = six.indexbytes(data, 1 + id_size)
+        password_size = data[1 + id_size]
         data_dict['password'] = data[2 + id_size:2 + id_size + password_size].decode()
         # return the parsed response
         return data_dict
@@ -3811,17 +3808,17 @@ class ApiParser(object):
         """
 
         # determine the size of the system parameters data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
         # obtain the required data from the response decoding any bytestrings
-        id_size = six.indexbytes(data, 0)
+        id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
-        pw_size = six.indexbytes(data, 1 + id_size)
+        pw_size = data[1 + id_size]
         data_dict['password'] = data[2 + id_size:2 + id_size + pw_size].decode()
-        stn_num_size = six.indexbytes(data, 1 + id_size)
+        stn_num_size = data[1 + id_size]
         data_dict['station_num'] = data[3 + id_size + pw_size:3 + id_size + pw_size + stn_num_size].decode()
         # return the parsed response
         return data_dict
@@ -3852,15 +3849,15 @@ class ApiParser(object):
         """
 
         # determine the size of the system parameters data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
         # obtain the required data from the response decoding any bytestrings
-        id_size = six.indexbytes(data, 0)
+        id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
-        key_size = six.indexbytes(data, 1 + id_size)
+        key_size = data[1 + id_size]
         data_dict['key'] = data[2 + id_size:2 + id_size + key_size].decode()
         # return the parsed response
         return data_dict
@@ -3899,22 +3896,22 @@ class ApiParser(object):
         """
 
         # determine the size of the system parameters data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
         # obtain the required data from the response decoding any bytestrings
         index = 0
-        id_size = six.indexbytes(data, index)
+        id_size = data[index]
         index += 1
         data_dict['id'] = data[index:index + id_size].decode()
         index += id_size
-        password_size = six.indexbytes(data, index)
+        password_size = data[index]
         index += 1
         data_dict['password'] = data[index:index + password_size].decode()
         index += password_size
-        server_size = six.indexbytes(data, index)
+        server_size = data[index]
         index += 1
         data_dict['server'] = data[index:index + server_size].decode()
         index += server_size
@@ -3922,9 +3919,9 @@ class ApiParser(object):
         index += 2
         data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
         index += 2
-        data_dict['type'] = six.indexbytes(data, index)
+        data_dict['type'] = data[index]
         index += 1
-        data_dict['active'] = six.indexbytes(data, index)
+        data_dict['active'] = data[index]
         # return the parsed response
         return data_dict
 
@@ -3952,17 +3949,17 @@ class ApiParser(object):
         """
 
         # determine the size of the user path data
-        size = six.indexbytes(response, 3)
+        size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = dict()
         index = 0
-        ecowitt_size = six.indexbytes(data, index)
+        ecowitt_size = data[index]
         index += 1
         data_dict['ecowitt_path'] = data[index:index + ecowitt_size].decode()
         index += ecowitt_size
-        wu_size = six.indexbytes(data, index)
+        wu_size = data[index]
         index += 1
         data_dict['wu_path'] = data[index:index + wu_size].decode()
         # return the parsed response
@@ -4549,12 +4546,12 @@ class Sensors(object):
                     # data
                     batt_fn = Sensors.sensor_ids[data[index:index + 1]]['batt_fn']
                     # get the raw battery state data
-                    batt = six.indexbytes(data, index + 5)
+                    batt = data[index + 5]
                     # if we are not showing all battery state data then the
                     # battery state for any sensor with signal == 0 must be set
                     # to None, otherwise parse the raw battery state data as
                     # applicable
-                    if not self.show_battery and six.indexbytes(data, index + 6) == 0:
+                    if not self.show_battery and data[index + 6] == 0:
                         batt_state = None
                     else:
                         # parse the raw battery state data
@@ -4562,7 +4559,7 @@ class Sensors(object):
                     # now add the sensor to our sensor data dict
                     self.sensor_data[address] = {'id': sensor_id,
                                                  'battery': batt_state,
-                                                 'signal': six.indexbytes(data, index + 6)
+                                                 'signal': data[index + 6]
                                                  }
                 else:
                     if self.debug.sensors:
@@ -4606,7 +4603,7 @@ class Sensors(object):
         # initialise a list to hold our connected sensor addresses
         connected_list = list()
         # iterate over all sensors
-        for address, data in six.iteritems(self.sensor_data):
+        for address, data in self.sensor_data.items():
             # if the sensor ID is neither 'fffffffe' or 'ffffffff' then it
             # must be connected
             if data['id'] not in self.not_registered:
@@ -5775,12 +5772,12 @@ class GatewayApi(object):
 
         # first check the checksum is valid
         calc_checksum = self.calc_checksum(response[2:-1])
-        resp_checksum = six.indexbytes(response, -1)
+        resp_checksum = response[-1]
         if calc_checksum == resp_checksum:
             # checksum check passed, now check the response command code by
             # checkin the 3rd byte of the response matches the command code
             # that was issued
-            if six.indexbytes(response, 2) == six.byte2int(cmd_code):
+            if response[2] == cmd_code:
                 # we have a valid command code in the response, so the
                 # response is valid and all we need do is return
                 return
@@ -5789,8 +5786,8 @@ class GatewayApi(object):
                 # this is most likely due to the device not understanding
                 # the command, possibly due to an old or outdated firmware
                 # version. Raise an UnknownApiCommand exception.
-                exp_int = six.byte2int(cmd_code)
-                resp_int = six.indexbytes(response, 2)
+                exp_int = cmd_code
+                resp_int = response[2]
                 _msg = "Unknown command code in API response. " \
                        "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
                                                                         "{:02X}".format(exp_int),
@@ -5823,7 +5820,7 @@ class GatewayApi(object):
         # initialise the checksum to 0
         checksum = 0
         # iterate over each byte in the response
-        for b in six.iterbytes(data):
+        for b in data:
             # add the byte to the running total
             checksum += b
         # we are only interested in the least significant byte
@@ -6556,7 +6553,7 @@ def define_units():
     # merge the default unit groups into weewx.units.obs_group_dict, but so we
     # don't undo any user customisation elsewhere only merge those fields that do
     # not already exits in weewx.units.obs_group_dict
-    for obs, group in six.iteritems(default_groups):
+    for obs, group in default_groups.items():
         if obs not in weewx.units.obs_group_dict.keys():
             weewx.units.obs_group_dict[obs] = group
 
@@ -6671,7 +6668,7 @@ class DirectGateway(object):
     options.
     """
 
-    # gateway direct observation group dict, this maps all device 'fields' to a 
+    # gateway direct observation group dict, this maps all device 'fields' to a
     # WeeWX unit group
     gw_direct_obs_group_dict = {
         'intemp': 'group_temperature',
@@ -7981,7 +7978,7 @@ class DirectGateway(object):
                 print()
                 print("%-10s %s" % ("Sensor", "Status"))
                 # iterate over each sensor for which we have data
-                for address, sensor_data in six.iteritems(sensors.data):
+                for address, sensor_data in sensors.data.items():
                     # the sensor id indicates whether it is disabled, attempting to
                     # register a sensor or already registered
                     if sensor_data['id'] == 'fffffffe':
@@ -8085,7 +8082,7 @@ class DirectGateway(object):
             # now build a new data dict with our converted and formatted data
             result = {}
             # iterate over the fields in our original data dict
-            for key, value in six.iteritems(live_sensor_data_dict):
+            for key, value in live_sensor_data_dict.items():
                 # we don't need usUnits in the result so skip it
                 if key == 'usUnits':
                     continue
