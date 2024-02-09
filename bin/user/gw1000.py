@@ -1140,11 +1140,11 @@ class Gateway(object):
         # Log specific debug output but only if set ie. True
         debug_list = []
         if self.debug.rain:
-            debug_list.append("debug_rain is %s" % (self.debug.rain,))
+            debug_list.append(f"debug_rain is {self.debug.rain}")
         if self.debug.wind:
-            debug_list.append("debug_wind is %s" % (self.debug.wind,))
+            debug_list.append(f"debug_wind is {self.debug.wind}")
         if self.debug.loop:
-            debug_list.append("debug_loop is %s" % (self.debug.loop,))
+            debug_list.append(f"debug_loop is {self.debug.loop}")
         if len(debug_list) > 0:
             loginf(" ".join(debug_list))
 
@@ -1276,15 +1276,13 @@ class Gateway(object):
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (weewx_field,
-                                           data[weewx_field]))
+                msg_list.append(f"{weewx_field}={data[weewx_field]}")
             # do we have a 'device' field of interest
             if gw_field in data and weewx_field != gw_field:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (gw_field,
-                                           data[gw_field]))
+                msg_list.append(f"{gw_field}={data[gw_field]}")
         # pre-format the log line label
-        label = "%s: " % preamble if preamble is not None else ""
+        label = f"{preamble}: " if preamble is not None else ""
         # if we have some entries log them otherwise provide suitable text
         if len(msg_list) > 0:
             loginf("%s%s" % (label, " ".join(msg_list)))
@@ -1309,15 +1307,13 @@ class Gateway(object):
             # do we have a 'WeeWX' field of interest
             if weewx_field in data:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (weewx_field,
-                                           data[weewx_field]))
+                msg_list.append(f"{weewx_field}={data[weewx_field]}")
             # do we have a 'device' field of interest
             if gw_field in data:
                 # we do so add some formatted output to our list
-                msg_list.append("%s=%s" % (gw_field,
-                                           data[gw_field]))
+                msg_list.append(f"{gw_field}={data[gw_field]}")
         # pre-format the log line label
-        label = "%s: " % preamble if preamble is not None else ""
+        label = f"{preamble}: " if preamble is not None else ""
         # if we have some entries log them otherwise provide suitable text
         if len(msg_list) > 0:
             loginf("%s%s" % (label, " ".join(msg_list)))
@@ -1681,12 +1677,12 @@ class GatewayService(weewx.engine.StdService, Gateway):
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
                             self.log_rain_data(queue_data,
-                                               'GatewayService: Received %s data' % self.collector.device.model)
+                                               f'GatewayService: Received {self.collector.device.model} data')
                         if self.debug.wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
                             self.log_wind_data(queue_data,
-                                               'GatewayService: Received %s data' % self.collector.device.model)
+                                               f'GatewayService: Received {self.collector.device.model} data')
                     # now process the just received sensor data packet
                     self.process_queued_sensor_data(queue_data, event.packet['dateTime'])
 
@@ -1746,12 +1742,12 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     # debug_rain is set so log the 'rain' field in the
                     # mapped data, if it does not exist say so
                     self.log_rain_data(mapped_data,
-                                       'GatewayService: Mapped %s data' % self.collector.device.model)
+                                       f'GatewayService: Mapped {self.collector.device.model} data')
                 if self.debug.wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # mapped data, if they do not exist say so
                     self.log_wind_data(mapped_data,
-                                       'GatewayService: Mapped %s data' % self.collector.device.model)
+                                       f'GatewayService: Mapped {self.collector.device.model} data')
             # and finally augment the loop packet with the mapped data
             self.augment_packet(event.packet, mapped_data)
             # log the augmented packet if necessary, there are several debug
@@ -2216,7 +2212,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
 
     @property
     def default_stanza(self):
-        return """
+        return f"""
     [GW1000]
         # This section is for the GW1000 API driver.
 
@@ -2224,8 +2220,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         driver = user.gw1000
 
         # How often to poll the GW1000 API:
-        poll_interval = %d
-    """ % (default_poll_interval,)
+        poll_interval = {int(default_poll_interval):d}
+    """
 
     def get_conf(self, orig_stanza=None):
         """Given a configuration stanza, return a possibly modified copy
@@ -2460,7 +2456,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
         weewx.debug = _debug
         # inform the user if the debug level is 'higher' than 0
         if _debug > 0:
-            print("debug level is '%d'" % _debug)
+            print(f"debug level is '{int(_debug):d}'")
 
         # Now we can set up the user customized logging, but we need to handle both
         # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
@@ -2569,12 +2565,12 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # debug.rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
                             self.log_rain_data(queue_data,
-                                               'GatewayDriver: Received %s data' % self.collector.device.model)
+                                               f'GatewayDriver: Received {self.collector.device.model} data')
                         if self.debug.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
                             self.log_wind_data(queue_data,
-                                               'GatewayDriver: Received %s data' % self.collector.device.model)
+                                               f'GatewayDriver: Received {self.collector.device.model} data')
                     # Now start to create a loop packet. A loop packet must
                     # have a timestamp, if we have one (key 'datetime') in the
                     # received data use it otherwise allocate one.
@@ -2609,12 +2605,12 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # debug.rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
                             self.log_rain_data(mapped_data,
-                                               'GatewayDriver: Mapped %s data' % self.collector.device.model)
+                                               f'GatewayDriver: Mapped {self.collector.device.model} data')
                         if self.debug.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
                             self.log_wind_data(mapped_data,
-                                               'GatewayDriver: Mapped %s data' % self.collector.device.model)
+                                               f'GatewayDriver: Mapped {self.collector.device.model} data')
                     # add the mapped data to the empty packet
                     packet.update(mapped_data)
                     # log the packet if necessary, there are several debug
@@ -2631,13 +2627,13 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # loop packet being emitted, if it does not exist
                             # say so
                             self.log_rain_data(mapped_data,
-                                               'GatewayDriver: Packet %s' % timestamp_to_string(packet['dateTime']))
+                                               f'GatewayDriver: Packet {timestamp_to_string(packet['dateTime'])}')
                         if self.debug.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
                             self.log_wind_data(mapped_data,
-                                               'GatewayDriver: Packets %s' % timestamp_to_string(packet['dateTime']))
+                                               f'GatewayDriver: Packets {timestamp_to_string(packet['dateTime'])}')
                     # yield the loop packet
                     yield packet
                 # if it's a tuple then it's a tuple with an exception and
@@ -4349,7 +4345,7 @@ class ApiParser(object):
         if len(data) == 20:
             results = dict()
             for gain in range(10):
-                results['gain%d' % gain] = self.decode_gain_100(data[gain * 2:gain * 2 + 2])
+                results[f'gain{int(gain):d}'] = self.decode_gain_100(data[gain * 2:gain * 2 + 2])
             return results
         return {}
 
@@ -4931,10 +4927,10 @@ class GatewayApi(object):
                         disc_ip = device_list[0]['ip_address']
                         disc_port = device_list[0]['port']
                         # log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'],
-                                                                     d['port'])]) for d in device_list])
+                        gw1000_str = ', '.join([':'.join([f'{dev['ip_address']}:{int(dev['port']):d}']) for dev in
+                                                device_list])
                         if len(device_list) == 1:
-                            stem = "%s was" % device_list[0]['model']
+                            stem = f"{device_list[0]['model']} was"
                         else:
                             stem = "Multiple devices were"
                         loginf("%s found at %s" % (stem, gw1000_str))
@@ -5688,7 +5684,7 @@ class GatewayApi(object):
         try:
             size = len(self.api_commands[cmd]) + 1 + len(payload) + 1
         except KeyError:
-            raise UnknownApiCommand("Unknown API command '%s'" % (cmd,))
+            raise UnknownApiCommand(f"Unknown API command '{cmd}'")
         # construct the portion of the message for which the checksum is calculated
         body = b''.join([self.api_commands[cmd], struct.pack('B', size), payload])
         # calculate the checksum
@@ -5786,6 +5782,7 @@ class GatewayApi(object):
                 # version. Raise an UnknownApiCommand exception.
                 exp_int = cmd_code
                 resp_int = response[2]
+                # TODO. f string formatting
                 _msg = "Unknown command code in API response. " \
                        "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
                                                                         "{:02X}".format(exp_int),
@@ -5794,6 +5791,7 @@ class GatewayApi(object):
                 raise UnknownApiCommand(_msg)
         else:
             # checksum check failed, raise an InvalidChecksum exception
+            # TODO. f string formatting
             _msg = "Invalid checksum in API response. " \
                    "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
                                                                     "{:02X}".format(calc_checksum),
@@ -5860,8 +5858,7 @@ class GatewayApi(object):
                     # did we find any devices
                     if len(device_list) > 0:
                         # we have at least one, log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join(['%s:%d' % (d['ip_address'],
-                                                                     d['port'])]) for d in device_list])
+                        gw1000_str = ', '.join([':'.join([f'{dev['ip_address']}:{int(dev['port']):d}']) for dev in device_list])
                         if len(device_list) == 1:
                             stem = "%s was" % device_list[0]['model']
                         else:
@@ -6014,7 +6011,7 @@ class GatewayHttp(object):
                     return resp_json
         else:
             # an invalid command
-            raise UnknownHttpCommand("Unknown HTTP command '%s'" % command_str)
+            raise UnknownHttpCommand(f"Unknown HTTP command '{command_str}'")
 
     def get_version(self):
         """Get the device firmware related information.
@@ -6598,9 +6595,9 @@ def natural_sort_dict(source_dict):
     """
 
     # first obtain a list of key:value pairs as string sorted naturally by key
-    sorted_dict_fields = ["'%s': '%s'" % (k, source_dict[k]) for k in natural_sort_keys(source_dict)]
+    sorted_dict_fields = [f"'{k}': '{source_dict[k]}'" for k in natural_sort_keys(source_dict)]
     # return as a string of comma separated key:value pairs in braces
-    return "{%s}" % ", ".join(sorted_dict_fields)
+    return f"{{{", ".join(sorted_dict_fields)}}}"
 
 
 def bytes_to_hex(iterable, separator=' ', caps=True):
@@ -6620,7 +6617,7 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
         # TypeError - 'iterable' is not iterable
         # AttributeError - likely because separator is None
         # either way we can't represent as a string of hex bytes
-        return "cannot represent '%s' as hexadecimal bytes" % (iterable,)
+        return f"cannot represent '{iterable}' as hexadecimal bytes"
 
 
 def obfuscate(plain, obf_char='*'):
@@ -7036,14 +7033,14 @@ class DirectGateway(object):
                 # we could not get show_battery from the stn_dict so use the default
                 show_battery = default_show_battery
                 if weewx.debug >= 1:
-                    print("Battery state filtering is '%s' (using the default)" % show_battery)
+                    print(f"Battery state filtering is '{show_battery}' (using the default)")
             else:
                 if weewx.debug >= 1:
                     print("Port number obtained from station config")
-                    print("Battery state filtering is '%s' (obtained from station config)" % show_battery)
+                    print(f"Battery state filtering is '{show_battery}' (obtained from station config)")
         else:
             if weewx.debug >= 1:
-                print("Battery state filtering is '%s' (obtained from command line options)" % show_battery)
+                print(f"Battery state filtering is '{show_battery}' (obtained from command line options)")
         return show_battery
 
     def process_options(self):
@@ -7131,9 +7128,7 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f"Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}")
             # get the device system_params property
             sys_params_dict = device.system_params
             # we need the radiation compensation setting which according to the
@@ -7149,10 +7144,10 @@ class DirectGateway(object):
                 temperature_comp = _rain_data.get('temperature_comp')
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f"Unable to connect to device at {self.ip_address}: {e}")
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f"Timeout. Device at {self.ip_address} did not respond.")
         else:
             # create a meaningful string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
