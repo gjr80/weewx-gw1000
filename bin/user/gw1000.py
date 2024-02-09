@@ -1026,7 +1026,7 @@ class Gateway(object):
         """Initialise a Gateway object."""
 
         # obtain the field map to be used
-        self.field_map = self.construct_field_map(gw_config)
+        self.field_map = self.construct_field_map(**gw_config)
         # network broadcast address and port
         self.broadcast_address = str.encode(gw_config.get('broadcast_address',
                                                           default_broadcast_address))
@@ -3398,6 +3398,7 @@ class ApiParser(object):
         offset_dict = {}
         # iterate over the data
         while index < len(data):
+            # TODO. This try..except does not make sense
             try:
                 channel = data[index]
             except TypeError:
@@ -5771,7 +5772,7 @@ class GatewayApi(object):
             # checksum check passed, now check the response command code by
             # checkin the 3rd byte of the response matches the command code
             # that was issued
-            if response[2] == cmd_code:
+            if response[2] == cmd_code[0]:
                 # we have a valid command code in the response, so the
                 # response is valid and all we need do is return
                 return
@@ -5780,7 +5781,7 @@ class GatewayApi(object):
                 # this is most likely due to the device not understanding
                 # the command, possibly due to an old or outdated firmware
                 # version. Raise an UnknownApiCommand exception.
-                exp_int = cmd_code
+                exp_int = cmd_code[0]
                 resp_int = response[2]
                 # TODO. f string formatting
                 _msg = "Unknown command code in API response. " \
