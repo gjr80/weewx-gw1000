@@ -2618,7 +2618,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # (most encompassing) and work to the lowest (least
                     # encompassing)
                     if self.debug.loop or weewx.debug >= 2:
-                        loginf('GatewayDriver: Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
+                        loginf('GatewayDriver: Packet %s: %s' % (timestamp_to_string(packet["dateTime"]),
                                                                  natural_sort_dict(packet)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
@@ -2627,13 +2627,13 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # loop packet being emitted, if it does not exist
                             # say so
                             self.log_rain_data(mapped_data,
-                                               f'GatewayDriver: Packet {timestamp_to_string(packet['dateTime'])}')
+                                               f'GatewayDriver: Packet {timestamp_to_string(packet["dateTime"])}')
                         if self.debug.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
                             self.log_wind_data(mapped_data,
-                                               f'GatewayDriver: Packets {timestamp_to_string(packet['dateTime'])}')
+                                               f'GatewayDriver: Packets {timestamp_to_string(packet["dateTime"])}')
                     # yield the loop packet
                     yield packet
                 # if it's a tuple then it's a tuple with an exception and
@@ -4927,7 +4927,7 @@ class GatewayApi(object):
                         disc_ip = device_list[0]['ip_address']
                         disc_port = device_list[0]['port']
                         # log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join([f'{dev['ip_address']}:{int(dev['port']):d}']) for dev in
+                        gw1000_str = ', '.join([':'.join([f'{dev["ip_address"]}:{int(dev["port"]):d}']) for dev in
                                                 device_list])
                         if len(device_list) == 1:
                             stem = f"{device_list[0]['model']} was"
@@ -5858,7 +5858,7 @@ class GatewayApi(object):
                     # did we find any devices
                     if len(device_list) > 0:
                         # we have at least one, log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join([f'{dev['ip_address']}:{int(dev['port']):d}']) for dev in device_list])
+                        gw1000_str = ', '.join([':'.join([f'{dev["ip_address"]}:{int(dev["port"]):d}']) for dev in device_list])
                         if len(device_list) == 1:
                             stem = "%s was" % device_list[0]['model']
                         else:
@@ -6597,7 +6597,7 @@ def natural_sort_dict(source_dict):
     # first obtain a list of key:value pairs as string sorted naturally by key
     sorted_dict_fields = [f"'{k}': '{source_dict[k]}'" for k in natural_sort_keys(source_dict)]
     # return as a string of comma separated key:value pairs in braces
-    return f"{{{", ".join(sorted_dict_fields)}}}"
+    return f'{{{", ".join(sorted_dict_fields)}}}'
 
 
 def bytes_to_hex(iterable, separator=' ', caps=True):
