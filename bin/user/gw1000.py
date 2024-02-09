@@ -7158,18 +7158,13 @@ class DirectGateway(object):
             _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
             # print the system parameters
             print()
-            print("%26s: %s (%s)" % ('sensor type',
-                                     sys_params_dict['sensor_type'],
-                                     _sensor_type_str))
-            print("%26s: %s (%s)" % ('frequency',
-                                     sys_params_dict['frequency'],
-                                     freq_str))
+            print(f'{"sensor type":>26}: {sys_params_dict["sensor_type"]} ({_sensor_type_str})')
+            print(f'{"frequency":>26}: {sys_params_dict["frequency"]} ({freq_str})')
             if temperature_comp is not None:
-                print("%26s: %s (%s)" % ('Temperature Compensation',
-                                         temperature_comp,
-                                         temperature_comp_decode.get(temperature_comp, 'unknown')))
+                print(f'{"Temperature Compensation":>26}: {temperature_comp} '
+                      f'({temperature_comp_decode.get(temperature_comp, "unknown")})')
             else:
-                print("%26s: unavailable" % 'Temperature Compensation')
+                print(f'{"Temperature Compensation":>26}: unavailable')
 
             # The gateway API returns what is labelled "UTC" but is in fact the
             # current epoch timestamp adjusted by the station timezone offset.
@@ -7183,9 +7178,9 @@ class DirectGateway(object):
             # this is not possible. We can only do what we can.
             date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                           time.gmtime(sys_params_dict['utc']))
-            print("%26s: %s" % ('date-time', date_time_str))
-            print("%26s: %s" % ('timezone index', sys_params_dict['timezone_index']))
-            print("%26s: %s" % ('DST status', sys_params_dict['dst_status']))
+            print(f'{"date-time":>26}: {date_time_str}')
+            print(f'{"timezone index":>26}: {sys_params_dict["timezone_index"]}')
+            print(f'{"DST status":>26}: {sys_params_dict["dst_status"]}')
 
     def get_rain_data(self):
         """Display the device rain data.
@@ -7207,24 +7202,22 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the device objects raindata property
             rain_data = device.raindata
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             print()
-            print("%10s: %.1f mm/%.1f in" % ('Rain rate', rain_data['t_rainrate'], rain_data['t_rainrate'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Day rain', rain_data['t_rainday'], rain_data['t_rainday'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Week rain', rain_data['t_rainweek'], rain_data['t_rainweek'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['t_rainmonth'], rain_data['t_rainmonth'] / 25.4))
-            print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['t_rainyear'], rain_data['t_rainyear'] / 25.4))
+            print(f'{"Rain rate":>10}: {rain_data["t_rainrate"]:.1f} mm/{rain_data["t_rainrate"] / 25.4:.1f} in')
+            print(f'{"Day rain":>10}: {rain_data["t_rainday"]:.1f} mm/{rain_data["t_rainday"] / 25.4:.1f} in')
+            print(f'{"Week rain":>10}: {rain_data["t_rainweek"]:.1f} mm/{rain_data["t_rainweek"] / 25.4:.1f} in')
+            print(f'{"Month rain":>10}: {rain_data["t_rainmonth"]:.1f} mm/{rain_data["t_rainmonth"] / 25.4:.1f} in')
+            print(f'{"Year rain":>10}: {rain_data["t_rainyear"]:.1f} mm/{rain_data["t_rainyear"] / 25.4:.1f} in')
 
     def get_all_rain_data(self):
         """Display the device rain data including piezo data.
@@ -7264,9 +7257,7 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the rain data from the device object. First try to get
             # all_rain_data but be prepared to catch the exception if our
             # device does not support CMD_READ_RAIN. In that case fall back to
@@ -7279,36 +7270,36 @@ class DirectGateway(object):
                 rain_data = device.raindata
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             print()
             if 'rain_priority' in rain_data:
-                print("    Rainfall data priority: %s" % source_lookup.get(rain_data['rain_priority'],
-                                                                           "unknown selection"))
+                print(f'{"Rainfall data priority":>26}: '
+                      f'{source_lookup.get(rain_data["rain_priority"], "unknown selection")}')
                 print()
             if any(field in rain_data for field in traditional):
-                print("    Traditional rain data:")
+                print(f'{"Traditional rain data":>26}:')
                 _data = rain_data.get('t_rainrate')
-                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
-                print("%30s: %s)" % ('Rain rate', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Rain rate":>30}: {_data_str})')
                 _data = rain_data.get('t_rainevent')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Event rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Event rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainday')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Daily rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Daily rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainweek')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Weekly rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Weekly rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainmonth')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Monthly rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Monthly rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainyear')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Yearly rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Yearly rain":>30}: {_data_str})')
                 _data = rain_data.get('t_raingain')
                 _data_str = "%.2f" % _data / 100.0 if _data is not None else "---"
                 print("%30s: %s" % ('Rain gain', _data_str))
@@ -7376,17 +7367,15 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the mulch offset data from the API
             mulch_offset_data = device.api.get_mulch_offset()
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any mulch offset data
             if mulch_offset_data is not None:
@@ -7428,17 +7417,15 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the mulch temp offset data via the API
             mulch_t_offset_data = device.mulch_t_offset
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any mulch temp offset data
             if mulch_t_offset_data is not None:
@@ -7483,17 +7470,15 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the PM2.5 offset data from the API
             pm25_offset_data = device.pm25_offset
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any PM2.5 offset data
             if pm25_offset_data is not None:
@@ -7529,17 +7514,15 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the offset data from the API
             co2_offset_data = device.api.get_co2_offset()
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any offset data
             if co2_offset_data is not None:
@@ -7573,18 +7556,16 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the calibration data from the collector object's calibration
             # property
             calibration_data = device.calibration
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any calibration data
             if calibration_data is not None:
@@ -7626,17 +7607,15 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the device soil_calibration property
             calibration_data = device.soil_calibration
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any calibration data
             if calibration_data is not None:
@@ -7783,9 +7762,7 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # get the settings for each service know to the device, store them
             # in a dict keyed by the service name
             services_data = dict()
@@ -7793,10 +7770,10 @@ class DirectGateway(object):
                 services_data[service['name']] = getattr(device, service['name'])
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
         else:
             # did we get any service data
             if len(services_data) > 0:
@@ -7833,18 +7810,16 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             print()
             # get the device MAC address
             print("    MAC address: %s" % device.mac_address)
         except GWIOError as e:
             print()
-            print("Unable to connect to device at %s: %s" % (self.ip_address, e))
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
         except socket.timeout:
             print()
-            print("Timeout. Device at %s did not respond." % (self.ip_address,))
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
 
     def firmware(self):
         """Display device firmware details.
@@ -7949,9 +7924,7 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print("Interrogating %s at %s:%d" % (device.model,
-                                                 device.ip_address.decode(),
-                                                 device.port))
+            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
             # first update the collector's sensor ID data
             device.api.update_sensor_id_data()
         except GWIOError as e:
