@@ -3398,11 +3398,7 @@ class ApiParser(object):
         offset_dict = {}
         # iterate over the data
         while index < len(data):
-            # TODO. This try..except does not make sense
-            try:
-                channel = data[index]
-            except TypeError:
-                channel = data[index]
+            channel = data[index]
             offset_dict[channel] = {}
             try:
                 offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
@@ -3485,10 +3481,7 @@ class ApiParser(object):
         offset_dict = {}
         # iterate over the data
         while index < len(data):
-            try:
-                channel = data[index]
-            except TypeError:
-                channel = data[index]
+            channel = data[index]
             offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
             index += 3
         return offset_dict
@@ -3650,10 +3643,7 @@ class ApiParser(object):
         index = 0
         # iterate over the data
         while index < len(data):
-            try:
-                channel = data[index]
-            except TypeError:
-                channel = data[index]
+            channel = data[index]
             cal_dict[channel] = {}
             try:
                 humidity = data[index + 1]
