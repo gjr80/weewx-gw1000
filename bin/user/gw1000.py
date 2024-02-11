@@ -7258,7 +7258,6 @@ class DirectGateway(object):
             # the rain_data property instead.
             try:
                 rain_data = device.rain
-                loginf(rain_data)
             except UnknownApiCommand:
                 # use the rain_data property
                 rain_data = device.raindata
