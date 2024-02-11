@@ -7295,47 +7295,59 @@ class DirectGateway(object):
                 _data_str = "%.2f" % _data / 100.0 if _data is not None else "---"
                 print("%30s: %s" % ('Rain gain', _data_str))
             else:
-                print("    No traditional rain data available")
+                print(f'{"No traditional rain data available":>38}')
             print()
             if any(field in rain_data for field in piezo):
-                print("    Piezo rain data:")
+                print(f'{"Piezo rain data":>26}:')
                 _data = rain_data.get('p_rainrate')
-                _data_str = "%.1fmm/hr (%.1fin/hr)" % (_data, _data / 25.4) if _data is not None else "---mm/hr (---in/hr)"
-                print("%30s: %s)" % ('Rain rate', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Rain rate":>30}: {_data_str})')
                 _data = rain_data.get('p_rainevent')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Event rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Event rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainday')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Daily rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Daily rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainweek')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Weekly rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Weekly rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainmonth')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Monthly rain', _data_str))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Monthly rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainyear')
-                _data_str = "%.1fmm (%.1fin)" % (_data, _data / 25.4) if _data is not None else "---mm (---in)"
-                print("%30s: %s" % ('Yearly rain', _data_str))
-                print("%30s: %.2f (%s)" % ('Rain1 gain', rain_data.get('gain1', '--'), '< 4mm/h'))
-                print("%30s: %.2f (%s)" % ('Rain2 gain', rain_data.get('gain2', '--'), '< 10mm/h'))
-                print("%30s: %.2f (%s)" % ('Rain3 gain', rain_data.get('gain3', '--'), '< 30mm/h'))
-                print("%30s: %.2f (%s)" % ('Rain4 gain', rain_data.get('gain4', '--'), '< 60mm/h'))
-                print("%30s: %.2f (%s)" % ('Rain5 gain', rain_data.get('gain5', '--'), '> 60mm/h'))
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                print(f'{"Yearly rain":>30}: {_data_str})')
+                _data = rain_data.get('gain1')
+                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 4mm/h)'
+                print(f'{"Rain1 gain":>30}: {_data_str})')
+                _data = rain_data.get('gain2')
+                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 10mm/h)'
+                print(f'{"Rain1 gain":>30}: {_data_str})')
+                _data = rain_data.get('gain3')
+                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 30mm/h)'
+                print(f'{"Rain1 gain":>30}: {_data_str})')
+                _data = rain_data.get('gain4')
+                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 60mm/h)'
+                print(f'{"Rain1 gain":>30}: {_data_str})')
+                _data = rain_data.get('gain5')
+                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (> 60mm/h)'
+                print(f'{"Rain1 gain":>30}: {_data_str})')
             else:
-                print("    No piezo rain data available")
+                print(f'{"No piezo rain data available":>32}')
             print()
             if any(field in rain_data for field in reset):
-                print("    Rainfall reset time data:")
-                print("%30s: 0%d:00" % ('Daily rainfall reset time', rain_data.get('day_reset', '-----')))
+                print(f'{"Rainfall reset time data:":>26}:')
+                _data = rain_data.get('day_reset')
+                _data_str = f'{_data:.d}:00' if _data is not None else '-----'
+                print(f'{"Daily rainfall reset time":>30}: {_data_str}')
                 _data = rain_data.get('week_reset')
-                _data_str = "%s" % calendar.day_name[(_data + 6) % 7] if _data is not None else "-----"
-                print("%30s: %s" % ('Weekly rainfall reset time', _data_str))
+                _data_str = f'{calendar.day_name[(_data + 6) % 7]}' if _data is not None else '-----'
+                print(f'{"Weekly rainfall reset time":>30}: {_data_str}')
                 _data = rain_data.get('annual_reset')
-                _data_str = "%s" % calendar.month_name[_data + 1] if _data is not None else "-----"
-                print("%30s: %s" % ('Annual rainfall reset time', calendar.month_name[rain_data['annual_reset'] + 1]))
+                _data_str = f'{calendar.month_name[_data + 1]}' if _data is not None else '-----'
+                print(f'{"Annual rainfall reset time":>30}: {_data_str}')
             else:
-                print("    No rainfall reset time data available")
+                print(f'{"No rainfall reset time data available":>41}')
 
     def get_mulch_offset(self):
         """Display device multichannel temperature and humidity offset data.
@@ -7380,12 +7392,14 @@ class DirectGateway(object):
                     # the API returns channels starting at 0, but the WS View
                     # app displays channels starting at 1, so add 1 to our
                     # channel number
-                    print(mulch_str % (channel + 1,
-                                       "%2.1f" % mulch_offset_data[channel]['temp'],
-                                       "%d" % mulch_offset_data[channel]['hum']))
+                    channel_str = f'{"Channel":>11} {channel + 1:.d}'
+                    temp_offset_str = f'{mulch_offset_data[channel]['temp']:2.1f}'
+                    hum_offset_str = f'{mulch_offset_data[channel]['hum']:d}'
+                    print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5} '
+                          f'Humidity offset: {hum_offset_str:5}')
             else:
                 print()
-                print("Device at %s did not respond." % (self.ip_address,))
+                print(f'Device at {self.ip_address} did not respond.')
 
     def get_mulch_t_offset(self):
         """Display device multichannel temperature (WN34) offset data.
