@@ -46,7 +46,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
     For WeeWX package installs use:
 
-        PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py --test-driver --ip-address=device_ip_address
+        PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/user/gw1000.py --test-driver --ip-address=device_ip_address
 
     where *device_ip_address* is the IP address of the gateway device being used.
 
@@ -118,7 +118,7 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
     For WeeWX package installs use:
 
-        PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py --test-service --ip-address=device_ip_address
+        PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/user/gw1000.py --test-service --ip-address=device_ip_address
 
     where *device_ip_address* is the IP address of the gateway device being used.
 
