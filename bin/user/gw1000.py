@@ -359,7 +359,7 @@ import weewx.drivers
 import weewx.engine
 import weewx.units
 import weewx.wxformulas
-from weeutil.weeutil import timestamp_to_string
+from weeutil.weeutil import bcolors, timestamp_to_string
 
 # import/setup logging, WeeWX v3 is syslog based but WeeWX v4 is logging based,
 # try v4 logging and if it fails use v3 logging
@@ -7119,7 +7119,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f"Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}")
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the device system_params property
             sys_params_dict = device.system_params
             # we need the radiation compensation setting which according to the
@@ -7193,7 +7194,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the device objects raindata property
             rain_data = device.raindata
         except GWIOError as e:
@@ -7248,7 +7250,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the rain data from the device object. First try to get
             # all_rain_data but be prepared to catch the exception if our
             # device does not support CMD_READ_RAIN. In that case fall back to
@@ -7338,7 +7341,7 @@ class DirectGateway(object):
             if any(field in rain_data for field in reset):
                 print(f'{"Rainfall reset time data:":>26}:')
                 _data = rain_data.get('day_reset')
-                _data_str = f'{_data:.d}:00' if _data is not None else '-----'
+                _data_str = f'{_data:02d}:00' if _data is not None else '-----'
                 print(f'{"Daily rainfall reset time":>30}: {_data_str}')
                 _data = rain_data.get('week_reset')
                 _data_str = f'{calendar.day_name[(_data + 6) % 7]}' if _data is not None else '-----'
@@ -7370,7 +7373,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the mulch offset data from the API
             mulch_offset_data = device.api.get_mulch_offset()
         except GWIOError as e:
@@ -7385,18 +7389,21 @@ class DirectGateway(object):
                 # now format and display the data
                 print()
                 print("Multi-channel Temperature and Humidity Calibration")
-                # iterate over each channel for which we have data
-                for channel in mulch_offset_data:
-                    # print the channel and offset data
-                    mulch_str = "    Channel %d: Temperature offset: %5s Humidity offset: %3s"
-                    # the API returns channels starting at 0, but the WS View
-                    # app displays channels starting at 1, so add 1 to our
-                    # channel number
-                    channel_str = f'{"Channel":>11} {channel + 1:.d}'
-                    temp_offset_str = f'{mulch_offset_data[channel]['temp']:2.1f}'
-                    hum_offset_str = f'{mulch_offset_data[channel]['hum']:d}'
-                    print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5} '
-                          f'Humidity offset: {hum_offset_str:5}')
+                # do we have any results to display?
+                if len(mulch_offset_data) > 0:
+                    # iterate over each channel for which we have data
+                    for channel in mulch_offset_data:
+                        # Print the channel and offset data. The API returns
+                        # channels starting at 0, but the WS View app displays
+                        # channels starting at 1, so add 1 to our channel number
+                        channel_str = f'{"Channel":>11} {channel + 1:d}'
+                        temp_offset_str = f'{mulch_offset_data[channel]["temp"]:2.1f}'
+                        hum_offset_str = f'{mulch_offset_data[channel]["hum"]:d}'
+                        print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5} '
+                              f'Humidity offset: {hum_offset_str:5}')
+                else:
+                    # we have no results, so display a suitable message
+                    print(f'{"No Multi-channel temperature and humidity sensors found":>59}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -7422,7 +7429,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the mulch temp offset data via the API
             mulch_t_offset_data = device.mulch_t_offset
         except GWIOError as e:
@@ -7441,19 +7449,20 @@ class DirectGateway(object):
                     # we have results, now format and display the data
                     # iterate over each channel for which we have data
                     for channel in mulch_t_offset_data:
-                        # print the channel and offset data
-                        mulch_str = "    Channel %d: Temperature offset: %5s"
-                        # the API returns channels starting at 0x63, but the WSView
-                        # Plus app displays channels starting at 1, so subtract
-                        # 0x62 (or 98) from our channel number
-                        print(mulch_str % (channel - 98,
-                                           "%2.1f" % mulch_t_offset_data[channel]))
+                        # Print the channel and offset data. The API returns
+                        # channels starting at 0x63, but the WSView Plus app
+                        # displays channels starting at 1, so subtract 0x62
+                        # (or 98) from our channel number
+                        channel_str = f'{"Channel":>11} {channel - 0x62:d}'
+                        temp_offset_str = f'{mulch_t_offset_data[channel]:2.1f}'
+                        print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5}')
+
                 else:
                     # we have no results, so display a suitable message
-                    print("    No Multi-channel temperature sensors found")
+                    print(f'{"No Multi-channel temperature sensors found":>46}')
             else:
                 print()
-                print("Device at %s did not respond." % (self.ip_address,))
+                print(f'Device at {self.ip_address} did not respond.')
 
     def get_pm25_offset(self):
         """Display the device PM2.5 offset data.
@@ -7475,7 +7484,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the PM2.5 offset data from the API
             pm25_offset_data = device.pm25_offset
         except GWIOError as e:
@@ -7487,16 +7497,23 @@ class DirectGateway(object):
         else:
             # did we get any PM2.5 offset data
             if pm25_offset_data is not None:
-                # now format and display the data
-                print()
-                print("PM2.5 Calibration")
-                # iterate over each channel for which we have data
-                for channel in pm25_offset_data:
-                    # print the channel and offset data
-                    print("    Channel %d PM2.5 offset: %5s" % (channel, "%2.1f" % pm25_offset_data[channel]))
+                # do we have any results to display?
+                if len(pm25_offset_data) > 0:
+                    # now format and display the data
+                    print()
+                    print("PM2.5 Calibration")
+                    # iterate over each channel for which we have data
+                    for channel in pm25_offset_data:
+                        # print the channel and offset data
+                        channel_str = f'{"Channel":>11} {channel:d}'
+                        offset_str = f'{pm25_offset_data[channel]:2.1f}'
+                        print(f'{channel_str:>13}: PM2.5 offset: {offset_str:5}')
+                else:
+                    # we have no results, so display a suitable message
+                    print(f'{"No PM2.5 sensors found":>26}')
             else:
                 print()
-                print("Device at %s did not respond." % (self.ip_address,))
+                print(f'Device at {self.ip_address} did not respond.')
 
     def get_co2_offset(self):
         """Display the device WH45 CO2, PM10 and PM2.5 offset data.
@@ -7519,7 +7536,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the offset data from the API
             co2_offset_data = device.api.get_co2_offset()
         except GWIOError as e:
@@ -7534,12 +7552,12 @@ class DirectGateway(object):
                 # now format and display the data
                 print()
                 print("CO2 Calibration")
-                print("%16s: %5s" % ("CO2 offset", "%2.1f" % co2_offset_data['co2']))
-                print("%16s: %5s" % ("PM10 offset", "%2.1f" % co2_offset_data['pm10']))
-                print("%16s: %5s" % ("PM2.5 offset", "%2.1f" % co2_offset_data['pm25']))
+                print(f'{"CO2 offset":>16}: {co2_offset_data["co2"]:2.1f}')
+                print(f'{"PM10 offset":>16}: {co2_offset_data["pm10"]:2.1f}')
+                print(f'{"PM2.5 offset":>16}: {co2_offset_data["pm25"]:2.1f}')
             else:
                 print()
-                print("Device at %s did not respond." % (self.ip_address,))
+                print(f'Device at {self.ip_address} did not respond.')
 
     def get_calibration(self):
         """Display the device calibration data.
@@ -7561,7 +7579,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the calibration data from the collector object's calibration
             # property
             calibration_data = device.calibration
@@ -7577,19 +7596,19 @@ class DirectGateway(object):
                 # now format and display the data
                 print()
                 print("Calibration")
-                print("%26s: %5.2f" % ("Irradiance gain", calibration_data['solar']))
-                print("%26s: %4.1f" % ("UV gain", calibration_data['uv']))
-                print("%26s: %4.1f" % ("Wind gain", calibration_data['wind']))
-                print("%26s: %4.1f %sC" % ("Inside temperature offset", calibration_data['intemp'], u'\xb0'))
-                print("%26s: %4.1f %%" % ("Inside humidity offset", calibration_data['inhum']))
-                print("%26s: %4.1f %sC" % ("Outside temperature offset", calibration_data['outtemp'], u'\xb0'))
-                print("%26s: %4.1f %%" % ("Outside humidity offset", calibration_data['outhum']))
-                print("%26s: %4.1f hPa" % ("Absolute pressure offset", calibration_data['abs']))
-                print("%26s: %4.1f hPa" % ("Relative pressure offset", calibration_data['rel']))
-                print("%26s: %4.1f %s" % ("Wind direction offset", calibration_data['dir'], u'\xb0'))
+                print(f'{"Irradiance gain":>26}: {calibration_data["solar"]:5.2f}')
+                print(f'{"UV gain":>26}: {calibration_data["uv"]:4.1f}')
+                print(f'{"Wind gain":>26}: {calibration_data["wind"]:4.1f}')
+                print(f'{"Inside temperature offset":>26}: {calibration_data["intemp"]:4.1f} \xb0C')
+                print(f'{"Inside humidity offset":>26}: {calibration_data["inhum"]:4.1f} %')
+                print(f'{"Outside temperature offset":>26}: {calibration_data["outtemp"]:4.1f} \xb0C')
+                print(f'{"Outside humidity offset":>26}: {calibration_data["outhum"]:4.1f} %')
+                print(f'{"Absolute pressure offset":>26}: {calibration_data["abs"]:4.1f} hPa')
+                print(f'{"Relative pressure offset":>26}: {calibration_data["rel"]:4.1f} hPa')
+                print(f'{"Wind direction offset":>26}: {calibration_data["dir"]:4.1f} \xb0')
             else:
                 print()
-                print("Device at %s did not respond." % (self.ip_address,))
+                print(f'Device at {self.ip_address} did not respond.')
 
     def get_soil_calibration(self):
         """Display the device soil moisture sensor calibration data.
@@ -7612,7 +7631,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the device soil_calibration property
             calibration_data = device.soil_calibration
         except GWIOError as e:
@@ -7642,7 +7662,7 @@ class DirectGateway(object):
                     print("%16s: %d" % ("100% AD", channel_dict['adj_max']))
             else:
                 print()
-                print("Device at %s did not respond." % (self.ip_address,))
+                print(f'Device at {self.ip_address} did not respond.')
 
     def get_services(self):
         """Display the device Weather Services settings.
@@ -7767,7 +7787,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the settings for each service know to the device, store them
             # in a dict keyed by the service name
             services_data = dict()
@@ -7815,7 +7836,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             print()
             # get the device MAC address
             print("    MAC address: %s" % device.mac_address)
@@ -7929,7 +7951,8 @@ class DirectGateway(object):
             device = collector.device
             # identify the device being used
             print()
-            print(f'Interrogating {device.model} at {device.ip_address.decode()}:{int(device.port):d}')
+            print(f'Interrogating {bcolors.BOLD}{device.model}{bcolors.ENDC} '
+                  f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # first update the collector's sensor ID data
             device.api.update_sensor_id_data()
         except GWIOError as e:
