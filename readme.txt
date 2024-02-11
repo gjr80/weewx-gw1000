@@ -84,7 +84,7 @@ the --test-driver command line option.
 
     For WeeWX package installs use:
 
-        PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/usergw1000.py \
+        PYTHONPATH=/usr/share/weewx python3 /etc/weewx/bin/user/gw1000.py \
         --test-driver --ip-address=device_ip_address
 
     where device_ip_address is the IP address of the gateway device being used.
