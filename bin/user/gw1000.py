@@ -345,6 +345,7 @@ import queue
 import re
 import socket
 import struct
+import sys
 import threading
 import time
 import urllib.error
@@ -2336,14 +2337,14 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
     @property
     def description(self):
-        """Description displayed as part of wee_device help information."""
+        """Description displayed as part of weectl device help information."""
 
-        return "Read data and configuration from an Ecowitt gateway weather station."
+        return "Read data and configuration from an Ecowitt gateway device."
 
     @property
     def usage(self):
-        """wee_device usage information."""
-        return """%prog --help
+        """weectl device usage information."""
+        return f"""{bcolors.BOLD}%prog --help
        %prog --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--units=us|metric|metricwx]
@@ -2369,7 +2370,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
        %prog --get-services
             [CONFIG_FILE|--config=CONFIG_FILE]
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--unmask] [--debug=0|1|2|3]"""
+            [--unmask] [--debug=0|1|2|3]{bcolors.ENDC}"""
 
     @property
     def epilog(self):
@@ -6903,12 +6904,12 @@ class DirectGateway(object):
     # list of sensors to be displayed in the sensor ID output
     sensors_list = []
 
-    def __init__(self, opts, parser, stn_dict):
+    def __init__(self, namespace, arg_parser, stn_dict):
         """Initialise a DirectGateway object."""
 
         # save the optparse options and station dict
-        self.opts = opts
-        self.parser = parser
+        self.namespace = namespace
+        self.arg_parser = arg_parser
         self.stn_dict = stn_dict
         # obtain the IP address and port number to use
         self.ip_address = self.ip_from_config_opts()
@@ -6929,7 +6930,7 @@ class DirectGateway(object):
         """
 
         # obtain an IP address from the command line options
-        ip_address = self.opts.ip_address if self.opts.ip_address else None
+        ip_address = self.namespace.ip_address if self.namespace.ip_address else None
         # if we didn't get an IP address check the station config dict
         if ip_address is None:
             # obtain the IP address from the station config dict
@@ -6971,7 +6972,7 @@ class DirectGateway(object):
         """
 
         # obtain a port number from the command line options
-        port = self.opts.port if self.opts.port else None
+        port = self.namespace.port if self.namespace.port else None
         # if we didn't get a port number check the station config dict
         if port is None:
             # obtain the port number from the station config dict
@@ -7012,7 +7013,7 @@ class DirectGateway(object):
 
         # obtain the show_battery value from the command line options if it
         # exists
-        show_battery = self.opts.show_battery if self.opts.show_battery else None
+        show_battery = self.namespace.show_battery if self.namespace.show_battery else None
         # if we didn't get a show_battery value check the station config dict
         if show_battery is None:
             # obtain the show_battery value from the station config dict, try
@@ -7038,53 +7039,53 @@ class DirectGateway(object):
         """Call the appropriate method based on the optparse options."""
 
         # run the driver
-        if hasattr(self.opts, 'test_driver') and self.opts.test_driver:
+        if hasattr(self.namespace, 'test_driver') and self.namespace.test_driver:
             self.test_driver()
         # run the service with simulator
-        elif hasattr(self.opts, 'test_service') and self.opts.test_service:
+        elif hasattr(self.namespace, 'test_service') and self.namespace.test_service:
             self.test_service()
-        elif hasattr(self.opts, 'sys_params') and self.opts.sys_params:
+        elif hasattr(self.namespace, 'sys_params') and self.namespace.sys_params:
             self.system_params()
-        elif hasattr(self.opts, 'get_rain') and self.opts.get_rain:
+        elif hasattr(self.namespace, 'get_rain') and self.namespace.get_rain:
             self.get_rain_data()
-        elif hasattr(self.opts, 'get_all_rain') and self.opts.get_all_rain:
+        elif hasattr(self.namespace, 'get_all_rain') and self.namespace.get_all_rain:
             self.get_all_rain_data()
-        elif hasattr(self.opts, 'get_mulch_offset') and self.opts.get_mulch_offset:
+        elif hasattr(self.namespace, 'get_mulch_offset') and self.namespace.get_mulch_offset:
             self.get_mulch_offset()
-        elif hasattr(self.opts, 'get_temp_calibration') and self.opts.get_temp_calibration:
+        elif hasattr(self.namespace, 'get_temp_calibration') and self.namespace.get_temp_calibration:
             self.get_mulch_t_offset()
-        elif hasattr(self.opts, 'get_pm25_offset') and self.opts.get_pm25_offset:
+        elif hasattr(self.namespace, 'get_pm25_offset') and self.namespace.get_pm25_offset:
             self.get_pm25_offset()
-        elif hasattr(self.opts, 'get_co2_offset') and self.opts.get_co2_offset:
+        elif hasattr(self.namespace, 'get_co2_offset') and self.namespace.get_co2_offset:
             self.get_co2_offset()
-        elif hasattr(self.opts, 'get_calibration') and self.opts.get_calibration:
+        elif hasattr(self.namespace, 'get_calibration') and self.namespace.get_calibration:
             self.get_calibration()
-        elif hasattr(self.opts, 'get_soil_calibration') and self.opts.get_soil_calibration:
+        elif hasattr(self.namespace, 'get_soil_calibration') and self.namespace.get_soil_calibration:
             self.get_soil_calibration()
-        elif hasattr(self.opts, 'get_services') and self.opts.get_services:
+        elif hasattr(self.namespace, 'get_services') and self.namespace.get_services:
             self.get_services()
-        elif hasattr(self.opts, 'mac') and self.opts.mac:
+        elif hasattr(self.namespace, 'mac') and self.namespace.mac:
             # TODO. Rename to remove 'station' ?
             self.station_mac()
-        elif hasattr(self.opts, 'firmware') and self.opts.firmware:
+        elif hasattr(self.namespace, 'firmware') and self.namespace.firmware:
             self.firmware()
-        elif hasattr(self.opts, 'sensors') and self.opts.sensors:
+        elif hasattr(self.namespace, 'sensors') and self.namespace.sensors:
             self.sensors()
-        elif hasattr(self.opts, 'live') and self.opts.live:
+        elif hasattr(self.namespace, 'live') and self.namespace.live:
             self.live_data()
-        elif hasattr(self.opts, 'discover') and self.opts.discover:
+        elif hasattr(self.namespace, 'discover') and self.namespace.discover:
             self.discover()
-        elif hasattr(self.opts, 'map') and self.opts.map:
+        elif hasattr(self.namespace, 'map') and self.namespace.map:
             self.field_map()
-        elif hasattr(self.opts, 'driver_map') and self.opts.driver_map:
+        elif hasattr(self.namespace, 'driver_map') and self.namespace.driver_map:
             self.driver_field_map()
-        elif hasattr(self.opts, 'sys_service_mapparams') and self.opts.service_map:
+        elif hasattr(self.namespace, 'sys_service_mapparams') and self.namespace.service_map:
             self.service_field_map()
         else:
             print()
             print("No option selected, nothing done")
             print()
-            self.parser.print_help()
+            self.arg_parser.print_help()
             return
 
     def system_params(self):
@@ -7701,10 +7702,10 @@ class DirectGateway(object):
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                wu_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                wu_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Station ID", wu_id))
                 # Station key
-                key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
+                key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Station Key", key))
 
         def print_weathercloud(data_dict=None):
@@ -7713,10 +7714,10 @@ class DirectGateway(object):
             # do we have any settings?
             if data_dict is not None:
                 # Weathercloud ID
-                wc_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                wc_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Weathercloud ID", wc_id))
                 # Weathercloud key
-                key = data_dict['key'] if self.opts.unmask else obfuscate(data_dict['key'])
+                key = data_dict['key'] if self.namespace.unmask else obfuscate(data_dict['key'])
                 print("%22s: %s" % ("Weathercloud Key", key))
 
         def print_wow(data_dict=None):
@@ -7725,10 +7726,10 @@ class DirectGateway(object):
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                wow_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                wow_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Station ID", wow_id))
                 # Station key
-                key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
+                key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Station Key", key))
 
         def print_custom(data_dict=None):
@@ -7760,9 +7761,9 @@ class DirectGateway(object):
                     print("%22s: %s" % ("Path", data_dict['ecowitt_path']))
                 elif data_dict['type'] == 1:
                     print("%22s: %s" % ("Path", data_dict['wu_path']))
-                    custom_id = data_dict['id'] if self.opts.unmask else obfuscate(data_dict['id'])
+                    custom_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
                     print("%22s: %s" % ("Station ID", custom_id))
-                    key = data_dict['password'] if self.opts.unmask else obfuscate(data_dict['password'])
+                    key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
                     print("%22s: %s" % ("Station Key", key))
                 # port
                 print("%22s: %d" % ("Port", data_dict['port']))
@@ -8060,9 +8061,9 @@ class DirectGateway(object):
             weewx.units.obs_group_dict.prepend(DirectGateway.gw_direct_obs_group_dict)
             # the live data is in MetricWX units, get a suitable converter
             # based on our output units
-            if self.opts.units.lower() == 'us':
+            if self.namespace.units.lower() == 'us':
                 _unit_system = weewx.US
-            elif self.opts.units.lower() == 'metricwx':
+            elif self.namespace.units.lower() == 'metricwx':
                 _unit_system = weewx.METRICWX
             else:
                 _unit_system = weewx.METRIC
@@ -8302,12 +8303,12 @@ class DirectGateway(object):
         # set the IP address and port in the station config dict
         self.stn_dict['ip_address'] = self.ip_address
         self.stn_dict['port'] = self.port
-        if self.opts.poll_interval:
-            self.stn_dict['poll_interval'] = self.opts.poll_interval
-        if self.opts.max_tries:
-            self.stn_dict['max_tries'] = self.opts.max_tries
-        if self.opts.retry_wait:
-            self.stn_dict['retry_wait'] = self.opts.retry_wait
+        if self.namespace.poll_interval:
+            self.stn_dict['poll_interval'] = self.namespace.poll_interval
+        if self.namespace.max_tries:
+            self.stn_dict['max_tries'] = self.namespace.max_tries
+        if self.namespace.retry_wait:
+            self.stn_dict['retry_wait'] = self.namespace.retry_wait
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDriver object
@@ -8363,12 +8364,12 @@ class DirectGateway(object):
         config['GW1000']['ip_address'] = self.ip_address
         config['GW1000']['port'] = self.port
         # these command line options should only be added if they exist
-        if self.opts.poll_interval:
-            config['GW1000']['poll_interval'] = self.opts.poll_interval
-        if self.opts.max_tries:
-            config['GW1000']['max_tries'] = self.opts.max_tries
-        if self.opts.retry_wait:
-            config['GW1000']['retry_wait'] = self.opts.retry_wait
+        if self.namespace.poll_interval:
+            config['GW1000']['poll_interval'] = self.namespace.poll_interval
+        if self.namespace.max_tries:
+            config['GW1000']['max_tries'] = self.namespace.max_tries
+        if self.namespace.retry_wait:
+            config['GW1000']['retry_wait'] = self.namespace.retry_wait
         # assign our dummyTemp field to a unit group so unit conversion works
         # properly
         weewx.units.obs_group_dict['dummyTemp'] = 'group_temperature'
@@ -8447,95 +8448,137 @@ class DirectGateway(object):
 # above api_commands may need to be changed to 'python2' or 'python3'.
 
 def main():
-    import optparse
+    import argparse
 
-    usage = """Usage: python -m user.gw1000 --help
-       python -m user.gw1000 --version
-       python -m user.gw1000 --test-driver|--test-service
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--poll-interval=INTERVAL]
-            [--max-tries=MAX_TRIES]
-            [--retry-wait=RETRY_WAIT]
-            [--show-all-batt]
-            [--debug=0|1|2|3]
-       python -m user.gw1000 --live-data
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--units=us|metric|metricwx]
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--show-all-batt]
-            [--debug=0|1|2|3]
-       python -m user.gw1000 --default-map|--driver-map|--service-map
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--debug=0|1|2|3]
-       python -m user.gw1000 --discover
-            [CONFIG_FILE|--config=CONFIG_FILE]
-            [--debug=0|1|2|3]"""
+    usage = f"""{bcolors.BOLD}%(prog)s --help
+                --version
+                --test-driver|--test-service
+                     [CONFIG_FILE|--config=CONFIG_FILE]
+                     [--ip-address=IP_ADDRESS] [--port=PORT]
+                     [--poll-interval=INTERVAL]
+                     [--max-tries=MAX_TRIES]
+                     [--retry-wait=RETRY_WAIT]
+                     [--show-all-batt]
+                     [--debug=0|1|2|3]
+                --live-data
+                     [CONFIG_FILE|--config=CONFIG_FILE]
+                     [--units=us|metric|metricwx]
+                     [--ip-address=IP_ADDRESS] [--port=PORT]
+                     [--show-all-batt]
+                     [--debug=0|1|2|3]
+                --default-map|--driver-map|--service-map
+                     [CONFIG_FILE|--config=CONFIG_FILE]
+                     [--debug=0|1|2|3]
+                --discover
+                     [CONFIG_FILE|--config=CONFIG_FILE]
+                     [--debug=0|1|2|3]{bcolors.ENDC}
+    """
+    description = """Interact with an Ecowitt gateway device."""
+    arg_parser = argparse.ArgumentParser(usage=usage,
+                                         description=description,
+                                         formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser = optparse.OptionParser(usage=usage)
-    parser.add_option('--version', dest='version', action='store_true',
-                      help='display driver version number')
-    parser.add_option('--discover', dest='discover', action='store_true',
-                      help='discover devices and display device IP address '
-                           'and port')
-    parser.add_option('--live-data', dest='live', action='store_true',
-                      help='display device live sensor data')
-    parser.add_option('--test-driver', dest='test_driver', action='store_true',
-                      metavar='TEST_DRIVER', help='exercise the gateway driver')
-    parser.add_option('--test-service', dest='test_service',
-                      action='store_true', metavar='TEST_SERVICE',
-                      help='exercise the gateway service')
-    parser.add_option('--default-map', dest='map', action='store_true',
-                      help='display the default field map')
-    parser.add_option('--driver-map', dest='driver_map', action='store_true',
-                      help='display the field map that would be used by the gateway '
-                           'driver')
-    parser.add_option('--service-map', dest='service_map', action='store_true',
-                      help='display the field map that would be used by the gateway '
-                           'service')
-    parser.add_option('--ip-address', dest='ip_address',
-                      help='device IP address to use')
-    parser.add_option('--port', dest='port', type=int,
-                      help='device port to use')
-    parser.add_option('--poll-interval', dest='poll_interval', type=int,
-                      help='how often to poll the device API')
-    parser.add_option('--max-tries', dest='max_tries', type=int,
-                      help='max number of attempts to contact the device')
-    parser.add_option('--retry-wait', dest='retry_wait', type=int,
-                      help='how long to wait between attempts to contact the device')
-    parser.add_option('--show-all-batt', dest='show_battery',
-                      action='store_true',
-                      help='show all available battery state data regardless of '
-                           'sensor state')
-    parser.add_option('--unmask', dest='unmask', action='store_true',
-                      help='unmask sensitive settings')
-    parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
-                      help='unit system to use when displaying live data')
-    parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
-                      help="Use configuration file CONFIG_FILE.")
-    parser.add_option('--debug', dest='debug', type=int,
-                      help='How much status to display, 0-3')
-    (opts, args) = parser.parse_args()
+    arg_parser.add_argument('--version',
+                            dest='version',
+                            action='store_true',
+                            help='display driver version number')
+    arg_parser.add_argument('--discover',
+                            dest='discover',
+                            action='store_true',
+                            help='discover devices and display device IP address '
+                                 'and port')
+    arg_parser.add_argument('--live-data',
+                            dest='live',
+                            action='store_true',
+                            help='display device live sensor data')
+    arg_parser.add_argument('--test-driver',
+                            dest='test_driver',
+                            action='store_true',
+                            help='exercise the gateway driver')
+    arg_parser.add_argument('--test-service',
+                            dest='test_service',
+                            action='store_true',
+                            help='exercise the gateway service')
+    arg_parser.add_argument('--default-map',
+                            dest='map',
+                            action='store_true',
+                            help='display the default field map')
+    arg_parser.add_argument('--driver-map',
+                            dest='driver_map',
+                            action='store_true',
+                            help='display the field map that would be used by the gateway '
+                                 'driver')
+    arg_parser.add_argument('--service-map',
+                            dest='service_map',
+                            action='store_true',
+                            help='display the field map that would be used by the gateway '
+                                 'service')
+    arg_parser.add_argument('--ip-address',
+                            dest='ip_address',
+                            help='device IP address to use')
+    arg_parser.add_argument('--port',
+                            dest='port',
+                            type=int,
+                            help='device port to use')
+    arg_parser.add_argument('--poll-interval',
+                            dest='poll_interval',
+                            type=int,
+                            help='how often to poll the device API')
+    arg_parser.add_argument('--max-tries',
+                            dest='max_tries',
+                            type=int,
+                            help='max number of attempts to contact the device')
+    arg_parser.add_argument('--retry-wait',
+                            dest='retry_wait',
+                            type=int,
+                            help='how long to wait between attempts to contact the device')
+    arg_parser.add_argument('--show-all-batt',
+                            dest='show_battery',
+                            action='store_true',
+                            help='show all available battery state data regardless of '
+                                 'sensor state')
+    arg_parser.add_argument('--unmask',
+                            dest='unmask',
+                            action='store_true',
+                            help='unmask sensitive settings')
+    arg_parser.add_argument('--units',
+                            dest='units',
+                            metavar='UNITS',
+                            default='metric',
+                            help='unit system to use when displaying live data')
+    arg_parser.add_argument('--config',
+                            dest='config',
+                            metavar='CONFIG_FILE',
+                            help="Use configuration file CONFIG_FILE.")
+    arg_parser.add_argument('--debug',
+                            dest='debug',
+                            type=int,
+                            help='How much status to display, 0-3')
+    namespace = arg_parser.parse_args()
 
-    # display driver version number
-    if opts.version:
-        print("%s driver version: %s" % (DRIVER_NAME, DRIVER_VERSION))
-        exit(0)
+    if len(sys.argv) == 1:
+        # we have no arguments, display the help text and exit
+        arg_parser.print_help()
+        sys.exit(0)
 
-    # get config_dict to use
-    config_path, config_dict = weecfg.read_config(opts.config_path, args)
-    print("Using configuration file %s" % config_path)
-    stn_dict = config_dict.get('GW1000', {})
+    # if we have been asked for the version number we can display that now
+    if namespace.version:
+        print(f"{DRIVER_NAME} driver version {DRIVER_VERSION}")
+        sys.exit(0)
 
+    # any other option will require the config_dict, get the config_dict now
+    config_path, config_dict = weecfg.read_config(namespace.config)
+    print(f"Using configuration file {bcolors.BOLD}{config_path}{bcolors.ENDC}")
+    stn_config_dict = config_dict.get('GW1000', {})
     # set weewx.debug as necessary
-    if opts.debug is not None:
-        _debug = weeutil.weeutil.to_int(opts.debug)
+    if namespace.debug is not None:
+        _debug = weeutil.weeutil.to_int(namespace.debug)
     else:
         _debug = weeutil.weeutil.to_int(config_dict.get('debug', 0))
     weewx.debug = _debug
     # inform the user if the debug level is 'higher' than 0
     if _debug > 0:
-        print("debug level is '%d'" % _debug)
+        print(f"debug level is {_debug:d}")
 
     # Now we can set up the user customized logging, but we need to handle both
     # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
@@ -8554,7 +8597,7 @@ def main():
     define_units()
 
     # get a DirectGateway object
-    direct_gw = DirectGateway(opts, parser, stn_dict)
+    direct_gw = DirectGateway(namespace, arg_parser, stn_config_dict)
     # now let the DirectGateway object process the options
     direct_gw.process_options()
 
