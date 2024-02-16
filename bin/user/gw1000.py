@@ -6234,8 +6234,9 @@ class GatewayDevice(object):
                               log_unknown_fields=log_unknown_fields,
                               debug=debug)
 
-        # get a GatewayHttp object to handle any HTTP requests
-        self.http = GatewayHttp(ip_address=ip_address)
+        # get a GatewayHttp object to handle any HTTP requests, a GatewayHttp
+        # object requires a decoded IP address
+        self.http = GatewayHttp(ip_address=self.api.ip_address.decode())
 
         # start off logging failures
         self.log_failures = True
