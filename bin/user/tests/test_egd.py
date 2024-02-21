@@ -1179,7 +1179,7 @@ class ListsAndDictsTestCase(unittest.TestCase):
         # construct the default field map and save for later, note we construct
         # the default field map by passing gw1000.Gateway.construct_field_map
         # an empty config dict
-        self.default_field_map = user.gw1000.Gateway.construct_field_map()
+        self.default_field_map = user.gw1000.Gateway.construct_field_map({})
 
     def test_dicts(self):
         """Test dicts for consistency"""
