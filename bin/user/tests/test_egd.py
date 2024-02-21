@@ -8,9 +8,11 @@ The test suite tests correct operation of:
 
 -
 
-Version: 0.6.1                                  Date: 21 February 2024
+Version: 0.7.0a1                                  Date: ? ? 2024
 
 Revision History
+    ? ? 2024            v0.7.0
+        -
     21 February 2024    v0.6.1
         - updated for Ecowitt gateway device driver release 0.6.1
     7 February 2024     v0.6.0
@@ -27,12 +29,12 @@ Revision History
 
 To run the test suite:
 
--   copy this file to the target machine, nominally to the $BIN/user/tests
+-   copy this file to the target machine, nominally to the USER_ROOT/tests
     directory
 
 -   run the test suite using:
 
-    $ PYTHONPATH=$BIN python3 -m user.tests.test_egd [-v]
+    PYTHONPATH=~/weewx-data/bin python3 ~/weewx-data/bin/user/tests/test_egd.py --help
 """
 # python imports
 import socket
@@ -65,7 +67,7 @@ import user.gw1000
 # TODO. Add decode firmware check refer issue #31
 
 TEST_SUITE_NAME = "Gateway driver"
-TEST_SUITE_VERSION = "0.6.0b7"
+TEST_SUITE_VERSION = "0.7.0a1"
 
 
 class DebugOptionsTestCase(unittest.TestCase):
@@ -1664,6 +1666,24 @@ class GatewayServiceTestCase(unittest.TestCase):
         'insideTemp': 'intemp',
         'aqi': 'pm10'
     }
+    # Create a dummy config so we can stand up a dummy engine with a dummy
+    # simulator emitting arbitrary loop packets. Only include the
+    # GatewayService service, we don't need the others. This will be a
+    # 'loop packets only' setup, no archive records; but that doesn't
+    # matter, we just need to be able to exercise the GatewayService.
+    dummy_config = """
+    [Station]
+        station_type = Simulator
+        altitude = 0, meter
+        latitude = 0
+        longitude = 0
+    [Simulator]
+        driver = weewx.drivers.simulator
+        mode = simulator
+    [GW1000]
+    [Engine]
+        [[Services]]
+            data_services = user.gw1000.GatewayService"""
     # dummy gateway device data used to exercise the device to WeeWX mapping
     gw_data = {'absbarometer': 1009.3,
                'datetime': 1632109437,
@@ -1726,26 +1746,8 @@ class GatewayServiceTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Setup the GatewayServiceTestCase to perform its tests."""
 
-        # Create a dummy config so we can stand up a dummy engine with a dummy
-        # simulator emitting arbitrary loop packets. Only include the
-        # GatewayService service, we don't need the others. This will be a
-        # 'loop packets only' setup, no archive records; but that doesn't
-        # matter, we just need to be able to exercise the GatewayService.
-        dummy_config = """
-[Station]
-    station_type = Simulator
-    altitude = 0, meter
-    latitude = 0
-    longitude = 0
-[Simulator]
-    driver = weewx.drivers.simulator
-    mode = simulator
-[GW1000]
-[Engine]
-    [[Services]]
-        data_services = user.gw1000.GatewayService"""
         # construct our config dict
-        config = configobj.ConfigObj(StringIO(dummy_config))
+        config = configobj.ConfigObj(StringIO(GatewayServiceTestCase.dummy_config))
         # set the IP address we will use, if we received an IP address via the
         # command line use it, otherwise use a fake address
         config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else GatewayServiceTestCase.fake_ip
@@ -2116,22 +2118,22 @@ def main():
                   UtilitiesTestCase, ListsAndDictsTestCase, StationTestCase,
                   GatewayServiceTestCase)
 
-    usage = """python3 -m user.tests.test_egd --help
-           python3 -m user.tests.test_egd --version
-           python3 -m user.tests.test_egd [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
+    usage = """PYTHONPATH=~/weewx-data/bin python3 ~/weewx-data/bin/user/tests/test_egd.py 
+           --help
+           --version
+           [--ip-address=IP_ADDRESS] [--port=PORT] [-v|--verbose=VERBOSITY]
 
         Arguments:
 
-           VERBOSITY: Path and file name of the WeeWX configuration file to be used.
-                      Default is weewx.conf.
            IP_ADDRESS: IP address to use to contact the gateway device. If omitted 
                        discovery is used.
            PORT: Port to use to contact the gateway device. If omitted discovery is 
-                 used."""
+                 used.
+           VERBOSITY: How much status to display, 0-2. Default is 2."""
     description = 'Test the Ecowitt gateway driver code.'
-    epilog = """You must ensure the WeeWX modules are in your PYTHONPATH. For example:
+    epilog = """You must ensure the WeeWX user modules are in your PYTHONPATH. For example:
 
-    PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_egd --help
+    PYTHONPATH=~/weewx-data/bin python3 ~/weewx-data/bin/user/tests/test_egd.py --help
     """
 
     parser = argparse.ArgumentParser(usage=usage,
@@ -2140,29 +2142,28 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', dest='version', action='store_true',
                         help='display Ecowitt gateway driver test suite version number')
-    parser.add_argument('--verbose', dest='verbosity', type=int, metavar="VERBOSITY",
-                        default=2,
-                        help='How much status to display, 0-2')
     parser.add_argument('--ip-address', dest='ip_address', metavar="IP_ADDRESS",
                         help='Gateway device IP address to use')
     parser.add_argument('--port', dest='port', type=int, metavar="PORT",
                         help='Gateway device port to use')
-    parser.add_argument('--no-device', dest='no_device', action='store_true',
-                        help='skip tests that require a physical gateway device')
+#    parser.add_argument('--no-device', dest='no_device', action='store_true',
+#                        help='skip tests that require a physical gateway device')
+    parser.add_argument('--verbose', dest='verbosity', type=int, metavar="VERBOSITY",
+                        default=2,
+                        help='How much status to display, 0-2')
     # parse the arguments
     args = parser.parse_args()
 
     # display version number
     if args.version:
         print("%s test suite version: %s" % (TEST_SUITE_NAME, TEST_SUITE_VERSION))
-        print("args=%s" % (args,))
         exit(0)
     # run the tests
     # first set the IP address and port to use in StationTestCase and
     # GatewayServiceTestCase
     StationTestCase.ip_address = args.ip_address
     StationTestCase.port = args.port
-    StationTestCase.no_device = args.no_device
+#    StationTestCase.no_device = args.no_device
     GatewayServiceTestCase.ip_address = args.ip_address
     GatewayServiceTestCase.port = args.port
     # get a test runner with appropriate verbosity
