@@ -38,6 +38,9 @@ Version: 0.7.0a1                                   Date: X Xxxxxxxxx 202x
 Revision History
     X Xxxxxxxxxx 202x       v0.7.0
         -
+    21 February 2024        v0.6.1
+        -   fix bug in construct_field_map() signature that resulted in field
+            map and field map extensions being ignored
     7 February 2024         v0.6.0
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
@@ -1177,7 +1180,7 @@ class Gateway(object):
         self.piezo_rain_total_field = None
 
     @staticmethod
-    def construct_field_map(**gw_config):
+    def construct_field_map(gw_config):
         """Given a gateway device config construct the field map."""
 
         # first obtain the field map from our config

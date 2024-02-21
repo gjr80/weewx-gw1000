@@ -8,10 +8,12 @@ The test suite tests correct operation of:
 
 -
 
-Version: 0.6.0b7                                Date: ?? February 2024
+Version: 0.6.1                                  Date: 21 February 2024
 
 Revision History
-    ?? February 2024    v0.6.0
+    21 February 2024    v0.6.1
+        - updated for Ecowitt gateway device driver release 0.6.1
+    7 February 2024     v0.6.0
         -   updated for Ecowitt gateway device driver release 0.6.0
     ?? April 2022       v0.5.0
         -   updated for Ecowitt gateway device driver release 0.5.0
@@ -36,7 +38,11 @@ To run the test suite:
 import socket
 import struct
 import unittest
+
+from io import StringIO
 from unittest.mock import patch
+
+import configobj
 
 # WeeWX imports
 import weewx
@@ -1207,7 +1213,7 @@ class StationTestCase(unittest.TestCase):
 
     fake_ip = '192.168.99.99'
     fake_port = 44444
-    mock_mac = 'A1:B2:C3:D4:E5:F6' # b'A1:B2:C3:D4:E5:F6'
+    mock_mac = 'A1:B2:C3:D4:E5:F6'  # b'A1:B2:C3:D4:E5:F6'
     mock_firmware = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
     mock_system_params = {
         'frequency': 0,
@@ -1286,34 +1292,34 @@ class StationTestCase(unittest.TestCase):
         'CMD_GET_MulCH_T_OFFSET': 'FF FF 59 03 5C'
     }
     # Station.discover() multiple device discovery response
-    discover_multi_resp = [{'mac': 'E8:68:E7:87:1A:4F', # b'\xe8h\xe7\x87\x1aO'
+    discover_multi_resp = [{'mac': 'E8:68:E7:87:1A:4F',  # b'\xe8h\xe7\x87\x1aO'
                             'ip_address': '192.168.50.3',
                             'port': 45001,
                             'ssid': 'GW1100C-WIFI1A4F V2.0.9',
                             'model': 'GW1100'},
-                           {'mac': 'DC:4F:22:58:A2:45', # b'\xdcO"X\xa2E'
+                           {'mac': 'DC:4F:22:58:A2:45',  # b'\xdcO"X\xa2E'
                             'ip_address': '192.168.50.6',
                             'port': 45002,
                             'ssid': 'GW1000-WIFIA245 V1.6.7',
                             'model': 'GW1000'},
-                           {'mac': '50:02:91:E3:D3:68', # b'P\x02\x91\xe3\xd3h'
+                           {'mac': '50:02:91:E3:D3:68',  # b'P\x02\x91\xe3\xd3h'
                             'ip_address': '192.168.50.7',
                             'port': 45003,
                             'ssid': 'GW1000-WIFID368 V1.6.8',
                             'model': 'GW1000'}
                            ]
     # Station.discover() multiple device discovery response with different MAC
-    discover_multi_diff_resp = [{'mac': b'\xe8h\xe7\x87\x1bO', #'E8:68:E7:87:1B:4F',
+    discover_multi_diff_resp = [{'mac': b'\xe8h\xe7\x87\x1bO',  # 'E8:68:E7:87:1B:4F',
                                  'ip_address': '192.168.50.3',
                                  'port': 45001,
                                  'ssid': 'GW1100C-WIFI1A4F V2.0.9',
                                  'model': 'GW1100'},
-                                {'mac': b'\xdcO"X\xa3E', #'DC:4F:22:58:A3:45'
+                                {'mac': b'\xdcO"X\xa3E',  # 'DC:4F:22:58:A3:45'
                                  'ip_address': '192.168.50.6',
                                  'port': 45002,
                                  'ssid': 'GW1000-WIFIA245 V1.6.7',
                                  'model': 'GW1000'},
-                                {'mac': b'P\x02\x91\xe3\xd2h', #'50:02:91:E3:D2:68',
+                                {'mac': b'P\x02\x91\xe3\xd2h',  # '50:02:91:E3:D2:68',
                                  'ip_address': '192.168.50.7',
                                  'port': 45003,
                                  'ssid': 'GW1000-WIFID368 V1.6.8',
@@ -1407,7 +1413,7 @@ class StationTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_calc_checksum(self, mock_get_mac, mock_get_firmware,
-                              mock_get_system_params, mock_get_sensor_id):
+                           mock_get_system_params, mock_get_sensor_id):
         """Test checksum calculation.
 
         Tests:
@@ -1638,27 +1644,36 @@ class StationTestCase(unittest.TestCase):
         self.assertEqual(gw_device_api.port, self.test_port)
 
 
-class GatewayTestCase(unittest.TestCase):
-    """Test the GW1000Service.
+class GatewayServiceTestCase(unittest.TestCase):
+    """Test the GatewayService.
 
-    Uses mock to simulate methods required to run a GW1000 service without a
-    GW1x00. If for some reason the GW1000 service cannot be run the test is
-    skipped.
+    Uses mock to simulate methods required to run a GatewayService without a
+    connected gateway device. If for some reason the GatewayService cannot be
+    run the test is skipped.
     """
 
     fake_ip = '192.168.99.99'
     fake_port = 44444
     fake_mac = b'\xdcO"X\xa2E'
-    # dummy GW1000 data used to exercise the GW1000 to WeeWX mapping
-    gw1000_data = {'absbarometer': 1009.3,
-                   'datetime': 1632109437,
-                   'inHumidity': 56,
-                   'inTemp': 27.3,
-                   'lightningcount': 32,
-                   't_raintotals': 100.3,
-                   'relbarometer': 1014.3,
-                   'usUnits': 17
-                   }
+    user_field_map = {
+        'dateTime': 'datetime',
+        'inTemp': 'intemp',
+        'outTemp': 'outtemp'
+    }
+    user_field_extensions = {
+        'insideTemp': 'intemp',
+        'aqi': 'pm10'
+    }
+    # dummy gateway device data used to exercise the device to WeeWX mapping
+    gw_data = {'absbarometer': 1009.3,
+               'datetime': 1632109437,
+               'inHumidity': 56,
+               'inTemp': 27.3,
+               'lightningcount': 32,
+               't_raintotals': 100.3,
+               'relbarometer': 1014.3,
+               'usUnits': 17
+               }
     # mapped dummy GW1000 data
     result_data = {'dateTime': 1632109437,
                    'inHumidity': 56,
@@ -1709,67 +1724,164 @@ class GatewayTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Setup the GatewayTestCase to perform its tests."""
+        """Setup the GatewayServiceTestCase to perform its tests."""
 
         # Create a dummy config so we can stand up a dummy engine with a dummy
-        # simulator emitting arbitrary loop packets. Only include the GW1000
-        # service, we don't need the others. This will be a loop packets only
-        # setup, no archive records, but that doesn't matter, we just need to
-        # be able to exercise the GW1000 service.
-        config = {
-            'Station': {
-                'station_type': 'Simulator',
-                'altitude': [0, 'meter'],
-                'latitude': 0,
-                'longitude': 0},
-            'Simulator': {
-                'driver': 'weewx.drivers.simulator',
-                'mode': 'simulator'},
-            'GW1000': {},
-            'Engine': {
-                'Services': {
-                    'archive_services': 'user.gw1000.GatewayService'}}}
+        # simulator emitting arbitrary loop packets. Only include the
+        # GatewayService service, we don't need the others. This will be a
+        # 'loop packets only' setup, no archive records; but that doesn't
+        # matter, we just need to be able to exercise the GatewayService.
+        dummy_config = """
+[Station]
+    station_type = Simulator
+    altitude = 0, meter
+    latitude = 0
+    longitude = 0
+[Simulator]
+    driver = weewx.drivers.simulator
+    mode = simulator
+[GW1000]
+[Engine]
+    [[Services]]
+        data_services = user.gw1000.GatewayService"""
+        # construct our config dict
+        config = configobj.ConfigObj(StringIO(dummy_config))
         # set the IP address we will use, if we received an IP address via the
         # command line use it, otherwise use a fake address
-        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else GatewayTestCase.fake_ip
+        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else GatewayServiceTestCase.fake_ip
         # set the port number we will use, if we received a port number via the
         # command line use it, otherwise use a fake port number
-        config['GW1000']['port'] = cls.port if cls.port is not None else GatewayTestCase.fake_port
+        config['GW1000']['port'] = cls.port if cls.port is not None else GatewayServiceTestCase.fake_port
         # save the service config dict for use later
         cls.gw1000_svc_config = config
+        field_map = dict(user.gw1000.Gateway.default_field_map)
+        # now add in the rain field map
+        field_map.update(user.gw1000.Gateway.rain_field_map)
+        # now add in the wind field map
+        field_map.update(user.gw1000.Gateway.wind_field_map)
+        # now add in the battery state field map
+        field_map.update(user.gw1000.Gateway.battery_field_map)
+        # now add in the sensor signal field map
+        field_map.update(user.gw1000.Gateway.sensor_signal_field_map)
+        cls.default_field_map = field_map
 
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
-    def test_map(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
-        """Test GW1000Service GW1000 to WeeWX mapping
+    def test_map_construction(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+        """Test construction of the gateway device to WeeWX mapping
 
         Tests:
-        1. field dateTime is included in the GW1000 mapped data
-        2. field usUnits is included in the GW1000 mapped data
-        3. GW1000 obs data is correctly mapped to a WeeWX fields
+        1.  the default field map is used when no user specified field map or
+            field map extensions are provided
+        2.  a user specified field map overrides the default field map
+        3.  a user specified field map and field map extensions override the
+            default field map
+        4.  a user specified field extension without a user specified field map
+            correctly modifies the default field map
         """
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = GatewayTestCase.fake_mac
+        mock_get_mac.return_value = GatewayServiceTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = GatewayTestCase.mock_get_firm_resp
+        mock_get_firmware.return_value = GatewayServiceTestCase.mock_get_firm_resp
         # get_system_params() - system parameters (bytestring)
-        mock_get_sys.return_value = GatewayTestCase.mock_sys_params_resp
+        mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
-        mock_get_sensor_id.return_value = hex_to_bytes(GatewayTestCase.mock_sensor_id_resp)
-        # obtain a GW1000 service
-        gw1000_svc = self.get_gw1000_svc(caller='test_map')
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
+
+        # we will be manipulating the gateway service config so make a copy
+        # that we can alter without affecting other test methods
+        gw1000_svc_config_copy = configobj.ConfigObj(self.gw1000_svc_config)
+        # obtain a GatewayService object
+        gw_service = self.get_gateway_service(config=gw1000_svc_config_copy,
+                                              caller='test_map_construction')
+
+        # test the default field map
+        # check the GatewayService field map consists of the default field map
+        self.assertDictEqual(gw_service.field_map, self.default_field_map)
+
+        # test a user specified field map
+        # add a user defined field map to our config
+        gw1000_svc_config_copy['GW1000']['field_map'] = GatewayServiceTestCase.user_field_map
+        # obtain a new GatewayService object using the modified config
+        gw_service = self.get_gateway_service(config=gw1000_svc_config_copy,
+                                              caller='test_map_construction')
+        # check the GatewayService field map consists of the user specified
+        # field map
+        self.assertDictEqual(gw_service.field_map, GatewayServiceTestCase.user_field_map)
+
+        # test a user specified field map with user specified field map extensions
+        # add user defined field map extensions to our config
+        gw1000_svc_config_copy['GW1000']['field_map_extensions'] = GatewayServiceTestCase.user_field_extensions
+        # obtain a new GatewayService object using the modified config
+        gw_service = self.get_gateway_service(config=gw1000_svc_config_copy,
+                                              caller='test_map_construction')
+        # construct the expected result, it will consist of the user specified
+        # field map modified by the user specified field map extensions
+        _result = dict(GatewayServiceTestCase.user_field_map)
+        # the gateway field 'intemp' is being re-mapped so pop its entry from
+        # the user specified field map
+        _dummy = _result.pop('inTemp')
+        # update the field map with the field map extensions
+        _result.update(GatewayServiceTestCase.user_field_extensions)
+        # check the GatewayService field map consists of the user specified
+        # field map modified by the user specified field map extensions
+        self.assertDictEqual(gw_service.field_map, _result)
+
+        # test the default field map with user specified field map extensions
+        # remove the user defined field map from our config
+        _dummy = gw1000_svc_config_copy['GW1000'].pop('field_map')
+        # obtain a new GatewayService object using the modified config
+        gw_service = self.get_gateway_service(config=gw1000_svc_config_copy,
+                                              caller='test_map_construction')
+        # construct the expected result
+        _result = dict(self.default_field_map)
+        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
+        # each fields entry from the result field map
+        _dummy = _result.pop('inTemp')
+        _dummy = _result.pop('pm10')
+        # update the field map with the field map extensions
+        _result.update(GatewayServiceTestCase.user_field_extensions)
+        # check the GatewayService field map consists of the default field map
+        # modified by the user specified field map extensions
+        self.assertDictEqual(gw_service.field_map, _result)
+
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_map_operation(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+        """Test operation of the gateway device to WeeWX mapping
+
+        Tests:
+        1. field dateTime is included in the mapped data
+        2. field usUnits is included in the mapped data
+        3. gateway device obs data is correctly mapped to WeeWX fields
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = GatewayServiceTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = GatewayServiceTestCase.mock_get_firm_resp
+        # get_system_params() - system parameters (bytestring)
+        mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
+        # obtain a GatewayService object
+        gw_service = self.get_gateway_service(config=self.gw1000_svc_config,
+                                              caller='test_map')
         # get a mapped  version of our GW1000 test data
-        mapped_gw1000_data = gw1000_svc.map_data(self.gw1000_data)
+        mapped_gw_data = gw_service.map_data(self.gw_data)
         # check that our mapped data has a field 'dateTime'
-        self.assertIn('dateTime', mapped_gw1000_data)
+        self.assertIn('dateTime', mapped_gw_data)
         # check that our mapped data has a field 'usUnits'
-        self.assertIn('usUnits', mapped_gw1000_data)
+        self.assertIn('usUnits', mapped_gw_data)
         # check that the usUnits field is set to weewx.METRICWX
-        self.assertEqual(weewx.METRICWX, mapped_gw1000_data.get('usUnits'))
+        self.assertEqual(weewx.METRICWX, mapped_gw_data.get('usUnits'))
 
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
@@ -1786,20 +1898,21 @@ class GatewayTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = GatewayTestCase.fake_mac
+        mock_get_mac.return_value = GatewayServiceTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = GatewayTestCase.mock_get_firm_resp
+        mock_get_firmware.return_value = GatewayServiceTestCase.mock_get_firm_resp
         # get_system_params - system parameters (bytestring)
-        mock_get_sys.return_value = GatewayTestCase.mock_sys_params_resp
+        mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
-        mock_get_sensor_id.return_value = hex_to_bytes(GatewayTestCase.mock_sensor_id_resp)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
-        gw1000_svc = self.get_gw1000_svc(caller='test_map')
+        gw1000_svc = self.get_gateway_service(config=self.gw1000_svc_config,
+                                              caller='test_map')
         # set some GW1000 service parameters to enable rain related tests
         gw1000_svc.rain_total_field = 't_raintotals'
         gw1000_svc.rain_mapping_confirmed = True
         # take a copy of our test data as we will be changing it
-        _gw1000_data = dict(self.gw1000_data)
+        _gw1000_data = dict(self.gw_data)
         # perform the rain calculation
         gw1000_svc.calculate_rain(_gw1000_data)
         # check that our data now has field 'rain'
@@ -1842,17 +1955,18 @@ class GatewayTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = GatewayTestCase.fake_mac
+        mock_get_mac.return_value = GatewayServiceTestCase.fake_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = GatewayTestCase.mock_get_firm_resp
+        mock_get_firmware.return_value = GatewayServiceTestCase.mock_get_firm_resp
         # get_system_params - system parameters (bytestring)
-        mock_get_sys.return_value = GatewayTestCase.mock_sys_params_resp
+        mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
-        mock_get_sensor_id.return_value = hex_to_bytes(GatewayTestCase.mock_sensor_id_resp)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
         # obtain a GW1000 service
-        gw1000_svc = self.get_gw1000_svc(caller='test_map')
+        gw1000_svc = self.get_gateway_service(config=self.gw1000_svc_config,
+                                              caller='test_map')
         # take a copy of our test data as we will be changing it
-        _gw1000_data = dict(self.gw1000_data)
+        _gw1000_data = dict(self.gw_data)
         # perform the lightning calculation
         gw1000_svc.calculate_lightning_count(_gw1000_data)
         # check that our data now has field 'lightning_strike_count'
@@ -1879,59 +1993,60 @@ class GatewayTestCase(unittest.TestCase):
         # count and last_count are not None
         self.assertEqual(gw1000_svc.delta_lightning(count=122, last_count=58), 64)
 
-    def get_gw1000_svc(self, caller):
-        """Get a GW1000 service.
+    @staticmethod
+    def get_gateway_service(config, caller):
+        """Get a GatewayService object.
 
-        Start a dummy engine with the GW1000 driver running as a service.
-        Return a copy of the GW1000 service for use in unit tests.
+        Start a dummy engine with the Ecowitt gateway driver running as a
+        service.
 
-        Returns a running GW1000 service or raises a unittest.SkipTest
-        exception.
+        Return a GatewayService object or raise a unittest.SkipTest exception.
         """
 
         # create a dummy engine, wrap in a try..except in case there is an
         # error
         try:
-            engine = weewx.engine.StdEngine(self.gw1000_svc_config)
+            engine = weewx.engine.StdEngine(config)
         except user.gw1000.GWIOError as e:
-            # could not communicate with the mocked or real GW1000 for some
-            # reason, skip the test if we have an engine try to shut it down
+            # could not communicate with the mocked or real gateway device for
+            # some reason, skip the test if we have an engine try to shut it
+            # down
             if engine:
                 print("\nShutting down engine ... ", end='')
                 engine.shutDown()
             # now raise unittest.SkipTest to skip this test class
             raise unittest.SkipTest("%s: Unable to connect to GW1000" % caller)
         else:
-            # Our GW1000 service will have been instantiated by the engine
+            # Our GatewayService will have been instantiated by the engine
             # during its startup. Whilst access to the service is not normally
             # required we require access here so we can obtain info about the
             # station we are using for this test. The engine does not provide a
-            # ready means to access that GW1000 service so we can do a bit of
-            # guessing and iterate over all of the engine's services and select
-            # the one that has a 'collector' property. Unlikely to cause a
-            # problem since there are only two services in the dummy engine.
-            gw1000_svc = None
-            for svc in engine.service_obj:
-                if hasattr(svc, 'collector'):
-                    gw1000_svc = svc
-            if gw1000_svc:
+            # ready means to access that GatewayService so we can do a bit of
+            # guessing and iterate over the engine's services and select the
+            # one that has a 'collector' property. Unlikely to cause a problem
+            # since there are only two services in the dummy engine.
+            gateway_service = None
+            for service in engine.service_obj:
+                if hasattr(service, 'collector'):
+                    gateway_service = service
+            if gateway_service:
                 # tell the user what device we are using
-                if gw1000_svc.collector.device.ip_address.decode() == GatewayTestCase.fake_ip:
+                if gateway_service.collector.device.ip_address.decode() == GatewayServiceTestCase.fake_ip:
                     _stem = "\nUsing mocked GW1x00 at %s:%d ... "
                 else:
                     _stem = "\nUsing real GW1x00 at %s:%d ... "
-                print(_stem % (gw1000_svc.collector.device.ip_address.decode(),
-                               gw1000_svc.collector.device.port),
+                print(_stem % (gateway_service.collector.device.ip_address.decode(),
+                               gateway_service.collector.device.port),
                       end='')
             else:
-                # we could not get the GW1000 service for some reason, shutdown
+                # we could not get the GatewayService for some reason, shutdown
                 # the engine and skip this test
                 if engine:
                     print("\nShutting down engine ... ", end='')
                     engine.shutDown()
                 # now skip this test class
-                raise unittest.SkipTest("%s: Could not obtain GW1000Service object" % caller)
-            return gw1000_svc
+                raise unittest.SkipTest("%s: Could not obtain GatewayService object" % caller)
+            return gateway_service
 
 
 def hex_to_bytes(hex_string):
@@ -1999,11 +2114,11 @@ def main():
     # test cases that are production ready
     test_cases = (DebugOptionsTestCase, SensorsTestCase, ParseTestCase,
                   UtilitiesTestCase, ListsAndDictsTestCase, StationTestCase,
-                  GatewayTestCase)
+                  GatewayServiceTestCase)
 
-    usage = """python3 -m user.tests.test_eg --help
-           python3 -m user.tests.test_eg --version
-           python3 -m user.tests.test_eg [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
+    usage = """python3 -m user.tests.test_egd --help
+           python3 -m user.tests.test_egd --version
+           python3 -m user.tests.test_egd [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
 
         Arguments:
 
@@ -2016,7 +2131,7 @@ def main():
     description = 'Test the Ecowitt gateway driver code.'
     epilog = """You must ensure the WeeWX modules are in your PYTHONPATH. For example:
 
-    PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_eg --help
+    PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_egd --help
     """
 
     parser = argparse.ArgumentParser(usage=usage,
@@ -2044,12 +2159,12 @@ def main():
         exit(0)
     # run the tests
     # first set the IP address and port to use in StationTestCase and
-    # GatewayTestCase
+    # GatewayServiceTestCase
     StationTestCase.ip_address = args.ip_address
     StationTestCase.port = args.port
     StationTestCase.no_device = args.no_device
-    GatewayTestCase.ip_address = args.ip_address
-    GatewayTestCase.port = args.port
+    GatewayServiceTestCase.ip_address = args.ip_address
+    GatewayServiceTestCase.port = args.port
     # get a test runner with appropriate verbosity
     runner = unittest.TextTestRunner(verbosity=args.verbosity)
     # create a test suite and run the included tests
