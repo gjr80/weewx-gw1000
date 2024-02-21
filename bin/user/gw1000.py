@@ -1176,7 +1176,7 @@ class Gateway(object):
         self.piezo_rain_total_field = None
 
     @staticmethod
-    def construct_field_map(self, **gw_config):
+    def construct_field_map(gw_config):
         """Given a gateway device config construct the field map."""
 
         # first obtain the field map from our config
