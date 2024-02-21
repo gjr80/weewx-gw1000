@@ -8,10 +8,12 @@ The test suite tests correct operation of:
 
 -
 
-Version: 0.6.0b7                                Date: ?? February 2024
+Version: 0.6.1                                  Date: 21 February 2024
 
 Revision History
-    ?? February 2024    v0.6.0
+    21 February 2024    v0.6.1
+        - updated for Ecowitt gateway device driver release 0.6.1
+    7 February 2024     v0.6.0
         -   updated for Ecowitt gateway device driver release 0.6.0
     ?? April 2022       v0.5.0
         -   updated for Ecowitt gateway device driver release 0.5.0
