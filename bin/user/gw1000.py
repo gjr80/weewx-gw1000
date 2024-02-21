@@ -33,9 +33,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.0                                     Date: 7 February 2024
+Version: 0.6.1                                     Date: 21 February 2024
 
 Revision History
+    21 February 2024        v0.6.1
+        -   fix bug in construct_field_map() signature that resulted in field
+            map and field map extensions being ignored
     7 February 2024         v0.6.0
         -   significant re-structuring of classes used to better delineate
             responsibilities and prepare for the implementation of the
@@ -421,7 +424,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.0'
+DRIVER_VERSION = '0.6.1'
 
 # various defaults used throughout
 # default port used by device

@@ -10,9 +10,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                       Installer for Ecowitt Gateway Driver
 
-Version: 0.6.0                                         Date: 7 February 2024
+Version: 0.6.1                                         Date: 21 February 2024
 
 Revision History
+    21 February 2024    v0.6.1
+        -   no change, version increment only
     7 February 2024     v0.6.0
         -   remove distutils.StrictVersion dependency
         -   added extractor config for heap_free
@@ -57,7 +59,7 @@ import weewx
 
 
 REQUIRED_WEEWX_VERSION = "3.7.0"
-GW1000_VERSION = "0.6.0"
+GW1000_VERSION = "0.6.1"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]

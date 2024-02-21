@@ -1,3 +1,6 @@
+v0.6.1
+-   fix bug in construct_field_map() signature that resulted in field map and
+    field map extensions being ignored
 v0.6.0
 -   implement device HTTP requests to obtain additional device/sensor status
     data not available via API
