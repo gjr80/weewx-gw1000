@@ -1645,6 +1645,228 @@ class StationTestCase(unittest.TestCase):
         # test that the new port number was detected
         self.assertEqual(gw_device_api.port, self.test_port)
 
+class GatewayDriverTestCase(unittest.TestCase):
+    """Test the GatewayDriver.
+
+    Uses mock to simulate methods required to run a GatewayDriver without a
+    connected gateway device. If for some reason the GatewayDriver cannot be
+    run the test is skipped.
+    """
+
+    fake_ip = '192.168.99.99'
+    fake_port = 44444
+    fake_mac = b'\xdcO"X\xa2E'
+    user_field_map = {
+        'dateTime': 'datetime',
+        'inTemp': 'intemp',
+        'outTemp': 'outtemp'
+    }
+    user_field_extensions = {
+        'insideTemp': 'intemp',
+        'aqi': 'pm10'
+    }
+    # Create a dummy config so we can stand up a dummy engine with a
+    # GatewayDriver.
+    dummy_config = """
+    [Station]
+        station_type = GW1000
+        altitude = 0, meter
+        latitude = 0
+        longitude = 0
+    [GW1000]
+        driver = user.gw1000.GatewayDriver
+    [Engine]
+        [[Services]]"""
+    # dummy gateway device data used to exercise the device to WeeWX mapping
+    gw_data = {'absbarometer': 1009.3,
+               'datetime': 1632109437,
+               'inHumidity': 56,
+               'inTemp': 27.3,
+               'lightningcount': 32,
+               't_raintotals': 100.3,
+               'relbarometer': 1014.3,
+               'usUnits': 17
+               }
+    # mapped dummy GW1000 data
+    result_data = {'dateTime': 1632109437,
+                   'inHumidity': 56,
+                   'inTemp': 27.3,
+                   'lightningcount': 32,
+                   'pressure': 1009.3,
+                   'relbarometer': 1014.3,
+                   'totalRain': 100.3,
+                   'usUnits': 17
+                   }
+    # amount to increment delta measurements
+    increment = 5.6
+    # mocked read_system_parameters() output
+    # mock_sys_params_resp = b'\xff\xff0\x0b\x00\x01b7\rj^\x02\xac'
+    mock_sys_params_resp = {
+        'frequency': 0,
+        'sensor_type': 1,
+        'utc': 1647775082,
+        'timezone_index': 94,
+        'dst_status': True
+    }
+    # mocked get_firmware() response
+    # mock_get_firm_resp = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+    mock_get_firm_resp = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
+    # mocked get_sensor_id() response
+    mock_sensor_id_resp = 'FF FF 3C 01 54 00 FF FF FF FE FF 00 01 FF FF FF ' \
+                          'FE FF 00 02 FF FF FF FE FF 00 03 FF FF FF FE 1F ' \
+                          '00 05 00 00 00 E4 00 04 06 00 00 00 5B 00 04 07 ' \
+                          '00 00 00 BE 00 04 08 00 00 00 D0 00 04 09 00 00 ' \
+                          '00 52 00 04 0A 00 00 00 6C 00 04 0B 00 00 00 C8 ' \
+                          '00 04 0C 00 00 00 EE 00 04 0D FF FF FF FE 00 00 ' \
+                          '0E 00 00 CD 19 0D 04 0F 00 00 CB D1 0D 04 10 FF ' \
+                          'FF FF FE 1F 00 11 00 00 CD 04 1F 00 12 FF FF FF ' \
+                          'FE 1F 00 13 FF FF FF FE 1F 00 14 FF FF FF FE 1F ' \
+                          '00 15 FF FF FF FE 1F 00 16 00 00 C4 97 06 04 17 ' \
+                          'FF FF FF FE 0F 00 18 FF FF FF FE 0F 00 19 FF FF ' \
+                          'FF FE 0F 00 1A 00 00 D3 D3 05 00 1B FF FF FF FE ' \
+                          '0F 00 1C FF FF FF FE 0F 00 1D FF FF FF FE 0F 00 ' \
+                          '1E FF FF FF FE 0F 00 1F 00 00 2A E7 40 04 20 FF ' \
+                          'FF FF FE FF 00 21 FF FF FF FE FF 00 22 FF FF FF ' \
+                          'FE FF 00 23 FF FF FF FE FF 00 24 FF FF FF FE FF ' \
+                          '00 25 FF FF FF FE FF 00 26 FF FF FF FE FF 00 27 ' \
+                          'FF FF FF FE 0F 00 28 FF FF FF FE FF 00 29 FF FF ' \
+                          'FF FE FF 00 2A FF FF FF FE FF 00 2B FF FF FF FE ' \
+                          'FF 00 2C FF FF FF FE FF 00 2D FF FF FF FE FF 00 ' \
+                          '2E FF FF FF FE FF 00 2F FF FF FF FE FF 00 30 FF ' \
+                          'FF FF FE FF 00 F4'
+
+    @classmethod
+    def setUpClass(cls):
+        """Setup the GatewayDriverTestCase to perform its tests."""
+
+        # construct our config dict
+        config = configobj.ConfigObj(StringIO(GatewayDriverTestCase.dummy_config))
+        # set the IP address we will use, if we received an IP address via the
+        # command line use it, otherwise use a fake address
+        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else GatewayDriverTestCase.fake_ip
+        # set the port number we will use, if we received a port number via the
+        # command line use it, otherwise use a fake port number
+        config['GW1000']['port'] = cls.port if cls.port is not None else GatewayDriverTestCase.fake_port
+        # save the config dict for use later
+        cls.gw1000_config = config
+        field_map = dict(user.gw1000.Gateway.default_field_map)
+        # now add in the rain field map
+        field_map.update(user.gw1000.Gateway.rain_field_map)
+        # now add in the wind field map
+        field_map.update(user.gw1000.Gateway.wind_field_map)
+        # now add in the battery state field map
+        field_map.update(user.gw1000.Gateway.battery_field_map)
+        # now add in the sensor signal field map
+        field_map.update(user.gw1000.Gateway.sensor_signal_field_map)
+        cls.default_field_map = field_map
+
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_map_construction(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+        """Test construction of the gateway device to WeeWX mapping
+
+        Tests:
+        1.  the default field map is used when no user specified field map or
+            field map extensions are provided
+        2.  a user specified field map overrides the default field map
+        3.  a user specified field map and field map extensions override the
+            default field map
+        4.  a user specified field extension without a user specified field map
+            correctly modifies the default field map
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = GatewayDriverTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = GatewayDriverTestCase.mock_get_firm_resp
+        # get_system_params() - system parameters (bytestring)
+        mock_get_sys.return_value = GatewayDriverTestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
+
+        # we will be manipulating the gateway config so make a copy
+        # that we can alter without affecting other test methods
+        gw1000_config_copy = configobj.ConfigObj(self.gw1000_config)
+        # obtain a GatewayDriver object
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                             caller='test_map_construction')
+
+        # test the default field map
+        # check the GatewayDriver field map consists of the default field map
+        self.assertDictEqual(gw_driver.field_map, self.default_field_map)
+
+        # test a user specified field map
+        # add a user defined field map to our config
+        gw1000_config_copy['GW1000']['field_map'] = GatewayDriverTestCase.user_field_map
+        # obtain a new GatewayDriver object using the modified config
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                             caller='test_map_construction')
+        # check the GatewayDriver field map consists of the user specified
+        # field map
+        self.assertDictEqual(gw_driver.field_map, GatewayDriverTestCase.user_field_map)
+
+        # test a user specified field map with user specified field map extensions
+        # add user defined field map extensions to our config
+        gw1000_config_copy['GW1000']['field_map_extensions'] = GatewayDriverTestCase.user_field_extensions
+        # obtain a new GatewayDriver object using the modified config
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                             caller='test_map_construction')
+        # construct the expected result, it will consist of the user specified
+        # field map modified by the user specified field map extensions
+        _result = dict(GatewayDriverTestCase.user_field_map)
+        # the gateway field 'intemp' is being re-mapped so pop its entry from
+        # the user specified field map
+        _dummy = _result.pop('inTemp')
+        # update the field map with the field map extensions
+        _result.update(GatewayDriverTestCase.user_field_extensions)
+        # check the GatewayDriver field map consists of the user specified
+        # field map modified by the user specified field map extensions
+        self.assertDictEqual(gw_driver.field_map, _result)
+
+        # test the default field map with user specified field map extensions
+        # remove the user defined field map from our config
+        _dummy = gw1000_config_copy['GW1000'].pop('field_map')
+        # obtain a new GatewayDriver object using the modified config
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                             caller='test_map_construction')
+        # construct the expected result
+        _result = dict(self.default_field_map)
+        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
+        # each fields entry from the result field map
+        _dummy = _result.pop('inTemp')
+        _dummy = _result.pop('pm10')
+        # update the field map with the field map extensions
+        _result.update(GatewayDriverTestCase.user_field_extensions)
+        # check the GatewayDriver field map consists of the default field map
+        # modified by the user specified field map extensions
+        self.assertDictEqual(gw_driver.field_map, _result)
+
+    @staticmethod
+    def get_gateway_driver(config, caller):
+        """Get a GatewayDriver object.
+
+        Start a dummy engine with the Ecowitt gateway driver.
+
+        Return a GatewayDriver object or raise a unittest.SkipTest exception.
+        """
+
+        # create a dummy engine, wrap in a try..except in case there is an
+        # error
+        try:
+            engine = weewx.engine.StdEngine(config)
+        except user.gw1000.GWIOError as e:
+            # could not communicate with the mocked or real gateway device for
+            # some reason, skip the test if we have an engine try to shut it
+            # down
+            if engine:
+                print("\nShutting down engine ... ", end='')
+                engine.shutDown()
+            # now raise unittest.SkipTest to skip this test class
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % caller)
+        return engine.console
 
 class GatewayServiceTestCase(unittest.TestCase):
     """Test the GatewayService.
@@ -2116,7 +2338,7 @@ def main():
     # test cases that are production ready
     test_cases = (DebugOptionsTestCase, SensorsTestCase, ParseTestCase,
                   UtilitiesTestCase, ListsAndDictsTestCase, StationTestCase,
-                  GatewayServiceTestCase)
+                  GatewayServiceTestCase, GatewayDriverTestCase)
 
     usage = """PYTHONPATH=~/weewx-data/bin python3 ~/weewx-data/bin/user/tests/test_egd.py 
            --help
