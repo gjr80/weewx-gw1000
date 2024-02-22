@@ -328,9 +328,10 @@ for more in-depth installation and configuration information.
 # TODO. Confirm WH25 battery status
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Need to re-order sensor output for --sensors to better match app
-# TODO. windSpeed, windGust, lightning_distance have an excessive number of decimal places in --test-service
+# TODO. windSpeed, windGust, lightning_distance have an excessive number of
+#  decimal places in --test-service
 # TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
-
+# TODO. f-strings for loggging ?
 # Refactor TODOS:
 # TODO. self.sensor_ids vs Sensors.sensor_ids
 # TODO. Where should IP address, port and MAC be properties
@@ -354,7 +355,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+
 from operator import itemgetter
+
+import configobj
 
 # WeeWX imports
 import weecfg
@@ -682,7 +686,7 @@ class GWIOError(Exception):
     encountered."""
 
 
-class DebugOptions(object):
+class DebugOptions():
     """Class to simplify use and handling of device debug options."""
 
     debug_groups = ('rain', 'wind', 'loop', 'sensors')
@@ -733,15 +737,14 @@ class DebugOptions(object):
         for debug_group in self.debug_groups:
             if getattr(self, debug_group):
                 return True
-        else:
-            return False
+        return False
 
 
 # ============================================================================
 #                               class Gateway
 # ============================================================================
 
-class Gateway(object):
+class Gateway():
     """Base class for interacting with an Ecowitt Gateway device.
 
     There are a number of common properties and methods (eg IP address, field
@@ -1126,14 +1129,16 @@ class Gateway(object):
             loginf('     device IP address is %s' % self.ip_address)
             loginf('     device port not specified, port will be obtained by discovery')
         elif self.ip_address is None and self.port is None:
-            loginf('     device IP address and port not specified, address and port will be obtained by discovery')
+            loginf('     device IP address and port not specified, address '
+                   'and port will be obtained by discovery')
         loginf('     poll interval is %d seconds' % self.poll_interval)
         if self.debug.any or weewx.debug > 0:
             loginf('     max tries is %d, retry wait time is %d seconds' % (self.max_tries,
                                                                             self.retry_wait))
-            loginf('     broadcast address is %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address.decode(),
-                                                                                         self.broadcast_port,
-                                                                                         self.broadcast_timeout))
+            loginf('     broadcast address is %s:%d, broadcast timeout '
+                   'is %d seconds' % (self.broadcast_address.decode(),
+                                      self.broadcast_port,
+                                      self.broadcast_timeout))
             loginf('     socket timeout is %d seconds' % self.socket_timeout)
             # The field map. Field map dict output will be in unsorted key order.
             # It is easier to read if sorted alphanumerically, but we have keys
@@ -1415,9 +1420,10 @@ class Gateway(object):
             data['t_rain'] = self.delta_rain(new_total, self.last_rain)
             # if debug_rain is set log some pertinent values
             if self.debug.rain:
-                loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
-                                                                                         new_total,
-                                                                                         data['t_rain']))
+                loginf("calculate_rain: last_rain=%s new_total=%s "
+                       "calculated rain=%s" % (self.last_rain,
+                                               new_total,
+                                               data['t_rain']))
             # save the new total as the old total for next time
             self.last_rain = new_total
 
@@ -1586,7 +1592,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
 
         if self.debug.any or weewx.debug > 0:
             loginf("     max age of API data to be used is %d seconds" % self.max_age)
-            loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
+            loginf('     lost contact will be logged every '
+                   '%d seconds' % self.lost_contact_log_period)
 
         # initialize my superclasses
         super(GatewayService, self).__init__(engine, config_dict)
@@ -1858,13 +1865,13 @@ class GatewayService(weewx.engine.StdService, Gateway):
             loginf("GatewayService: Converted %s data: %s" % (self.collector.device.model,
                                                               natural_sort_dict(converted_data)))
         # now we can freely augment the packet with any of our mapped obs
-        for field, data in converted_data.items():
+        for field, field_data in converted_data.items():
             # Any existing packet fields, whether they contain data or are
             # None, are respected and left alone. Only fields from the
             # converted data that do not already exist in the packet are
             # used to augment the packet.
             if field not in packet:
-                packet[field] = data
+                packet[field] = field_data
 
     # TODO. Why have this, isn't failure_logging passed through each instantiation
     def set_failure_logging(self, log_failures):
@@ -2659,12 +2666,11 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                             # use raise .. from .. but raise.. from .. is not
                             # available under Python 2
                             raise weewx.WeeWxIOError(e)
-                        else:
-                            # it's not so log it
-                            logerr('GatewayDriver: Caught unexpected exception %s: %s' % (e.__class__.__name__,
-                                                                                          e))
-                            # then raise it, WeeWX will decide what to do
-                            raise e
+                        # it's not so log it
+                        logerr('GatewayDriver: Caught unexpected exception %s: %s' % (e.__class__.__name__,
+                                                                                      e))
+                        # then raise it, WeeWX will decide what to do
+                        raise e
                 # if it's None then it's a signal the Collector needs to shut
                 # down
                 elif queue_data is None:
@@ -2691,8 +2697,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
 
         if self.collector.device.model is not None:
             return self.collector.device.model
-        else:
-            return DRIVER_NAME
+        return DRIVER_NAME
 
     @property
     def mac_address(self):
@@ -2731,7 +2736,7 @@ Gw1000Driver = GatewayDriver
 #                              class Collector
 # ============================================================================
 
-class Collector(object):
+class Collector():
     """Base class for a client that polls an API."""
 
     def __init__(self):
@@ -3011,7 +3016,7 @@ class GatewayCollector(Collector):
                 log_traceback_critical('    ****  ')
 
 
-class ApiParser(object):
+class ApiParser():
     """Class to parse and decode device API response payload data.
 
     The main function of class Parser is to parse and decode the payloads
@@ -3210,7 +3215,7 @@ class ApiParser(object):
         """
 
         # initialise a dict to hold our parsed data
-        data = dict()
+        data = {}
         # do we have any payload data to operate on
         if len(payload) > 0:
             # we have payload data
@@ -3357,7 +3362,7 @@ class ApiParser(object):
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
-        data_dict = dict()
+        data_dict = {}
         data_dict['t_rainrate'] = self.decode_big_rain(data[0:4])
         data_dict['t_rainday'] = self.decode_big_rain(data[4:8])
         data_dict['t_rainweek'] = self.decode_big_rain(data[8:12])
@@ -3514,7 +3519,7 @@ class ApiParser(object):
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
-        offset_dict = dict()
+        offset_dict = {}
         # and decode/store the offset data
         # bytes 0 and 1 hold the CO2 offset
         offset_dict['co2'] = struct.unpack(">h", data[0:2])[0]
@@ -3553,7 +3558,7 @@ class ApiParser(object):
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
-        gain_dict = dict()
+        gain_dict = {}
         # and decode/store the calibration data
         # bytes 0 and 1 are reserved (lux to solar radiation conversion
         # gain (126.7))
@@ -3594,7 +3599,7 @@ class ApiParser(object):
         # extract the actual data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
-        cal_dict = dict()
+        cal_dict = {}
         # and decode/store the offset calibration data
         cal_dict['intemp'] = struct.unpack(">h", data[0:2])[0] / 10.0
         try:
@@ -3694,7 +3699,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         data_dict['frequency'] = data[0]
         data_dict['sensor_type'] = data[1]
         data_dict['utc'] = self.decode_utc(data[2:6])
@@ -3723,7 +3728,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         data_dict['interval'] = data[0]
         # return the parsed response
         return data_dict
@@ -3758,7 +3763,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         # obtain the required data from the response decoding any bytestrings
         id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
@@ -3801,7 +3806,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         # obtain the required data from the response decoding any bytestrings
         id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
@@ -3842,7 +3847,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         # obtain the required data from the response decoding any bytestrings
         id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
@@ -3889,7 +3894,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         # obtain the required data from the response decoding any bytestrings
         index = 0
         id_size = data[index]
@@ -3942,7 +3947,7 @@ class ApiParser(object):
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
-        data_dict = dict()
+        data_dict = {}
         index = 0
         ecowitt_size = data[index]
         index += 1
@@ -4035,8 +4040,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_humid(data, field=None):
@@ -4054,8 +4058,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_press(data, field=None):
@@ -4078,8 +4081,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_dir(data, field=None):
@@ -4097,8 +4099,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_big_rain(data, field=None):
@@ -4116,8 +4117,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_datetime(data, field=None):
@@ -4134,8 +4134,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_distance(data, field=None):
@@ -4154,8 +4153,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_utc(data, field=None):
@@ -4190,8 +4188,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_count(data, field=None):
@@ -4208,8 +4205,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     @staticmethod
     def decode_gain_100(data, field=None):
@@ -4225,8 +4221,7 @@ class ApiParser(object):
             value = None
         if field is not None:
             return {field: value}
-        else:
-            return value
+        return value
 
     # alias' for other decodes
     decode_speed = decode_press
@@ -4265,7 +4260,7 @@ class ApiParser(object):
         """
 
         if len(data) == 3 and field is not None:
-            results = dict()
+            results = {}
             results[field] = self.decode_temp(data[0:2])
             # we could decode the battery voltage but we will be obtaining
             # battery voltage data from the sensor IDs in a later step so
@@ -4298,7 +4293,7 @@ class ApiParser(object):
         """
 
         if len(data) == 16 and fields is not None:
-            results = dict()
+            results = {}
             results[fields[0]] = self.decode_temp(data[0:2])
             results[fields[1]] = self.decode_humid(data[2:3])
             results[fields[2]] = self.decode_pm10(data[3:5])
@@ -4338,7 +4333,7 @@ class ApiParser(object):
         """
 
         if len(data) == 20:
-            results = dict()
+            results = {}
             for gain in range(10):
                 results[f'gain{int(gain):d}'] = self.decode_gain_100(data[gain * 2:gain * 2 + 2])
             return results
@@ -4362,7 +4357,7 @@ class ApiParser(object):
         """
 
         if len(data) == 3:
-            results = dict()
+            results = {}
             results['day_reset'] = struct.unpack("B", data[0:1])[0]
             results['week_reset'] = struct.unpack("B", data[1:2])[0]
             results['annual_reset'] = struct.unpack("B", data[2:3])[0]
@@ -4395,7 +4390,7 @@ class ApiParser(object):
         return None
 
 
-class Sensors(object):
+class Sensors():
     """Class to manage device sensor ID data.
 
     Class Sensors allows access to various elements of sensor ID data via a
@@ -4495,7 +4490,7 @@ class Sensors(object):
         # initialise legacy WH40 flag
         self.legacy_wh40 = None
         # initialise a dict to hold the parsed sensor data
-        self.sensor_data = dict()
+        self.sensor_data = {}
         # parse the raw sensor ID data and store the results in my parsed
         # sensor data dict
         self.set_sensor_id_data(sensor_id_data)
@@ -4526,7 +4521,7 @@ class Sensors(object):
                 # get the sensor address
                 address = data[index:index + 1]
                 # do we know how to decode this address
-                if address in Sensors.sensor_ids.keys():
+                if address in Sensors.sensor_ids:
                     # get the sensor ID
                     sensor_id = bytes_to_hex(data[index + 1: index + 5],
                                              separator='',
@@ -4590,7 +4585,7 @@ class Sensors(object):
         """
 
         # initialise a list to hold our connected sensor addresses
-        connected_list = list()
+        connected_list = []
         # iterate over all sensors
         for address, data in self.sensor_data.items():
             # if the sensor ID is neither 'fffffffe' nor 'ffffffff' then it
@@ -4677,31 +4672,28 @@ class Sensors(object):
                 # we have a sensor for which no low battery cut-off
                 # data exists
                 return None
-            else:
-                batt_fn = Sensors.sensor_ids[address].get('batt_fn')
-                if batt_fn == 'batt_binary':
-                    if value == 0:
-                        return "OK"
-                    elif value == 1:
-                        return "low"
-                    else:
-                        return 'Unknown'
-                elif batt_fn == 'batt_int':
-                    if value <= 1:
-                        return "low"
-                    elif value == 6:
-                        return "DC"
-                    elif value <= 5:
-                        return "OK"
-                    else:
-                        return 'Unknown'
-                elif batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt']:
-                    if value <= 1.2:
-                        return "low"
-                    else:
-                        return "OK"
+            batt_fn = Sensors.sensor_ids[address].get('batt_fn')
+            if batt_fn == 'batt_binary':
+                if value == 0:
+                    return "OK"
+                if value == 1:
+                    return "low"
+                return 'Unknown'
+            if batt_fn == 'batt_int':
+                if value <= 1:
+                    return "low"
+                if value == 6:
+                    return "DC"
+                if value <= 5:
+                    return "OK"
+                return 'Unknown'
+            if batt_fn in ['batt_volt', 'batt_volt_tenth', 'wh40_batt_volt']:
+                if value <= 1.2:
+                    return "low"
+                return "OK"
         else:
             return 'Unknown'
+        return None
 
     @staticmethod
     def batt_binary(batt):
@@ -4783,14 +4775,12 @@ class Sensors(object):
             if self.ignore_wh40_batt:
                 # we are ignoring the result so return None
                 return None
-            else:
-                # we are not ignoring the result so return the result
-                return round(0.1 * batt, 1)
-        else:
-            # assume we have a battery state reporting WH40
-            # first reset the legacy_wh40 flag
-            self.legacy_wh40 = False
-            return round(0.01 * batt, 2)
+            # we are not ignoring the result so return the result
+            return round(0.1 * batt, 1)
+        # assume we have a battery state reporting WH40
+        # first reset the legacy_wh40 flag
+        self.legacy_wh40 = False
+        return round(0.01 * batt, 2)
 
     @staticmethod
     def batt_volt_tenth(batt):
@@ -4805,7 +4795,7 @@ class Sensors(object):
         return round(0.1 * batt, 1)
 
 
-class GatewayApi(object):
+class GatewayApi():
     """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
     Gateway API.
 
@@ -4914,38 +4904,36 @@ class GatewayApi(object):
                     logerr(_msg)
                     # signal that we have a critical error
                     raise
-                else:
-                    # did we find any devices
-                    if len(device_list) > 0:
-                        # we have at least one, arbitrarily choose the first one
-                        # found as the one to use
-                        disc_ip = device_list[0]['ip_address']
-                        disc_port = device_list[0]['port']
-                        # log the fact as well as what we found
-                        gw1000_str = ', '.join([':'.join([f'{dev["ip_address"]}:{int(dev["port"]):d}']) for dev in
-                                                device_list])
-                        if len(device_list) == 1:
-                            stem = f"{device_list[0]['model']} was"
-                        else:
-                            stem = "Multiple devices were"
-                        loginf("%s found at %s" % (stem, gw1000_str))
-                        ip_address = disc_ip if ip_address is None else ip_address
-                        port = disc_port if port is None else port
-                        break
+                # did we find any devices
+                if len(device_list) > 0:
+                    # we have at least one, arbitrarily choose the first one
+                    # found as the one to use
+                    disc_ip = device_list[0]['ip_address']
+                    disc_port = device_list[0]['port']
+                    # log the fact as well as what we found
+                    gw1000_str = ', '.join([':'.join([f'{dev["ip_address"]}:{int(dev["port"]):d}']) for dev in
+                                            device_list])
+                    if len(device_list) == 1:
+                        stem = f"{device_list[0]['model']} was"
                     else:
-                        # did not discover any device so log it
-                        logdbg("Failed attempt %d to detect device IP address and/or port" % (attempt + 1,))
-                        # do we try again or raise an exception
-                        if attempt < max_tries - 1:
-                            # we still have at least one more try left so sleep
-                            # and try again
-                            time.sleep(retry_wait)
-                        else:
-                            # we've used all our tries, log it and raise an exception
-                            _msg = "Failed to detect device IP address and/or " \
-                                   "port after %d attempts" % (attempt + 1,)
-                            logerr(_msg)
-                            raise GWIOError(_msg)
+                        stem = "Multiple devices were"
+                    loginf("%s found at %s" % (stem, gw1000_str))
+                    ip_address = disc_ip if ip_address is None else ip_address
+                    port = disc_port if port is None else port
+                    break
+                # did not discover any device so log it
+                logdbg("Failed attempt %d to detect device IP address and/or port" % (attempt + 1,))
+                # do we try again or raise an exception
+                if attempt < max_tries - 1:
+                    # we still have at least one more try left so sleep
+                    # and try again
+                    time.sleep(retry_wait)
+                else:
+                    # we've used all our tries, log it and raise an exception
+                    _msg = "Failed to detect device IP address and/or " \
+                           "port after %d attempts" % (attempt + 1,)
+                    logerr(_msg)
+                    raise GWIOError(_msg)
         # set our ip_address property but encode it first, it saves doing
         # it repeatedly later
         self.ip_address = ip_address.encode()
@@ -5111,7 +5099,7 @@ class GatewayApi(object):
         # now extract the actual data payload
         data = raw_data[5:resp_size + 2]
         # initialise a dict to hold our result
-        data_dict = dict()
+        data_dict = {}
         # extract and decode the MAC address
         data_dict['mac'] = bytes_to_hex(data[0:6], separator=":")
         # extract and decode the IP address
@@ -5156,9 +5144,8 @@ class GatewayApi(object):
             # we have a firmware string so look for a known model in the
             # string and return the result
             return self.get_model(firmware_string)
-        else:
-            # for some reason we have no firmware string, so return None
-            return None
+        # for some reason we have no firmware string, so return None
+        return None
 
     def get_model_from_ssid(self, ssid_string):
         """Determine the device model from the device SSID.
@@ -5217,9 +5204,8 @@ class GatewayApi(object):
                     return model
             # we don't have a known model so return None
             return None
-        else:
-            # we have no string so return None
-            return None
+        # we have no string so return None
+        return None
 
     def get_livedata(self):
         """Obtain parsed live data.
@@ -5246,10 +5232,9 @@ class GatewayApi(object):
             if not self.rediscover():
                 # we could not re-discover so raise the exception
                 raise
-            else:
-                # we did rediscover successfully so try again, if it fails
-                # we get another GWIOError exception which will be raised
-                response = self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
+            # we did rediscover successfully so try again, if it fails
+            # we get another GWIOError exception which will be raised
+            response = self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
         # if we arrived here we have a non-None response so parse it and return
         # the parsed data
         return self.parser.parse_livedata(response)
@@ -5440,11 +5425,10 @@ class GatewayApi(object):
             if not self.rediscover():
                 # we could not re-discover so raise the exception
                 raise
-            else:
-                # we did rediscover successfully so try again, if it fails
-                # we get another GWIOError exception which will be
-                # raised
-                response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
+            # we did rediscover successfully so try again, if it fails
+            # we get another GWIOError exception which will be
+            # raised
+            response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
         # if we made it here we have a validated response so return it
         return response
 
@@ -5678,8 +5662,8 @@ class GatewayApi(object):
         # calculate size
         try:
             size = len(self.api_commands[cmd]) + 1 + len(payload) + 1
-        except KeyError:
-            raise UnknownApiCommand(f"Unknown API command '{cmd}'")
+        except KeyError as e:
+            raise UnknownApiCommand(f"Unknown API command '{cmd}'") from e
         # construct the portion of the message for which the checksum is calculated
         body = b''.join([self.api_commands[cmd], struct.pack('B', size), payload])
         # calculate the checksum
@@ -5770,29 +5754,27 @@ class GatewayApi(object):
                 # we have a valid command code in the response, so the
                 # response is valid and all we need do is return
                 return
-            else:
-                # command code check failed, since we have a valid checksum
-                # this is most likely due to the device not understanding
-                # the command, possibly due to an old or outdated firmware
-                # version. Raise an UnknownApiCommand exception.
-                exp_int = cmd_code[0]
-                resp_int = response[2]
-                # TODO. f string formatting
-                _msg = "Unknown command code in API response. " \
-                       "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
-                                                                        "{:02X}".format(exp_int),
-                                                                        resp_int,
-                                                                        "{:02X}".format(resp_int))
-                raise UnknownApiCommand(_msg)
-        else:
-            # checksum check failed, raise an InvalidChecksum exception
+            # command code check failed, since we have a valid checksum
+            # this is most likely due to the device not understanding
+            # the command, possibly due to an old or outdated firmware
+            # version. Raise an UnknownApiCommand exception.
+            exp_int = cmd_code[0]
+            resp_int = response[2]
             # TODO. f string formatting
-            _msg = "Invalid checksum in API response. " \
-                   "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
-                                                                    "{:02X}".format(calc_checksum),
-                                                                    resp_checksum,
-                                                                    "{:02X}".format(resp_checksum))
-            raise InvalidChecksum(_msg)
+            _msg = "Unknown command code in API response. " \
+                   "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
+                                                                    "{:02X}".format(exp_int),
+                                                                    resp_int,
+                                                                    "{:02X}".format(resp_int))
+            raise UnknownApiCommand(_msg)
+        # checksum check failed, raise an InvalidChecksum exception
+        # TODO. f string formatting
+        _msg = "Invalid checksum in API response. " \
+               "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
+                                                                "{:02X}".format(calc_checksum),
+                                                                resp_checksum,
+                                                                "{:02X}".format(resp_checksum))
+        raise InvalidChecksum(_msg)
 
     @staticmethod
     def calc_checksum(data):
@@ -5882,15 +5864,13 @@ class GatewayApi(object):
                         # return True indicating the re-discovery was
                         # successful
                         return True
-                    else:
-                        # did not discover any devices so log it
-                        if self.log_failures:
-                            logdbg("Failed attempt %d to detect any devices" % (attempt + 1,))
-            else:
-                # we exhausted our attempts at re-discovery so log it
-                if self.log_failures:
-                    loginf("Failed to detect original %s after %d attempts" % (self.model,
-                                                                               self.max_tries))
+                    # did not discover any devices so log it
+                    if self.log_failures:
+                        logdbg("Failed attempt %d to detect any devices" % (attempt + 1,))
+            # we exhausted our attempts at re-discovery so log it
+            if self.log_failures:
+                loginf("Failed to detect original %s after %d attempts" % (self.model,
+                                                                           self.max_tries))
         else:
             # an IP address was specified, so we cannot go searching, log it
             if self.log_failures:
@@ -5913,7 +5893,7 @@ class GatewayApi(object):
 #                             GatewayHttp class
 # ============================================================================
 
-class GatewayHttp(object):
+class GatewayHttp():
     """Class to interact with a gateway device via HTTP requests."""
 
     # HTTP request commands
@@ -5965,48 +5945,44 @@ class GatewayHttp(object):
             req = urllib.request.Request(url=full_url, headers=headers_dict)
             try:
                 # submit the request and obtain the raw response
-                w = urllib.request.urlopen(req)
-                # Get charset used so we can decode the stream correctly.
-                # Unfortunately, the way to get the charset depends on whether we
-                # are running under python2 or python3. Assume python3, but be
-                # prepared to catch the error if python2.
-                try:
-                    char_set = w.headers.get_content_charset()
-                except AttributeError:
-                    # must be python2
-                    char_set = w.headers.getparam('charset')
-                # Now get the response and decode it using the headers character
-                # set. Be prepared for charset==None.
-                if char_set is not None:
-                    resp = w.read().decode(char_set)
-                else:
-                    resp = w.read().decode()
-                # we are finished with the raw response so close it
-                w.close()
+                with urllib.request.urlopen(req) as w:
+                    # Get charset used so we can decode the stream correctly.
+                    # Unfortunately, the way to get the charset depends on whether we
+                    # are running under python2 or python3. Assume python3, but be
+                    # prepared to catch the error if python2.
+                    try:
+                        char_set = w.headers.get_content_charset()
+                    except AttributeError:
+                        # must be python2
+                        char_set = w.headers.getparam('charset')
+                    # Now get the response and decode it using the headers character
+                    # set. Be prepared for charset==None.
+                    if char_set is not None:
+                        resp = w.read().decode(char_set)
+                    else:
+                        resp = w.read().decode()
+                    # we are finished with the raw response so close it
             except (socket.timeout, urllib.error.URLError) as e:
                 # log the error and raise it
                 log.error("Failed to get device data")
                 log.error("   **** %s" % e)
                 raise
-            else:
-                # we have a response but can it be deserialized it to a python
-                # object, wrap in a try..except in case it cannot be deserialized
-                try:
-                    resp_json = json.loads(resp)
-                except json.JSONDecodeError as e:
-                    # cannot deserialize the response, log it and return None
-                    log.error("Cannot deserialize device response")
-                    log.error("   **** %s" % e)
-                    return None
-                else:
-                    # we have a deserialized response, log it as required
-                    if weewx.debug >= 3:
-                        log.debug("Deserialized HTTP response: %s" % json.dumps(resp_json))
-                    # now return the JSON object
-                    return resp_json
-        else:
-            # an invalid command
-            raise UnknownHttpCommand(f"Unknown HTTP command '{command_str}'")
+            # we have a response but can it be deserialized it to a python
+            # object, wrap in a try..except in case it cannot be deserialized
+            try:
+                resp_json = json.loads(resp)
+            except json.JSONDecodeError as e:
+                # cannot deserialize the response, log it and return None
+                log.error("Cannot deserialize device response")
+                log.error("   **** %s" % e)
+                return None
+            # we have a deserialized response, log it as required
+            if weewx.debug >= 3:
+                log.debug("Deserialized HTTP response: %s" % json.dumps(resp_json))
+            # now return the JSON object
+            return resp_json
+        # an invalid command
+        raise UnknownHttpCommand(f"Unknown HTTP command '{command_str}'")
 
     def get_version(self):
         """Get the device firmware related information.
@@ -6084,10 +6060,9 @@ class GatewayHttp(object):
             page_2 = None
         if page_1 is not None and page_2 is not None:
             return page_1 + page_2
-        elif page_1 is None:
+        if page_1 is None:
             return page_2
-        else:
-            return page_1
+        return page_1
 
     def get_network_info(self):
         """Get network related data/settings from the device.
@@ -6120,7 +6095,7 @@ class GatewayHttp(object):
         except (urllib.error.URLError, socket.timeout):
             return None
 
-    def get_cli_multiCh(self):
+    def get_cli_multi_ch(self):
         """Get multichannel temperature/humidity sensor calibration data from
         the device.
 
@@ -6130,7 +6105,7 @@ class GatewayHttp(object):
         try:
             return self.request('get_cli_multiCh')
         except (urllib.error.URLError, socket.timeout):
-            pass
+            return None
 
     def get_cli_pm25(self):
         """Get PM2.5 sensor offset data from the device.
@@ -6165,7 +6140,7 @@ class GatewayHttp(object):
             return None
 
 
-class GatewayDevice(object):
+class GatewayDevice():
     """Class to directly interact with an Ecowitt gateway device.
 
     An Ecowitt gateway device can be interrogated directly in two ways:
@@ -6413,7 +6388,7 @@ class GatewayDevice(object):
         if version is not None and 'newVersion' in version:
             # we can now determine with certainty whether there is a new
             # firmware update or not
-            return True if version['newVersion'] == '1' else False
+            return version['newVersion'] == '1'
         # We cannot determine the availability of a firmware update so return
         # None
         return None
@@ -6537,11 +6512,11 @@ def define_units():
     # set default formats and labels for byte, kilobyte and megabyte, but only
     # if they do not already exist
     weewx.units.default_unit_format_dict['byte'] = weewx.units.default_unit_format_dict.get('byte') or '%.d'
-    weewx.units.default_unit_label_dict['byte'] = weewx.units.default_unit_label_dict.get('byte') or u' B'
+    weewx.units.default_unit_label_dict['byte'] = weewx.units.default_unit_label_dict.get('byte') or ' B'
     weewx.units.default_unit_format_dict['kilobyte'] = weewx.units.default_unit_format_dict.get('kilobyte') or '%.3f'
-    weewx.units.default_unit_label_dict['kilobyte'] = weewx.units.default_unit_label_dict.get('kilobyte') or u' kB'
+    weewx.units.default_unit_label_dict['kilobyte'] = weewx.units.default_unit_label_dict.get('kilobyte') or ' kB'
     weewx.units.default_unit_format_dict['megabyte'] = weewx.units.default_unit_format_dict.get('megabyte') or '%.3f'
-    weewx.units.default_unit_label_dict['megabyte'] = weewx.units.default_unit_label_dict.get('megabyte') or u' MB'
+    weewx.units.default_unit_label_dict['megabyte'] = weewx.units.default_unit_label_dict.get('megabyte') or ' MB'
 
     # merge the default unit groups into weewx.units.obs_group_dict, but so we
     # don't undo any user customisation elsewhere only merge those fields that do
@@ -6639,16 +6614,15 @@ def obfuscate(plain, obf_char='*'):
             # we are obfuscating everything
             obfuscated = obf_char * len(plain)
         return obfuscated
-    else:
-        # if we received None or a zero length string then return it
-        return plain
+    # if we received None or a zero length string then return it
+    return plain
 
 
 # ============================================================================
 #                             class DirectGateway
 # ============================================================================
 
-class DirectGateway(object):
+class DirectGateway():
     """Class to interact with gateway driver when run directly.
 
     Would normally run a driver directly by calling from main() only, but when
@@ -7795,7 +7769,7 @@ class DirectGateway(object):
                   f'at {bcolors.BOLD}{device.ip_address.decode()}:{int(device.port):d}{bcolors.ENDC}')
             # get the settings for each service know to the device, store them
             # in a dict keyed by the service name
-            services_data = dict()
+            services_data = {}
             for service in device.services:
                 services_data[service['name']] = getattr(device, service['name'])
         except GWIOError as e:
@@ -8083,7 +8057,7 @@ class DirectGateway(object):
             # now build a new data dict with our converted and formatted data
             result = {}
             # iterate over the fields in our original data dict
-            for key, value in live_sensor_data_dict.items():
+            for key in live_sensor_data_dict:
                 # we don't need usUnits in the result so skip it
                 if key == 'usUnits':
                     continue
@@ -8132,14 +8106,13 @@ class DirectGateway(object):
                                                                          device['ip_address'],
                                                                          device['port']))
                     num_gw_found += 1
-            else:
-                if num_gw_found > 1:
-                    print()
-                    print("Multiple devices were found.")
-                    print("If using the gateway driver consider explicitly specifying the ")
-                    print("IP address and port of the device to be used under [GW1000] in weewx.conf.")
-                elif num_gw_found == 0:
-                    print("No devices were discovered.")
+            if num_gw_found > 1:
+                print()
+                print("Multiple devices were found.")
+                print("If using the gateway driver consider explicitly specifying the ")
+                print("IP address and port of the device to be used under [GW1000] in weewx.conf.")
+            elif num_gw_found == 0:
+                print("No devices were discovered.")
         else:
             # we have no results
             print("No devices were discovered.")
