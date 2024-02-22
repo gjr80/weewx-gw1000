@@ -1190,7 +1190,7 @@ class ListsAndDictsTestCase(unittest.TestCase):
         for w_field in self.default_field_map.keys():
             if w_field not in weewx.units.obs_group_dict.keys():
                 self.assertIn(w_field,
-                              user.gw1000.default_groups.keys(),
+                              user.gw1000.DEFAULT_GROUPS.keys(),
                               msg="A field from the driver default field map is "
                                   "missing from the default_groups observation group dictionary")
 

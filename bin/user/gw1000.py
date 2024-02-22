@@ -433,32 +433,32 @@ DRIVER_VERSION = '0.7.0a1'
 
 # various defaults used throughout
 # default port used by device
-default_port = 45000
+DEFAULT_PORT = 45000
 # default network broadcast address - the address that network broadcasts are
 # sent to
-default_broadcast_address = '255.255.255.255'
+DEFAULT_BROADCAST_ADDRESS = '255.255.255.255'
 # default network broadcast port - the port that network broadcasts are sent to
-default_broadcast_port = 46000
+DEFAULT_BROADCAST_PORT = 46000
 # default socket timeout
-default_socket_timeout = 2
+DEFAULT_SOCKET_TIMEOUT = 2
 # default broadcast timeout
-default_broadcast_timeout = 5
+DEFAULT_BROADCAST_TIMEOUT = 5
 # default retry/wait time
-default_retry_wait = 10
+DEFAULT_RETRY_WAIT = 10
 # default max tries when polling the API
-default_max_tries = 3
+DEFAULT_MAX_TRIES = 3
 # When run as a service the default age in seconds after which API data is
 # considered stale and will not be used to augment loop packets
-default_max_age = 60
+DEFAULT_MAX_AGE = 60
 # default device poll interval
-default_poll_interval = 20
+DEFAULT_POLL_INTERVAL = 20
 # default period between lost contact log entries during an extended period of
 # lost contact when run as a Service
-default_lost_contact_log_period = 21600
+DEFAULT_LOST_CONTACT_LOG_PERIOD = 21600
 # default battery state filtering
-default_show_battery = False
+DEFAULT_SHOW_BATTERY = False
 # default firmware update check interval
-default_fw_check_interval = 86400
+DEFAULT_FW_CHECK_INTERVAL = 86400
 # For packet unit conversion to work correctly each possible WeeWX field needs
 # to be assigned to a unit group. This is normally already taken care of for
 # WeeWX fields that are part of the in-use database schema; however, an Ecowitt
@@ -468,7 +468,7 @@ default_fw_check_interval = 86400
 
 # define the default groups to use for WeeWX fields in the default field map
 # but not in the (WeeWX default) wview_extended schema
-default_groups = {
+DEFAULT_GROUPS = {
     'relbarometer': 'group_pressure',
     'luminosity': 'group_illuminance',
     'uvradiation': 'group_radiation',
@@ -1036,13 +1036,13 @@ class Gateway():
         self.field_map = self.construct_field_map(**gw_config)
         # network broadcast address and port
         self.broadcast_address = str.encode(gw_config.get('broadcast_address',
-                                                          default_broadcast_address))
+                                                          DEFAULT_BROADCAST_ADDRESS))
         self.broadcast_port = weeutil.weeutil.to_int(gw_config.get('broadcast_port',
-                                                                   default_broadcast_port))
+                                                                   DEFAULT_BROADCAST_PORT))
         self.socket_timeout = weeutil.weeutil.to_int(gw_config.get('socket_timeout',
-                                                                   default_socket_timeout))
+                                                                   DEFAULT_SOCKET_TIMEOUT))
         self.broadcast_timeout = weeutil.weeutil.to_int(gw_config.get('broadcast_timeout',
-                                                                      default_broadcast_timeout))
+                                                                      DEFAULT_BROADCAST_TIMEOUT))
         # obtain the device IP address
         _ip_address = gw_config.get('ip_address')
         # if the user has specified some variation of 'auto' then we are to
@@ -1056,7 +1056,7 @@ class Gateway():
         # obtain the device port from the config dict
         # for port number we have a default value we can use, so if port is not
         # specified use the default
-        _port = gw_config.get('port', default_port)
+        _port = gw_config.get('port', DEFAULT_PORT)
         # if a port number was specified it needs to be an integer not a string
         # so try to do the conversion
         try:
@@ -1079,14 +1079,14 @@ class Gateway():
         self.port = _port
         # how many times to poll the API before giving up, default is
         # default_max_tries
-        self.max_tries = int(gw_config.get('max_tries', default_max_tries))
+        self.max_tries = int(gw_config.get('max_tries', DEFAULT_MAX_TRIES))
         # wait time in seconds between retries, default is default_retry_wait
         # seconds
         self.retry_wait = int(gw_config.get('retry_wait',
-                                            default_retry_wait))
+                                            DEFAULT_RETRY_WAIT))
         # how often (in seconds) we should poll the API, use a default
         self.poll_interval = int(gw_config.get('poll_interval',
-                                               default_poll_interval))
+                                               DEFAULT_POLL_INTERVAL))
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
         # to the gateway device. In terms of TH data the process is transparent
         # and we do not need to know if a WH32 or other sensor is providing
@@ -1110,7 +1110,7 @@ class Gateway():
         # how to handle firmware update checks
         # how often to check for a gateway device firmware update
         fw_update_check_interval = int(gw_config.get('firmware_update_check_interval',
-                                                     default_fw_check_interval))
+                                                     DEFAULT_FW_CHECK_INTERVAL))
         # whether to log an available firmware update
         log_fw_update_avail = weeutil.weeutil.tobool(gw_config.get('log_firmware_update_avail',
                                                                    False))
@@ -1581,11 +1581,11 @@ class GatewayService(weewx.engine.StdService, Gateway):
         loginf('GatewayService: version is %s' % DRIVER_VERSION)
         # age (in seconds) before API data is considered too old to use, use a
         # default
-        self.max_age = int(gw_config_dict.get('max_age', default_max_age))
+        self.max_age = int(gw_config_dict.get('max_age', DEFAULT_MAX_AGE))
         # minimum period in seconds between 'lost contact' log entries during
         # an extended lost contact period
         self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
-                                                              default_lost_contact_log_period))
+                                                              DEFAULT_LOST_CONTACT_LOG_PERIOD))
         # TODO. this should be moved to class Gateway __init__
         # get device specific debug settings
         self.debug = DebugOptions(gw_config_dict)
@@ -2231,7 +2231,7 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         driver = user.gw1000
 
         # How often to poll the GW1000 API:
-        poll_interval = {int(default_poll_interval):d}
+        poll_interval = {int(DEFAULT_POLL_INTERVAL):d}
     """
 
     def get_conf(self, orig_stanza=None):
@@ -2267,13 +2267,13 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         # obtain port number
         print()
         print("Specify gateway device network port, for example: 45000")
-        port = self._prompt('port', dflt=self.existing_options.get('port', default_port))
+        port = self._prompt('port', dflt=self.existing_options.get('port', DEFAULT_PORT))
         # obtain poll interval
         print()
         print("Specify how often to poll the gateway API in seconds")
         poll_interval = self._prompt('Poll interval',
                                      dflt=self.existing_options.get('poll_interval',
-                                                                    default_poll_interval))
+                                                                    DEFAULT_POLL_INTERVAL))
         return {'ip_address': ip_address,
                 'port': port,
                 'poll_interval': poll_interval
@@ -2771,8 +2771,8 @@ class GatewayCollector(Collector):
 
     def __init__(self, ip_address=None, port=None, broadcast_address=None,
                  broadcast_port=None, socket_timeout=None, broadcast_timeout=None,
-                 poll_interval=default_poll_interval,
-                 max_tries=default_max_tries, retry_wait=default_retry_wait,
+                 poll_interval=DEFAULT_POLL_INTERVAL,
+                 max_tries=DEFAULT_MAX_TRIES, retry_wait=DEFAULT_RETRY_WAIT,
                  use_wh32=True, ignore_wh40_batt=True, show_battery=False,
                  log_unknown_fields=False, fw_update_check_interval=86400,
                  log_fw_update_avail=False, debug=DebugOptions({})):
@@ -4871,8 +4871,8 @@ class GatewayApi():
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
-                 max_tries=default_max_tries,
-                 retry_wait=default_retry_wait, mac=None,
+                 max_tries=DEFAULT_MAX_TRIES,
+                 retry_wait=DEFAULT_RETRY_WAIT, mac=None,
                  use_wh32=True, ignore_wh40_batt=True, show_battery=False,
                  log_unknown_fields=False, debug=DebugOptions({})):
 
@@ -4880,11 +4880,11 @@ class GatewayApi():
         self.parser = ApiParser(log_unknown_fields=log_unknown_fields)
 
         # network broadcast address
-        self.broadcast_address = broadcast_address if broadcast_address is not None else default_broadcast_address
+        self.broadcast_address = broadcast_address if broadcast_address is not None else DEFAULT_BROADCAST_ADDRESS
         # network broadcast port
-        self.broadcast_port = broadcast_port if broadcast_port is not None else default_broadcast_port
-        self.socket_timeout = socket_timeout if socket_timeout is not None else default_socket_timeout
-        self.broadcast_timeout = broadcast_timeout if broadcast_timeout is not None else default_broadcast_timeout
+        self.broadcast_port = broadcast_port if broadcast_port is not None else DEFAULT_BROADCAST_PORT
+        self.socket_timeout = socket_timeout if socket_timeout is not None else DEFAULT_SOCKET_TIMEOUT
+        self.broadcast_timeout = broadcast_timeout if broadcast_timeout is not None else DEFAULT_BROADCAST_TIMEOUT
 
         # initialise flags to indicate if IP address or port were discovered
         self.ip_discovered = ip_address is None
@@ -6191,8 +6191,8 @@ class GatewayDevice():
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
-                 max_tries=default_max_tries,
-                 retry_wait=default_retry_wait, use_wh32=True,
+                 max_tries=DEFAULT_MAX_TRIES,
+                 retry_wait=DEFAULT_RETRY_WAIT, use_wh32=True,
                  ignore_wh40_batt=True, show_battery=False,
                  log_unknown_fields=False, debug=DebugOptions({})):
         """Initialise a GatewayDevice object."""
@@ -6521,7 +6521,7 @@ def define_units():
     # merge the default unit groups into weewx.units.obs_group_dict, but so we
     # don't undo any user customisation elsewhere only merge those fields that do
     # not already exits in weewx.units.obs_group_dict
-    for obs, group in default_groups.items():
+    for obs, group in DEFAULT_GROUPS.items():
         if obs not in weewx.units.obs_group_dict.keys():
             weewx.units.obs_group_dict[obs] = group
 
@@ -6965,7 +6965,7 @@ class DirectGateway():
                 # number to an integer, maybe it was because it was 'auto'
                 # (or some variation) or perhaps it was invalid. Regardless of
                 # the error we need to set port to None to force discovery.
-                port = default_port
+                port = DEFAULT_PORT
                 if weewx.debug >= 1:
                     print("Port number set to default port number")
             else:
@@ -7001,7 +7001,7 @@ class DirectGateway():
                 show_battery = weeutil.weeutil.tobool(self.stn_dict.get('show_battery'))
             except ValueError:
                 # we could not get show_battery from the stn_dict so use the default
-                show_battery = default_show_battery
+                show_battery = DEFAULT_SHOW_BATTERY
                 if weewx.debug >= 1:
                     print(f"Battery state filtering is '{show_battery}' (using the default)")
             else:
