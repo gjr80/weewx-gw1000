@@ -33,11 +33,14 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.1                                     Date: 21 February 2024
+Version: 0.6.2                                     Date: 23 February 2024
 
 Revision History
+    23 February 2024        v0.6.2
+        -   fixed bug that caused the driver to crash if IP address discovery
+            is used
     21 February 2024        v0.6.1
-        -   fix bug in construct_field_map() signature that resulted in field
+        -   fixed bug in construct_field_map() signature that resulted in field
             map and field map extensions being ignored
     7 February 2024         v0.6.0
         -   significant re-structuring of classes used to better delineate
@@ -424,7 +427,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.1'
+DRIVER_VERSION = '0.6.2'
 
 # various defaults used throughout
 # default port used by device
@@ -6251,8 +6254,9 @@ class GatewayDevice(object):
                               log_unknown_fields=log_unknown_fields,
                               debug=debug)
 
-        # get a GatewayHttp object to handle any HTTP requests
-        self.http = GatewayHttp(ip_address=ip_address)
+        # get a GatewayHttp object to handle any HTTP requests, we need to use
+        # the same IP address as our GatewayApi object
+        self.http = GatewayHttp(ip_address=self.api.ip_address.decode())
 
         # start off logging failures
         self.log_failures = True
