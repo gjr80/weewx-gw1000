@@ -1674,7 +1674,7 @@ class GatewayDriverTestCase(unittest.TestCase):
         latitude = 0
         longitude = 0
     [GW1000]
-        driver = user.gw1000.GatewayDriver
+        driver = user.gw1000
     [Engine]
         [[Services]]"""
     # dummy gateway device data used to exercise the device to WeeWX mapping
@@ -1765,7 +1765,7 @@ class GatewayDriverTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_map_construction(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
-        """Test construction of the gateway device to WeeWX mapping
+        """Test GatewayDriver mapping construction
 
         Tests:
         1.  the default field map is used when no user specified field map or
@@ -1994,7 +1994,7 @@ class GatewayServiceTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_map_construction(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
-        """Test construction of the gateway device to WeeWX mapping
+        """Test GatewayService mapping construction
 
         Tests:
         1.  the default field map is used when no user specified field map or
@@ -2078,7 +2078,7 @@ class GatewayServiceTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_map_operation(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
-        """Test operation of the gateway device to WeeWX mapping
+        """Test GatewayService mapping operation
 
         Tests:
         1. field dateTime is included in the mapped data
@@ -2386,6 +2386,8 @@ def main():
     StationTestCase.ip_address = args.ip_address
     StationTestCase.port = args.port
 #    StationTestCase.no_device = args.no_device
+    GatewayDriverTestCase.ip_address = args.ip_address
+    GatewayDriverTestCase.port = args.port
     GatewayServiceTestCase.ip_address = args.ip_address
     GatewayServiceTestCase.port = args.port
     # get a test runner with appropriate verbosity
