@@ -1033,7 +1033,7 @@ class Gateway():
         """Initialise a Gateway object."""
 
         # obtain the field map to be used
-        self.field_map = self.construct_field_map(**gw_config)
+        self.field_map = self.construct_field_map(gw_config)
         # network broadcast address and port
         self.broadcast_address = str.encode(gw_config.get('broadcast_address',
                                                           DEFAULT_BROADCAST_ADDRESS))
