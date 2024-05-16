@@ -328,10 +328,6 @@ for more in-depth installation and configuration information.
 # TODO. Confirm WH25 battery status
 # TODO. Need to know date-time data format for decode date_time()
 # TODO. Need to re-order sensor output for --display_sensors to better match app
-# TODO. windSpeed, windGust, lightning_distance have an excessive number of
-#  decimal places in --test-service
-# TODO. Revisit debug_wind and debug_rain to see what more debugging output is required
-# TODO. f-strings for loggging ?
 # Refactor TODOS:
 # TODO. self.sensor_ids vs Sensors.sensor_ids
 # TODO. Where should IP address, port and MAC be properties
