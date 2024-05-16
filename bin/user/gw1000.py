@@ -686,7 +686,7 @@ class GWIOError(Exception):
     encountered."""
 
 
-class DebugOptions():
+class DebugOptions:
     """Class to simplify use and handling of device debug options."""
 
     debug_groups = ('rain', 'wind', 'loop', 'sensors')
@@ -744,7 +744,7 @@ class DebugOptions():
 #                               class Gateway
 # ============================================================================
 
-class Gateway():
+class Gateway:
     """Base class for interacting with an Ecowitt Gateway device.
 
     There are a number of common properties and methods (eg IP address, field
@@ -2736,7 +2736,7 @@ Gw1000Driver = GatewayDriver
 #                              class Collector
 # ============================================================================
 
-class Collector():
+class Collector:
     """Base class for a client that polls an API."""
 
     def __init__(self):
@@ -3016,7 +3016,7 @@ class GatewayCollector(Collector):
                 log_traceback_critical('    ****  ')
 
 
-class ApiParser():
+class ApiParser:
     """Class to parse and decode device API response payload data.
 
     The main function of class Parser is to parse and decode the payloads
@@ -4390,7 +4390,7 @@ class ApiParser():
         return None
 
 
-class Sensors():
+class Sensors:
     """Class to manage device sensor ID data.
 
     Class Sensors allows access to various elements of sensor ID data via a
@@ -4795,7 +4795,7 @@ class Sensors():
         return round(0.1 * batt, 1)
 
 
-class GatewayApi():
+class GatewayApi:
     """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
     Gateway API.
 
@@ -5893,7 +5893,7 @@ class GatewayApi():
 #                             GatewayHttp class
 # ============================================================================
 
-class GatewayHttp():
+class GatewayHttp:
     """Class to interact with a gateway device via HTTP requests."""
 
     # HTTP request commands
@@ -6140,7 +6140,7 @@ class GatewayHttp():
             return None
 
 
-class GatewayDevice():
+class GatewayDevice:
     """Class to directly interact with an Ecowitt gateway device.
 
     An Ecowitt gateway device can be interrogated directly in two ways:
