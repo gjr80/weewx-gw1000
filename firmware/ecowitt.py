@@ -1838,24 +1838,78 @@ class GatewayApiParser():
 
         return None
 
-    def encode_ecowitt(self, interval):
-        """Encode """
+    @staticmethod
+    def encode_ecowitt(interval):
+        """Encode Ecowitt.net upload parameters.
 
+        Encode as a bytestring the data payload used to update the Ecowitt.net
+        upload parameters in a gateway device. The data payload consists of
+        the following parameters (in order):
+
+        interval: Upload interval in minutes. 1 byte.
+
+        Returns a bytestring representing the concatenated parameters.
+        """
+
+        # pack the interval as a byte
         interval_byte = struct.pack('B', interval)
+        # return the resulting bytestring
         return interval_byte
 
-    def encode_wu_wcloud_wow(self, station_id, station_key):
-        """Encode """
+    @staticmethod
+    def encode_wu_wcloud_wow(station_id, station_key):
+        """Encode WeatherUnderground, Weathercloud or Weather Observation
+        Website upload parameters.
 
+        Encode as a bytestring the data payload used to update the
+        WeatherUnderground, Weathercloud or Weather Observation Website upload
+        parameters in a gateway device. The API commands to write
+        WeatherUnderground, Weathercloud or Weather Observation Website upload
+        parameters all use data payload format (in order):
+
+        station ID size:   Size of the station ID string in characters. 1 byte.
+        station ID:        ASCII string representing hte station ID. Size
+                           varies depending on the service. Bytestring
+                           'station ID size' bytes long.
+        station key size:  Size of the station key string in characters.
+                           1 byte.
+        station key:       ASCII string representing the station key. Size
+                           varies depending on the service. Bytestring
+                           'station key size' bytes long.
+
+        Returns a bytestring representing the concatenated parameters.
+        """
+
+        # obtain the station ID and key as bytestrings
         station_id_b = station_id.encode()
         station_key_b = station_key.encode()
+        # construct the data payload by concatenating the data payload
+        # components and return the resulting bytestring
         return b''.join([struct.pack('B', len(station_id_b)),
                          station_id_b,
                          struct.pack('B', len(station_key_b)),
                          station_key_b])
 
-    def encode_custom(self, enabled, protocol, server, port, interval, key, ec_path, wu_path):
-        """Encode """
+    @staticmethod
+    def encode_custom(enabled, protocol, server, port, interval, key, ec_path, wu_path):
+        """Encode 'Custom' upload parameters.
+
+        Encode as a bytestring the data payload used to update the 'Custom'
+        upload parameters in a gateway device. The data payload consists of the
+        following parameters (in order):
+
+        station ID size:   Size of the station ID string in characters. 1 byte.
+        station ID:        ASCII string representing hte station ID. Size
+                           varies depending on the service. Bytestring
+                           'station ID size' bytes long.
+        station key size:  Size of the station key string in characters.
+                           1 byte.
+        station key:       ASCII string representing the station key. Size
+                           varies depending on the service. Bytestring
+                           'station key size' bytes long.
+
+        Returns a bytestring representing the concatenated parameters.
+        """
 
         id_b = key.encode()
         password_b = key.encode()
@@ -1875,7 +1929,8 @@ class GatewayApiParser():
                          type_b,
                          active_b])
 
-    def encode_custom_paths(self, enabled, protocol, server, port, interval, key, ec_path, wu_path):
+    @staticmethod
+    def encode_custom_paths(enabled, protocol, server, port, interval, key, ec_path, wu_path):
         """Encode """
 
         ec_path_b = ec_path.encode()
@@ -1886,7 +1941,7 @@ class GatewayApiParser():
                          wu_path_b])
 
 
-class Sensors():
+class Sensors:
     """Class to manage device sensor ID data.
 
     Class Sensors allows access to various elements of sensor ID data via a
@@ -2388,7 +2443,7 @@ class Sensors():
         return round(0.1 * batt, 1)
 
 
-class GatewayApi():
+class GatewayApi:
     """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
     Gateway API.
 
@@ -3368,7 +3423,7 @@ class GatewayApi():
 #                             GatewayHttp class
 # ============================================================================
 
-class HttpApi():
+class HttpApi:
     """Class to interact with a gateway device via HTTP requests."""
 
     # HTTP request commands
@@ -3616,7 +3671,7 @@ class HttpApi():
             return None
 
 
-class GatewayDevice():
+class GatewayDevice:
     """Class to interact with an Ecowitt gateway device.
 
     An Ecowitt gateway device can be interrogated directly in two ways:
@@ -4229,6 +4284,7 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
         # either way we can't represent as a string of hex bytes
         return f"cannot represent '{iterable}' as hexadecimal bytes"
 
+
 def bytes_to_printable(raw_bytes):
 
     def byte_to_printable(b):
@@ -4238,6 +4294,7 @@ def bytes_to_printable(raw_bytes):
         return "  "
 
     return ' '.join(map(byte_to_printable, raw_bytes))
+
 
 def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
     """Pretty print a byte string.
@@ -4259,6 +4316,7 @@ def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
                 }
     else:
         return {'hex': '', 'printable': ''}
+
 
 def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
     """Pretty print a byte string.
@@ -4288,9 +4346,10 @@ def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
             # print the grabbed bytes as a space separated sequence of
             # hexadecimal digit pairs
             yield {'hex': f"{' ' * (start_column - 1)}{bytes_to_hex(row_bytes)}",
-                  'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
+                   'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
             # increment our index to grab the next group of bytes
             index += columns
+
 
 def obfuscate(plain, obf_char='*'):
     """Obfuscate all but the last x characters in a string.
@@ -4323,7 +4382,7 @@ def obfuscate(plain, obf_char='*'):
 #                             class DirectGateway
 # ============================================================================
 
-class DirectGateway():
+class DirectGateway:
     """Class to interact with gateway driver when run directly.
 
     Would normally run a driver directly by calling from main() only, but when
@@ -5459,6 +5518,7 @@ def dispatch_write(namespace, parser):
         print("No option selected, nothing done")
         print()
         parser.print_help()
+
 
 def get_subparser(subparsers):
     """Add get subcommand."""
