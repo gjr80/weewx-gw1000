@@ -337,6 +337,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import argparse
 import calendar
 import json
 import re
@@ -1838,78 +1839,24 @@ class GatewayApiParser():
 
         return None
 
-    @staticmethod
-    def encode_ecowitt(interval):
-        """Encode Ecowitt.net upload parameters.
+    def encode_ecowitt(self, interval):
+        """Encode """
 
-        Encode as a bytestring the data payload used to update the Ecowitt.net
-        upload parameters in a gateway device. The data payload consists of
-        the following parameters (in order):
-
-        interval: Upload interval in minutes. 1 byte.
-
-        Returns a bytestring representing the concatenated parameters.
-        """
-
-        # pack the interval as a byte
         interval_byte = struct.pack('B', interval)
-        # return the resulting bytestring
         return interval_byte
 
-    @staticmethod
-    def encode_wu_wcloud_wow(station_id, station_key):
-        """Encode WeatherUnderground, Weathercloud or Weather Observation
-        Website upload parameters.
+    def encode_wu_wcloud_wow(self, station_id, station_key):
+        """Encode """
 
-        Encode as a bytestring the data payload used to update the
-        WeatherUnderground, Weathercloud or Weather Observation Website upload
-        parameters in a gateway device. The API commands to write
-        WeatherUnderground, Weathercloud or Weather Observation Website upload
-        parameters all use data payload format (in order):
-
-        station ID size:   Size of the station ID string in characters. 1 byte.
-        station ID:        ASCII string representing hte station ID. Size
-                           varies depending on the service. Bytestring
-                           'station ID size' bytes long.
-        station key size:  Size of the station key string in characters.
-                           1 byte.
-        station key:       ASCII string representing the station key. Size
-                           varies depending on the service. Bytestring
-                           'station key size' bytes long.
-
-        Returns a bytestring representing the concatenated parameters.
-        """
-
-        # obtain the station ID and key as bytestrings
         station_id_b = station_id.encode()
         station_key_b = station_key.encode()
-        # construct the data payload by concatenating the data payload
-        # components and return the resulting bytestring
         return b''.join([struct.pack('B', len(station_id_b)),
                          station_id_b,
                          struct.pack('B', len(station_key_b)),
                          station_key_b])
 
-    @staticmethod
-    def encode_custom(enabled, protocol, server, port, interval, key, ec_path, wu_path):
-        """Encode 'Custom' upload parameters.
-
-        Encode as a bytestring the data payload used to update the 'Custom'
-        upload parameters in a gateway device. The data payload consists of the
-        following parameters (in order):
-
-        station ID size:   Size of the station ID string in characters. 1 byte.
-        station ID:        ASCII string representing hte station ID. Size
-                           varies depending on the service. Bytestring
-                           'station ID size' bytes long.
-        station key size:  Size of the station key string in characters.
-                           1 byte.
-        station key:       ASCII string representing the station key. Size
-                           varies depending on the service. Bytestring
-                           'station key size' bytes long.
-
-        Returns a bytestring representing the concatenated parameters.
-        """
+    def encode_custom(self, enabled, protocol, server, port, interval, key, ec_path, wu_path):
+        """Encode """
 
         id_b = key.encode()
         password_b = key.encode()
@@ -1929,8 +1876,7 @@ class GatewayApiParser():
                          type_b,
                          active_b])
 
-    @staticmethod
-    def encode_custom_paths(enabled, protocol, server, port, interval, key, ec_path, wu_path):
+    def encode_custom_paths(self, enabled, protocol, server, port, interval, key, ec_path, wu_path):
         """Encode """
 
         ec_path_b = ec_path.encode()
@@ -1941,7 +1887,7 @@ class GatewayApiParser():
                          wu_path_b])
 
 
-class Sensors:
+class Sensors():
     """Class to manage device sensor ID data.
 
     Class Sensors allows access to various elements of sensor ID data via a
@@ -2443,7 +2389,7 @@ class Sensors:
         return round(0.1 * batt, 1)
 
 
-class GatewayApi:
+class GatewayApi():
     """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
     Gateway API.
 
@@ -3423,7 +3369,7 @@ class GatewayApi:
 #                             GatewayHttp class
 # ============================================================================
 
-class HttpApi:
+class HttpApi():
     """Class to interact with a gateway device via HTTP requests."""
 
     # HTTP request commands
@@ -3671,7 +3617,7 @@ class HttpApi:
             return None
 
 
-class GatewayDevice:
+class GatewayDevice():
     """Class to interact with an Ecowitt gateway device.
 
     An Ecowitt gateway device can be interrogated directly in two ways:
@@ -4185,6 +4131,8 @@ class GatewayDevice:
         Write 'Custom' upload parameters to a gateway device. The 'Custom'
         parameters consist of:
         enabled:
+'ENABLED', 'PROTOCOL', 'SERVER', 'EC_PATH', 'WU_PATH', 'PORT',
+                                       'INTERVAL', 'STATION_ID', 'STATION_KEY'
 
         The upload parameters are first encoded to produce the command data
         payload. The payload is then passed to a GatewayApi object for
@@ -4284,7 +4232,6 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
         # either way we can't represent as a string of hex bytes
         return f"cannot represent '{iterable}' as hexadecimal bytes"
 
-
 def bytes_to_printable(raw_bytes):
 
     def byte_to_printable(b):
@@ -4294,7 +4241,6 @@ def bytes_to_printable(raw_bytes):
         return "  "
 
     return ' '.join(map(byte_to_printable, raw_bytes))
-
 
 def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
     """Pretty print a byte string.
@@ -4316,7 +4262,6 @@ def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
                 }
     else:
         return {'hex': '', 'printable': ''}
-
 
 def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
     """Pretty print a byte string.
@@ -4346,10 +4291,9 @@ def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
             # print the grabbed bytes as a space separated sequence of
             # hexadecimal digit pairs
             yield {'hex': f"{' ' * (start_column - 1)}{bytes_to_hex(row_bytes)}",
-                   'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
+                  'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
             # increment our index to grab the next group of bytes
             index += columns
-
 
 def obfuscate(plain, obf_char='*'):
     """Obfuscate all but the last x characters in a string.
@@ -4382,7 +4326,7 @@ def obfuscate(plain, obf_char='*'):
 #                             class DirectGateway
 # ============================================================================
 
-class DirectGateway:
+class DirectGateway():
     """Class to interact with gateway driver when run directly.
 
     Would normally run a driver directly by calling from main() only, but when
@@ -5447,6 +5391,20 @@ class DirectGateway:
         print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
               f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
         print()
+        # do we have 9 (WU) or 7 (EC) parameters, if it's the latter read the current custom upload settings to obtain the current station ID and key
+        if len(self.namespace.custom) == 7:
+            _result = device.custom_params
+            id = _result['id']
+            password = _result['password']
+            print(self.namespace.custom, id, password)
+            # device.write_custom(*self.namespace.custom, id, password)
+        elif len(self.namespace.custom) == 9:
+            print(self.namespace.custom)
+            # device.write_custom(*self.namespace.custom)
+        else:
+            # TODO.Need to fix this
+            print("error")
+            return
         try:
             device.write_custom(*self.namespace.custom)
         except DeviceWriteFailed as e:
@@ -5519,6 +5477,46 @@ def dispatch_write(namespace, parser):
         print()
         parser.print_help()
 
+def dispatch_ecowitt_write(namespace, parser):
+    pass
+
+def dispatch_wu_write(namespace, parser):
+    pass
+
+def dispatch_wow_write(namespace, parser):
+    pass
+
+def dispatch_wcloud_write(namespace, parser):
+    pass
+
+def dispatch_custom_write(namespace, parser):
+    pass
+
+def add_common_args(parser):
+    """Add common arguments to an argument parser."""
+
+    parser.add_argument('--ip-address',
+                        dest='ip_address',
+                        help='device IP address to use')
+    parser.add_argument('--port',
+                        dest='port',
+                        type=int,
+                        choices=range(0, 65537),
+                        default=45000,
+                        metavar='PORT',
+                        help='device port to use')
+    parser.add_argument('--max-tries',
+                        dest='max_tries',
+                        type=int,
+                        help='max number of attempts to contact the device')
+    parser.add_argument('--retry-wait',
+                        dest='retry_wait',
+                        type=int,
+                        help='how long to wait between attempts to contact the device')
+    parser.add_argument('--debug',
+                        dest='debug',
+                        action='store_true',
+                        help='display additional debug information')
 
 def get_subparser(subparsers):
     """Add get subcommand."""
@@ -5638,27 +5636,196 @@ def get_subparser(subparsers):
     get_parser.set_defaults(func=dispatch_get)
     return get_parser
 
+def ecowitt_write_subparser(subparsers):
+    """Define 'ecowitt write ecowitt' sub-subparser."""
+    
+    ecowitt_write_usage = f"""{Bcolors.BOLD}ecowitt write ecowitt --help
+       ecowitt write ecowitt --interval INTERVAL
+            --ip-address=IP_ADDRESS [--port=PORT]
+            [--debug]{Bcolors.ENDC}
+    """
+    ecowitt_write_description = """Update Ecowitt.net upload parameters."""
+    ecowitt_write_parser = subparsers.add_parser('ecowitt',
+                                                 usage=ecowitt_write_usage,
+                                                 description=ecowitt_write_description,
+                                                 help="Update Ecowitt.net upload parameters.")
+    ecowitt_write_parser.add_argument('--interval',
+                                      dest='interval',
+                                      type=int,
+                                      choices=range(0, 6),
+                                      default=0,
+                                      metavar='INTERVAL',
+                                      help='Ecowitt.net upload interval (0-5) in minutes. '
+                                           '0 indicates upload is disabled. Default is 0.')
+    add_common_args(ecowitt_write_parser)
+    ecowitt_write_parser.set_defaults(func=dispatch_ecowitt_write)
+    return ecowitt_write_parser
+
+
+def wu_write_subparser(subparsers):
+    """Define 'ecowitt write wu' sub-subparser."""
+
+    wu_write_usage = f"""{Bcolors.BOLD}ecowitt write wu --help
+       ecowitt write wu --station-id STATION_ID --station-key STATION_KEY
+                        --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+    """
+    wu_write_description = """Update WeatherUnderground upload parameters."""
+    wu_write_parser = subparsers.add_parser('wu',
+                                            usage=wu_write_usage,
+                                            description=wu_write_description,
+                                            help="Update various Ecowitt gateway device configuration settings.")
+    wu_write_parser.add_argument('--station-id',
+                                 dest='id',
+                                 metavar='STATION_ID',
+                                 help='WeatherUnderground station ID')
+    wu_write_parser.add_argument('--station-key',
+                                 dest='key',
+                                 metavar='STATION_KEY',
+                                 help='WeatherUnderground station key')
+    add_common_args(wu_write_parser)
+    wu_write_parser.set_defaults(func=dispatch_wu_write)
+    return wu_write_parser
+
+def wow_write_subparser(subparsers):
+    """Define 'ecowitt write wow' sub-subparser."""
+
+    wow_write_usage = f"""{Bcolors.BOLD}ecowitt write wow --help
+       ecowitt write wow --station-id STATION_ID --station-key STATION_KEY
+                         --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+    """
+    wow_write_description = """Update Weather Observations Website upload parameters."""
+    wow_write_parser = subparsers.add_parser('wow',
+                                            usage=wow_write_usage,
+                                            description=wow_write_description,
+                                            help="Update various Ecowitt gateway device configuration settings.")
+    wow_write_parser.add_argument('--station-id',
+                                 dest='id',
+                                 metavar='STATION_ID',
+                                 help='Weather Observations Website station ID')
+    wow_write_parser.add_argument('--station-key',
+                                 dest='key',
+                                 metavar='STATION_KEY',
+                                 help='Weather Observations Website station key')
+    add_common_args(wow_write_parser)
+    wow_write_parser.set_defaults(func=dispatch_wow_write)
+    return wow_write_parser
+
+def wcloud_write_subparser(subparsers):
+    """Define 'ecowitt write wcloud' sub-subparser."""
+
+    wcloud_write_usage = f"""{Bcolors.BOLD}ecowitt write wcloud --help
+       ecowitt write wcloud --station-id STATION_ID --station-key STATION_KEY
+                            --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+    """
+    wcloud_write_description = """Update Weathercloud upload parameters."""
+    wcloud_write_parser = subparsers.add_parser('wcloud',
+                                                usage=wcloud_write_usage,
+                                                description=wcloud_write_description,
+                                                help="Update various Ecowitt gateway device configuration settings.")
+    wcloud_write_parser.add_argument('--station-id',
+                                     dest='id',
+                                     metavar='STATION_ID',
+                                     help='Weathercloud station ID')
+    wcloud_write_parser.add_argument('--station-key',
+                                     dest='key',
+                                     metavar='STATION_KEY',
+                                     help='Weathercloud station key')
+    add_common_args(wcloud_write_parser)
+    wcloud_write_parser.set_defaults(func=dispatch_wcloud_write)
+    return wcloud_write_parser
+
+def maxlen_40(arg):
+    if len(arg) <= 40:
+        return arg
+    else:
+        raise argparse.ArgumentTypeError("Argument length must be 64 characters or less")
+
+def maxlen_64(arg):
+    if len(arg) <= 64:
+        return arg
+    else:
+        raise argparse.ArgumentTypeError("Argument length must be 64 characters or less")
+
+def custom_write_subparser(subparsers):
+    """Define 'ecowitt write custom' sub-subparser."""
+
+    custom_write_usage = f"""{Bcolors.BOLD}ecowitt write custom --help
+       ecowitt write custom --ip-address=IP_ADDRESS [--port=PORT]
+                            [--enabled] [--protocol EC | WU] [--server IP_ADDRESS | NAME] 
+                            [--upload-port UPLOAD_PORT] [--interval INTERVAL] 
+                            [--ec-path EC_PATH] [--wu-path WU_PATH] 
+                            [--station-id STATION_ID] [--station-key STATION_KEY]
+                            [--debug]{Bcolors.ENDC}
+    """
+    custom_write_description = """Update Customized upload parameters. If a 
+    parameter is omitted the corresponding current gateway device parameter is 
+    left unchanged."""
+    custom_write_parser = subparsers.add_parser('custom',
+                                                usage=custom_write_usage,
+                                                description=custom_write_description)
+    custom_write_parser.add_argument('--enabled',
+                                     action='store_true',
+                                     help='enable customized uploads')
+    custom_write_parser.add_argument('--disabled',
+                                     dest='enabled',
+                                     action='store_false',
+                                     help='disable customized uploads')
+    custom_write_parser.add_argument('--protocol',
+                                     dest='protocol',
+                                     choices=('EC', 'WU'),
+                                     metavar='PROTOCOL',
+                                     help='upload protocol EC = Ecowitt WU = WeatherUnderground '
+                                          '(WU requires --station-id and --station-key be populated)')
+    custom_write_parser.add_argument('--server',
+                                     dest='server',
+                                     type=maxlen_64,
+                                     metavar='IP_ADDRESS | NAME',
+                                     help='destination server IP address or host name, max length 64 characters')
+    custom_write_parser.add_argument('--upload-port',
+                                     dest='up_port',
+                                     type=int,
+                                     choices=range(0, 65537),
+                                     metavar='UPLOAD_PORT',
+                                     help='destination server port number')
+    custom_write_parser.add_argument('--ec-path',
+                                     dest='ec_path',
+                                     type=maxlen_64,
+                                     metavar='EC_PATH',
+                                     help='Ecowitt protocol upload path')
+    custom_write_parser.add_argument('--wu-path',
+                                     dest='wu_path',
+                                     type=maxlen_64,
+                                     metavar='WU_PATH',
+                                     help='WeatherUnderground protocol upload path')
+    custom_write_parser.add_argument('--station-id',
+                                     dest='id',
+                                     type=maxlen_40,
+                                     metavar='STATION_ID',
+                                     help='WeatherUnderground protocol station ID')
+    custom_write_parser.add_argument('--station-key',
+                                     dest='key',
+                                     type=maxlen_40,
+                                     metavar='STATION_KEY',
+                                     help='WeatherUnderground protocol station key')
+    custom_write_parser.add_argument('--interval',
+                                     dest='interval',
+                                     type=int,
+                                     choices=range(16, 601),
+                                     metavar='UPLOAD_PORT',
+                                     help='destination server port number')
+    add_common_args(custom_write_parser)
+    custom_write_parser.set_defaults(enabled=False, func=dispatch_custom_write)
+    return custom_write_parser
+
 
 def write_subparser(subparsers):
     """Add 'write' subcommand."""
 
     write_usage = f"""{Bcolors.BOLD}ecowitt write --help
-       ecowitt write --ecowitt INTERVAL
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug]
-       ecowitt write --wu STATION_ID STATION_KEY
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug]
-       ecowitt write --wow STATION_ID STATION_KEY
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug]
-       ecowitt write --wcloud STATION_ID STATION_KEY
-            [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug]
        ecowitt write --custom ENABLED PROTOCOL SERVER PATH
             PORT KEY ECOWITT_PATH WU_PATH
             [--ip-address=IP_ADDRESS] [--port=PORT]
-            [--debug]
+            [--debug]{Bcolors.ENDC}
     """
     write_description = """Update various Ecowitt gateway device configuration settings."""
 
@@ -5666,55 +5833,14 @@ def write_subparser(subparsers):
                                          usage=write_usage,
                                          description=write_description,
                                          help="Update various Ecowitt gateway device configuration settings.")
-
-    write_parser.add_argument('--ecowitt',
-                              dest='ecowitt',
-                              type=int,
-                              default=0,
-                              metavar='INTERVAL',
-                              help='Ecowitt.net upload interval')
-    write_parser.add_argument('--wu',
-                              dest='wu',
-                              nargs=2,
-                              metavar=('STATION_ID', 'STATION_KEY'),
-                              help='WeatherUnderground station ID and station key')
-    write_parser.add_argument('--wcloud',
-                              dest='wcloud',
-                              nargs=2,
-                              metavar=('STATION_ID', 'STATION_KEY'),
-                              help='Weathercloud station ID and station key')
-    write_parser.add_argument('--wow',
-                              dest='wow',
-                              nargs=2,
-                              metavar=('STATION_ID', 'STATION_KEY'),
-                              help='Weather Observations Website station ID and station key')
-    write_parser.add_argument('--custom',
-                              dest='custom',
-                              nargs=8,
-                              metavar=('ENABLED', 'PROTOCOL', 'SERVER', 'PATH', 'PORT',
-                                       'INTERVAL', 'KEY', 'ECOWITT_PATH', 'WU_PATH'),
-                              help='Customised server parameters, ENABLED 0|1, '
-                                   'PROTOCOL ecowitt|wu, SERVER IP address or host name')
-    write_parser.add_argument('--ip-address',
-                              dest='ip_address',
-                              help='device IP address to use')
-    write_parser.add_argument('--port',
-                              dest='port',
-                              type=int,
-                              default=45000,
-                              help='device port to use')
-    write_parser.add_argument('--max-tries',
-                              dest='max_tries',
-                              type=int,
-                              help='max number of attempts to contact the device')
-    write_parser.add_argument('--retry-wait',
-                              dest='retry_wait',
-                              type=int,
-                              help='how long to wait between attempts to contact the device')
-    write_parser.add_argument('--debug',
-                              dest='debug',
-                              action='store_true',
-                              help='display additional debug information')
+    # add a subparser to handle the various subcommands.
+    write_subparsers = write_parser.add_subparsers(dest='write_subcommand',
+                                                   title="Available subcommands")
+    ecowitt_write_subparser(write_subparsers)
+    wu_write_subparser(write_subparsers)
+    wow_write_subparser(write_subparsers)
+    wcloud_write_subparser(write_subparsers)
+    custom_write_subparser(write_subparsers)
     write_parser.set_defaults(func=dispatch_write)
     return write_parser
 
@@ -5726,7 +5852,6 @@ def write_subparser(subparsers):
 # The above command will display available command line options.
 
 def main():
-    import argparse
 
     # top level usage instructions
     usage = f"""{Bcolors.BOLD}%(prog)s --help
@@ -5734,7 +5859,7 @@ def main():
        %(prog)s --discover
                   [--debug] [--max-tries]
        %(prog)s get --help
-       %(prog)s set --help{Bcolors.ENDC}
+       %(prog)s write --help{Bcolors.ENDC}
     """
     # top level description
     description = """Interact with an Ecowitt gateway device."""
