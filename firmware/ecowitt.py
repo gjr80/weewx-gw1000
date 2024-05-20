@@ -1840,7 +1840,7 @@ class GatewayApiParser():
         return None
 
     @staticmethod
-    def encode_ecowitt(self, **ecowitt):
+    def encode_ecowitt(**ecowitt):
         """Encode data parameters used for CMD_WRITE_ECOWITT.
 
         Assemble a bytestring to be used as the data payload for
@@ -1857,7 +1857,7 @@ class GatewayApiParser():
         return interval_byte
 
     @staticmethod
-    def encode_wu_wcloud_wow(self, **wu_wow_wcloud):
+    def encode_wu_wcloud_wow(**wu_wow_wcloud):
         """Encode data parameters used for CMD_WRITE_WUNDERGROUND,
         CMD_WRITE_WOW and CMD_WRITE_WEATHERCLOUD.
 
@@ -1880,7 +1880,7 @@ class GatewayApiParser():
                          station_key_b])
 
     @staticmethod
-    def encode_custom(self, **custom):
+    def encode_custom(**custom):
         """Encode data parameters used for CMD_WRITE_CUSTOMIZED.
 
         Assemble a bytestring to be used as the data payload for
@@ -1919,7 +1919,7 @@ class GatewayApiParser():
                          active_b])
 
     @staticmethod
-    def encode_custom_paths(self, **custom_paths):
+    def encode_custom_paths(**custom_paths):
         """Encode """
 
         ec_path_b = custom_paths['ecowitt_path'].encode()
@@ -5407,40 +5407,45 @@ class DirectGateway():
         else:
             print("Device write completed successfully")
 
+
+# ============================================================================
+#                             Argparse utility functions
+# ============================================================================
+
 def dispatch_get(namespace, parser):
     """Process 'get' subcommand."""
 
     # get a DirectGateway object
     direct_gw = DirectGateway(namespace)
     # process the command line arguments to determine what we should do
-    if hasattr(namespace, 'sys_params') and namespace.sys_params:
+    if getattr(namespace, 'sys_params', False):
         direct_gw.display_system_params()
-    elif hasattr(namespace, 'rain_data') and namespace.rain_data:
+    elif getattr(namespace, 'rain_data', False):
         direct_gw.display_rain_data()
-    elif hasattr(namespace, 'all_rain_data') and namespace.all_rain_data:
+    elif getattr(namespace, 'all_rain_data', False):
         direct_gw.display_all_rain_data()
-    elif hasattr(namespace, 'mulch_calibration') and namespace.mulch_calibration:
+    elif getattr(namespace, 'mulch_calibration', False):
         direct_gw.display_mulch_offset()
-    elif hasattr(namespace, 'mulch_temp_calibration') and namespace.mulch_temp_calibration:
+    elif getattr(namespace, 'mulch_temp_calibration', False):
         direct_gw.display_mulch_t_offset()
-    elif hasattr(namespace, 'pm25_calibration') and namespace.pm25_calibration:
+    elif getattr(namespace, 'pm25_calibration', False):
         direct_gw.display_pm25_offset()
-    elif hasattr(namespace, 'co2_calibration') and namespace.co2_calibration:
+    elif getattr(namespace, 'co2_calibration', False):
         direct_gw.display_co2_offset()
-    elif hasattr(namespace, 'calibration') and namespace.calibration:
+    elif getattr(namespace, 'calibration', False):
         direct_gw.display_calibration()
-    elif hasattr(namespace, 'soil_calibration') and namespace.soil_calibration:
+    elif getattr(namespace, 'soil_calibration', False):
         direct_gw.display_soil_calibration()
-    elif hasattr(namespace, 'services') and namespace.services:
+    elif getattr(namespace, 'services', False):
         direct_gw.display_services()
-    elif hasattr(namespace, 'mac') and namespace.mac:
+    elif getattr(namespace, 'mac', False):
         # TODO. Rename to remove 'station' ?
         direct_gw.display_station_mac()
-    elif hasattr(namespace, 'firmware') and namespace.firmware:
+    elif getattr(namespace, 'firmware', False):
         direct_gw.display_firmware()
-    elif hasattr(namespace, 'sensors') and namespace.sensors:
+    elif getattr(namespace, 'sensors', False):
         direct_gw.display_sensors()
-    elif hasattr(namespace, 'live_data') and namespace.live_data:
+    elif getattr(namespace, 'live_data', False):
         direct_gw.display_live_data()
     else:
         # we have no argument so display our subcommand help and return
@@ -5944,7 +5949,7 @@ def write_subparser(subparsers):
     wow_write_subparser(write_subparsers)
     wcloud_write_subparser(write_subparsers)
     custom_write_subparser(write_subparsers)
-    write_parser.set_defaults(func=dispatch_write)
+#    write_parser.set_defaults(func=dispatch_write)
     return write_parser
 
 
