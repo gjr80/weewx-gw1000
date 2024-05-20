@@ -1301,7 +1301,7 @@ class GatewayApiParser():
         id_size = data[0]
         data_dict['id'] = data[1:1 + id_size].decode()
         key_size = data[1 + id_size]
-        data_dict['key'] = data[2 + id_size:2 + id_size + key_size].decode()
+        data_dict['password'] = data[2 + id_size:2 + id_size + key_size].decode()
         # return the parsed response
         return data_dict
 
@@ -3691,10 +3691,10 @@ class GatewayDevice():
     services = [{'name': 'ecowitt_net_params',
                  'long_name': 'Ecowitt.net'
                  },
-                {'name': 'wunderground_params',
+                {'name': 'wu_params',
                  'long_name': 'Wunderground'
                  },
-                {'name': 'weathercloud_params',
+                {'name': 'wcloud_params',
                  'long_name': 'Weathercloud'
                  },
                 {'name': 'wow_params',
@@ -3852,14 +3852,14 @@ class GatewayDevice():
         return _parsed_data
 
     @property
-    def wunderground_params(self):
+    def wu_params(self):
         """Gateway device Weather Underground parameters."""
 
         _data = self.gateway_api.get_wunderground()
         return self.gateway_api_parser.parse_wunderground(_data)
 
     @property
-    def weathercloud_params(self):
+    def wcloud_params(self):
         """Gateway device Weathercloud parameters."""
 
         _data = self.gateway_api.get_weathercloud()
@@ -4940,7 +4940,7 @@ class DirectGateway():
                 wc_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
                 print("%22s: %s" % ("Weathercloud ID", wc_id))
                 # Weathercloud key
-                key = data_dict['key'] if self.namespace.unmask else obfuscate(data_dict['key'])
+                key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
                 print("%22s: %s" % ("Weathercloud Key", key))
 
         def print_wow(data_dict=None):
@@ -4995,8 +4995,8 @@ class DirectGateway():
 
         # look table of functions to use to print weather service settings
         print_fns = {'ecowitt_net_params': print_ecowitt_net,
-                     'wunderground_params': print_wunderground,
-                     'weathercloud_params': print_weathercloud,
+                     'wu_params': print_wunderground,
+                     'wcloud_params': print_weathercloud,
                      'wow_params': print_wow,
                      'all_custom_params': print_custom}
 
@@ -5412,6 +5412,51 @@ class DirectGateway():
 #                             Argparse utility functions
 # ============================================================================
 
+def maxlen(arg, max_length):
+    """Function to support text parameters with a maximum length.
+
+    Function used with argparse.add_argument 'type' parameter to provide
+    support for text arguments with a maximum length. Use of the 'type'
+    parameter rather than the 'choices' parameter allows for better
+    control/presentation of the error message when the range is exceeded.
+
+    If the length of the argument is less than or equal to the maximum length
+    return the argument as is, otherwise raise an argparse.ArgumentTypeError.
+    """
+
+    # is arg too long
+    if len(arg) <= max_length:
+        # no it's not too long, so return it as is
+        return arg
+    else:
+        # arg is too long so raise an argparse.ArgumentTypeError with an
+        # appropriate message
+        raise argparse.ArgumentTypeError(f"Argument length must be {max_length:d} characters or less")
+
+def int_range(s, min, max):
+    """Function to support range limited integer parameters.
+
+    Function used with argparse.add_argument 'type' parameter to provide
+    support for integer arguments that have a restricted range of allowed
+    values. Use of the 'type' parameter rather than the 'choices' parameter
+    allows for better control/presentation of the error message when the range
+    is exceeded.
+
+    If the argument falls outside the min-max bounds return the argument as an
+    integer, otherwise raise an argparse.ArgumentTypeError.
+    """
+
+    # does the argument fall within the min-max range, use int() as the
+    # argument as provided is a string
+    if min <= int(s) <= max:
+        # arg is within the range, so return arg as an integer
+        return int(s)
+    else:
+        # arg is outside the range so raise an argparse.ArgumentTypeError with
+        # an appropriate message
+        raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
+
+
 def dispatch_get(namespace, parser):
     """Process 'get' subcommand."""
 
@@ -5454,43 +5499,8 @@ def dispatch_get(namespace, parser):
         print()
         parser.print_help()
 
-def dispatch_write(namespace, parser):
-    """Process the 'write' subcommand."""
-
-    # get a DirectGateway object
-    direct_gw = DirectGateway(namespace)
-    # process the command line arguments to determine what we should do
-    if hasattr(namespace, 'ecowitt') and namespace.ecowitt is not None:
-        direct_gw.write_ecowitt()
-    elif hasattr(namespace, 'wu') and namespace.wu is not None:
-        direct_gw.write_wu()
-    elif hasattr(namespace, 'wcloud') and namespace.wcloud is not None:
-        direct_gw.write_wcloud()
-    elif hasattr(namespace, 'wow') and namespace.wow is not None:
-        direct_gw.write_wow()
-    elif hasattr(namespace, 'custom') and namespace.custom is not None:
-        direct_gw.write_custom()
-    else:
-        # we have no argument so display our subcommand help and return
-        print()
-        print("No option selected, nothing done")
-        print()
-        parser.print_help()
-
-def dispatch_ecowitt_write(namespace, parser):
-    pass
-
-def dispatch_wu_write(namespace, parser):
-    pass
-
-def dispatch_wow_write(namespace, parser):
-    pass
-
-def dispatch_wcloud_write(namespace, parser):
-    pass
-
-def write_wcloud(namespace):
-    """Process wcloud write subcommand."""
+def write_ecowitt(namespace):
+    """Process ecowitt write sub-subcommand."""
 
     # do we have a non-None namespace
     if namespace is not None:
@@ -5512,23 +5522,67 @@ def write_wcloud(namespace):
             return
         # obtain the current custom params and usr path settings from the
         # device
-        weathercloud_params = device.weathercloud_params
-        # make a copy of the current weathercloud params, this copy will be
-        # updated with the subcommand arguments and then used to update the
-        # device
-        arg_weathercloud_params = dict(weathercloud_params)
-        # iterate over each weathercloud param (param, value) pair
-        for param, value in weathercloud_params.items():
+        ecowitt_params = device.ecowitt_net_params
+        # make a copy of the current ecowitt params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_ecowitt_params = dict(ecowitt_params)
+        # iterate over each ecowitt param (param, value) pair
+        for param, value in ecowitt_params.items():
             # obtain the corresponding argument from the namespace, if the
             # argument does not exist or is not set it will be None
             _arg = getattr(namespace, param, None)
-            # update our weathercloud param dict copy if the namespace argument
-            # is not None, otherwise keep the current custom param value
-            arg_weathercloud_params[param] = _arg if _arg is not None else value
+            # update our ecowitt param dict copy if the namespace argument is
+            # not None, otherwise keep the current custom param value
+            arg_ecowitt_params[param] = _arg if _arg is not None else value
         # do we have any changes from our existing settings
-        if arg_weathercloud_params != weathercloud_params:
+        if arg_ecowitt_params != ecowitt_params:
             # something has changed, so write the updated params to the device
-            device.write_wcloud(**arg_weathercloud_params)
+            device.write_custom(**arg_ecowitt_params)
+        else:
+            print()
+            print("No changes to current device settings")
+    else:
+        print()
+        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
+
+def write_wu_wow_wcloud(namespace):
+    """Process wu, wow and wcloud write sub-subcommands."""
+
+    # do we have a non-None namespace
+    if namespace is not None:
+        # we have a non-None namespace
+        # first obtain a GatewayDevice object, wrap in a try..except in case
+        # there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=namespace.device_ip_address,
+                                   port=namespace.device_port,
+                                   debug=namespace.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {namespace.device_ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {namespace.device_ip_address} did not respond.')
+            return
+        # obtain the current WU/WOW/Weathercloud upload params from the device
+        current_params = getattr(device, '_'.join([namespace.write_subcommand, 'params']))
+        # make a copy of the current params, this copy will be updated with
+        # the subcommand arguments and then used to update the device
+        arg_service_params = dict(current_params)
+        # iterate over each current param (param, value) pair
+        for param, value in current_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(namespace, param, None)
+            # update our param dict copy if the namespace argument is not None,
+            # otherwise keep the current param value
+            arg_service_params[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_service_params != current_params:
+            # something has changed, so write the updated params to the device
+            getattr(device, '_'.join(['write', namespace.write_subcommand]))(**arg_service_params)
         else:
             print()
             print("No changes to current device settings")
@@ -5537,7 +5591,7 @@ def write_wcloud(namespace):
         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
 
 def write_customized(namespace):
-    """Process custom write subcommand."""
+    """Process custom write sub-subcommand."""
 
     # do we have a non-None namespace
     if namespace is not None:
@@ -5763,7 +5817,7 @@ def ecowitt_write_subparser(subparsers):
                                       help='Ecowitt.net upload interval (0-5) in minutes. '
                                            '0 indicates upload is disabled. Default is 0.')
     add_common_args(ecowitt_write_parser)
-    ecowitt_write_parser.set_defaults(func=dispatch_ecowitt_write)
+    ecowitt_write_parser.set_defaults(func=write_ecowitt)
     return ecowitt_write_parser
 
 
@@ -5788,7 +5842,7 @@ def wu_write_subparser(subparsers):
                                  metavar='STATION_KEY',
                                  help='WeatherUnderground station key')
     add_common_args(wu_write_parser)
-    wu_write_parser.set_defaults(func=dispatch_wu_write)
+    wu_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wu_write_parser
 
 def wow_write_subparser(subparsers):
@@ -5812,7 +5866,7 @@ def wow_write_subparser(subparsers):
                                  metavar='STATION_KEY',
                                  help='Weather Observations Website station key')
     add_common_args(wow_write_parser)
-    wow_write_parser.set_defaults(func=dispatch_wow_write)
+    wow_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wow_write_parser
 
 def wcloud_write_subparser(subparsers):
@@ -5836,20 +5890,8 @@ def wcloud_write_subparser(subparsers):
                                      metavar='STATION_KEY',
                                      help='Weathercloud station key')
     add_common_args(wcloud_write_parser)
-    wcloud_write_parser.set_defaults(func=write_wcloud)
+    wcloud_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wcloud_write_parser
-
-def maxlen(arg, max_length):
-    if len(arg) <= max_length:
-        return arg
-    else:
-        raise argparse.ArgumentTypeError(f"Argument length must be {max_length:d} characters or less")
-
-def int_range(s, min, max):
-    if min <= int(s) <= max:
-        return int(s)
-    else:
-        raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
 
 def custom_write_subparser(subparsers):
     """Define 'ecowitt write custom' sub-subparser."""
@@ -5927,7 +5969,7 @@ def custom_write_subparser(subparsers):
 
 
 def write_subparser(subparsers):
-    """Add the 'write' subcommand."""
+    """Define the 'ecowitt write' subcommand."""
 
     write_usage = f"""{Bcolors.BOLD}ecowitt write --help
        ecowitt write ecowitt --help
@@ -5949,7 +5991,6 @@ def write_subparser(subparsers):
     wow_write_subparser(write_subparsers)
     wcloud_write_subparser(write_subparsers)
     custom_write_subparser(write_subparsers)
-#    write_parser.set_defaults(func=dispatch_write)
     return write_parser
 
 
@@ -5961,7 +6002,7 @@ def write_subparser(subparsers):
 
 def main():
 
-    # create a looukp table of functions used to determine if an action or
+    # create a lookup table of functions used to determine if an action or
     # sub-subcommand was specified byt the user for a given subcommand
     exists_fns = {'get': get_action_exists,
                   'write': write_action_exists}
