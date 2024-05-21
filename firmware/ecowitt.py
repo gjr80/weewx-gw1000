@@ -1929,6 +1929,40 @@ class GatewayApiParser():
                          struct.pack('B', len(wu_path_b)),
                          wu_path_b])
 
+    @staticmethod
+    def encode_gain(**gain):
+        """Encode data parameters used for CMD_WRITE_GAIN.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_GAIN. Required payload parameters are contained in the gain
+        dict keyed as follows:
+
+        uv:     uv gain, integer 10-500
+        solar:  solar radiation gain, integer 10-500
+        wind:   wind speed gain, integer 10-500
+        rain:   rain gain, integer 10-500
+
+        The CMD_WRITE_GAIN data payload includes two reserved integer values.
+        The first two bytes contain the value 1267 and the last two bytes are
+        only marked as 'reserved' with no value given (we will store the
+        value 0).
+
+        Returns a bytestring.
+        """
+
+        reserved1_b = struct.pack('>H', 1267)
+        uv_b = struct.pack('>H', int(gain['uv'] * 100))
+        solar_b = struct.pack('>H', int(gain['solar'] * 100))
+        wind_b = struct.pack('>H', int(gain['wind'] * 100))
+        rain_b = struct.pack('>H', int(gain['rain'] * 100))
+        reserved2_b = struct.pack('>H', 0)
+        return b''.join([reserved1_b,
+                         uv_b,
+                         solar_b,
+                         wind_b,
+                         rain_b,
+                         reserved2_b])
+
 
 class Sensors():
     """Class to manage device sensor ID data.
@@ -3138,6 +3172,22 @@ class GatewayApi():
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
+    def set_gain(self, payload):
+        """Set the gain parameters.
+
+        Sends the API command to write the gain parameters to the gateway
+        device. If the device cannot be contacted a GWIOError will be raised
+        by send_cmd_with_retries() which will be passed through by set_gain().
+        If the command failed a DeviceWriteFailed exception is raised. Any
+        code calling set_gain() should be prepared to handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_GAIN', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send an API command to the device with retries and return
         the response.
@@ -4150,6 +4200,33 @@ class GatewayDevice():
         self.gateway_api.set_custom(payload_custom)
         self.gateway_api.set_custom_paths(payload_paths)
 
+    def write_gain(self, **gain):
+        #TODO. Need to update these comments
+        """Write gain parameters.
+
+        Write gain parameters to a gateway device. The gain parameters consist
+        of:
+
+        active:     whether the custom upload is active, 0 = inactive,
+                    1 = active
+        type:       what protocol (Ecwoitt or WeatherUnderground) to use for
+                    upload, 0 = Ecowitt, 1 = WeatherUnderground
+        server:     server IP address or host name, string
+        port:       server port number, integer 0 to 65536
+        interval:   upload interval in seconds
+        id:         WeatherUnderground station ID
+        password:   WeatherUnderground key
+
+        The gain parameters are first encoded to produce the command data
+        payload. The payload is then passed to a GatewayApi object for
+        uploading to the gateway device.
+        """
+
+        # obtain encoded data payloads for each API command
+        payload = self.gateway_api_parser.encode_gain(**gain)
+        # update the gateway device
+        self.gateway_api.set_gain(payload)
+
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
 
@@ -4344,8 +4421,8 @@ class DirectGateway():
         # save the optparse options and station dict
         self.namespace = namespace
         # save the IP address and port number to use
-        self.ip_address = getattr(namespace, 'ip_address', None)
-        self.port = getattr(namespace, 'port', None)
+        self.ip_address = getattr(namespace, 'device_ip_address', None)
+        self.port = getattr(namespace, 'device_port', None)
         # do we filter battery state data
         self.show_battery = getattr(namespace, 'show_battery', None)
         # set our debug level
@@ -5456,8 +5533,30 @@ def int_range(s, min, max):
         # an appropriate message
         raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
 
+def float_range(s, min, max):
+    """Function to support range limited integer parameters.
 
-def dispatch_get(namespace, parser):
+    Function used with argparse.add_argument 'type' parameter to provide
+    support for integer arguments that have a restricted range of allowed
+    values. Use of the 'type' parameter rather than the 'choices' parameter
+    allows for better control/presentation of the error message when the range
+    is exceeded.
+
+    If the argument falls outside the min-max bounds return the argument as an
+    integer, otherwise raise an argparse.ArgumentTypeError.
+    """
+
+    # does the argument fall within the min-max range, use int() as the
+    # argument as provided is a string
+    if min <= float(s) <= max:
+        # arg is within the range, so return arg as an integer
+        return float(s)
+    else:
+        # arg is outside the range so raise an argparse.ArgumentTypeError with
+        # an appropriate message
+        raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
+
+def dispatch_get(namespace):
     """Process 'get' subcommand."""
 
     # get a DirectGateway object
@@ -5492,12 +5591,6 @@ def dispatch_get(namespace, parser):
         direct_gw.display_sensors()
     elif getattr(namespace, 'live_data', False):
         direct_gw.display_live_data()
-    else:
-        # we have no argument so display our subcommand help and return
-        print()
-        print("No option selected, nothing done")
-        print()
-        parser.print_help()
 
 def write_ecowitt(namespace):
     """Process ecowitt write sub-subcommand."""
@@ -5644,6 +5737,51 @@ def write_customized(namespace):
             arg_custom_params.update(arg_usr_path)
             # write the updated settings to the device
             device.write_custom(**arg_custom_params)
+        else:
+            print()
+            print("No changes to current device settings")
+    else:
+        print()
+        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
+
+def write_calibration(namespace):
+    """Process gain write sub-subcommand."""
+
+    # do we have a non-None namespace
+    if namespace is not None:
+        # we have a non-None namespace
+        # first obtain a GatewayDevice object, wrap in a try..except in case
+        # there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=namespace.device_ip_address,
+                                   port=namespace.device_port,
+                                   debug=namespace.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {namespace.device_ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {namespace.device_ip_address} did not respond.')
+            return
+        # obtain the current calibration params from the device
+        cal_params = device.calibration
+        # make a copy of the current cal params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_cal_params = dict(cal_params)
+        # iterate over each cal param (param, value) pair
+        for param, value in cal_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(namespace, param, None)
+            # update our cal param dict copy if the namespace argument is
+            # not None, otherwise keep the current cal param value
+            arg_cal_params[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_cal_params != cal_params:
+            # something has changed, so write the updated params to the device
+            device.write_gain(**arg_cal_params)
         else:
             print()
             print("No changes to current device settings")
@@ -5967,6 +6105,65 @@ def custom_write_subparser(subparsers):
     custom_write_parser.set_defaults(active=0, func=write_customized)
     return custom_write_parser
 
+def cal_write_subparser(subparsers):
+    """Define 'ecowitt write gain' sub-subparser."""
+
+    cal_write_usage = f"""{Bcolors.BOLD}ecowitt write calibration --help
+       ecowitt write calibration --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--uv UV_GAIN] [--solar SOLAR_GAIN]
+                                 [---wind-speed WIND_GAIN] [--rain RAIN_GAIN]
+                                 [--debug]
+{Bcolors.ENDC}"""
+    cal_write_description = """Set calibration coefficients. If a parameter
+    is omitted the corresponding current gateway device parameter is left
+    unchanged."""
+    cal_write_parser = subparsers.add_parser('calibration',
+                                             usage=cal_write_usage,
+                                             description=cal_write_description,
+                                             help="Set calibration coefficients.")
+    cal_write_parser.add_argument('--uv',
+                                  dest='uv',
+                                  type=lambda u: float_range(u, 0.1, 5.0),
+                                  help='UV calibration gain')
+    cal_write_parser.add_argument('--solar',
+                                  dest='solar',
+                                  type=lambda u: float_range(u, 0.1, 5.0),
+                                  help='solar radiation calibration gain')
+    cal_write_parser.add_argument('--wind-speed',
+                                  dest='wind',
+                                  type=lambda u: float_range(u, 0.1, 5.0),
+                                  help='wind speed calibration gain')
+    cal_write_parser.add_argument('--intemp',
+                                  dest='intemp',
+                                  type=lambda u: float_range(u, -10, 10),
+                                  help='Inside temperature offset')
+    cal_write_parser.add_argument('--inhum',
+                                  dest='inhum',
+                                  type=lambda u: float_range(u, -10, 10),
+                                  help='Inside humidity offset')
+    cal_write_parser.add_argument('--outtemp',
+                                  dest='outtemp',
+                                  type=lambda u: float_range(u, -10, 10),
+                                  help='Outside temperature offset')
+    cal_write_parser.add_argument('--outhum',
+                                  dest='outhum',
+                                  type=lambda u: float_range(u, -10, 10),
+                                  help='Outside humidity offset')
+    cal_write_parser.add_argument('--abs',
+                                  dest='abs',
+                                  type=lambda u: float_range(u, -80, 80),
+                                  help='Absolute pressure offset')
+    cal_write_parser.add_argument('--rel',
+                                  dest='rel',
+                                  type=lambda u: float_range(u, -80, 80),
+                                  help='Relative pressure offset')
+    cal_write_parser.add_argument('--winddir',
+                                  dest='winddir',
+                                  type=lambda u: float_range(u, -180, 180),
+                                  help='Wind direction offset')
+    add_common_args(cal_write_parser)
+    cal_write_parser.set_defaults(func=write_calibration)
+    return cal_write_parser
 
 def write_subparser(subparsers):
     """Define the 'ecowitt write' subcommand."""
@@ -5977,6 +6174,7 @@ def write_subparser(subparsers):
        ecowitt write wow --help
        ecowitt write wcloud --help
        ecowitt write custom --help
+       ecowitt write gain --help
 {Bcolors.ENDC}"""
     write_description = """Set various Ecowitt gateway device configuration parameters."""
     write_parser = subparsers.add_parser('write',
@@ -5991,6 +6189,7 @@ def write_subparser(subparsers):
     wow_write_subparser(write_subparsers)
     wcloud_write_subparser(write_subparsers)
     custom_write_subparser(write_subparsers)
+    cal_write_subparser(write_subparsers)
     return write_parser
 
 
