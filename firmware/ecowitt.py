@@ -5650,17 +5650,17 @@ def wow_write_subparser(subparsers):
     """
     wow_write_description = """Set Weather Observations Website upload parameters."""
     wow_write_parser = subparsers.add_parser('wow',
-                                            usage=wow_write_usage,
-                                            description=wow_write_description,
-                                            help="Set Weather Observations Website upload parameters.")
+                                             usage=wow_write_usage,
+                                             description=wow_write_description,
+                                             help="Set Weather Observations Website upload parameters.")
     wow_write_parser.add_argument('--station-id',
-                                 dest='id',
-                                 metavar='STATION_ID',
-                                 help='Weather Observations Website station ID')
+                                  dest='id',
+                                  metavar='STATION_ID',
+                                  help='Weather Observations Website station ID')
     wow_write_parser.add_argument('--station-key',
-                                 dest='key',
-                                 metavar='STATION_KEY',
-                                 help='Weather Observations Website station key')
+                                  dest='key',
+                                  metavar='STATION_KEY',
+                                  help='Weather Observations Website station key')
     add_common_args(wow_write_parser)
     wow_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wow_write_parser
