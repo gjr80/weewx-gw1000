@@ -5051,154 +5051,216 @@ class DirectGateway:
             # we have no results
             print("No devices were discovered.")
 
-    # def write_ecowitt(self):
-    #     """Write Ecowitt.net upload parameters to a gateway device."""
-    #
-    #     # wrap in a try..except in case there is an error
-    #     try:
-    #         # obtain a GatewayDevice object
-    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-    #     except GWIOError as e:
-    #         print()
-    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
-    #         return
-    #     except socket.timeout:
-    #         print()
-    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
-    #         return
-    #     # identify the device being used
-    #     print()
-    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-    #     print()
-    #     try:
-    #         device.write_ecowitt(self.namespace.ecowitt)
-    #     except DeviceWriteFailed as e:
-    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-    #     else:
-    #         print("Device write completed successfully")
-    #
-    # def write_wu(self):
-    #     """Write WeatherUnderground upload parameters to a gateway device."""
-    #
-    #     # wrap in a try..except in case there is an error
-    #     try:
-    #         # obtain a GatewayDevice object
-    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-    #     except GWIOError as e:
-    #         print()
-    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
-    #         return
-    #     except socket.timeout:
-    #         print()
-    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
-    #         return
-    #     # identify the device being used
-    #     print()
-    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-    #     print()
-    #     try:
-    #         device.write_wu(*self.namespace.wu)
-    #     except DeviceWriteFailed as e:
-    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-    #     else:
-    #         print("Device write completed successfully")
-    #
-    # def write_wcloud(self):
-    #     """Write Weathercloud upload parameters to a gateway device."""
-    #
-    #     # wrap in a try..except in case there is an error
-    #     try:
-    #         # obtain a GatewayDevice object
-    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-    #     except GWIOError as e:
-    #         print()
-    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
-    #         return
-    #     except socket.timeout:
-    #         print()
-    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
-    #         return
-    #     # identify the device being used
-    #     print()
-    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-    #     print()
-    #     try:
-    #         device.write_wcloud(*self.namespace.wcloud)
-    #     except DeviceWriteFailed as e:
-    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-    #     else:
-    #         print("Device write completed successfully")
-    #
-    # def write_wow(self):
-    #     """Write Weather Observations Website upload parameters to a gateway device."""
-    #
-    #     # wrap in a try..except in case there is an error
-    #     try:
-    #         # obtain a GatewayDevice object
-    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-    #     except GWIOError as e:
-    #         print()
-    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
-    #         return
-    #     except socket.timeout:
-    #         print()
-    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
-    #         return
-    #     # identify the device being used
-    #     print()
-    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-    #     print()
-    #     try:
-    #         device.write_wow(*self.namespace.wow)
-    #     except DeviceWriteFailed as e:
-    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-    #     else:
-    #         print("Device write completed successfully")
-    #
-    # def write_custom(self):
-    #     """Write 'Custom' upload parameters to a gateway device."""
-    #
-    #     # wrap in a try..except in case there is an error
-    #     try:
-    #         # obtain a GatewayDevice object
-    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-    #     except GWIOError as e:
-    #         print()
-    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
-    #         return
-    #     except socket.timeout:
-    #         print()
-    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
-    #         return
-    #     # identify the device being used
-    #     print()
-    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-    #     print()
-    #     # do we have 9 (WU) or 7 (EC) parameters, if it's the latter read the current custom upload settings to obtain the current station ID and key
-    #     if len(self.namespace.custom) == 7:
-    #         _result = device.custom_params
-    #         id = _result['id']
-    #         password = _result['password']
-    #         print(self.namespace.custom, id, password)
-    #         # device.write_custom(*self.namespace.custom, id, password)
-    #     elif len(self.namespace.custom) == 9:
-    #         print(self.namespace.custom)
-    #         # device.write_custom(*self.namespace.custom)
-    #     else:
-    #         # TODO.Need to fix this
-    #         print("error")
-    #         return
-    #     try:
-    #         device.write_custom(*self.namespace.custom)
-    #     except DeviceWriteFailed as e:
-    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-    #     else:
-    #         print("Device write completed successfully")
+    def write_ecowitt(self):
+        """Write Ecowitt.net upload parameters to a gateway device."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current custom params and usr path settings from the
+        # device
+        ecowitt_params = device.ecowitt_net_params
+        # make a copy of the current ecowitt params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_ecowitt_params = dict(ecowitt_params)
+        # iterate over each ecowitt param (param, value) pair
+        for param, value in ecowitt_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our ecowitt param dict copy if the namespace argument is
+            # not None, otherwise keep the current custom param value
+            arg_ecowitt_params[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_ecowitt_params != ecowitt_params:
+            # something has changed, so write the updated params to the device
+            try:
+                device.write_custom(**arg_ecowitt_params)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print()
+            print("No changes to current device settings")
+
+    def write_wu_wow_wcloud(self):
+        """Process wu, wow and wcloud write sub-subcommands."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current WU/WOW/Weathercloud upload params from the device
+        current_params = getattr(device, '_'.join([self.namespace.write_subcommand, 'params']))
+        # make a copy of the current params, this copy will be updated with
+        # the subcommand arguments and then used to update the device
+        arg_service_params = dict(current_params)
+        # iterate over each current param (param, value) pair
+        for param, value in current_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our param dict copy if the namespace argument is not None,
+            # otherwise keep the current param value
+            arg_service_params[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_service_params != current_params:
+            # something has changed, so write the updated params to the device
+            try:
+                getattr(device, '_'.join(['write', self.namespace.write_subcommand]))(**arg_service_params)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print()
+            print("No changes to current device settings")
+
+    def write_custom(self):
+        """Process custom write sub-subcommand."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current custom params and usr path settings from the
+        # device
+        custom_params = device.custom_params
+        usr_path = device.usr_path
+        # make a copy of the current custom params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_custom_params = dict(custom_params)
+        # iterate over each custom param (param, value) pair
+        for param, value in custom_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our custom param dict copy if the namespace argument is
+            # not None, otherwise keep the current custom param value
+            arg_custom_params[param] = _arg if _arg is not None else value
+        # make a copy of the current usr path params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_usr_path = dict(usr_path)
+        # iterate over each usr path param (param, value) pair
+        for param, value in usr_path.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our usr path param dict copy if the namespace argument is
+            # not None, otherwise keep the current usr path param value
+            arg_usr_path[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_custom_params != custom_params or arg_usr_path != usr_path:
+            # something has changed, so combine our updated dicts and write the
+            # updated params to the device
+            arg_custom_params.update(arg_usr_path)
+            # write the updated settings to the device
+            try:
+                device.write_custom(**arg_custom_params)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+
+            else:
+                print("Device write completed successfully")
+        else:
+            print()
+            print("No changes to current device settings")
+
+    def write_calibration(self):
+        """Process gain write sub-subcommand."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current calibration params from the device
+        cal_params = device.calibration
+        # make a copy of the current cal params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_cal_params = dict(cal_params)
+        # iterate over each cal param (param, value) pair
+        for param, value in cal_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our cal param dict copy if the namespace argument is
+            # not None, otherwise keep the current cal param value
+            arg_cal_params[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_cal_params != cal_params:
+            # something has changed, so write the updated params to the device
+            try:
+                device.write_gain(**arg_cal_params)
+                device.write_calibration(**arg_cal_params)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print()
+            print("No changes to current device settings")
 
 
 # ============================================================================
@@ -5295,206 +5357,21 @@ def dispatch_get(namespace):
         direct_gw.display_live_data()
 
 
-def write_ecowitt(namespace):
-    """Process ecowitt write sub-subcommand."""
+def dispatch_write(namespace):
+    """Process 'write' subcommand."""
 
-    # do we have a non-None namespace
-    if namespace is not None:
-        # we have a non-None namespace
-        # first obtain a GatewayDevice object, wrap in a try..except in case
-        # there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=namespace.device_ip_address,
-                                   port=namespace.device_port,
-                                   debug=namespace.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {namespace.device_ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {namespace.device_ip_address} did not respond.')
-            return
-        # obtain the current custom params and usr path settings from the
-        # device
-        ecowitt_params = device.ecowitt_net_params
-        # make a copy of the current ecowitt params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_ecowitt_params = dict(ecowitt_params)
-        # iterate over each ecowitt param (param, value) pair
-        for param, value in ecowitt_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(namespace, param, None)
-            # update our ecowitt param dict copy if the namespace argument is
-            # not None, otherwise keep the current custom param value
-            arg_ecowitt_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_ecowitt_params != ecowitt_params:
-            # something has changed, so write the updated params to the device
-            device.write_custom(**arg_ecowitt_params)
-        else:
-            print()
-            print("No changes to current device settings")
-    else:
-        print()
-        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
-
-
-def write_wu_wow_wcloud(namespace):
-    """Process wu, wow and wcloud write sub-subcommands."""
-
-    # do we have a non-None namespace
-    if namespace is not None:
-        # we have a non-None namespace
-        # first obtain a GatewayDevice object, wrap in a try..except in case
-        # there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=namespace.device_ip_address,
-                                   port=namespace.device_port,
-                                   debug=namespace.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {namespace.device_ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {namespace.device_ip_address} did not respond.')
-            return
-        # obtain the current WU/WOW/Weathercloud upload params from the device
-        current_params = getattr(device, '_'.join([namespace.write_subcommand, 'params']))
-        # make a copy of the current params, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_service_params = dict(current_params)
-        # iterate over each current param (param, value) pair
-        for param, value in current_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(namespace, param, None)
-            # update our param dict copy if the namespace argument is not None,
-            # otherwise keep the current param value
-            arg_service_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_service_params != current_params:
-            # something has changed, so write the updated params to the device
-            getattr(device, '_'.join(['write', namespace.write_subcommand]))(**arg_service_params)
-        else:
-            print()
-            print("No changes to current device settings")
-    else:
-        print()
-        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
-
-
-def write_customized(namespace):
-    """Process custom write sub-subcommand."""
-
-    # do we have a non-None namespace
-    if namespace is not None:
-        # we have a non-None namespace
-        # first obtain a GatewayDevice object, wrap in a try..except in case
-        # there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=namespace.device_ip_address,
-                                   port=namespace.device_port,
-                                   debug=namespace.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {namespace.device_ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {namespace.device_ip_address} did not respond.')
-            return
-        # obtain the current custom params and usr path settings from the
-        # device
-        custom_params = device.custom_params
-        usr_path = device.usr_path
-        # make a copy of the current custom params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_custom_params = dict(custom_params)
-        # iterate over each custom param (param, value) pair
-        for param, value in custom_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(namespace, param, None)
-            # update our custom param dict copy if the namespace argument is
-            # not None, otherwise keep the current custom param value
-            arg_custom_params[param] = _arg if _arg is not None else value
-        # make a copy of the current usr path params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_usr_path = dict(usr_path)
-        # iterate over each usr path param (param, value) pair
-        for param, value in usr_path.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(namespace, param, None)
-            # update our usr path param dict copy if the namespace argument is
-            # not None, otherwise keep the current usr path param value
-            arg_usr_path[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_custom_params != custom_params or arg_usr_path != usr_path:
-            # something has changed, so combine our updated dicts and write the
-            # updated params to the device
-            arg_custom_params.update(arg_usr_path)
-            # write the updated settings to the device
-            device.write_custom(**arg_custom_params)
-        else:
-            print()
-            print("No changes to current device settings")
-    else:
-        print()
-        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
-
-
-def write_calibration(namespace):
-    """Process gain write sub-subcommand."""
-
-    # do we have a non-None namespace
-    if namespace is not None:
-        # we have a non-None namespace
-        # first obtain a GatewayDevice object, wrap in a try..except in case
-        # there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=namespace.device_ip_address,
-                                   port=namespace.device_port,
-                                   debug=namespace.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {namespace.device_ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {namespace.device_ip_address} did not respond.')
-            return
-        # obtain the current calibration params from the device
-        cal_params = device.calibration
-        # make a copy of the current cal params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_cal_params = dict(cal_params)
-        # iterate over each cal param (param, value) pair
-        for param, value in cal_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(namespace, param, None)
-            # update our cal param dict copy if the namespace argument is
-            # not None, otherwise keep the current cal param value
-            arg_cal_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_cal_params != cal_params:
-            # something has changed, so write the updated params to the device
-            device.write_gain(**arg_cal_params)
-            device.write_calibration(**arg_cal_params)
-        else:
-            print()
-            print("No changes to current device settings")
-    else:
-        print()
-        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
+    # get a DirectGateway object
+    direct_gw = DirectGateway(namespace)
+    # process the command line arguments to determine what we should do
+    # first look for sub-subcommands
+    if getattr(namespace, 'write_subcommand', False)  == 'ecowitt':
+        direct_gw.write_ecowitt()
+    if getattr(namespace, 'write_subcommand', False)  in ('wu', 'wow', 'wcloud'):
+        direct_gw.write_wu_wow_wcloud()
+    if getattr(namespace, 'write_subcommand', False)  == 'custom':
+        direct_gw.write_custom()
+    if getattr(namespace, 'write_subcommand', False)  == 'calibration':
+        direct_gw.write_calibration()
 
 
 def add_common_args(parser):
@@ -5665,7 +5542,7 @@ def ecowitt_write_subparser(subparsers):
                                       help='Ecowitt.net upload interval (0-5) in minutes. '
                                            '0 indicates upload is disabled. Default is 0.')
     add_common_args(ecowitt_write_parser)
-    ecowitt_write_parser.set_defaults(func=write_ecowitt)
+    ecowitt_write_parser.set_defaults(func=dispatch_write)
     return ecowitt_write_parser
 
 
@@ -5690,7 +5567,7 @@ def wu_write_subparser(subparsers):
                                  metavar='STATION_KEY',
                                  help='WeatherUnderground station key')
     add_common_args(wu_write_parser)
-    wu_write_parser.set_defaults(func=write_wu_wow_wcloud)
+    wu_write_parser.set_defaults(func=dispatch_write)
     return wu_write_parser
 
 
@@ -5715,7 +5592,7 @@ def wow_write_subparser(subparsers):
                                   metavar='STATION_KEY',
                                   help='Weather Observations Website station key')
     add_common_args(wow_write_parser)
-    wow_write_parser.set_defaults(func=write_wu_wow_wcloud)
+    wow_write_parser.set_defaults(func=dispatch_write)
     return wow_write_parser
 
 
@@ -5740,7 +5617,7 @@ def wcloud_write_subparser(subparsers):
                                      metavar='STATION_KEY',
                                      help='Weathercloud station key')
     add_common_args(wcloud_write_parser)
-    wcloud_write_parser.set_defaults(func=write_wu_wow_wcloud)
+    wcloud_write_parser.set_defaults(func=dispatch_write)
     return wcloud_write_parser
 
 
@@ -5815,7 +5692,7 @@ def custom_write_subparser(subparsers):
                                      metavar='UPLOAD_PORT',
                                      help='destination server port number')
     add_common_args(custom_write_parser)
-    custom_write_parser.set_defaults(active=0, func=write_customized)
+    custom_write_parser.set_defaults(active=0, func=dispatch_write)
     return custom_write_parser
 
 
@@ -5876,7 +5753,7 @@ def cal_write_subparser(subparsers):
                                   type=ranged_type(float, -180, 180),
                                   help='Wind direction offset')
     add_common_args(cal_write_parser)
-    cal_write_parser.set_defaults(func=write_calibration)
+    cal_write_parser.set_defaults(func=dispatch_write)
     return cal_write_parser
 
 
