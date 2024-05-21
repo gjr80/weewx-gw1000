@@ -5126,74 +5126,84 @@ class DirectGateway:
 #                             Argparse utility functions
 # ============================================================================
 
-def maxlen(arg, max_length):
-    """Function to support text parameters with a maximum length.
+def maxlen(max_length):
+    """Function supporting length limited ArgumentParser arguments.
 
-    Function used with argparse.add_argument 'type' parameter to provide
-    support for text arguments with a maximum length. Use of the 'type'
-    parameter rather than the 'choices' parameter allows for better
-    control/presentation of the error message when the range is exceeded.
+    Returns a handle to a function that checks the length of an argument is
+    less than or equal to specified value. If the argument is longer than the
+    specified length an ArgumentTypeError exception is raised with a suitable
+    error message.
 
-    If the length of the argument is less than or equal to the maximum length
-    return the argument as is, otherwise raise an argparse.ArgumentTypeError.
+    If the argument meets the type and range checks a string is returned.
     """
 
-    # is arg too long
-    if len(arg) <= max_length:
-        # no it's not too long, so return it as is
+    # define a function to perform the necessary checks, we will return a
+    # handle to this function
+    def maxlen_check(arg):
+        """Check an argument is no longer than a given value."""
+
+        if len(arg) > max_length:
+            raise argparse.ArgumentTypeError(f"argument length must be {max_length:d} characters or less ({arg})")
         return arg
-    else:
-        # arg is too long so raise an argparse.ArgumentTypeError with an
-        # appropriate message
-        raise argparse.ArgumentTypeError(f"Argument length must be {max_length:d} characters or less")
+
+    # return a handle to the check function
+    return maxlen_check
 
 
-def int_range(s, min, max):
-    """Function to support range limited integer parameters.
+def int_range(min_value, max_value):
+    """Function supporting range limited ArgumentParser integer arguments.
 
-    Function used with argparse.add_argument 'type' parameter to provide
-    support for integer arguments that have a restricted range of allowed
-    values. Use of the 'type' parameter rather than the 'choices' parameter
-    allows for better control/presentation of the error message when the range
-    is exceeded.
+    Returns a handle to a function that checks an argument is an integer and
+    falls within a specified range. If the argument cannot be converted to an
+    integer or the argument < min_value or > max_value an ArgumentTypeError
+    exception is raised with a suitable error message.
 
-    If the argument falls outside the min-max bounds return the argument as an
-    integer, otherwise raise an argparse.ArgumentTypeError.
+    If the argument meets the type and range checks an integer is returned.
     """
 
-    # does the argument fall within the min-max range, use int() as the
-    # argument as provided is a string
-    if min <= int(s) <= max:
-        # arg is within the range, so return arg as an integer
-        return int(s)
-    else:
-        # arg is outside the range so raise an argparse.ArgumentTypeError with
-        # an appropriate message
-        raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
+    # define a function to perform the necessary checks, we will return a
+    # handle to this function
+    def int_range_check(arg):
+        """Check an argument is an integer and it's value is within a given range."""
+
+        try:
+            _arg_i = int(arg)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"argument must be an integer ({arg})")
+        if _arg_i < min_value or _arg_i > max_value:
+            raise argparse.ArgumentTypeError(f"argument must be in range [{min_value}..{max_value}] ({arg})")
+        return _arg_i
+
+    # return a handle to the check function
+    return int_range_check
 
 
-def float_range(s, min, max):
-    """Function to support range limited integer parameters.
+def float_range(min_value, max_value):
+    """Function supporting range limited ArgumentParser float arguments.
 
-    Function used with argparse.add_argument 'type' parameter to provide
-    support for integer arguments that have a restricted range of allowed
-    values. Use of the 'type' parameter rather than the 'choices' parameter
-    allows for better control/presentation of the error message when the range
-    is exceeded.
+    Returns a handle to a function that checks an argument is a float and falls
+    within a specified range. If the argument cannot be converted to a float or
+    the argument < min_value or > max_value an ArgumentTypeError exception is
+    raised with a suitable error message.
 
-    If the argument falls outside the min-max bounds return the argument as an
-    integer, otherwise raise an argparse.ArgumentTypeError.
+    If the argument meets the type and range checks a float is returned.
     """
 
-    # does the argument fall within the min-max range, use int() as the
-    # argument as provided is a string
-    if min <= float(s) <= max:
-        # arg is within the range, so return arg as an integer
-        return float(s)
-    else:
-        # arg is outside the range so raise an argparse.ArgumentTypeError with
-        # an appropriate message
-        raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
+    # define a function to perform the necessary checks, we will return a
+    # handle to this function
+    def float_range_check(arg):
+        """Check an argument is a float and it's value is within a given range."""
+
+        try:
+            _arg_f = float(arg)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"argument must be a floating point number ({arg})")
+        if _arg_f < min_value or _arg_f > max_value:
+            raise argparse.ArgumentTypeError(f"argument must be in range [{min_value}..{max_value}] ({arg})")
+        return _arg_f
+
+    # return a handle to the check function
+    return float_range_check
 
 
 def dispatch_get(namespace):
@@ -5718,37 +5728,37 @@ def custom_write_subparser(subparsers):
                                           '(WU requires --station-id and --station-key be populated)')
     custom_write_parser.add_argument('--server',
                                      dest='server',
-                                     type=lambda u: maxlen(u, 64),
+                                     type=maxlen(64),
                                      metavar='IP_ADDRESS | NAME',
                                      help='destination server IP address or host name, max length 64 characters')
     custom_write_parser.add_argument('--upload-port',
                                      dest='port',
-                                     type=lambda u: int_range(u, 0, 65536),
+                                     type=int_range(0, 65536),
                                      metavar='UPLOAD_PORT',
                                      help='destination server port number')
     custom_write_parser.add_argument('--ec-path',
                                      dest='ecowitt_path',
-                                     type=lambda u: maxlen(u, 64),
+                                     type=maxlen(64),
                                      metavar='EC_PATH',
                                      help='Ecowitt protocol upload path')
     custom_write_parser.add_argument('--wu-path',
                                      dest='wu_path',
-                                     type=lambda u: maxlen(u, 64),
+                                     type=maxlen(64),
                                      metavar='WU_PATH',
                                      help='WeatherUnderground protocol upload path')
     custom_write_parser.add_argument('--station-id',
                                      dest='id',
-                                     type=lambda u: maxlen(u, 40),
+                                     type=maxlen(40),
                                      metavar='STATION_ID',
                                      help='WeatherUnderground protocol station ID')
     custom_write_parser.add_argument('--station-key',
                                      dest='password',
-                                     type=lambda u: maxlen(u, 40),
+                                     type=maxlen(40),
                                      metavar='STATION_KEY',
                                      help='WeatherUnderground protocol station key')
     custom_write_parser.add_argument('--interval',
                                      dest='interval',
-                                     type=lambda u: int_range(u, 16, 600),
+                                     type=int_range(16, 600),
                                      metavar='UPLOAD_PORT',
                                      help='destination server port number')
     add_common_args(custom_write_parser)
@@ -5757,7 +5767,7 @@ def custom_write_subparser(subparsers):
 
 
 def cal_write_subparser(subparsers):
-    """Define 'ecowitt write gain' sub-subparser."""
+    """Define 'ecowitt write calibration' sub-subparser."""
 
     cal_write_usage = f"""{Bcolors.BOLD}ecowitt write calibration --help
        ecowitt write calibration --ip-address=IP_ADDRESS [--port=PORT]
@@ -5774,43 +5784,43 @@ def cal_write_subparser(subparsers):
                                              help="Set calibration coefficients.")
     cal_write_parser.add_argument('--uv',
                                   dest='uv',
-                                  type=lambda u: float_range(u, 0.1, 5.0),
+                                  type=float_range(0.1, 5.0),
                                   help='UV calibration gain')
     cal_write_parser.add_argument('--solar',
                                   dest='solar',
-                                  type=lambda u: float_range(u, 0.1, 5.0),
+                                  type=float_range(0.1, 5.0),
                                   help='solar radiation calibration gain')
     cal_write_parser.add_argument('--wind-speed',
                                   dest='wind',
-                                  type=lambda u: float_range(u, 0.1, 5.0),
+                                  type=float_range(0.1, 5.0),
                                   help='wind speed calibration gain')
     cal_write_parser.add_argument('--intemp',
                                   dest='intemp',
-                                  type=lambda u: float_range(u, -10, 10),
+                                  type=float_range(-10.0, 10.0),
                                   help='Inside temperature offset')
     cal_write_parser.add_argument('--inhum',
                                   dest='inhum',
-                                  type=lambda u: float_range(u, -10, 10),
+                                  type=float_range(-10.0, 10.0),
                                   help='Inside humidity offset')
     cal_write_parser.add_argument('--outtemp',
                                   dest='outtemp',
-                                  type=lambda u: float_range(u, -10, 10),
+                                  type=float_range(-10.0, 10.0),
                                   help='Outside temperature offset')
     cal_write_parser.add_argument('--outhum',
                                   dest='outhum',
-                                  type=lambda u: float_range(u, -10, 10),
+                                  type=float_range(-10.0, 10.0),
                                   help='Outside humidity offset')
     cal_write_parser.add_argument('--abs',
                                   dest='abs',
-                                  type=lambda u: float_range(u, -80, 80),
+                                  type=float_range(-80.0, 80.0),
                                   help='Absolute pressure offset')
     cal_write_parser.add_argument('--rel',
                                   dest='rel',
-                                  type=lambda u: float_range(u, -80, 80),
+                                  type=float_range(-80.0, 80.0),
                                   help='Relative pressure offset')
     cal_write_parser.add_argument('--winddir',
                                   dest='winddir',
-                                  type=lambda u: float_range(u, -180, 180),
+                                  type=float_range(-180, 180),
                                   help='Wind direction offset')
     add_common_args(cal_write_parser)
     cal_write_parser.set_defaults(func=write_calibration)
