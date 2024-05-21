@@ -5150,60 +5150,33 @@ def maxlen(max_length):
     return maxlen_check
 
 
-def int_range(min_value, max_value):
-    """Function supporting range limited ArgumentParser integer arguments.
+def ranged_type(type, min_value, max_value):
+    """Function supporting range limited ArgumentParser numeric arguments.
 
-    Returns a handle to a function that checks an argument is an integer and
-    falls within a specified range. If the argument cannot be converted to an
-    integer or the argument < min_value or > max_value an ArgumentTypeError
-    exception is raised with a suitable error message.
+    Returns a handle to a function that checks an argument is a specified type
+    and falls within a specified range. If the argument cannot be converted to
+    the specified type or the argument < min_value or > max_value an
+    ArgumentTypeError exception is raised with a suitable error message.
 
-    If the argument meets the type and range checks an integer is returned.
+    If the argument meets the type and range checks a number of the specified
+    type is returned.
     """
 
     # define a function to perform the necessary checks, we will return a
     # handle to this function
-    def int_range_check(arg):
-        """Check an argument is an integer and it's value is within a given range."""
+    def range_check(arg):
+        """Check an argument type and it's value is within a given range."""
 
         try:
-            _arg_i = int(arg)
+            _arg = type(arg)
         except ValueError:
-            raise argparse.ArgumentTypeError(f"argument must be an integer ({arg})")
-        if _arg_i < min_value or _arg_i > max_value:
-            raise argparse.ArgumentTypeError(f"argument must be in range [{min_value}..{max_value}] ({arg})")
-        return _arg_i
+            raise argparse.ArgumentTypeError(f"argument must be a valid {type} ({arg})")
+        if _arg < min_value or _arg > max_value:
+            raise argparse.ArgumentTypeError(f"argument must be in range [{min_value} .. {max_value}] ({arg})")
+        return _arg
 
     # return a handle to the check function
-    return int_range_check
-
-
-def float_range(min_value, max_value):
-    """Function supporting range limited ArgumentParser float arguments.
-
-    Returns a handle to a function that checks an argument is a float and falls
-    within a specified range. If the argument cannot be converted to a float or
-    the argument < min_value or > max_value an ArgumentTypeError exception is
-    raised with a suitable error message.
-
-    If the argument meets the type and range checks a float is returned.
-    """
-
-    # define a function to perform the necessary checks, we will return a
-    # handle to this function
-    def float_range_check(arg):
-        """Check an argument is a float and it's value is within a given range."""
-
-        try:
-            _arg_f = float(arg)
-        except ValueError:
-            raise argparse.ArgumentTypeError(f"argument must be a floating point number ({arg})")
-        if _arg_f < min_value or _arg_f > max_value:
-            raise argparse.ArgumentTypeError(f"argument must be in range [{min_value}..{max_value}] ({arg})")
-        return _arg_f
-
-    # return a handle to the check function
-    return float_range_check
+    return range_check
 
 
 def dispatch_get(namespace):
@@ -5733,7 +5706,7 @@ def custom_write_subparser(subparsers):
                                      help='destination server IP address or host name, max length 64 characters')
     custom_write_parser.add_argument('--upload-port',
                                      dest='port',
-                                     type=int_range(0, 65536),
+                                     type=ranged_type(int, 0, 65536),
                                      metavar='UPLOAD_PORT',
                                      help='destination server port number')
     custom_write_parser.add_argument('--ec-path',
@@ -5758,7 +5731,7 @@ def custom_write_subparser(subparsers):
                                      help='WeatherUnderground protocol station key')
     custom_write_parser.add_argument('--interval',
                                      dest='interval',
-                                     type=int_range(16, 600),
+                                     type=ranged_type(int, 16, 600),
                                      metavar='UPLOAD_PORT',
                                      help='destination server port number')
     add_common_args(custom_write_parser)
@@ -5784,43 +5757,43 @@ def cal_write_subparser(subparsers):
                                              help="Set calibration coefficients.")
     cal_write_parser.add_argument('--uv',
                                   dest='uv',
-                                  type=float_range(0.1, 5.0),
+                                  type=ranged_type(float, 0.1, 5.0),
                                   help='UV calibration gain')
     cal_write_parser.add_argument('--solar',
                                   dest='solar',
-                                  type=float_range(0.1, 5.0),
+                                  type=ranged_type(float, 0.1, 5.0),
                                   help='solar radiation calibration gain')
     cal_write_parser.add_argument('--wind-speed',
                                   dest='wind',
-                                  type=float_range(0.1, 5.0),
+                                  type=ranged_type(float, 0.1, 5.0),
                                   help='wind speed calibration gain')
     cal_write_parser.add_argument('--intemp',
                                   dest='intemp',
-                                  type=float_range(-10.0, 10.0),
+                                  type=ranged_type(float, -10.0, 10.0),
                                   help='Inside temperature offset')
     cal_write_parser.add_argument('--inhum',
                                   dest='inhum',
-                                  type=float_range(-10.0, 10.0),
+                                  type=ranged_type(float, -10.0, 10.0),
                                   help='Inside humidity offset')
     cal_write_parser.add_argument('--outtemp',
                                   dest='outtemp',
-                                  type=float_range(-10.0, 10.0),
+                                  type=ranged_type(float, -10.0, 10.0),
                                   help='Outside temperature offset')
     cal_write_parser.add_argument('--outhum',
                                   dest='outhum',
-                                  type=float_range(-10.0, 10.0),
+                                  type=ranged_type(float, -10.0, 10.0),
                                   help='Outside humidity offset')
     cal_write_parser.add_argument('--abs',
                                   dest='abs',
-                                  type=float_range(-80.0, 80.0),
+                                  type=ranged_type(float, -80.0, 80.0),
                                   help='Absolute pressure offset')
     cal_write_parser.add_argument('--rel',
                                   dest='rel',
-                                  type=float_range(-80.0, 80.0),
+                                  type=ranged_type(float, -80.0, 80.0),
                                   help='Relative pressure offset')
     cal_write_parser.add_argument('--winddir',
                                   dest='winddir',
-                                  type=float_range(-180, 180),
+                                  type=ranged_type(float, -180, 180),
                                   help='Wind direction offset')
     add_common_args(cal_write_parser)
     cal_write_parser.set_defaults(func=write_calibration)
