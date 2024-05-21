@@ -1,25 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-gw1000.py
+ecowitt.py
 
-A WeeWX driver for devices using Ecowitt LAN/Wi-Fi Gateway API.
+A utility for reading, displaying and updating devices using the Ecowitt
+LAN/Wi-Fi Gateway API.
 
-The WeeWX Ecowitt Gateway driver (known historically as the 'WeeWX GW1000
-driver') utilises the Ecowitt LAN/Wi-Fi Gateway API and device HTTP requests to
-pull data from the gateway device. This is in contrast to the push methodology
-used by drivers that obtain data from the gateway device via Ecowitt or
-WeatherUnderground format uploads emitted by the device. The pull approach has
-the advantage of giving the user more control over when the data is obtained
-from the device plus also giving access to a greater range of metrics.
+As of the time of release this utility supports the GW1000, GW1100, GW1200 and
+GW2000 gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather
+stations.
 
-As of the time of release this driver supports the GW1000, GW1100 and GW2000
-gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather stations.
-The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where
-it is the source of loop data or it can be operated as a WeeWX service where it
-is used to augment loop data produced by another driver.
-
-Copyright (C) 2020-2024 Gary Roderick                   gjroderick<at>gmail.com
+Copyright (C) 2024 Gary Roderick                        gjroderick<at>gmail.com
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,290 +24,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.7.0a1                                   Date: X Xxxxxxxxx 202x
+Version: 0.1.0a1                                   Date: X Xxxxxxxxx 2024
 
 Revision History
-    X Xxxxxxxxxx 202x       v0.7.0
-        -
-    21 February 2024        v0.6.1
-        -   fix bug in construct_field_map() signature that resulted in field
-            map and field map extensions being ignored
-    7 February 2024         v0.6.0
-        -   significant re-structuring of classes used to better delineate
-            responsibilities and prepare for the implementation of the
-            GatewayHttp class
-        -   implement device HTTP requests to obtain additional device/sensor
-            status data not available via API
-        -   fixed issue that prevented use of the driver as both a driver and a
-            service under a single WeeWX instance
-        -   fixes error in multi-channel temperature calibration data decode
-        -   updated IAW Gateway API documentation v1.6.9
-        -   added support for free heap memory field
-        -   rename a number of calibration/offset related command line options
-            to better align with the labels/names now used in the WSView Plus
-            app v2.0.32
-        -   --firmware command line option now displays gateway device and
-            (where available) sensor firmware versions along with a short
-            message if a device firmware update is available
-        -   implement gateway device firmware update check and logging
-        -   gateway device temperature compensation setting can be displayed
-            using the --system-params command line option (for firmware
-            versions GW2000 all, GW1100 > v2.1.2 and GW1000 > v1.6.9)
-        -   added wee_device/weectl device support
-        -   rationalised driver direct and wee_device/weectl device actions
-        -   the discarding of non-timestamped and stale packets is now logged
-            by the GatewayService when debug_loop is set or debug >= 2
-        -   unit groups are now assigned to all WeeWX fields in the default
-            field map that are not included in the default WeeWX wview_extended
-            schema
-        -   'kilobyte' and 'megabyte' are added to unit group 'group_data' on
-            driver/service startup
-    13 June 2022            v0.5.0b5
-        -   renamed as the Ecowitt Gateway driver/service rather than the
-            former GW1000 or GW1000/GW1100 driver/service
-        -   added support for GW2000
-        -   added support for WS90 sensor platform
-        -   WH40 and WH51 battery state now decoded as tenths of a Volt rather
-            than as binary
-        -   redesignated WH35 as WN35 and WH34 as WN34, these changes are
-            essentially sensor name change only and do not change any
-            decoding/calculations
-        -   added mappings for WN34 battery and signal state to the default
-            mapping meaning this data will now appear in WeeWX loop packets
-        -   refactored GatewayDriver, GatewayService and Gateway class
-            initialisations to facilitate running the GatewayDriver and
-            GatewayService simultaneously
-        -   GatewayService now defaults to using a [GW1000Service] stanza but
-            if not found will drop back to the legacy [GW1000] stanza
-        -   the source of GatewayDriver and GatewayService log output is now
-            clearly identified
-        -   moved all parsing and decoding of API responses to class Parser
-        -   assigned WeeWX fields extraTemp9 to extraTemp17 inclusive to
-            group_temperature
-        -   implemented --driver-map and --service-map command line options to
-            display the actual field map that would be used when running as a
-            driver and service respectively
-        -   default field map is now only logged at startup when debug>=1
-        -   internal non-piezo rainfall related fields renamed with a 't_'
-            prefix, eg: 't_rainrate', 't_rainday'
-        -   default field map now maps 't_' rainfall fields to the standard
-            WeeWX rainfall related fields
-        -   added config option log_unknown_fields to log unknown fields found
-            in a CMD_GW1000_LIVEDATA or CMD_READ_RAIN API response at the
-            info (True) or the default debug (False) level
-        -   added support for (likely) rain source selection field (0x7A)
-            appearing in CMD_READ_RAIN response
-        -   fix issue where day rain and week rain use a different format in
-            CMD_READ_RAIN to that in CMD_GW1000_LIVEDATA
-        -   fix issue where sensor ID is incorrectly displayed for sensors with
-            an ID ending in one or more zeros (issue 48)
-        -   device field 't_rainhour' removed from the default field map IAW
-            API v1.6.6 change of 0x0F rain hour (ITEM_RAINHOUR) to rain gain
-            (ITEM_RAIN_Gain)
-        -   --live-data output now indicates the unit group being used
-        -   battery state data received from WH40 devices that do not emit
-            battery state is now ignored by default and the value None returned
-    20 March 2022           v0.4.2
-        -   fix bug in Station.rediscover()
-    14 October 2021         v0.4.1
-        -   no change, version increment only
-    27 September 2021       v0.4.0
-        -   the device model is now identified via the API so many former
-            references to 'GW1000' in console and log output should now be
-            replaced with the correct device model
-        -   when used as a driver the driver hardware_name property now returns
-            the device model instead of the driver name (GW1000)
-        -   reworked processing of queued data by class GatewayService() to fix
-            a bug resulting is intermittent missing GW1000 data
-        -   implemented debug_wind reporting
-        -   re-factored debug_rain reporting to report both 'WeeWX' and
-            'GW1000' rain related fields
-        -   battery state data is now set to None for sensors with signal
-            level == 0, can be disabled by setting option
-            show_all_batt = True under [GW1000] in weewx.conf or by use of
-            the --show-all-batt command line option
-        -   implemented the --units command line option to control the units
-            used when displaying --live-data output, available options are US
-            customary (--units=us), Metric (--units=metric) and MetricWx
-            (--units=metricwx)
-        -   --live-data now formatted and labelled using WeeWX default formats
-            and labels
-        -   fixed some incorrect command line option descriptions
-        -   simplified binary battery state calculation
-        -   socket objects are now managed via the 'with' context manager
-        -   fixed bug when operated with GW1100 using firmware v2.0.4
-        -   implemented limited debug_sensors reporting
-        -   implemented a separate broadcast_timeout config option to allow an
-            increased socket timeout when broadcasting for gateway devices,
-            default value is five seconds
-        -   a device is now considered unique if it has a unique MAC address
-            (was formerly unique if IP address and port combination were
-            unique)
-        -   minor reformatting of --discover console output
-        -   WH24 battery and signal state fields are now included in the
-            default field map
-    28 March 2021           v0.3.1
-        -   fixed error when broadcast port or socket timeout is specified in
-            weewx.conf
-        -   fixed bug when decoding firmware version string that gives a
-            truncated result
-    20 March 2021           v0.3.0
-        -   added the --units command line option to allow the output of
-            --live-data to be displayed in specified units (US customary or
-            Metric)
-        -   added support for WH35 sensor
-        -   when run directly the driver now distinguishes between no sensor ID
-            response and an empty sensor ID response
-        -   reworked battery state, signal level and sensor ID processing to
-            cater for changes to battery state reporting introduced in GW1000
-            API v1.6.0 (GW1000 v1.6.5 firmware)
-        -   The GW1000 cumulative daily lightning count field is now included
-            in driver loop packets as field 'lightningcount' (the default field
-            name). Previously this field was used to derive the WeeWX extended
-            schema field 'lightning_strike_count' and was not included in loop
-            packets.
-        -   fixed incomplete --default-map output
-        -   fixes loss of battery state data for some sensors that occurred
-            under GW1000 firmware release v1.6.5 and later
-    9 January 2021          v0.2.0
-        -   added support for WH45 sensor
-        -   improved comments in installer/wee_config inserted config
-            stanzas/entries
-        -   added basic test suite
-        -   sensor signal levels added to loop packet
-        -   added --get-services command line option to display GW1000
-            supported weather services settings
-        -   added --get-pm25-offset command line option to display GW1000 PM2.5
-            sensor offset settings
-        -   added --get-mulch-offset command line option to display GW1000
-            multi-channel TH sensor calibration settings
-        -   added --get-soil-calibration command line option to display GW1000
-            soil moisture sensor calibration settings
-        -   added --get-calibration command line option to display GW1000
-            sensor calibration settings
-        -   renamed --rain-data command line option to --get-rain-data
-        -   renamed various 24 hour average particulate concentration fields
-        -   added a check for unknown field addresses when processing sensor
-            data
-    1 September 2020        v0.1.0 (b1-b12)
         - initial release
 
 
-This driver is based on the Ecowitt LAN/Wi-Fi Gateway API documentation v1.6.9.
-However, the following deviations from the Ecowitt LAN/Wi-Fi Gateway API
-documentation v1.6.9 have been made in this driver:
-
-1.  CMD_READ_SSSS documentation states that 'UTC time' is part of the data
-returned by the CMD_READ_SSSS API command. The UTC time field is described as
-'UTC time' and is an unsigned long. No other details are provided in the API
-documentation. Rather than being a Unix epoch timestamp, the UTC time data
-appears to be a Unix epoch timestamp that is offset from UTC time by the
-gateway device timezone. In other words, two gateway devices in different
-timezones that have their system time correctly set will return different
-values for UTC time via the CMD_READ_SSSS command. The Ecowitt Gateway driver
-subtracts the system UTC offset in seconds from the UTC time returned by the
-CMD_READ_SSSS command in order to obtain the correct UTC time.
-
-2.  WH40 battery state data contained in the CMD_READ_SENSOR_ID_NEW response is
-documented as a single byte representing 10x the battery voltage. However,
-Ecowitt has confirmed that early WH40 hardware does not send any battery state
-data. Whilst no battery state data is transmitted by early WH40 hardware, the
-API reports a value of 0x10 (decodes to 1.6V) for these devices. Ecowitt has
-also confirmed that later revisions of the WH40 do in fact report battery state
-data. However, anecdotal evidence shows that the battery state is reported as
-100x the battery voltage not 10x as stated in the API documentation.
-Consequently, the Ecowitt Gateway driver now discards the bogus 0x10 battery
-data (1.6V) reported by early WH40 hardware and WH40 battery voltage is
-reported as None for these devices. Battery state data for later WH40 hardware
-that does report battery voltage is decoded and passed through to WeeWX.
-
-3.  Yet to released/named API command code 0x59 provides WN34 temperature
-calibration data. This API command is referred to as 'CMD_GET_MulCH_T_OFFSET'
-within the driver and has been implemented as of v0.6.0. Calibration data is
-provided in standardised Ecowitt gateway device API response packet format.
-The API response uses two bytes for packet size. Header, command code and
-checksum are standard values/formats. Data structure is two bytes per sensor,
-first byte is sensor address (0x63 to 0x6A) and second byte is tenths C
-calibration value (or calibration value x 10). Calibration value may be from
-+10C to -10C. Data is included only for connected sensors. This support should
-be considered experimental.
-
-4.  API documentation v1.6.9 lists field 7B as 'Radiation compensation', though
-in the WSView Plus app the field 7B data is displayed against a label
-'Temperature Compensation' for devices WH65/WH69/WS80/WS90. Field 7B is more
-correctly referred to as 'Temperature Compensation' as the setting controls
-whether the outdoor temperature for the listed devices is compensated by an
-Ecowitt formula based on the radiation level (perhaps other fields as well).
-Field 7B is located amidst various rain related fields and bizarrely field 7B
-data is only available through the recent CMD_READ_RAIN API command. As the
-CMD_READ_RAIN command was only recently introduced, some gateway devices using
-old firmware cannot use the CMD_READ_RAIN API command meaning field 7B cannot
-be read from some gateway devices using the API. Field 7B can be read once the
-gateway device firmware is updated to a version that supports the CMD_READ_RAIN
-command. The field 7B data/'Temperature Compensation' setting can be displayed
-via the --system-params command line option.
-
-
-Before using this driver:
-
-Before running WeeWX with the Ecowitt Gateway driver you may wish to run the
-driver directly from the command line to ensure correct operation/assist in
-configuration. Running the driver directly will not interrupt a running WeeWX
-instance other than perhaps placing a few extra lines in the WeeWX log. To run
-the driver directly from the command line:
-
-1.  Install WeeWX (https://weewx.com/docs/usersguide.htm#installing) and make
-sure WeeWX is operating correctly (perhaps with the simulator driver). Whilst
-the Ecowitt Gateway driver may be run independently of WeeWX the driver still
-requires WeeWX and it's dependencies be installed.
-
-2.  Run the driver directly and display the driver help:
-
-    for a WeeWX setup.py install:
-
-        $ PYTHONPATH=/home/weewx/bin python -m user.gw1000 --help
-
-    or for a WeeWX package install use:
-
-        $ PYTHONPATH=/usr/share/weewx python -m user.gw1000 --help
-
-    Note: Depending on your system/installation the above command may need to be
-          prefixed with sudo.
-
-    Note: The driver must be run under the same Python version as WeeWX uses.
-          For WeeWX 3.x this is Python 2. If WeeWX 4.0.0 or later is installed
-          this may be Python 2 or Python 3. This means that on some systems
-          'python' in the above api_commands may need to be changed to 'python2'
-          or 'python3'.
-
-3.  The --discover command line option is useful for discovering any gateway
-devices on the local network. The IP address and port details returned by
---discover can be useful for configuring the driver IP address and port config
-options in weewx.conf.
-
-    Note: The recommended approach when using the Ecowitt Gateway driver in a
-          live environment is to specify the IP address and port number to be
-          used for each gateway device. Discovery has been unreliable at time
-          and to date has not worked on a WiFi only connected GW2000 (ethernet
-          connected GW200 discover fine).
-
-4.  The --live-data command line option is useful for seeing what data is
-available from a particular gateway device. Note the fields available will
-depend on the sensors connected to the device. As the field names returned by
---live-data are internal gateway device field names before they have been
-mapped to WeeWX fields names, the --live-data output is useful for configuring
-the field map to be used by the Ecowitt Gateway driver.
-
-5.  Once you believe the Ecowitt Gateway driver is configured the --test-driver
-or --test-service command line options can be used to confirm correct operation
-of the Ecowitt Gateway driver as a driver or as a service respectively.
-
-
-Installing and Configuring the Ecowitt Gateway Driver
-
-Refer to the included readme.txt for basic installation instructions. Refer to
-the Ecowitt Gateway driver wiki (https://github.com/gjr80/weewx-gw1000/wiki)
-for more in-depth installation and configuration information.
 """
 
 # Outstanding TODOs:
@@ -407,7 +120,7 @@ class InvertibleSetError(Exception):
     def __init__(self, value):
         self.value = value
         msg = 'The value "{}" is already in the mapping.'
-        super(BijectionError, self).__init__(msg.format(value))
+        super(InvertibleSetError, self).__init__(msg.format(value))
 
 
 class InvertibleMap(dict):
@@ -470,11 +183,12 @@ class GWIOError(Exception):
 class InvalidSetting(Exception):
     """Exception raised when an invalid setting or setting value is encountered."""
 
+
 class DeviceWriteFailed(Exception):
     """Exception raised when a gateway device write failed."""
 
 
-class GatewayApiParser():
+class GatewayApiParser:
     """Class to parse and decode device API response payload data.
 
     The main function of class Parser is to parse and decode the payloads
@@ -639,9 +353,9 @@ class GatewayApiParser():
     # so we can isolate these fields
     wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
-    def __init__(self, log_unknown_fields=True):
-        # do we log unknown fields at info or leave at debug
-        self.log_unknown_fields = log_unknown_fields
+    def __init__(self):
+
+        pass
 
     def parse_addressed_data(self, payload, structure):
         """Parse an address structure API response payload.
@@ -680,17 +394,11 @@ class GatewayApiParser():
                 except KeyError:
                     # We struck a field 'address' we do not know how to
                     # process. We can't skip to the next field so all we
-                    # can really do is accept the data we have so far, log
-                    # the issue and ignore the remaining data.
-                    # are we logging as info or debug, get an appropriate log function
-                    if self.log_unknown_fields:
-                        log_fn = loginf
-                    else:
-                        log_fn = logdbg
-                    # now call it
-                    log_fn("Unknown field address '%s' detected. "
-                           "Remaining data '%s' ignored." % (bytes_to_hex(payload[index:index + 1]),
-                                                             bytes_to_hex(payload[index + 1:])))
+                    # can really do is accept the data we have so far,
+                    # highlight the issue and ignore the remaining data.
+                    # notify of the problem
+                    print(f"Unknown field address '{bytes_to_hex(payload[index:index + 1])}' detected. "
+                          f"Remaining data '{bytes_to_hex(payload[index + 1:])}' ignored.")
                     # and break, there is nothing more we can with this
                     # data
                     break
@@ -764,7 +472,7 @@ class GatewayApiParser():
         ....
         6-2nd last byte
                 data structure follows the structure of
-                Parser.rain_data_struct in the format:
+                Parser.live_data_struct in the format:
                     address (byte)
                     data    length: as per second element of tuple
                             decode: Parser method as per first element of
@@ -781,7 +489,7 @@ class GatewayApiParser():
         payload = response[5:5 + payload_size - 4]
         # this is addressed data, so we can call parse_addressed_data() and
         # return the result
-        return self.parse_addressed_data(payload, self.rain_data_struct)
+        return self.parse_addressed_data(payload, self.live_data_struct)
 
     def parse_raindata(self, response):
         """Parse data from a CMD_READ_RAINDATA API response.
@@ -810,13 +518,12 @@ class GatewayApiParser():
         size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
-        # initialise a dict to hold our parsed data
-        data_dict = {}
-        data_dict['t_rainrate'] = self.decode_big_rain(data[0:4])
-        data_dict['t_rainday'] = self.decode_big_rain(data[4:8])
-        data_dict['t_rainweek'] = self.decode_big_rain(data[8:12])
-        data_dict['t_rainmonth'] = self.decode_big_rain(data[12:16])
-        data_dict['t_rainyear'] = self.decode_big_rain(data[16:20])
+        # create a dict holding our parsed data
+        data_dict = {'t_rainrate': self.decode_big_rain(data[0:4]),
+                     't_rainday': self.decode_big_rain(data[4:8]),
+                     't_rainweek': self.decode_big_rain(data[8:12]),
+                     't_rainmonth': self.decode_big_rain(data[12:16]),
+                     't_rainyear': self.decode_big_rain(data[16:20])}
         return data_dict
 
     @staticmethod
@@ -967,15 +674,12 @@ class GatewayApiParser():
         size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
-        # initialise a dict to hold our parsed data
-        offset_dict = {}
-        # and decode/store the offset data
-        # bytes 0 and 1 hold the CO2 offset
-        offset_dict['co2'] = struct.unpack(">h", data[0:2])[0]
-        # bytes 2 and 3 hold the PM2.5 offset
-        offset_dict['pm25'] = struct.unpack(">h", data[2:4])[0] / 10.0
-        # bytes 4 and 5 hold the PM10 offset
-        offset_dict['pm10'] = struct.unpack(">h", data[4:6])[0] / 10.0
+        # Create a dict holding our parsed data. bytes 0 and 1 hold the CO2
+        # offset, bytes 2 and 3 hold the PM2.5 offset, bytes 4 and 5 hold the
+        # PM10 offset
+        offset_dict = {'co2': struct.unpack(">h", data[0:2])[0],
+                       'pm25': struct.unpack(">h", data[2:4])[0] / 10.0,
+                       'pm10': struct.unpack(">h", data[4:6])[0] / 10.0}
         return offset_dict
 
     @staticmethod
@@ -1006,15 +710,16 @@ class GatewayApiParser():
         size = response[3]
         # extract the actual data
         data = response[4:4 + size - 3]
-        # initialise a dict to hold our parsed data
-        gain_dict = {}
-        # and decode/store the calibration data
+        # create a dict holding our parsed data
+        # decode/store the calibration data
         # bytes 0 and 1 are reserved (lux to solar radiation conversion
         # gain (126.7))
-        gain_dict['uv'] = struct.unpack(">H", data[2:4])[0] / 100.0
-        gain_dict['solar'] = struct.unpack(">H", data[4:6])[0] / 100.0
-        gain_dict['wind'] = struct.unpack(">H", data[6:8])[0] / 100.0
-        gain_dict['rain'] = struct.unpack(">H", data[8:10])[0] / 100.0
+        gain_dict = {'reserved1': struct.unpack(">H", data[0:2])[0],
+                     'uv': struct.unpack(">H", data[2:4])[0] / 100.0,
+                     'solar': struct.unpack(">H", data[4:6])[0] / 100.0,
+                     'wind': struct.unpack(">H", data[6:8])[0] / 100.0,
+                     'rain': struct.unpack(">H", data[8:10])[0] / 100.0,
+                     'reserved2': struct.unpack(">H", data[10:12])[0]}
         # return the parsed response
         return gain_dict
 
@@ -1147,13 +852,12 @@ class GatewayApiParser():
         size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
-        # initialise a dict to hold our final data
-        data_dict = {}
-        data_dict['frequency'] = data[0]
-        data_dict['sensor_type'] = data[1]
-        data_dict['utc'] = self.decode_utc(data[2:6])
-        data_dict['timezone_index'] = data[6]
-        data_dict['dst_status'] = data[7] != 0
+        # create a dict holding our parsed data
+        data_dict = {'frequency': data[0],
+                     'sensor_type': data[1],
+                     'utc': self.decode_utc(data[2:6]),
+                     'timezone_index': data[6],
+                     'dst_status': data[7] != 0}
         # return the parsed response
         return data_dict
 
@@ -1176,9 +880,8 @@ class GatewayApiParser():
         size = response[3]
         # extract the actual system parameters data
         data = response[4:4 + size - 3]
-        # initialise a dict to hold our final data
-        data_dict = {}
-        data_dict['interval'] = data[0]
+        # create a dict holding our parsed data
+        data_dict = {'interval': data[0]}
         # return the parsed response
         return data_dict
 
@@ -1710,10 +1413,9 @@ class GatewayApiParser():
         """
 
         if len(data) == 3 and field is not None:
-            results = {}
-            results[field] = self.decode_temp(data[0:2])
-            # we could decode the battery voltage but we will be obtaining
-            # battery voltage data from the sensor IDs in a later step so
+            results = {field: self.decode_temp(data[0:2])}
+            # we could decode the battery voltage, but we will be obtaining
+            # battery voltage data from the sensor IDs in a later step, so
             # we can skip it here
             return results
         return {}
@@ -1743,17 +1445,16 @@ class GatewayApiParser():
         """
 
         if len(data) == 16 and fields is not None:
-            results = {}
-            results[fields[0]] = self.decode_temp(data[0:2])
-            results[fields[1]] = self.decode_humid(data[2:3])
-            results[fields[2]] = self.decode_pm10(data[3:5])
-            results[fields[3]] = self.decode_pm10(data[5:7])
-            results[fields[4]] = self.decode_pm25(data[7:9])
-            results[fields[5]] = self.decode_pm25(data[9:11])
-            results[fields[6]] = self.decode_co2(data[11:13])
-            results[fields[7]] = self.decode_co2(data[13:15])
-            # we could decode the battery state but we will be obtaining
-            # battery state data from the sensor IDs in a later step so
+            results = {fields[0]: self.decode_temp(data[0:2]),
+                       fields[1]: self.decode_humid(data[2:3]),
+                       fields[2]: self.decode_pm10(data[3:5]),
+                       fields[3]: self.decode_pm10(data[5:7]),
+                       fields[4]: self.decode_pm25(data[7:9]),
+                       fields[5]: self.decode_pm25(data[9:11]),
+                       fields[6]: self.decode_co2(data[11:13]),
+                       fields[7]: self.decode_co2(data[13:15])}
+            # we could decode the battery state, but we will be obtaining
+            # battery state data from the sensor IDs in a later step, so
             # we can skip it here
             return results
         return {}
@@ -1807,10 +1508,9 @@ class GatewayApiParser():
         """
 
         if len(data) == 3:
-            results = {}
-            results['day_reset'] = struct.unpack("B", data[0:1])[0]
-            results['week_reset'] = struct.unpack("B", data[1:2])[0]
-            results['annual_reset'] = struct.unpack("B", data[2:3])[0]
+            results = {'day_reset': struct.unpack("B", data[0:1])[0],
+                       'week_reset': struct.unpack("B", data[1:2])[0],
+                       'annual_reset': struct.unpack("B", data[2:3])[0]}
             return results
         return {}
 
@@ -1889,7 +1589,7 @@ class GatewayApiParser():
 
         active:     whether the custom upload is active, 0 = inactive,
                     1 = active
-        type:       what protocol (Ecwoitt or WeatherUnderground) to use for
+        type:       what protocol (Ecowitt or WeatherUnderground) to use for
                     upload, 0 = Ecowitt, 1 = WeatherUnderground
         server:     server IP address or host name, string
         port:       server port number, integer 0 to 65536
@@ -1964,7 +1664,7 @@ class GatewayApiParser():
                          reserved2_b])
 
 
-class Sensors():
+class Sensors:
     """Class to manage device sensor ID data.
 
     Class Sensors allows access to various elements of sensor ID data via a
@@ -2542,7 +2242,7 @@ class GatewayApi():
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
                  max_tries=DEFAULT_MAX_TRIES, retry_wait=DEFAULT_RETRY_WAIT,
-                 debug=False, log_unknown_fields=False):
+                 debug=False):
 
         # save those parameters we will need later
         self.ip_address = ip_address
@@ -3216,7 +2916,7 @@ class GatewayApi():
                 # a socket timeout occurred, log it
                 if self.log_failures:
                     print(f"Failed to obtain response to attempt {attempt + 1} "
-                           "to send command '{cmd}': {e}")
+                          f"to send command '{cmd}': {e}")
             except Exception as e:
                 # an exception was encountered, log it
                 if self.log_failures:
@@ -3242,7 +2942,7 @@ class GatewayApi():
                     # perhaps the response was malformed. Log the stack
                     # trace but continue.
                     print(f"Unexpected exception occurred while checking response "
-                           f"to attempt {attempt} to send command '{cmd}': {e}")
+                          f"to attempt {attempt} to send command '{cmd}': {e}")
                 else:
                     # our response is valid, return it
                     return response
@@ -3252,8 +2952,8 @@ class GatewayApi():
                 time.sleep(self.retry_wait)
         # if we made it here we failed after self.max_tries attempts
         # first log it
-        _msg = ("Failed to obtain response to command '%s' "
-                "after %d attempts" % (cmd, self.max_tries))
+        _msg = (f"Failed to obtain response to command '{cmd}' "
+                f"after {self.max_tries:d} attempts")
         if response is not None or self.log_failures:
             print(_msg)
         # then finally, raise a GWIOError exception
@@ -3392,20 +3092,14 @@ class GatewayApi():
             # version. Raise an UnknownApiCommand exception.
             exp_int = cmd_code[0]
             resp_int = response[2]
-            # TODO. f string formatting
-            _msg = "Unknown command code in API response. " \
-                   "Expected '%s' (0x%s), received '%s' (0x%s)." % (exp_int,
-                                                                    "{:02X}".format(exp_int),
-                                                                    resp_int,
-                                                                    "{:02X}".format(resp_int))
+            _msg = f"Unknown command code in API response. " \
+                   f"Expected '{exp_int}' (0x{exp_int:02X}), " \
+                   f"received '{resp_int}' (0x{resp_int:02X})."
             raise UnknownApiCommand(_msg)
         # checksum check failed, raise an InvalidChecksum exception
-        # TODO. f string formatting
-        _msg = "Invalid checksum in API response. " \
-               "Expected '%s' (0x%s), received '%s' (0x%s)." % (calc_checksum,
-                                                                "{:02X}".format(calc_checksum),
-                                                                resp_checksum,
-                                                                "{:02X}".format(resp_checksum))
+        _msg = f"Invalid checksum in API response. " \
+               f"Expected '{calc_checksum}' (0x{calc_checksum:02X}), " \
+               f"received '{resp_checksum}' (0x{resp_checksum:02X})."
         raise InvalidChecksum(_msg)
 
     @staticmethod
@@ -3441,7 +3135,7 @@ class GatewayApi():
         checks for byte 5 == b'\x00' for a successful command execution, any
         other value is taken as failure.
 
-        If the command completed sucessfully nothing is done, the function
+        If the command completed successfully nothing is done, the function
         exits/returns normally. If the command failed a DeviceWriteFailed
         exception is raised with an appropriate message.
         """
@@ -3710,7 +3404,7 @@ class HttpApi():
             return None
 
 
-class GatewayDevice():
+class GatewayDevice:
     """Class to interact with an Ecowitt gateway device.
 
     An Ecowitt gateway device can be interrogated directly in two ways:
@@ -3762,8 +3456,7 @@ class GatewayDevice():
                  retry_wait=DEFAULT_RETRY_WAIT,
                  discover=False, mac=None,
                  use_wh32=True, ignore_wh40_batt=True,
-                 show_battery=False, log_unknown_fields=False,
-                 debug=False):
+                 show_battery=False, debug=False):
         """Initialise a GatewayDevice object."""
 
         # save our IP address and port
@@ -3778,15 +3471,10 @@ class GatewayDevice():
                                       broadcast_timeout=broadcast_timeout,
                                       max_tries=max_tries,
                                       retry_wait=retry_wait,
-                                      log_unknown_fields=log_unknown_fields,
                                       debug=debug)
-        # if discover and (ip_address is None or port is None):
-        #     self.ip_address, self.port = self.select_device_by_discovery()
-        #     # log the device address being used
-        #     print(f'     Using discovered address {self.ip_address}:{self.port}')
 
         # get a Gateway API parser
-        self.gateway_api_parser = GatewayApiParser(log_unknown_fields=log_unknown_fields)
+        self.gateway_api_parser = GatewayApiParser()
 
         # get a GatewayHttp object to handle any HTTP requests, a GatewayHttp
         # object requires an IP address
@@ -3795,63 +3483,8 @@ class GatewayDevice():
         # get a Sensors object for dealing with sensor state data
         self.sensors = Sensors()
 
-#        # store our model, if we have non-None IP address and port then obtain
-#        # the model from the Gateway API, otherwise set model to None
-#        if i
-
         # start off logging failures
         self.log_failures = True
-
-    # def select_device_by_discovery(self, mac=None):
-    #     """Use discovery to select a device.
-    #
-    #     Returns a two-way tuple containing the selected (discovered) device
-    #     IP address and port. If no device was selected (discovered) a two-way
-    #     'None' tuple is returned.
-    #     """
-    #
-    #     try:
-    #         # discover devices on the local network, the result is a list
-    #         # of dicts with each dict containing data for a unique
-    #         # discovered device
-    #         device_list = self.gateway_api.discover()
-    #     except socket.error as e:
-    #         print(f"An error occurred during discovery: {e} ({type(e)})")
-    #         # we have a critical error so raise it
-    #         raise
-    #     # did we find any devices
-    #     if len(device_list) > 0:
-    #         # We have at least one, but which one to choose. If we were
-    #         # provided a MAC search for that MAC, if we were not provided a
-    #         # MAC or that MAC was not discovered just choose the first
-    #         # device in the list.
-    #         if mac is not None:
-    #             for dev in device_list:
-    #                 if dev['mac'] == mac.uppeer():
-    #                     _ip = dev['ip_address']
-    #                     _port = dev['port']
-    #                     _model = dev['model']
-    #                     # log what we chose
-    #                     print(f"Selected {_model} at {_ip}:{_port}")
-    #                     return _ip, _port
-    #             print(f"Did not discover device with MAX {mac.upper()}")
-    #         _ip = device_list[0]['ip_address']
-    #         _port = device_list[0]['port']
-    #         _model = device_list[0]['model']
-    #         # log what we found
-    #         devices_str = ', '.join([':'.join([f'{d["ip_address"]}:{int(d["port"]):d}']) for d in device_list])
-    #         if len(device_list) == 1:
-    #             stem = f"{_model} was"
-    #         else:
-    #             stem = "Multiple devices were"
-    #         print(f"{stem} found at {devices_str}")
-    #         print()
-    #         # log what we chose
-    #         print(f"Selected {_model} at {_ip}:{_port}")
-    #         return _ip, _port
-    #     # did not discover any device so log it
-    #     print("Failed to discover any devices")
-    #     return None, None
 
     @property
     def model(self):
@@ -3966,7 +3599,7 @@ class GatewayDevice():
     def sensor_id(self):
         """Gateway device sensor ID data."""
 
-        # TODO. What shoudl we do here?
+        # TODO. What should we do here?
         _data = self.gateway_api.get_sensor_id_new()
         return _data
 
@@ -4011,7 +3644,7 @@ class GatewayDevice():
         """Gateway device offset calibration data."""
 
         _data = self.gateway_api.get_calibration()
-        return self.gateway_api_parser.parse_calibration()
+        return self.gateway_api_parser.parse_calibration(_data)
 
     @property
     def co2_offset(self):
@@ -4209,7 +3842,7 @@ class GatewayDevice():
 
         active:     whether the custom upload is active, 0 = inactive,
                     1 = active
-        type:       what protocol (Ecwoitt or WeatherUnderground) to use for
+        type:       what protocol (Ecowitt or WeatherUnderground) to use for
                     upload, 0 = Ecowitt, 1 = WeatherUnderground
         server:     server IP address or host name, string
         port:       server port number, integer 0 to 65536
@@ -4304,6 +3937,7 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
         # either way we can't represent as a string of hex bytes
         return f"cannot represent '{iterable}' as hexadecimal bytes"
 
+
 def bytes_to_printable(raw_bytes):
 
     def byte_to_printable(b):
@@ -4313,6 +3947,7 @@ def bytes_to_printable(raw_bytes):
         return "  "
 
     return ' '.join(map(byte_to_printable, raw_bytes))
+
 
 def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
     """Pretty print a byte string.
@@ -4334,6 +3969,7 @@ def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
                 }
     else:
         return {'hex': '', 'printable': ''}
+
 
 def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
     """Pretty print a byte string.
@@ -4367,6 +4003,7 @@ def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
             # increment our index to grab the next group of bytes
             index += columns
 
+
 def obfuscate(plain, obf_char='*'):
     """Obfuscate all but the last x characters in a string.
 
@@ -4398,7 +4035,7 @@ def obfuscate(plain, obf_char='*'):
 #                             class DirectGateway
 # ============================================================================
 
-class DirectGateway():
+class DirectGateway:
     """Class to interact with gateway driver when run directly.
 
     Would normally run a driver directly by calling from main() only, but when
@@ -5335,154 +4972,154 @@ class DirectGateway():
             # we have no results
             print("No devices were discovered.")
 
-    def write_ecowitt(self):
-        """Write Ecowitt.net upload parameters to a gateway device."""
-
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        try:
-            device.write_ecowitt(self.namespace.ecowitt)
-        except DeviceWriteFailed as e:
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-        else:
-            print("Device write completed successfully")
-
-    def write_wu(self):
-        """Write WeatherUnderground upload parameters to a gateway device."""
-
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        try:
-            device.write_wu(*self.namespace.wu)
-        except DeviceWriteFailed as e:
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-        else:
-            print("Device write completed successfully")
-
-    def write_wcloud(self):
-        """Write Weathercloud upload parameters to a gateway device."""
-
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        try:
-            device.write_wcloud(*self.namespace.wcloud)
-        except DeviceWriteFailed as e:
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-        else:
-            print("Device write completed successfully")
-
-    def write_wow(self):
-        """Write Weather Observations Website upload parameters to a gateway device."""
-
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        try:
-            device.write_wow(*self.namespace.wow)
-        except DeviceWriteFailed as e:
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-        else:
-            print("Device write completed successfully")
-
-    def write_custom(self):
-        """Write 'Custom' upload parameters to a gateway device."""
-
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # do we have 9 (WU) or 7 (EC) parameters, if it's the latter read the current custom upload settings to obtain the current station ID and key
-        if len(self.namespace.custom) == 7:
-            _result = device.custom_params
-            id = _result['id']
-            password = _result['password']
-            print(self.namespace.custom, id, password)
-            # device.write_custom(*self.namespace.custom, id, password)
-        elif len(self.namespace.custom) == 9:
-            print(self.namespace.custom)
-            # device.write_custom(*self.namespace.custom)
-        else:
-            # TODO.Need to fix this
-            print("error")
-            return
-        try:
-            device.write_custom(*self.namespace.custom)
-        except DeviceWriteFailed as e:
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-        else:
-            print("Device write completed successfully")
+    # def write_ecowitt(self):
+    #     """Write Ecowitt.net upload parameters to a gateway device."""
+    #
+    #     # wrap in a try..except in case there is an error
+    #     try:
+    #         # obtain a GatewayDevice object
+    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+    #     except GWIOError as e:
+    #         print()
+    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
+    #         return
+    #     except socket.timeout:
+    #         print()
+    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
+    #         return
+    #     # identify the device being used
+    #     print()
+    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+    #     print()
+    #     try:
+    #         device.write_ecowitt(self.namespace.ecowitt)
+    #     except DeviceWriteFailed as e:
+    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+    #     else:
+    #         print("Device write completed successfully")
+    #
+    # def write_wu(self):
+    #     """Write WeatherUnderground upload parameters to a gateway device."""
+    #
+    #     # wrap in a try..except in case there is an error
+    #     try:
+    #         # obtain a GatewayDevice object
+    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+    #     except GWIOError as e:
+    #         print()
+    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
+    #         return
+    #     except socket.timeout:
+    #         print()
+    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
+    #         return
+    #     # identify the device being used
+    #     print()
+    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+    #     print()
+    #     try:
+    #         device.write_wu(*self.namespace.wu)
+    #     except DeviceWriteFailed as e:
+    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+    #     else:
+    #         print("Device write completed successfully")
+    #
+    # def write_wcloud(self):
+    #     """Write Weathercloud upload parameters to a gateway device."""
+    #
+    #     # wrap in a try..except in case there is an error
+    #     try:
+    #         # obtain a GatewayDevice object
+    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+    #     except GWIOError as e:
+    #         print()
+    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
+    #         return
+    #     except socket.timeout:
+    #         print()
+    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
+    #         return
+    #     # identify the device being used
+    #     print()
+    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+    #     print()
+    #     try:
+    #         device.write_wcloud(*self.namespace.wcloud)
+    #     except DeviceWriteFailed as e:
+    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+    #     else:
+    #         print("Device write completed successfully")
+    #
+    # def write_wow(self):
+    #     """Write Weather Observations Website upload parameters to a gateway device."""
+    #
+    #     # wrap in a try..except in case there is an error
+    #     try:
+    #         # obtain a GatewayDevice object
+    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+    #     except GWIOError as e:
+    #         print()
+    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
+    #         return
+    #     except socket.timeout:
+    #         print()
+    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
+    #         return
+    #     # identify the device being used
+    #     print()
+    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+    #     print()
+    #     try:
+    #         device.write_wow(*self.namespace.wow)
+    #     except DeviceWriteFailed as e:
+    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+    #     else:
+    #         print("Device write completed successfully")
+    #
+    # def write_custom(self):
+    #     """Write 'Custom' upload parameters to a gateway device."""
+    #
+    #     # wrap in a try..except in case there is an error
+    #     try:
+    #         # obtain a GatewayDevice object
+    #         device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+    #     except GWIOError as e:
+    #         print()
+    #         print(f'Unable to connect to device at {self.ip_address}: {e}')
+    #         return
+    #     except socket.timeout:
+    #         print()
+    #         print(f'Timeout. Device at {self.ip_address} did not respond.')
+    #         return
+    #     # identify the device being used
+    #     print()
+    #     print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+    #           f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+    #     print()
+    #     # do we have 9 (WU) or 7 (EC) parameters, if it's the latter read the current custom upload settings to obtain the current station ID and key
+    #     if len(self.namespace.custom) == 7:
+    #         _result = device.custom_params
+    #         id = _result['id']
+    #         password = _result['password']
+    #         print(self.namespace.custom, id, password)
+    #         # device.write_custom(*self.namespace.custom, id, password)
+    #     elif len(self.namespace.custom) == 9:
+    #         print(self.namespace.custom)
+    #         # device.write_custom(*self.namespace.custom)
+    #     else:
+    #         # TODO.Need to fix this
+    #         print("error")
+    #         return
+    #     try:
+    #         device.write_custom(*self.namespace.custom)
+    #     except DeviceWriteFailed as e:
+    #         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+    #     else:
+    #         print("Device write completed successfully")
 
 
 # ============================================================================
@@ -5510,6 +5147,7 @@ def maxlen(arg, max_length):
         # appropriate message
         raise argparse.ArgumentTypeError(f"Argument length must be {max_length:d} characters or less")
 
+
 def int_range(s, min, max):
     """Function to support range limited integer parameters.
 
@@ -5533,6 +5171,7 @@ def int_range(s, min, max):
         # an appropriate message
         raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
 
+
 def float_range(s, min, max):
     """Function to support range limited integer parameters.
 
@@ -5555,6 +5194,7 @@ def float_range(s, min, max):
         # arg is outside the range so raise an argparse.ArgumentTypeError with
         # an appropriate message
         raise argparse.ArgumentTypeError(f"Argument range {min:d} - {max:d} inclusive")
+
 
 def dispatch_get(namespace):
     """Process 'get' subcommand."""
@@ -5591,6 +5231,7 @@ def dispatch_get(namespace):
         direct_gw.display_sensors()
     elif getattr(namespace, 'live_data', False):
         direct_gw.display_live_data()
+
 
 def write_ecowitt(namespace):
     """Process ecowitt write sub-subcommand."""
@@ -5638,6 +5279,7 @@ def write_ecowitt(namespace):
         print()
         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
 
+
 def write_wu_wow_wcloud(namespace):
     """Process wu, wow and wcloud write sub-subcommands."""
 
@@ -5682,6 +5324,7 @@ def write_wu_wow_wcloud(namespace):
     else:
         print()
         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
+
 
 def write_customized(namespace):
     """Process custom write sub-subcommand."""
@@ -5744,6 +5387,7 @@ def write_customized(namespace):
         print()
         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
 
+
 def write_calibration(namespace):
     """Process gain write sub-subcommand."""
 
@@ -5789,6 +5433,7 @@ def write_calibration(namespace):
         print()
         print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no valid argument data received")
 
+
 def add_common_args(parser):
     """Add common arguments to an argument parser."""
 
@@ -5814,6 +5459,7 @@ def add_common_args(parser):
                         dest='debug',
                         action='store_true',
                         help='display additional debug information')
+
 
 def get_action_exists(ns):
     """Does a given namespace contain at least one get action."""
@@ -5933,6 +5579,7 @@ def get_subparser(subparsers):
     get_parser.set_defaults(func=dispatch_get)
     return get_parser
 
+
 def ecowitt_write_subparser(subparsers):
     """Define 'ecowitt write ecowitt' sub-subparser."""
     
@@ -5983,6 +5630,7 @@ def wu_write_subparser(subparsers):
     wu_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wu_write_parser
 
+
 def wow_write_subparser(subparsers):
     """Define 'ecowitt write wow' sub-subparser."""
 
@@ -6007,6 +5655,7 @@ def wow_write_subparser(subparsers):
     wow_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wow_write_parser
 
+
 def wcloud_write_subparser(subparsers):
     """Define 'ecowitt write wcloud' sub-subparser."""
 
@@ -6030,6 +5679,7 @@ def wcloud_write_subparser(subparsers):
     add_common_args(wcloud_write_parser)
     wcloud_write_parser.set_defaults(func=write_wu_wow_wcloud)
     return wcloud_write_parser
+
 
 def custom_write_subparser(subparsers):
     """Define 'ecowitt write custom' sub-subparser."""
@@ -6105,6 +5755,7 @@ def custom_write_subparser(subparsers):
     custom_write_parser.set_defaults(active=0, func=write_customized)
     return custom_write_parser
 
+
 def cal_write_subparser(subparsers):
     """Define 'ecowitt write gain' sub-subparser."""
 
@@ -6164,6 +5815,7 @@ def cal_write_subparser(subparsers):
     add_common_args(cal_write_parser)
     cal_write_parser.set_defaults(func=write_calibration)
     return cal_write_parser
+
 
 def write_subparser(subparsers):
     """Define the 'ecowitt write' subcommand."""
