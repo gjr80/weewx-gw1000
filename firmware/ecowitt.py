@@ -1637,15 +1637,18 @@ class GatewayApiParser:
         CMD_WRITE_GAIN. Required payload parameters are contained in the gain
         dict keyed as follows:
 
-        uv:     uv gain, integer 10-500
-        solar:  solar radiation gain, integer 10-500
-        wind:   wind speed gain, integer 10-500
-        rain:   rain gain, integer 10-500
+        uv:     uv gain, integer 10-500                 --> unsigned short
+        solar:  solar radiation gain, integer 10-500    --> unsigned short
+        wind:   wind speed gain, integer 10-500         --> unsigned short
+        rain:   rain gain, integer 10-500               --> unsigned short
 
         The CMD_WRITE_GAIN data payload includes two reserved integer values.
         The first two bytes contain the value 1267 and the last two bytes are
         only marked as 'reserved' with no value given (we will store the
         value 0).
+
+        reserved1: reserved, fixed value of 1267        --> unsigned short
+        reserved2: reserved, value not specified        --> unsigned short
 
         Returns a bytestring.
         """
@@ -1662,6 +1665,40 @@ class GatewayApiParser:
                          wind_b,
                          rain_b,
                          reserved2_b])
+
+    @staticmethod
+    def encode_calibration(**calibration):
+        """Encode data parameters used for CMD_WRITE_CALIBRATION.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_CALIBRATION. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        intemp:  inside temperature offset, float -100 - +100  --> signed short
+        inhum:   inside humidity offset, float -10 - +10       --> signed byte
+        abs:     absolute pressure offset, float -800 - +800   --> signed long
+        rel:     relative pressure offset, float -800 - +800   --> signed long
+        outtemp: outside temperature offset, float -100 - +100 --> signed short
+        outhum:  outside humidity offset, float -10 - +10      --> signed byte
+        winddir: wind direction offset, float -180 - +180      --> signed short
+
+        Returns a bytestring.
+        """
+
+        intemp_b = struct.pack('>h', int(calibration['intemp'] * 100))
+        inhum_b = struct.pack('>b', int(calibration['inhum']))
+        abs_b = struct.pack('>l', int(calibration['abs'] * 100))
+        rel_b = struct.pack('>l', int(calibration['rel'] * 100))
+        outtemp_b = struct.pack('>h', int(calibration['outtemp'] * 100))
+        outhum_b = struct.pack('>b', int(calibration['outhum']))
+        winddir_b = struct.pack('>h', int(calibration['winddir']))
+        return b''.join([intemp_b,
+                         inhum_b,
+                         abs_b,
+                         rel_b,
+                         outtemp_b,
+                         outhum_b,
+                         winddir_b])
 
 
 class Sensors:
@@ -2888,6 +2925,23 @@ class GatewayApi():
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
+    def set_calibration(self, payload):
+        """Set the calibration parameters.
+
+        Sends the API command to write the calibration parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        set_calibration(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling set_calibration() should be prepared to
+        handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_CALIBRATION', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send an API command to the device with retries and return
         the response.
@@ -3855,10 +3909,35 @@ class GatewayDevice:
         uploading to the gateway device.
         """
 
-        # obtain encoded data payloads for each API command
+        # obtain encoded data payloads for the API command
         payload = self.gateway_api_parser.encode_gain(**gain)
         # update the gateway device
         self.gateway_api.set_gain(payload)
+
+    def write_calibration(self, **calibration):
+        #TODO. Need to update these comments
+        """Write calibration parameters.
+
+        Write calibration parameters to a gateway device. The calibration
+        parameters consist of:
+
+        intemp: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The calibration parameters are first encoded to produce the command
+        data payload. The payload is then passed to a GatewayApi object for
+        uploading to the gateway device.
+        """
+
+        # obtain encoded data payloads for the API command
+        payload = self.gateway_api_parser.encode_calibration(**calibration)
+        # update the gateway device
+        self.gateway_api.set_calibration(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
@@ -5409,6 +5488,7 @@ def write_calibration(namespace):
         if arg_cal_params != cal_params:
             # something has changed, so write the updated params to the device
             device.write_gain(**arg_cal_params)
+            device.write_calibration(**arg_cal_params)
         else:
             print()
             print("No changes to current device settings")
