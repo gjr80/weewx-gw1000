@@ -5214,7 +5214,7 @@ class DirectGateway:
             print("No changes to current device settings")
 
     def write_calibration(self):
-        """Process gain write sub-subcommand."""
+        """Process calibration write sub-subcommand."""
 
         # wrap in a try..except in case there is an error
         try:
@@ -5254,6 +5254,54 @@ class DirectGateway:
             try:
                 device.write_gain(**arg_cal_params)
                 device.write_calibration(**arg_cal_params)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print()
+            print("No changes to current device settings")
+
+    def write_sensor_id(self):
+        """Process sensor-id write sub-subcommand."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current sensor ID params from the device
+        id_params = device.sensor_id
+        # make a copy of the current sensor ID params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_id_params = dict(id_params)
+        # iterate over each sensor ID param (param, value) pair
+        for param, value in id_params.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our cal param dict copy if the namespace argument is
+            # not None, otherwise keep the current cal param value
+            arg_id_params[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_id_params != id_params:
+            # something has changed, so write the updated params to the device
+            try:
+                device.write_sensor_id(**arg_id_params)
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
             else:
@@ -5372,6 +5420,8 @@ def dispatch_write(namespace):
         direct_gw.write_custom()
     if getattr(namespace, 'write_subcommand', False)  == 'calibration':
         direct_gw.write_calibration()
+    if getattr(namespace, 'write_subcommand', False)  == 'sensor-id':
+        direct_gw.write_sensor_id()
 
 
 def add_common_args(parser):
@@ -5756,6 +5806,283 @@ def cal_write_subparser(subparsers):
     cal_write_parser.set_defaults(func=dispatch_write)
     return cal_write_parser
 
+def sensor_id_write_subparser(subparsers):
+    """Define 'ecowitt write sensor-id' sub-subparser."""
+
+    id_write_usage = f"""{Bcolors.BOLD}ecowitt write sensor-id --help
+       ecowitt write sensor-id --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--wh65 ID] [--wh68 ID] [--wh80 ID] [--wh40 ID]
+                                 [--wh25 ID] [--wh26 ID]
+                                 [--wh31-1 ID] [--wh31-2 ID] [--wh31-3 ID] [--wh31-4 ID]
+                                 [--wh31-5 ID] [--wh31-6 ID] [--wh31-7 ID] [--wh31-8 ID]
+                                 [--wh51-1 ID] [--wh51-2 ID] [--wh51-3 ID] [--wh51-4 ID]
+                                 [--wh51-5 ID] [--wh51-6 ID] [--wh51-7 ID] [--wh51-8 ID]
+                                 [--wh41-1 ID] [--wh41-2 ID] [--wh41-3 ID] [--wh41-4 ID]
+                                 [--wh57 ID]
+                                 [--wh55-1 ID] [--wh55-2 ID] [--wh55-3 ID] [--wh55-4 ID]
+                                 [--wh34-1 ID] [--wh34-2 ID] [--wh34-3 ID] [--wh34-4 ID]
+                                 [--wh34-5 ID] [--wh34-6 ID] [--wh34-7 ID] [--wh34-8 ID]
+                                 [--wh45 ID]
+                                 [--wh35-1 ID] [--wh35-2 ID] [--wh35-3 ID] [--wh35-4 ID]
+                                 [--wh35-5 ID] [--wh35-6 ID] [--wh35-7 ID] [--wh35-8 ID]
+                                 [--wh90 ID]
+                                 [--debug]
+{Bcolors.ENDC}"""
+    id_write_description = """Set sensor identification values. If a parameter
+    is omitted the corresponding current gateway device parameter is left
+    unchanged."""
+    id_write_parser = subparsers.add_parser('sensor-id',
+                                             usage=id_write_usage,
+                                             description=id_write_description,
+                                             help="Set sensor identification values.")
+    id_write_parser.add_argument('--wh65',
+                                 dest='wh65',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH65 sensor identification value')
+    id_write_parser.add_argument('--wh68',
+                                 dest='wh68',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH68 sensor identification value')
+    id_write_parser.add_argument('--wh80',
+                                 dest='wh80',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH80 sensor identification value')
+    id_write_parser.add_argument('--wh40',
+                                 dest='wh40',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH40 sensor identification value')
+    id_write_parser.add_argument('--wh25',
+                                 dest='wh25',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH25 sensor identification value')
+    id_write_parser.add_argument('--wh26',
+                                 dest='wh26',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH26 sensor identification value')
+    id_write_parser.add_argument('--wh31-1',
+                                 dest='31_1',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 1 sensor identification value')
+    id_write_parser.add_argument('--wh31-2',
+                                 dest='wh31_2',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 2 sensor identification value')
+    id_write_parser.add_argument('--wh31-3',
+                                 dest='31_3',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 3 sensor identification value')
+    id_write_parser.add_argument('--wh31-4',
+                                 dest='31_4',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 4 sensor identification value')
+    id_write_parser.add_argument('--wh31-5',
+                                 dest='31_5',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 5 sensor identification value')
+    id_write_parser.add_argument('--wh31-6',
+                                 dest='31_6',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 6 sensor identification value')
+    id_write_parser.add_argument('--wh31-7',
+                                 dest='31_7',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 7 sensor identification value')
+    id_write_parser.add_argument('--wh31-8',
+                                 dest='31_8',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH31 channel 8 sensor identification value')
+    id_write_parser.add_argument('--wh51-1',
+                                 dest='51_1',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 1 sensor identification value')
+    id_write_parser.add_argument('--wh51-2',
+                                 dest='wh51_2',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 2 sensor identification value')
+    id_write_parser.add_argument('--wh51-3',
+                                 dest='51_3',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 3 sensor identification value')
+    id_write_parser.add_argument('--wh51-4',
+                                 dest='51_4',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 4 sensor identification value')
+    id_write_parser.add_argument('--wh51-5',
+                                 dest='51_5',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 5 sensor identification value')
+    id_write_parser.add_argument('--wh51-6',
+                                 dest='51_6',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 6 sensor identification value')
+    id_write_parser.add_argument('--wh51-7',
+                                 dest='51_7',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 7 sensor identification value')
+    id_write_parser.add_argument('--wh51-8',
+                                 dest='51_8',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH51 channel 8 sensor identification value')
+    id_write_parser.add_argument('--wh41-1',
+                                 dest='41_1',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH41 channel 1 sensor identification value')
+    id_write_parser.add_argument('--wh41-2',
+                                 dest='wh41_2',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH41 channel 2 sensor identification value')
+    id_write_parser.add_argument('--wh41-3',
+                                 dest='41_3',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH41 channel 3 sensor identification value')
+    id_write_parser.add_argument('--wh41-4',
+                                 dest='41_4',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH41 channel 4 sensor identification value')
+    id_write_parser.add_argument('--wh57',
+                                dest='wh57',
+                                type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH57 sensor identification value')
+    id_write_parser.add_argument('--wh55-1',
+                                 dest='55_1',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH55 channel 1 sensor identification value')
+    id_write_parser.add_argument('--wh55-2',
+                                 dest='wh55_2',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH55 channel 2 sensor identification value')
+    id_write_parser.add_argument('--wh55-3',
+                                 dest='55_3',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH55 channel 3 sensor identification value')
+    id_write_parser.add_argument('--wh55-4',
+                                 dest='55_4',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH55 channel 4 sensor identification value')
+    id_write_parser.add_argument('--wh34-1',
+                                 dest='34_1',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 1 sensor identification value')
+    id_write_parser.add_argument('--wh34-2',
+                                 dest='wh34_2',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 2 sensor identification value')
+    id_write_parser.add_argument('--wh34-3',
+                                 dest='34_3',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 3 sensor identification value')
+    id_write_parser.add_argument('--wh34-4',
+                                 dest='34_4',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 4 sensor identification value')
+    id_write_parser.add_argument('--wh34-5',
+                                 dest='34_5',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 5 sensor identification value')
+    id_write_parser.add_argument('--wh34-6',
+                                 dest='34_6',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 6 sensor identification value')
+    id_write_parser.add_argument('--wh34-7',
+                                 dest='34_7',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 7 sensor identification value')
+    id_write_parser.add_argument('--wh34-8',
+                                 dest='34_8',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH34 channel 8 sensor identification value')
+    id_write_parser.add_argument('--wh45',
+                                dest='wh45',
+                                type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH45 sensor identification value')
+    id_write_parser.add_argument('--wh35-1',
+                                 dest='35_1',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 1 sensor identification value')
+    id_write_parser.add_argument('--wh35-2',
+                                 dest='wh35_2',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 2 sensor identification value')
+    id_write_parser.add_argument('--wh35-3',
+                                 dest='35_3',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 3 sensor identification value')
+    id_write_parser.add_argument('--wh35-4',
+                                 dest='35_4',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 4 sensor identification value')
+    id_write_parser.add_argument('--wh35-5',
+                                 dest='35_5',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 5 sensor identification value')
+    id_write_parser.add_argument('--wh35-6',
+                                 dest='35_6',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 6 sensor identification value')
+    id_write_parser.add_argument('--wh35-7',
+                                 dest='35_7',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 7 sensor identification value')
+    id_write_parser.add_argument('--wh35-8',
+                                 dest='35_8',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH35 channel 8 sensor identification value')
+    id_write_parser.add_argument('--wh90',
+                                 dest='wh90',
+                                 type=maxlen(4),
+                                 metavar='ID',
+                                 help='WH90 sensor identification value')
+    add_common_args(id_write_parser)
+    id_write_parser.set_defaults(func=dispatch_write)
+    return id_write_parser
 
 def write_subparser(subparsers):
     """Define the 'ecowitt write' subcommand."""
@@ -5766,7 +6093,8 @@ def write_subparser(subparsers):
        ecowitt write wow --help
        ecowitt write wcloud --help
        ecowitt write custom --help
-       ecowitt write gain --help
+       ecowitt write calibration --help
+       ecowitt write sensor-id --help
 {Bcolors.ENDC}"""
     write_description = """Set various Ecowitt gateway device configuration parameters."""
     write_parser = subparsers.add_parser('write',
@@ -5782,6 +6110,7 @@ def write_subparser(subparsers):
     wcloud_write_subparser(write_subparsers)
     custom_write_subparser(write_subparsers)
     cal_write_subparser(write_subparsers)
+    sensor_id_write_subparser(write_subparsers)
     return write_parser
 
 
