@@ -353,6 +353,8 @@ class GatewayApiParser:
     # so we can isolate these fields
     wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
+
+
     def __init__(self):
 
         pass
@@ -1700,6 +1702,31 @@ class GatewayApiParser:
                          outhum_b,
                          winddir_b])
 
+    @staticmethod
+    def encode_sensor_id(**ids):
+        """Encode data parameters used for CMD_WRITE_SENSOR_ID.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SENSOR_ID. The ids dict consists of sensor ID data keyed by
+        sensor address. Payload consists of a sequence of sensor address
+        followed by sensor ID for each sensor. The sensor address is
+        represented as a single byte and sensor ID is represented as a long
+        integer.
+
+        Returns a bytestring.
+        """
+
+        # initialise a list to hold bytestring components of the result
+        comp = []
+        # iterate over the list of sensor addresses in address order
+        for name, id_and_address in ids.items():
+            # append the sensor address to our result list
+            comp.append(struct.pack('b', id_and_address['address']))
+            # append the sensor ID to our result list
+            comp.append(struct.pack('>L', id_and_address['id']))
+        # return a bytestring consisting of the concatenated list elements
+        return b''.join(comp)
+
 
 class Sensors:
     """Class to manage device sensor ID data.
@@ -2001,6 +2028,57 @@ class Sensors:
             if data['id'] not in self.not_registered:
                 connected_list.append(address)
         return connected_list
+
+    def ids_by_address(self, numeric_id=False):
+        """Return a dict of sensor IDs keyed by address.
+
+        Iterate over the address, data pairs in the sensor_data dict, extract
+        the sensor ID and add to a new dict keyed by address. If numeric_id is
+        True convert the sensor ID to a numeric value otherwise leave it as a
+        hex string.
+
+        Returns a dict of sensor IDs keyed by sensor address.
+        """
+
+        # initialise a dict to hold the sensor ID data
+        ids = {}
+        # iterate over the address, data pairs in the sensor_data dict
+        for address, data in self.sensor_data.items():
+            # add the sensor ID to our dict, if numeric_id is True convert the
+            # sensor ID to a number, else leave as a string
+            if numeric_id:
+                ids[address] = int(data['id'], 16)
+            else:
+                ids[address] = data['id']
+        # return the dict of sensor IDs
+        return ids
+
+    def ids_by_name(self, numeric_id=False):
+        """Return a dict of sensor IDs keyed by sensor name.
+
+        Iterate over the address, data pairs in the sensor_data dict, extract
+        the sensor ID and add to a new dict keyed by sensor name,
+        eg 'eWH90_SENSOR'. If numeric_id is True convert the sensor ID to a
+        numeric value otherwise leave it as a hex string.
+
+        Returns a dict of sensor IDs keyed by sensor name.
+        """
+
+        # initialise a dict to hold the sensor ID data
+        ids = {}
+        # iterate over the address, data pairs in the sensor_data dict
+        for address, data in self.sensor_data.items():
+            # obtain the sensor name
+            name = self.sensor_idt.inverse.get(struct.unpack('b', address)[0])
+            # add the sensor ID to our dict but use sensor name as the key, if
+            # numeric_id is True convert the sensor ID to a number, else leave
+            # as a string
+            if numeric_id:
+                ids[name] = int(data['id'], 16)
+            else:
+                ids[name] = data['id']
+        # return the dict of sensor IDs
+        return ids
 
     @property
     def data(self):
@@ -2938,6 +3016,23 @@ class GatewayApi():
 
         # send the command and obtain the result
         result = self.send_cmd_with_retries('CMD_WRITE_CALIBRATION', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
+    def set_sensor_id(self, payload):
+        """Set the sensor ID parameters.
+
+        Sends the API command to write the sensor ID parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        set_sensor_id(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling set_sensor_id() should be prepared to
+        handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_SENSOR_ID', payload)
         # check the result to confirm the command executed successfully, if
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
@@ -3938,6 +4033,30 @@ class GatewayDevice:
         payload = self.gateway_api_parser.encode_calibration(**calibration)
         # update the gateway device
         self.gateway_api.set_calibration(payload)
+
+    def write_sensor_id(self, **id):
+        """Write sensor ID parameters.
+
+        Write sensor ID parameters to a gateway device. The sensor ID
+        parameters consist of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The sensor ID parameters are first encoded to produce the command
+        data payload. The payload is then passed to a GatewayApi object for
+        uploading to the gateway device.
+        """
+
+        # obtain encoded data payloads for the API command
+        payload = self.gateway_api_parser.encode_sensor_id(**id)
+        # update the gateway device
+        self.gateway_api.set_sensor_id(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
@@ -5285,29 +5404,37 @@ class DirectGateway:
               f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
         print()
         # obtain the current sensor ID params from the device
-        id_params = device.sensor_id
+        # first update the GatewayDevice object sensor ID data
+        device.update_sensor_id_data()
+        # now obtain a dict of current sensors IDs in numeric format
+        id_params = device.sensors.ids_by_name(numeric_id=True)
         # make a copy of the current sensor ID params, this copy will be updated
         # with the subcommand arguments and then used to update the device
         arg_id_params = dict(id_params)
         # iterate over each sensor ID param (param, value) pair
-        for param, value in id_params.items():
+        for sensor_name, sensor_id in id_params.items():
             # obtain the corresponding argument from the namespace, if the
             # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
+            _arg = getattr(self.namespace, sensor_name, None)
             # update our cal param dict copy if the namespace argument is
             # not None, otherwise keep the current cal param value
-            arg_id_params[param] = _arg if _arg is not None else value
+            arg_id_params[sensor_name] = _arg if _arg is not None else sensor_id
         # do we have any changes from our existing settings
         if arg_id_params != id_params:
-            # something has changed, so write the updated params to the device
+            # something has changed, so
+            id_and_address = dict()
+            for name, id in arg_id_params.items():
+                id_and_address[name] = {'id': id,
+                                        'address': device.sensors.sensor_idt[name]
+                                        }
+            # write the updated params to the device
             try:
-                device.write_sensor_id(**arg_id_params)
+                device.write_sensor_id(**id_and_address)
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
             else:
                 print("Device write completed successfully")
         else:
-            print()
             print("No changes to current device settings")
 
 
@@ -5328,7 +5455,7 @@ def maxlen(max_length):
 
     # define a function to perform the necessary checks, we will return a
     # handle to this function
-    def maxlen_check(arg):
+    def check(arg):
         """Check an argument is no longer than a given value."""
 
         if len(arg) > max_length:
@@ -5336,7 +5463,7 @@ def maxlen(max_length):
         return arg
 
     # return a handle to the check function
-    return maxlen_check
+    return check
 
 
 def ranged_type(type, min_value, max_value):
@@ -5353,8 +5480,8 @@ def ranged_type(type, min_value, max_value):
 
     # define a function to perform the necessary checks, we will return a
     # handle to this function
-    def range_check(arg):
-        """Check an argument type and it's value is within a given range."""
+    def check(arg):
+        """Check an argument type and its value is within a given range."""
 
         try:
             _arg = type(arg)
@@ -5365,7 +5492,52 @@ def ranged_type(type, min_value, max_value):
         return _arg
 
     # return a handle to the check function
-    return range_check
+    return check
+
+
+def sensor_id_type(digits):
+    """Argparse type support for Ecowitt sensor ID hexadecimal arguments.
+
+    Returns a handle to a function that checks an argument is a valid Ecowitt
+    sensor ID hexadecimal number with no more than a given number of digits.
+    If the argument cannot be converted to a hexadecimal number or the argument
+    has more than the specified number of digits an ArgumentTypeError exception
+    is raised with a suitable error message.
+
+    The function also supports the shorthand 'disable'. If the argument is
+    'disable' the Ecowitt disabled sensor ID value 0xfffffffe is returned.
+
+    If the argument meets the type and number of digits checks the decimal
+    equivalent of the argument is returned.
+    """
+
+    # define a function to perform the necessary checks, we will return a
+    # handle to this function
+    def check(arg):
+        """Check an argument type and its value is within a given range."""
+
+        # first check to see if the shorthand 'disable' has been used
+        if arg.lower() == 'disable':
+            return int('0xfffffffe', 0)
+        else:
+            # try to convert the argument to an integer using base 16
+            try:
+                _arg = int(arg, 16)
+            except ValueError:
+                # Could not convert to an integer, ergo the argument is not a valid
+                # hexadecimal string. Raise a suitable argparse.ArgumentTypeError
+                # exception
+                raise argparse.ArgumentTypeError(f"argument must be a valid hexadecimal number ({arg})")
+            # check the argument does not exceed the max number of digits
+            if _arg > 16 ** digits - 1:
+                # too many digits, raise a suitable argparse.ArgumentTypeError
+                # exception
+                raise argparse.ArgumentTypeError(f"argument must be 0x{(16 ** digits - 1):02x} or less ({arg})")
+            # the argument meets all checks, return the converted argument
+            return _arg
+
+    # return a handle to the check function
+    return check
 
 
 def dispatch_get(namespace):
@@ -5836,248 +6008,248 @@ def sensor_id_write_subparser(subparsers):
                                              description=id_write_description,
                                              help="Set sensor identification values.")
     id_write_parser.add_argument('--wh65',
-                                 dest='wh65',
-                                 type=maxlen(4),
+                                 dest='eWH65_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH65 sensor identification value')
     id_write_parser.add_argument('--wh68',
-                                 dest='wh68',
-                                 type=maxlen(4),
+                                 dest='eWH68_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH68 sensor identification value')
     id_write_parser.add_argument('--wh80',
-                                 dest='wh80',
-                                 type=maxlen(4),
+                                 dest='eWH80_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH80 sensor identification value')
     id_write_parser.add_argument('--wh40',
-                                 dest='wh40',
-                                 type=maxlen(4),
+                                 dest='eWH40_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH40 sensor identification value')
     id_write_parser.add_argument('--wh25',
-                                 dest='wh25',
-                                 type=maxlen(4),
+                                 dest='eWH25_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH25 sensor identification value')
     id_write_parser.add_argument('--wh26',
-                                 dest='wh26',
-                                 type=maxlen(4),
+                                 dest='eWH26_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH26 sensor identification value')
     id_write_parser.add_argument('--wh31-1',
-                                 dest='31_1',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH1',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 1 sensor identification value')
     id_write_parser.add_argument('--wh31-2',
-                                 dest='wh31_2',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH2',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 2 sensor identification value')
     id_write_parser.add_argument('--wh31-3',
-                                 dest='31_3',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH3',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 3 sensor identification value')
     id_write_parser.add_argument('--wh31-4',
-                                 dest='31_4',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH4',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 4 sensor identification value')
     id_write_parser.add_argument('--wh31-5',
-                                 dest='31_5',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH5',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 5 sensor identification value')
     id_write_parser.add_argument('--wh31-6',
-                                 dest='31_6',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH6',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 6 sensor identification value')
     id_write_parser.add_argument('--wh31-7',
-                                 dest='31_7',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH7',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 7 sensor identification value')
     id_write_parser.add_argument('--wh31-8',
-                                 dest='31_8',
-                                 type=maxlen(4),
+                                 dest='eWH31_SENSORCH8',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH31 channel 8 sensor identification value')
     id_write_parser.add_argument('--wh51-1',
-                                 dest='51_1',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH1',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 1 sensor identification value')
     id_write_parser.add_argument('--wh51-2',
-                                 dest='wh51_2',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH2',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 2 sensor identification value')
     id_write_parser.add_argument('--wh51-3',
-                                 dest='51_3',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH3',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 3 sensor identification value')
     id_write_parser.add_argument('--wh51-4',
-                                 dest='51_4',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH4',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 4 sensor identification value')
     id_write_parser.add_argument('--wh51-5',
-                                 dest='51_5',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH5',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 5 sensor identification value')
     id_write_parser.add_argument('--wh51-6',
-                                 dest='51_6',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH6',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 6 sensor identification value')
     id_write_parser.add_argument('--wh51-7',
-                                 dest='51_7',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH7',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 7 sensor identification value')
     id_write_parser.add_argument('--wh51-8',
-                                 dest='51_8',
-                                 type=maxlen(4),
+                                 dest='eWH51_SENSORCH8',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH51 channel 8 sensor identification value')
     id_write_parser.add_argument('--wh41-1',
-                                 dest='41_1',
-                                 type=maxlen(4),
+                                 dest='eWH41_SENSORCH1',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH41 channel 1 sensor identification value')
     id_write_parser.add_argument('--wh41-2',
-                                 dest='wh41_2',
-                                 type=maxlen(4),
+                                 dest='eWH41_SENSORCH2',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH41 channel 2 sensor identification value')
     id_write_parser.add_argument('--wh41-3',
-                                 dest='41_3',
-                                 type=maxlen(4),
+                                 dest='eWH41_SENSORCH3',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH41 channel 3 sensor identification value')
     id_write_parser.add_argument('--wh41-4',
-                                 dest='41_4',
-                                 type=maxlen(4),
+                                 dest='eWH41_SENSORCH4',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH41 channel 4 sensor identification value')
     id_write_parser.add_argument('--wh57',
-                                dest='wh57',
-                                type=maxlen(4),
+                                 dest='eWH57_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH57 sensor identification value')
     id_write_parser.add_argument('--wh55-1',
-                                 dest='55_1',
-                                 type=maxlen(4),
+                                 dest='eWH55_SENSORCH1',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH55 channel 1 sensor identification value')
     id_write_parser.add_argument('--wh55-2',
-                                 dest='wh55_2',
-                                 type=maxlen(4),
+                                 dest='eWH55_SENSORCH2',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH55 channel 2 sensor identification value')
     id_write_parser.add_argument('--wh55-3',
-                                 dest='55_3',
-                                 type=maxlen(4),
+                                 dest='eWH55_SENSORCH3',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH55 channel 3 sensor identification value')
     id_write_parser.add_argument('--wh55-4',
-                                 dest='55_4',
-                                 type=maxlen(4),
+                                 dest='eWH55_SENSORCH4',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH55 channel 4 sensor identification value')
     id_write_parser.add_argument('--wh34-1',
-                                 dest='34_1',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH1',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 1 sensor identification value')
     id_write_parser.add_argument('--wh34-2',
-                                 dest='wh34_2',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH2',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 2 sensor identification value')
     id_write_parser.add_argument('--wh34-3',
-                                 dest='34_3',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH3',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 3 sensor identification value')
     id_write_parser.add_argument('--wh34-4',
-                                 dest='34_4',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH4',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 4 sensor identification value')
     id_write_parser.add_argument('--wh34-5',
-                                 dest='34_5',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH5',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 5 sensor identification value')
     id_write_parser.add_argument('--wh34-6',
-                                 dest='34_6',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH6',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 6 sensor identification value')
     id_write_parser.add_argument('--wh34-7',
-                                 dest='34_7',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH7',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 7 sensor identification value')
     id_write_parser.add_argument('--wh34-8',
-                                 dest='34_8',
-                                 type=maxlen(4),
+                                 dest='eWH34_SENSORCH8',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH34 channel 8 sensor identification value')
     id_write_parser.add_argument('--wh45',
-                                dest='wh45',
-                                type=maxlen(4),
+                                 dest='eWH45',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH45 sensor identification value')
     id_write_parser.add_argument('--wh35-1',
-                                 dest='35_1',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH1',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 1 sensor identification value')
     id_write_parser.add_argument('--wh35-2',
-                                 dest='wh35_2',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH2',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 2 sensor identification value')
     id_write_parser.add_argument('--wh35-3',
-                                 dest='35_3',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH3',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 3 sensor identification value')
     id_write_parser.add_argument('--wh35-4',
-                                 dest='35_4',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH4',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 4 sensor identification value')
     id_write_parser.add_argument('--wh35-5',
-                                 dest='35_5',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH5',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 5 sensor identification value')
     id_write_parser.add_argument('--wh35-6',
-                                 dest='35_6',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH6',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 6 sensor identification value')
     id_write_parser.add_argument('--wh35-7',
-                                 dest='35_7',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH7',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 7 sensor identification value')
     id_write_parser.add_argument('--wh35-8',
-                                 dest='35_8',
-                                 type=maxlen(4),
+                                 dest='eWH35_SENSORCH8',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH35 channel 8 sensor identification value')
     id_write_parser.add_argument('--wh90',
-                                 dest='wh90',
-                                 type=maxlen(4),
+                                 dest='eWH90_SENSOR',
+                                 type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH90 sensor identification value')
     add_common_args(id_write_parser)
