@@ -844,6 +844,7 @@ class GatewayApiParser:
         6       sensor type     byte            0=WH24, 1=WH65
         7-10    utc time        unsigned long
         11      timezone index  byte
+        # TODO. Need to sort out DST decode, this is wrong
         12      dst status      byte            0=False, 1=True
         13      checksum        byte            LSB of the sum of the
                                                 command, size and data
@@ -2659,8 +2660,15 @@ class GatewayApi():
             for model in self.known_models:
                 if model in t.upper():
                     return model
-            # we don't have a known model so return None
-            return None
+            # we don't have a known model so take an educated guess by
+            # splitting the string on '-' or '_' and taking the first
+            # sub-string
+            if '_' in t:
+                return ' '.join(['(possible)', t.split('_')[0]])
+            if '-' in t:
+                return ' '.join(['(possible)', t.split('-')[0]])
+            # we are out of options, return 'unknown model'
+            return '(unknown model)'
         # we have no string so return None
         return None
 
@@ -4410,7 +4418,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
         except GWIOError as e:
             print()
             print(f"Unable to connect to device at {self.ip_address}: {e}")
@@ -4482,7 +4492,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4534,7 +4546,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4652,7 +4666,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4704,7 +4720,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4755,7 +4773,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4803,7 +4823,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4842,7 +4864,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -4890,7 +4914,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -5042,7 +5068,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -5085,7 +5113,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
         except GWIOError as e:
             print()
             print(f'Unable to connect to device at {self.ip_address}: {e}')
@@ -5113,7 +5143,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port, debug=self.debug)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
         except GWIOError as e:
             print()
             print(f'Unable to connect to device at {self.ip_address}: {e}')
@@ -5181,7 +5213,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
         except GWIOError as e:
             print()
             print(f'Unable to connect to device at {self.ip_address}: {e}')
@@ -5240,7 +5274,9 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address, port=self.port)
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
         except GWIOError as e:
             print()
             print(f'Unable to connect to device at {self.ip_address}: {e}')
@@ -6577,7 +6613,7 @@ def sensor_id_write_subparser(subparsers):
                                  metavar='ID',
                                  help='WH34 channel 8 sensor identification value')
     id_write_parser.add_argument('--wh45',
-                                 dest='eWH45',
+                                 dest='eWH45_SENSOR',
                                  type=sensor_id_type(digits=8),
                                  metavar='ID',
                                  help='WH45 sensor identification value')
