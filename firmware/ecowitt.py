@@ -189,30 +189,26 @@ class DeviceWriteFailed(Exception):
 
 
 class GatewayApiParser:
-    """Class to parse and decode device API response payload data.
+    """Class to parse, decode and encode data to/from the gateway device API.
 
-    The main function of class Parser is to parse and decode the payloads
-    of the device response to the following API calls:
-
-    - CMD_GW1000_LIVEDATA
-    - CMD_READ_RAIN
-
-    By virtue of its ability to decode fields in the above API responses
-    the decode methods of class Parser are also used individually
-    elsewhere in the driver to decode simple responses received from the
-    device, eg when reading device configuration settings.
+    The GatewayApiParser class is used to parse, decode and encode payload data
+    received and sent via the Ecowitt LAN/Wi-Fi Gateway API (the 'gateway
+    API'). The GatewayApiParser class understands the structure of the data
+    payload in each gateway API command, but does not know how to communicate
+    with the device in any way.
     """
 
-    # Dictionary of 'address' based data. Dictionary is keyed by device
-    # data field 'address' containing various parameters for each
-    # 'address'. Dictionary tuple format is:
-    #   (decode fn, size, field name)
+    # Dictionary of address based data received using various gateway API
+    # commands. The dictionary is keyed by the device data field 'address'
+    # and contains various parameters for each 'address'. Dictionary tuple
+    # format is:
+    #   (field name, decode fn, field size)
     # where:
-    #   decode fn:  the decode function name to be used for the field
-    #   size:       the size of field data in bytes
-    #   field name: the name of the device field to be used for the decoded
-    #               data
-    live_data_struct = {
+    #   field name: the name of the device field as per the gateway API
+    #               documentation
+    #   decode fn:  the name of the function used to decode the field data
+    #   field size: the size of field data in bytes
+    addressed_data_struct = {
         b'\x01': ('ITEM_INTEMP', 'decode_temp', 2, 'intemp'),
         b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2, 'outtemp'),
         b'\x03': ('ITEM_DEWPOINT', 'decode_temp', 2, 'dewpoint'),
@@ -321,7 +317,7 @@ class GatewayApiParser:
                                                          'co2_24h_avg')
                   ),
         # placeholder for unknown field 0x71
-        b'\x71': ('ITEMPM25_AQI', None, None, None),
+        b'\x71': ('ITEMPM25_AQI', None, None),
         b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1, 'leafwet1'),
         b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1, 'leafwet2'),
         b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1, 'leafwet3'),
@@ -330,15 +326,15 @@ class GatewayApiParser:
         b'\x77': ('ITEM_LEAF_WETNESS_CH6', 'decode_wet', 1, 'leafwet6'),
         b'\x78': ('ITEM_LEAF_WETNESS_CH7', 'decode_wet', 1, 'leafwet7'),
         b'\x79': ('ITEM_LEAF_WETNESS_CH8', 'decode_wet', 1, 'leafwet8'),
-        b'\x7A': ('ITEM_RAIN_Prority', 'decode_int', 1, 'rain_priority'),
+        b'\x7A': ('ITEM_RAIN_Priority', 'decode_int', 1, 'rain_priority'),
         b'\x7B': ('ITEM_radcompensation', 'decode_int', 1, 'temperature_comp'),
-        b'\x80': ('ITEM_Piezzo_Rain_Rate', 'decode_rainrate', 2, 'p_rainrate'),
-        b'\x81': ('ITEM_Piezzo_Event_Rain', 'decode_rain', 2, 'p_rainevent'),
-        b'\x82': ('ITEM_Piezzo_Hourly_Rain', 'decode_reserved', 2, 'p_rainhour'),
-        b'\x83': ('ITEM_Piezzo_Daily_Rain', 'decode_big_rain', 4, 'p_rainday'),
-        b'\x84': ('ITEM_Piezzo_Weekly_Rain', 'decode_big_rain', 4, 'p_rainweek'),
-        b'\x85': ('ITEM_Piezzo_Monthly_Rain', 'decode_big_rain', 4, 'p_rainmonth'),
-        b'\x86': ('ITEM_Piezzo_yearly_Rain', 'decode_big_rain', 4, 'p_rainyear'),
+        b'\x80': ('ITEM_Piezo_Rain_Rate', 'decode_rainrate', 2, 'p_rainrate'),
+        b'\x81': ('ITEM_Piezo_Event_Rain', 'decode_rain', 2, 'p_rainevent'),
+        b'\x82': ('ITEM_Piezo_Hourly_Rain', 'decode_reserved', 2, 'p_rainhour'),
+        b'\x83': ('ITEM_Piezo_Daily_Rain', 'decode_big_rain', 4, 'p_rainday'),
+        b'\x84': ('ITEM_Piezo_Weekly_Rain', 'decode_big_rain', 4, 'p_rainweek'),
+        b'\x85': ('ITEM_Piezo_Monthly_Rain', 'decode_big_rain', 4, 'p_rainmonth'),
+        b'\x86': ('ITEM_Piezo_yearly_Rain', 'decode_big_rain', 4, 'p_rainyear'),
         # field 0x87 and 0x88 hold device parameter data that is not
         # included in the loop packets, hence the device field is not
         # used (None).
@@ -351,23 +347,23 @@ class GatewayApiParser:
         pass
 
     def parse_addressed_data(self, payload, structure):
-        """Parse an address structure API response payload.
+        """Parse an address based API response data payload.
 
         Parses the data payload of an API response that uses an addressed
-        data structure, ie each data element is in the format
+        based data structure, ie each data element is in the format
 
         <address byte> <data byte(s)>
 
-        Data elements may be in any order and the data portion of each data
-        element may consist of one or mor bytes.
+        Data elements are assumed to be in any order and the data portion of
+        each data element may consist of one or more bytes.
 
         payload:   API response payload to be parsed, bytestring
-        structure: dict keyed by data element address and containing the
-                   decode function, field size and the field name to be
-                   used as the key against which the decoded data is to be
-                   stored in the result dict
+        structure: dict keyed by data element address and containing the field
+                   name, decode function and field size to be used when
+                   decoding the payload data
 
-        Returns a dict of decoded data keyed by destination field name
+        Returns a dict of decoded data keyed by field name obtained from the
+        structure parameter.
         """
 
         # initialise a dict to hold our parsed data
@@ -412,77 +408,58 @@ class GatewayApiParser:
                     index += field_size + 1
         return data
 
-    def parse_livedata(self, response):
-        """Parse data from a CMD_GW1000_LIVEDATA API response.
+    def parse_livedata(self, payload):
+        """Parse data from a CMD_GW1000_LIVEDATA API response data payload.
 
-        Parse the raw sensor data obtained from the CMD_GW1000_LIVEDATA API
-        command and create a dict of sensor observations/status data.
-
-        Returns a dict of observations/status data.
-
-        Response consists of a variable number of bytes determined by the
+        Payload consists of a bytestring of variable length dependent on the
         number of connected sensors. Decode as follows:
-        Byte(s)     Data            Format          Comments
-        1-2         header          -               fixed header 0xFFFF
-        3           command code    byte            0x27
-        4-5         size            unsigned short
-        ....
-        6-2nd last byte
-                data structure follows the structure of
-                Parser.live_data_struct in the format:
-                    address (byte)
-                    data    length: as per second element of tuple
-                            decode: Parser method as per first element of
-                                    tuple
-        ....
-        last byte   checksum        byte            LSB of the sum of the
-                                                    command, size and data
-                                                    bytes
+
+        Parameter Name  Byte(s)     Data format     Comments
+        sensor1 address 0           byte            sensor1 address
+        sensor1 data    1 to s1     s1 bytes        s1 = sensor1 data size in bytes
+        sensor2 address 1+s1        byte            sensor2 address
+        sensor2 data    2+s1 to     s2 bytes        s2 = sensor2 data size in bytes
+                        1+s1+s2
+
+        etc
+
+        Returns a dict keyed field name obtained from addressed_data_struct.
         """
 
-        # obtain the payload size, it's a big endian short (two byte) integer
-        payload_size = struct.unpack(">H", response[3:5])[0]
-        # obtain the payload
-        payload = response[5:5 + payload_size - 4]
         # this is addressed data, so we can call parse_addressed_data() and
         # return the result
-        return self.parse_addressed_data(payload, self.live_data_struct)
+        return self.parse_addressed_data(payload, self.addressed_data_struct)
 
-    def parse_rain(self, response):
-        """Parse data from a CMD_READ_RAIN API response.
+    def parse_rain(self, payload):
+        """Parse data from a CMD_READ_RAIN API response data payload.
 
-        Parse the raw sensor data obtained from the CMD_READ_RAIN API
-        command and create a dict of sensor observations/status data.
+        Payload consists of a bytestring of length 66 as follows:
 
-        Returns a dict of observations/status data.
+        Field Name              Byte(s)     Data format     Comments
 
-        Response consists of a variable number of bytes determined by the
-        connected sensors. Decode as follows:
-        Byte(s)     Data            Format          Comments
-        1-2         header          -               fixed header 0xFFFF
-        3           command code    byte            0x57
-        4-5         size            unsigned short
-        ....
-        6-2nd last byte
-                data structure follows the structure of
-                Parser.live_data_struct in the format:
-                    address (byte)
-                    data    length: as per second element of tuple
-                            decode: Parser method as per first element of
-                                    tuple
-        ....
-        last byte   checksum        byte            LSB of the sum of the
-                                                    command, size and data
-                                                    bytes
+        ITEM_RAINRATE           0 to 1      unsigned short
+        ITEM_RAINDAY            2 to 5      unsigned long
+        ITEM_RAINWEEK           6 to 9      unsigned long
+        ITEM_RAINMONTH          10 to 13    unsigned long
+        ITEM_RAINYEAR           14 to 17    unsigned long
+        ITEM_RAINEVENT          18 to 19    unsigned short
+        ITEM_RAIN_Gain          20 to 21    unsigned short
+        ITEM_Piezo_Rain_Rate    22 to 23    unsigned short
+        ITEM_Piezo_Event_Rain   24 to 25    unsigned short
+        ITEM_Piezo_Daily_Rain   26 to 29    unsigned long
+        ITEM_Piezo_Weekly_Rain  30 to 33    unsigned long
+        ITEM_Piezo_Monthly_Rain 34 to 37    unsigned long
+        ITEM_Piezo_yearly_Rain  38 to 41    unsigned long
+        ITEM_RAIN_Priority      42          byte
+        ITEM_Piezo_Gain10       43 to 62    10 x unsigned short
+        ITEM_RST_RainTime       63 to 65    3 x byte
+
+        Returns a dict keyed field name obtained from addressed_data_struct.
         """
 
-        # obtain the payload size, it's a big endian short (two byte) integer
-        payload_size = struct.unpack(">H", response[3:5])[0]
-        # obtain the payload
-        payload = response[5:5 + payload_size - 4]
         # this is addressed data, so we can call parse_addressed_data() and
         # return the result
-        return self.parse_addressed_data(payload, self.live_data_struct)
+        return self.parse_addressed_data(payload, self.addressed_data_struct)
 
     def parse_raindata(self, response):
         """Parse data from a CMD_READ_RAINDATA API response.
@@ -2788,10 +2765,21 @@ class GatewayApi():
         send_cmd_with_retries() which will be passed through by get_livedata().
         Any code calling get_livedata() should be prepared to handle this
         exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned short in bytes 3 and 4
+        packet_length = struct.unpack(">H", _response[3:5])[0]
+        # return the data payload
+        return _response[5:5 + packet_length - 4]
 
     def get_raindata(self):
         """Get traditional gauge rain data.
@@ -2801,10 +2789,21 @@ class GatewayApi():
         be raised by send_cmd_with_retries() which will be passed through by
         get_raindata(). Any code calling get_raindata() should be prepared to
         handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_RAINDATA')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_RAINDATA')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_ssss(self):
         """Read system parameters.
@@ -3139,10 +3138,21 @@ class GatewayApi():
         will be raised by send_cmd_with_retries() which will be passed through
         by get_rain(). Any code calling get_rain() should be prepared to handle
         this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_RAIN')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_RAIN')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned short in bytes 3 and 4
+        packet_length = struct.unpack(">H", _response[3:5])[0]
+        # return the data payload
+        return _response[5:5 + packet_length - 4]
 
     def set_ecowitt(self, payload):
         """Set the Ecowitt.net upload parameters.
@@ -3957,17 +3967,30 @@ class GatewayDevice:
 
     @property
     def livedata(self):
-        """Gateway device live data."""
+        """Gateway device live data.
 
-        _data = self.gateway_api.get_livedata()
-        return self.gateway_api_parser.parse_livedata(_data)
+        Returns a dict keyed by field name and containing the device live data.
+        """
+
+        # obtain the device live data via the gateway API, the result will be a
+        # bytestring or None
+        payload = self.gateway_api.get_livedata()
+        # return the parsed live data
+        return self.gateway_api_parser.parse_livedata(payload)
 
     @property
     def raindata(self):
-        """Gateway device traditional rain gauge data."""
+        """Gateway device traditional rain gauge data.
 
-        _data = self.gateway_api.get_raindata()
-        return self.gateway_api_parser.parse_raindata(_data)
+        Returns a dict keyed by field name and containing the device
+        traditional rain gauge data.
+        """
+
+        # obtain the device traditional rain gauge data via the gateway API,
+        # the result will be a bytestring or None
+        payload = self.gateway_api.get_raindata()
+        # return the parsed traditional rain gauge data
+        return self.gateway_api_parser.parse_raindata(payload)
 
     @property
     def system_params(self):
@@ -4205,8 +4228,11 @@ class GatewayDevice:
     def rain(self):
         """Gateway device traditional gauge and piezo gauge rain data."""
 
-        _data = self.gateway_api.get_rain()
-        return self.gateway_api_parser.parse_rain(_data)
+        # obtain the traditional gauge and piezo gauge rain data via the
+        # gateway API, the result will be a bytestring or None
+        payload = self.gateway_api.get_rain()
+        # return the parsed traditional gauge and piezo gauge rain data
+        return self.gateway_api_parser.parse_rain(payload)
 
     @property
     def sensor_state(self):
@@ -5634,9 +5660,9 @@ class DirectGateway:
         # display the live sensor data if we have any
         if len(live_sensor_data_dict) > 0:
             print()
-            for item_num in device.gateway_api_parser.live_data_struct.keys():
+            for item_num in device.gateway_api_parser.addressed_data_struct.keys():
                 if item_num in live_sensor_data_dict:
-                    item_str = ''.join(['(', device.gateway_api_parser.live_data_struct[item_num][3], ')', ':'])
+                    item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
                     value_str = re.sub(r'\.?0+$',lambda match: ' '*(match.end()-match.start()),'{:>12.1f}'.format(live_sensor_data_dict[item_num]))
                     print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
         print(f"live sensor data={live_sensor_data_dict}")
