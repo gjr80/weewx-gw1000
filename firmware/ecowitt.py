@@ -1084,6 +1084,16 @@ class GatewayApiParser:
                         6+i+p+s
         type            7+i+p+s     byte            0=Ecowitt, 1=WU
         active          8+i+p+s     byte            0=disable, 1=enable
+
+        Returns a dict keyed as follows:
+
+        'id':       station ID
+        'password': station password/key
+        'server':   server name/address
+        'port':     server port
+        'interval': upload interval (seconds)
+        'type':     upload data format 0=Ecowitt, 1=WU
+        'active':   whether upload is enabled/disabled, 1=enabled, 0=disabled
         """
 
         # initialise a dict to hold our final data
@@ -1207,6 +1217,11 @@ class GatewayApiParser:
                                                     characters
         WU path         2+i to      p x bytes       ASCII, max 40 characters
                         1+i+p
+
+        Returns a dict keyed as follows:
+
+        'ecowitt_path': Ecowitt.net path
+        'wu_path':      WeatherUnderground path
         """
 
         # initialise a dict to hold our final data
@@ -1263,17 +1278,15 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_station_mac(response):
-        """Parse a CMD_READ_STATION_MAC API response.
+        """Parse a CMD_READ_STATION_MAC API response data payload.
 
-        Response consists of 11 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x26
-        4       size            byte
-        5-12    station MAC     6 x byte
-        13      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        Response consists of 6 bytes as follows:
+
+        Parameter Name  Byte(s)     Format          Comments
+        station MAC     0 - 5       6 x bytes       6 x ASCII characters
+
+        Returns a dict containing a single field keyed 'mac' that contains a
+        string of colon separated uppercase hexadecimal digit pairs.
         """
 
         # return the parsed response, in this case we convert the bytes to
@@ -2966,10 +2979,21 @@ class GatewayApi():
         been raised by send_cmd_with_retries() which will be passed through
         by get_station_mac(). Any code calling get_station_mac() should be
         prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_STATION_MAC')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_STATION_MAC')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_firmware_version(self):
         """Get device firmware version.
