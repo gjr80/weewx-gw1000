@@ -213,147 +213,138 @@ class GatewayApiParser:
     #   field name: the name of the device field to be used for the decoded
     #               data
     live_data_struct = {
-        b'\x01': ('decode_temp', 2, 'intemp', 'ITEM_INTEMP'),
-        b'\x02': ('decode_temp', 2, 'outtemp', 'ITEM_OUTTEMP'),
-        b'\x03': ('decode_temp', 2, 'dewpoint', 'ITEM_DEWPOINT'),
-        b'\x04': ('decode_temp', 2, 'windchill', 'ITEM_WINDCHILL'),
-        b'\x05': ('decode_temp', 2, 'heatindex', 'ITEM_HEATINDEX'),
-        b'\x06': ('decode_humid', 1, 'inhumid', 'ITEM_INHUMI'),
-        b'\x07': ('decode_humid', 1, 'outhumid', 'ITEM_OUTHUMI'),
-        b'\x08': ('decode_press', 2, 'absbarometer', 'ITEM_ABSBARO'),
-        b'\x09': ('decode_press', 2, 'relbarometer', 'ITEM_RELBARO'),
-        b'\x0A': ('decode_dir', 2, 'winddir', 'ITEM_WINDDIRECTION'),
-        b'\x0B': ('decode_speed', 2, 'windspeed', 'ITEM_WINDSPEED'),
-        b'\x0C': ('decode_speed', 2, 'gustspeed', 'ITEM_GUSTSPEED'),
-        b'\x0D': ('decode_rain', 2, 't_rainevent', 'ITEM_RAINEVENT'),
-        b'\x0E': ('decode_rainrate', 2, 't_rainrate', 'ITEM_RAINRATE'),
-        b'\x0F': ('decode_gain_100', 2, 't_raingain', 'ITEM_RAIN_Gain'),
-        b'\x10': ('decode_rain', 2, 't_rainday', 'ITEM_RAINDAY'),
-        b'\x11': ('decode_rain', 2, 't_rainweek', 'ITEM_RAINWEEK'),
-        b'\x12': ('decode_big_rain', 4, 't_rainmonth', 'ITEM_RAINMONTH'),
-        b'\x13': ('decode_big_rain', 4, 't_rainyear', 'ITEM_RAINYEAR'),
-        b'\x14': ('decode_big_rain', 4, 't_raintotals', 'ITEM_TOTALS'),
-        b'\x15': ('decode_light', 4, 'light', 'ITEM_LIGHT'),
-        b'\x16': ('decode_uv', 2, 'uv', 'ITEM_UV'),
-        b'\x17': ('decode_uvi', 1, 'uvi', 'ITEM_UVI'),
-        b'\x18': ('decode_datetime', 6, 'datetime', 'ITEM_TIME'),
-        b'\x19': ('decode_speed', 2, 'daymaxwind', 'ITEM_DAYLWINDMAX'),
-        b'\x1A': ('decode_temp', 2, 'temp1', 'ITEM_TEMP1'),
-        b'\x1B': ('decode_temp', 2, 'temp2', 'ITEM_TEMP2'),
-        b'\x1C': ('decode_temp', 2, 'temp3', 'ITEM_TEMP3'),
-        b'\x1D': ('decode_temp', 2, 'temp4', 'ITEM_TEMP4'),
-        b'\x1E': ('decode_temp', 2, 'temp5', 'ITEM_TEMP5'),
-        b'\x1F': ('decode_temp', 2, 'temp6', 'ITEM_TEMP6'),
-        b'\x20': ('decode_temp', 2, 'temp7', 'ITEM_TEMP7'),
-        b'\x21': ('decode_temp', 2, 'temp8', 'ITEM_TEMP8'),
-        b'\x22': ('decode_humid', 1, 'humid1', 'ITEM_HUMI1'),
-        b'\x23': ('decode_humid', 1, 'humid2', 'ITEM_HUMI2'),
-        b'\x24': ('decode_humid', 1, 'humid3', 'ITEM_HUMI3'),
-        b'\x25': ('decode_humid', 1, 'humid4', 'ITEM_HUMI4'),
-        b'\x26': ('decode_humid', 1, 'humid5', 'ITEM_HUMI5'),
-        b'\x27': ('decode_humid', 1, 'humid6', 'ITEM_HUMI6'),
-        b'\x28': ('decode_humid', 1, 'humid7', 'ITEM_HUMI7'),
-        b'\x29': ('decode_humid', 1, 'humid8', 'ITEM_HUMI8'),
-        b'\x2A': ('decode_pm25', 2, 'pm251', 'ITEM_PM25_CH1'),
-        b'\x2B': ('decode_temp', 2, 'soiltemp1', 'ITEM_SOILTEMP1'),
-        b'\x2C': ('decode_moist', 1, 'soilmoist1', 'ITEM_SOILMOISTURE1'),
-        b'\x2D': ('decode_temp', 2, 'soiltemp2', 'ITEM_SOILTEMP2'),
-        b'\x2E': ('decode_moist', 1, 'soilmoist2', 'ITEM_SOILMOISTURE2'),
-        b'\x2F': ('decode_temp', 2, 'soiltemp3', 'ITEM_SOILTEMP3'),
-        b'\x30': ('decode_moist', 1, 'soilmoist3', 'ITEM_SOILMOISTURE3'),
-        b'\x31': ('decode_temp', 2, 'soiltemp4', 'ITEM_SOILTEMP4'),
-        b'\x32': ('decode_moist', 1, 'soilmoist4', 'ITEM_SOILMOISTURE4'),
-        b'\x33': ('decode_temp', 2, 'soiltemp5', 'ITEM_SOILTEMP5'),
-        b'\x34': ('decode_moist', 1, 'soilmoist5', 'ITEM_SOILMOISTURE5'),
-        b'\x35': ('decode_temp', 2, 'soiltemp6', 'ITEM_SOILTEMP6'),
-        b'\x36': ('decode_moist', 1, 'soilmoist6', 'ITEM_SOILMOISTURE6'),
-        b'\x37': ('decode_temp', 2, 'soiltemp7', 'ITEM_SOILTEMP7'),
-        b'\x38': ('decode_moist', 1, 'soilmoist7', 'ITEM_SOILMOISTURE7'),
-        b'\x39': ('decode_temp', 2, 'soiltemp8', 'ITEM_SOILTEMP8'),
-        b'\x3A': ('decode_moist', 1, 'soilmoist8', 'ITEM_SOILMOISTURE8'),
-        b'\x3B': ('decode_temp', 2, 'soiltemp9', 'ITEM_SOILTEMP9'),
-        b'\x3C': ('decode_moist', 1, 'soilmoist9', 'ITEM_SOILMOISTURE9'),
-        b'\x3D': ('decode_temp', 2, 'soiltemp10', 'ITEM_SOILTEMP10'),
-        b'\x3E': ('decode_moist', 1, 'soilmoist10', 'ITEM_SOILMOISTURE10'),
-        b'\x3F': ('decode_temp', 2, 'soiltemp11', 'ITEM_SOILTEMP11'),
-        b'\x40': ('decode_moist', 1, 'soilmoist11', 'ITEM_SOILMOISTURE11'),
-        b'\x41': ('decode_temp', 2, 'soiltemp12', 'ITEM_SOILTEMP12'),
-        b'\x42': ('decode_moist', 1, 'soilmoist12', 'ITEM_SOILMOISTURE12'),
-        b'\x43': ('decode_temp', 2, 'soiltemp13', 'ITEM_SOILTEMP13'),
-        b'\x44': ('decode_moist', 1, 'soilmoist13', 'ITEM_SOILMOISTURE13'),
-        b'\x45': ('decode_temp', 2, 'soiltemp14', 'ITEM_SOILTEMP14'),
-        b'\x46': ('decode_moist', 1, 'soilmoist14', 'ITEM_SOILMOISTURE14'),
-        b'\x47': ('decode_temp', 2, 'soiltemp15', 'ITEM_SOILTEMP15'),
-        b'\x48': ('decode_moist', 1, 'soilmoist15', 'ITEM_SOILMOISTURE15'),
-        b'\x49': ('decode_temp', 2, 'soiltemp16', 'ITEM_SOILTEMP16'),
-        b'\x4A': ('decode_moist', 1, 'soilmoist16', 'ITEM_SOILMOISTURE16'),
-        b'\x4C': ('decode_batt', 16, 'lowbatt', 'ITEM_LOWBATT'),
-        b'\x4D': ('decode_pm25', 2, 'pm251_24h_avg', 'ITEM_PM25_24HAVG1'),
-        b'\x4E': ('decode_pm25', 2, 'pm252_24h_avg', 'ITEM_PM25_24HAVG2'),
-        b'\x4F': ('decode_pm25', 2, 'pm253_24h_avg', 'ITEM_PM25_24HAVG3'),
-        b'\x50': ('decode_pm25', 2, 'pm254_24h_avg', 'ITEM_PM25_24HAVG4'),
-        b'\x51': ('decode_pm25', 2, 'pm252', 'ITEM_PM25_CH2'),
-        b'\x52': ('decode_pm25', 2, 'pm253', 'ITEM_PM25_CH3'),
-        b'\x53': ('decode_pm25', 2, 'pm254', 'ITEM_PM25_CH4'),
-        b'\x58': ('decode_leak', 1, 'leak1', 'ITEM_LEAK_CH1'),
-        b'\x59': ('decode_leak', 1, 'leak2', 'ITEM_LEAK_CH2'),
-        b'\x5A': ('decode_leak', 1, 'leak3', 'ITEM_LEAK_CH3'),
-        b'\x5B': ('decode_leak', 1, 'leak4', 'ITEM_LEAK_CH4'),
-        b'\x60': ('decode_distance', 1, 'lightningdist', 'ITEM_LIGHTNING'),
-        b'\x61': ('decode_utc', 4, 'lightningdettime', 'ITEM_LIGHTNING_TIME'),
-        b'\x62': ('decode_count', 4, 'lightningcount', 'ITEM_LIGHTNING_POWER'),
+        b'\x01': ('ITEM_INTEMP', 'decode_temp', 2, 'intemp'),
+        b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2, 'outtemp'),
+        b'\x03': ('ITEM_DEWPOINT', 'decode_temp', 2, 'dewpoint'),
+        b'\x04': ('ITEM_WINDCHILL', 'decode_temp', 2, 'windchill'),
+        b'\x05': ('ITEM_HEATINDEX', 'decode_temp', 2, 'heatindex'),
+        b'\x06': ('ITEM_INHUMI', 'decode_humid', 1, 'inhumid'),
+        b'\x07': ('ITEM_OUTHUMI', 'decode_humid', 1, 'outhumid'),
+        b'\x08': ('ITEM_ABSBARO', 'decode_press', 2, 'absbarometer'),
+        b'\x09': ('ITEM_RELBARO', 'decode_press', 2, 'relbarometer'),
+        b'\x0A': ('ITEM_WINDDIRECTION', 'decode_dir', 2, 'winddir'),
+        b'\x0B': ('ITEM_WINDSPEED', 'decode_speed', 2, 'windspeed'),
+        b'\x0C': ('ITEM_GUSTSPEED', 'decode_speed', 2, 'gustspeed'),
+        b'\x0D': ('ITEM_RAINEVENT', 'decode_rain', 2, 't_rainevent'),
+        b'\x0E': ('ITEM_RAINRATE', 'decode_rainrate', 2, 't_rainrate'),
+        b'\x0F': ('ITEM_RAIN_Gain', 'decode_gain_100', 2, 't_raingain'),
+        b'\x10': ('ITEM_RAINDAY', 'decode_rain', 2, 't_rainday'),
+        b'\x11': ('ITEM_RAINWEEK', 'decode_rain', 2, 't_rainweek'),
+        b'\x12': ('ITEM_RAINMONTH', 'decode_big_rain', 4, 't_rainmonth'),
+        b'\x13': ('ITEM_RAINYEAR', 'decode_big_rain', 4, 't_rainyear'),
+        b'\x14': ('ITEM_TOTALS', 'decode_big_rain', 4, 't_raintotals'),
+        b'\x15': ('ITEM_LIGHT', 'decode_light', 4, 'light'),
+        b'\x16': ('ITEM_UV', 'decode_uv', 2, 'uv'),
+        b'\x17': ('ITEM_UVI', 'decode_uvi', 1, 'uvi'),
+        b'\x18': ('ITEM_TIME', 'decode_datetime', 6, 'datetime'),
+        b'\x19': ('ITEM_DAYLWINDMAX', 'decode_speed', 2, 'daymaxwind'),
+        b'\x1A': ('ITEM_TEMP1', 'decode_temp', 2, 'temp1'),
+        b'\x1B': ('ITEM_TEMP2', 'decode_temp', 2, 'temp2'),
+        b'\x1C': ('ITEM_TEMP3', 'decode_temp', 2, 'temp3'),
+        b'\x1D': ('ITEM_TEMP4', 'decode_temp', 2, 'temp4'),
+        b'\x1E': ('ITEM_TEMP5', 'decode_temp', 2, 'temp5'),
+        b'\x1F': ('ITEM_TEMP6', 'decode_temp', 2, 'temp6'),
+        b'\x20': ('ITEM_TEMP7', 'decode_temp', 2, 'temp7'),
+        b'\x21': ('ITEM_TEMP8', 'decode_temp', 2, 'temp8'),
+        b'\x22': ('ITEM_HUMI1', 'decode_humid', 1, 'humid1'),
+        b'\x23': ('ITEM_HUMI2', 'decode_humid', 1, 'humid2'),
+        b'\x24': ('ITEM_HUMI3', 'decode_humid', 1, 'humid3'),
+        b'\x25': ('ITEM_HUMI4', 'decode_humid', 1, 'humid4'),
+        b'\x26': ('ITEM_HUMI5', 'decode_humid', 1, 'humid5'),
+        b'\x27': ('ITEM_HUMI6', 'decode_humid', 1, 'humid6'),
+        b'\x28': ('ITEM_HUMI7', 'decode_humid', 1, 'humid7'),
+        b'\x29': ('ITEM_HUMI8', 'decode_humid', 1, 'humid8'),
+        b'\x2A': ('ITEM_PM25_CH1', 'decode_pm25', 2, 'pm251'),
+        b'\x2B': ('ITEM_SOILTEMP1', 'decode_temp', 2, 'soiltemp1'),
+        b'\x2C': ('ITEM_SOILMOISTURE1', 'decode_moist', 1, 'soilmoist1'),
+        b'\x2D': ('ITEM_SOILTEMP2', 'decode_temp', 2, 'soiltemp2'),
+        b'\x2E': ('ITEM_SOILMOISTURE2', 'decode_moist', 1, 'soilmoist2'),
+        b'\x2F': ('ITEM_SOILTEMP3', 'decode_temp', 2, 'soiltemp3'),
+        b'\x30': ('ITEM_SOILMOISTURE3', 'decode_moist', 1, 'soilmoist3'),
+        b'\x31': ('ITEM_SOILTEMP4', 'decode_temp', 2, 'soiltemp4'),
+        b'\x32': ('ITEM_SOILMOISTURE4', 'decode_moist', 1, 'soilmoist4'),
+        b'\x33': ('ITEM_SOILTEMP5', 'decode_temp', 2, 'soiltemp5'),
+        b'\x34': ('ITEM_SOILMOISTURE5', 'decode_moist', 1, 'soilmoist5'),
+        b'\x35': ('ITEM_SOILTEMP6', 'decode_temp', 2, 'soiltemp6'),
+        b'\x36': ('ITEM_SOILMOISTURE6', 'decode_moist', 1, 'soilmoist6'),
+        b'\x37': ('ITEM_SOILTEMP7', 'decode_temp', 2, 'soiltemp7'),
+        b'\x38': ('ITEM_SOILMOISTURE7', 'decode_moist', 1, 'soilmoist7'),
+        b'\x39': ('ITEM_SOILTEMP8', 'decode_temp', 2, 'soiltemp8'),
+        b'\x3A': ('ITEM_SOILMOISTURE8', 'decode_moist', 1, 'soilmoist8'),
+        b'\x3B': ('ITEM_SOILTEMP9', 'decode_temp', 2, 'soiltemp9'),
+        b'\x3C': ('ITEM_SOILMOISTURE9', 'decode_moist', 1, 'soilmoist9'),
+        b'\x3D': ('ITEM_SOILTEMP10', 'decode_temp', 2, 'soiltemp10'),
+        b'\x3E': ('ITEM_SOILMOISTURE10', 'decode_moist', 1, 'soilmoist10'),
+        b'\x3F': ('ITEM_SOILTEMP11', 'decode_temp', 2, 'soiltemp11'),
+        b'\x40': ('ITEM_SOILMOISTURE11', 'decode_moist', 1, 'soilmoist11'),
+        b'\x41': ('ITEM_SOILTEMP12', 'decode_temp', 2, 'soiltemp12'),
+        b'\x42': ('ITEM_SOILMOISTURE12', 'decode_moist', 1, 'soilmoist12'),
+        b'\x43': ('ITEM_SOILTEMP13', 'decode_temp', 2, 'soiltemp13'),
+        b'\x44': ('ITEM_SOILMOISTURE13', 'decode_moist', 1, 'soilmoist13'),
+        b'\x45': ('ITEM_SOILTEMP14', 'decode_temp', 2, 'soiltemp14'),
+        b'\x46': ('ITEM_SOILMOISTURE14', 'decode_moist', 1, 'soilmoist14'),
+        b'\x47': ('ITEM_SOILTEMP15', 'decode_temp', 2, 'soiltemp15'),
+        b'\x48': ('ITEM_SOILMOISTURE15', 'decode_moist', 1, 'soilmoist15'),
+        b'\x49': ('ITEM_SOILTEMP16', 'decode_temp', 2, 'soiltemp16'),
+        b'\x4A': ('ITEM_SOILMOISTURE16', 'decode_moist', 1, 'soilmoist16'),
+        b'\x4C': ('ITEM_LOWBATT', 'decode_batt', 16, 'lowbatt'),
+        b'\x4D': ('ITEM_PM25_24HAVG1', 'decode_pm25', 2, 'pm251_24h_avg'),
+        b'\x4E': ('ITEM_PM25_24HAVG2', 'decode_pm25', 2, 'pm252_24h_avg'),
+        b'\x4F': ('ITEM_PM25_24HAVG3', 'decode_pm25', 2, 'pm253_24h_avg'),
+        b'\x50': ('ITEM_PM25_24HAVG4', 'decode_pm25', 2, 'pm254_24h_avg'),
+        b'\x51': ('ITEM_PM25_CH2', 'decode_pm25', 2, 'pm252'),
+        b'\x52': ('ITEM_PM25_CH3', 'decode_pm25', 2, 'pm253'),
+        b'\x53': ('ITEM_PM25_CH4', 'decode_pm25', 2, 'pm254'),
+        b'\x58': ('ITEM_LEAK_CH1', 'decode_leak', 1, 'leak1'),
+        b'\x59': ('ITEM_LEAK_CH2', 'decode_leak', 1, 'leak2'),
+        b'\x5A': ('ITEM_LEAK_CH3', 'decode_leak', 1, 'leak3'),
+        b'\x5B': ('ITEM_LEAK_CH4', 'decode_leak', 1, 'leak4'),
+        b'\x60': ('ITEM_LIGHTNING', 'decode_distance', 1, 'lightningdist'),
+        b'\x61': ('ITEM_LIGHTNING_TIME', 'decode_utc', 4, 'lightningdettime'),
+        b'\x62': ('ITEM_LIGHTNING_POWER', 'decode_count', 4, 'lightningcount'),
         # WN34 battery data is not obtained from live data rather it is
         # obtained from sensor ID data
-        b'\x63': ('decode_wn34', 3, 'temp9', 'ITEM_TF_USR1'),
-        b'\x64': ('decode_wn34', 3, 'temp10', 'ITEM_TF_USR2'),
-        b'\x65': ('decode_wn34', 3, 'temp11', 'ITEM_TF_USR3'),
-        b'\x66': ('decode_wn34', 3, 'temp12', 'ITEM_TF_USR4'),
-        b'\x67': ('decode_wn34', 3, 'temp13', 'ITEM_TF_USR5'),
-        b'\x68': ('decode_wn34', 3, 'temp14', 'ITEM_TF_USR6'),
-        b'\x69': ('decode_wn34', 3, 'temp15', 'ITEM_TF_USR7'),
-        b'\x6A': ('decode_wn34', 3, 'temp16', 'ITEM_TF_USR8'),
-        b'\x6C': ('decode_memory', 4, 'heap_free', 'ITEM_HEAP_FREE'),
+        b'\x63': ('ITEM_TF_USR1', 'decode_wn34', 3, 'temp9'),
+        b'\x64': ('ITEM_TF_USR2', 'decode_wn34', 3, 'temp10'),
+        b'\x65': ('ITEM_TF_USR3', 'decode_wn34', 3, 'temp11'),
+        b'\x66': ('ITEM_TF_USR4', 'decode_wn34', 3, 'temp12'),
+        b'\x67': ('ITEM_TF_USR5', 'decode_wn34', 3, 'temp13'),
+        b'\x68': ('ITEM_TF_USR6', 'decode_wn34', 3, 'temp14'),
+        b'\x69': ('ITEM_TF_USR7', 'decode_wn34', 3, 'temp15'),
+        b'\x6A': ('ITEM_TF_USR8', 'decode_wn34', 3, 'temp16'),
+        b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4, 'heap_free'),
         # WH45 battery data is not obtained from live data rather it is
         # obtained from sensor ID data
-        b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
-                                      'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
-                                      'co2', 'co2_24h_avg'), 'ITEM_SENSOR_CO2'),
+        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16, ('temp17', 'humid17', 'pm10',
+                                                         'pm10_24h_avg', 'pm255',
+                                                         'pm255_24h_avg', 'co2',
+                                                         'co2_24h_avg')
+                  ),
         # placeholder for unknown field 0x71
-        b'\x71': (None, None, None, 'ITEMPM25_AQI'),
-        b'\x72': ('decode_wet', 1, 'leafwet1', 'ITEM_LEAF_WETNESS_CH1'),
-        b'\x73': ('decode_wet', 1, 'leafwet2', 'ITEM_LEAF_WETNESS_CH2'),
-        b'\x74': ('decode_wet', 1, 'leafwet3', 'ITEM_LEAF_WETNESS_CH3'),
-        b'\x75': ('decode_wet', 1, 'leafwet4', 'ITEM_LEAF_WETNESS_CH4'),
-        b'\x76': ('decode_wet', 1, 'leafwet5', 'ITEM_LEAF_WETNESS_CH5'),
-        b'\x77': ('decode_wet', 1, 'leafwet6', 'ITEM_LEAF_WETNESS_CH6'),
-        b'\x78': ('decode_wet', 1, 'leafwet7', 'ITEM_LEAF_WETNESS_CH7'),
-        b'\x79': ('decode_wet', 1, 'leafwet8', 'ITEM_LEAF_WETNESS_CH8'),
-        b'\x7A': ('decode_int', 1, 'rain_priority', 'ITEM_RAIN_Prority'),
-        b'\x7B': ('decode_int', 1, 'temperature_comp', 'ITEM_radcompensation'),
-        b'\x80': ('decode_rainrate', 2, 'p_rainrate', 'ITEM_Piezzo_Rain_Rate'),
-        b'\x81': ('decode_rain', 2, 'p_rainevent', 'ITEM_Piezzo_Event_Rain'),
-        b'\x82': ('decode_reserved', 2, 'p_rainhour', 'ITEM_Piezzo_Hourly_Rain'),
-        b'\x83': ('decode_big_rain', 4, 'p_rainday', 'ITEM_Piezzo_Daily_Rain'),
-        b'\x84': ('decode_big_rain', 4, 'p_rainweek', 'ITEM_Piezzo_Weekly_Rain'),
-        b'\x85': ('decode_big_rain', 4, 'p_rainmonth', 'ITEM_Piezzo_Monthly_Rain'),
-        b'\x86': ('decode_big_rain', 4, 'p_rainyear', 'ITEM_Piezzo_yearly_Rain'),
+        b'\x71': ('ITEMPM25_AQI', None, None, None),
+        b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1, 'leafwet1'),
+        b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1, 'leafwet2'),
+        b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1, 'leafwet3'),
+        b'\x75': ('ITEM_LEAF_WETNESS_CH4', 'decode_wet', 1, 'leafwet4'),
+        b'\x76': ('ITEM_LEAF_WETNESS_CH5', 'decode_wet', 1, 'leafwet5'),
+        b'\x77': ('ITEM_LEAF_WETNESS_CH6', 'decode_wet', 1, 'leafwet6'),
+        b'\x78': ('ITEM_LEAF_WETNESS_CH7', 'decode_wet', 1, 'leafwet7'),
+        b'\x79': ('ITEM_LEAF_WETNESS_CH8', 'decode_wet', 1, 'leafwet8'),
+        b'\x7A': ('ITEM_RAIN_Prority', 'decode_int', 1, 'rain_priority'),
+        b'\x7B': ('ITEM_radcompensation', 'decode_int', 1, 'temperature_comp'),
+        b'\x80': ('ITEM_Piezzo_Rain_Rate', 'decode_rainrate', 2, 'p_rainrate'),
+        b'\x81': ('ITEM_Piezzo_Event_Rain', 'decode_rain', 2, 'p_rainevent'),
+        b'\x82': ('ITEM_Piezzo_Hourly_Rain', 'decode_reserved', 2, 'p_rainhour'),
+        b'\x83': ('ITEM_Piezzo_Daily_Rain', 'decode_big_rain', 4, 'p_rainday'),
+        b'\x84': ('ITEM_Piezzo_Weekly_Rain', 'decode_big_rain', 4, 'p_rainweek'),
+        b'\x85': ('ITEM_Piezzo_Monthly_Rain', 'decode_big_rain', 4, 'p_rainmonth'),
+        b'\x86': ('ITEM_Piezzo_yearly_Rain', 'decode_big_rain', 4, 'p_rainyear'),
         # field 0x87 and 0x88 hold device parameter data that is not
         # included in the loop packets, hence the device field is not
         # used (None).
-        b'\x87': ('decode_rain_gain', 20, None, 'ITEM_Piezo_Gain10'),
-        b'\x88': ('decode_rain_reset', 3, None, 'ITEM_RST_RainTime')
+        b'\x87': ('ITEM_Piezo_Gain10', 'decode_rain_gain', 20, None),
+        b'\x88': ('ITEM_RST_RainTime', 'decode_rain_reset', 3, None)
     }
-    # tuple of field codes for device rain related fields in the live data
-    # so we can isolate these fields
-    rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
-                        b'\x11', b'\x12', b'\x13', b'\x14',
-                        b'\x80', b'\x81', b'\x83', b'\x84',
-                        b'\x85', b'\x86')
-    # tuple of field codes for wind related fields in the device live data
-    # so we can isolate these fields
-    wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
-
-
 
     def __init__(self):
 
@@ -392,7 +383,7 @@ class GatewayApiParser:
                 # the current field, wrap in a try..except in case we
                 # encounter a field address we do not know about
                 try:
-                    decode_fn_str, field_size, field, item = structure[payload[index:index + 1]]
+                    item, decode_fn_str, field_size, field = structure[payload[index:index + 1]]
                 except KeyError:
                     # We struck a field 'address' we do not know how to
                     # process. We can't skip to the next field so all we
@@ -406,7 +397,7 @@ class GatewayApiParser:
                     break
                 else:
                     _field_data = getattr(self, decode_fn_str)(payload[index + 1:index + 1 + field_size],
-                                                               payload[index:index + 1])
+                                                               item)
                     # do we have any decoded data?
                     if _field_data is not None:
                         # we have decoded data so add the decoded data to
@@ -860,259 +851,415 @@ class GatewayApiParser:
                      'sensor_type': data[1],
                      'utc': self.decode_utc(data[2:6]),
                      'timezone_index': data[6],
-                     'dst_status': data[7] != 0}
+                     'dst_status': data[7] >> 0 & 1,
+                     'auto_timezone': data[7] >> 1 & 1}
         # return the parsed response
         return data_dict
 
     @staticmethod
-    def parse_ecowitt(response):
-        """Parse a CMD_READ_ECOWITT API response.
+    def parse_ecowitt(payload):
+        """Parse a CMD_READ_ECOWITT API response data payload.
 
-        Response consists of six bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x1E
-        4       size            byte
-        5       upload interval byte            1-5 minutes, 0=off
-        6       checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        The data payload consists of one byte as follows:
+
+        Parameter Name  Byte(s)  Data  Format  Comments
+        interval        0        byte  0-5     upload interval in minutes
+
+        Returns a dict keyed by parameter name.
         """
 
-        # determine the size of the system parameters data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
-        # create a dict holding our parsed data
-        data_dict = {'interval': data[0]}
+        # We have only one parameter, create a dict holding our parsed data.
+        # Use [x] form rather than [x:x+1] so the result is an integer rather
+        # than a bytestring
+        data_dict = {'interval': payload[0]}
         # return the parsed response
         return data_dict
 
     @staticmethod
-    def parse_wunderground(response):
-        """Parse a CMD_READ_WUNDERGROUND API response.
+    def encode_ecowitt(**ecowitt):
+        """Encode data parameters used for CMD_WRITE_ECOWITT.
 
-        Response consists of a variable number of bytes. Number of
-        bytes = 8 + i + p where i = length of the Wunderground ID in
-        characters and p is the length of the Wunderground password in
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_ECOWITT. Required payload parameters are contained in the
+        ecowitt dict keyed as follows:
+
+        interval:   upload interval in minutes, integer 0-5 inclusive, 0 means
+                    upload is disabled
+
+        Returns a bytestring of length 1.
+        """
+
+        interval_byte = struct.pack('B', ecowitt['interval'])
+        return interval_byte
+
+    @staticmethod
+    def parse_wunderground(payload):
+        """Parse a CMD_READ_WUNDERGROUND API response data payload.
+
+        Payload consists of a variable number of bytes. Number of
+        bytes = 3 + i + p where i = length of the WU ID in ASCII characters and
+        p is the length of the WU password/key in ASCII characters. Decode as
+        follows:
+
+        Parameter Name  Byte(s)     Data format    Comments
+        ID size         0           unsigned byte  length of WU ID (i)
+        ID              1 - 1+i     i ASCII char   WU ID
+        password size   7+i         unsigned byte  length of WU password (p)
+        password/key    8+i -       p ASCII char   WU password/key
+                        8+i+p
+        fixed           9+i+p       unsigned byte  fixed value 1 - unused
+
+        Returns a dict keyed as follows:
+
+        'id'        WeatherUnderground station ID
+        'password'  WeatherUnderground password/key
+        """
+
+        # initialise a dict to hold our final data
+        data_dict = {}
+        # obtain ID size in bytes
+        id_size = payload[0]
+        # obtain the WU ID as a bytestring, convert to ASCII and save to dict
+        data_dict['id'] = payload[1:1 + id_size].decode()
+        # obtain the password/key size in bytes
+        password_size = payload[1 + id_size]
+        # obtain the WU password/key as a bytestring, convert to ASCII and save to
+        # dict
+        data_dict['password'] = payload[2 + id_size:2 + id_size + password_size].decode()
+        # return the parsed payload data
+        return data_dict
+
+    @staticmethod
+    def encode_wu(**wu):
+        """Encode data parameters used for CMD_WRITE_WUNDERGROUND.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_WUNDERGROUND. Required payload parameters are contained in
+        the wu dict keyed as follows:
+
+        id:         WeatherUnderground station ID
+        password:   WeatherUnderground password/key
+
+        The encoded bytestring format is:
+
+        Byte(s)       Format    Comments
+        0             byte      length of station ID (i)
+        1 to i        i bytes   station ID (i characters)
+        1+i           byte      length of station password/key (p)
+        2+i to 1+i+p  p bytes   station password (p characters)
+
+        Returns a bytestring of length 2+i+p.
+        """
+
+        # convert the station ID to a bytestring
+        station_id_b = wu['id'].encode()
+        # convert the password to a bytestring
+        station_key_b = wu['password'].encode()
+        # assemble and return the bytestring data payload
+        return b''.join([struct.pack('B', len(station_id_b)),
+                         station_id_b,
+                         struct.pack('B', len(station_key_b)),
+                         station_key_b])
+
+    # Weathercloud and Weather Observations Website both use a station ID and
+    # password/key in a similar manner to WeatherUnderground. The
+    # CMD_WRITE_WCLOUD and CMD_WRITE_WOW API commands use the same data payload
+    # format as CMD_WRITE_WUNDERGROUND. Consequently, we can use the
+    # WeatherUnderground encode function to encode the CMD_WRITE_WCLOUD and
+    # CMD_WRITE_WOW data payloads.
+    encode_wcloud = encode_wu
+    encode_wow = encode_wu
+
+    @staticmethod
+    def parse_wow(payload):
+        """Parse a CMD_READ_WOW API response data payload.
+
+        Payload consists of a variable number of bytes. Number of
+        bytes = 4 + i + p + s where i = length of the WOW ID in ASCII
+        characters, p is the length of the WOW password/key in ASCII characters
+        and s is the length of the WOW station number in characters. Decode as
+        follows:
+
+        Parameter Name  Byte(s)    Format          Comments
+        ID size         0          unsigned byte   length of WOW ID in
+                                                   characters
+        station ID      1 to 1+i   i x bytes       ASCII, max 39 characters
+        password size   2+i        unsigned byte   length of WOW password in
+                                                   characters
+        password/key    3+i to     p x bytes       ASCII, max 32 characters
+                        3+i+p
+        station num     4+i+p      unsigned byte   length of WOW station num
+        size
+        station num     5+i+p to   s x bytes       ASCII, max 32 characters
+                        15+i+p+s                   (unused)
+        fixed           6+i+p+s    unsigned byte   fixed value 1 (unused)
+
+        Returns a dict keyed as follows:
+
+        'id':           Weather Observations Website station ID
+        'password':     Weather Observations Website password/key
+        'station_num':  Weather Observations Website station number
+        """
+
+        # initialise a dict to hold our final data
+        data_dict = {}
+        # obtain ID size in bytes
+        id_size = payload[0]
+        # obtain the WOW station ID as a bytestring, convert to ASCII and save
+        # to dict
+        data_dict['id'] = payload[1:1 + id_size].decode()
+        # obtain password size in bytes
+        pw_size = payload[1 + id_size]
+        # obtain the WOW password as a bytestring, convert to ASCII and save to
+        # dict
+        data_dict['password'] = payload[2 + id_size:2 + id_size + pw_size].decode()
+        # obtain station number size in bytes
+        stn_num_size = payload[1 + id_size]
+        # obtain the WOW station number as a bytestring, convert to ASCII and
+        # save to dict
+        data_dict['station_num'] = payload[3 + id_size + pw_size:3 + id_size + pw_size + stn_num_size].decode()
+        # return the parsed payload data
+        return data_dict
+
+    @staticmethod
+    def parse_weathercloud(payload):
+        """Parse a CMD_READ_WEATHERCLOUD API data payload.
+
+        Payload consists of a variable number of bytes. Number of
+        bytes = 3 + i + p where i = length of the Weathercloud ID in ASCII
+        characters, p is the length of the Weathercloud password/key in ASCII
         characters. Decode as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x20
-        4       size            byte
-        5       ID size         unsigned byte   length of Wunderground ID
-                                                in characters
-        6-6+i   ID              i x bytes       ASCII, max 32 characters
-        7+i     password size   unsigned byte   length of Wunderground
-                                                password in characters
-        8+i-    password        p x bytes       ASCII, max 32 characters
-        8+i+p
-        9+i+p   fixed           1               fixed value 1
-        10+i+p  checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+
+        Parameter Name  Byte(s)    Format          Comments
+        Byte(s) Data               Format          Comments
+        ID size         0          unsigned byte   length of Weathercloud ID
+                                                                in characters
+        station ID      1 to 1+i   i x bytes       ASCII, max 32 characters
+        password size   2+i        unsigned byte   length of Weathercloud key
+                                                   in characters
+        password/key    3+i to     p x bytes       ASCII, max 32 characters
+                        3+i+p
+        fixed           4+i+p      unsigned byte   fixed value 1 (unused)
         """
 
-        # determine the size of the system parameters data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = {}
-        # obtain the required data from the response decoding any bytestrings
-        id_size = data[0]
-        data_dict['id'] = data[1:1 + id_size].decode()
-        password_size = data[1 + id_size]
-        data_dict['password'] = data[2 + id_size:2 + id_size + password_size].decode()
-        # return the parsed response
+        # obtain ID size in bytes
+        id_size = payload[0]
+        # obtain the Weathercloud station ID as a bytestring, convert to ASCII
+        # and save to dict
+        data_dict['id'] = payload[1:1 + id_size].decode()
+        # obtain key/password size in bytes
+        key_size = payload[1 + id_size]
+        # obtain the Weathercloud key/password as a bytestring, convert to
+        # ASCII and save to dict
+        data_dict['password'] = payload[2 + id_size:2 + id_size + key_size].decode()
+        # return the parsed payload data
         return data_dict
 
     @staticmethod
-    def parse_wow(response):
-        """Parse a CMD_READ_WOW API response.
-
-        Response consists of a variable number of bytes. Number of
-        bytes = 9 + i + p + s where i = length of the WOW ID in characters,
-        p is the length of the WOW password in characters and s is the
-        length of the WOW station number in characters. Decode as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x22
-        4       size            byte
-        5       ID size         unsigned byte   length of WOW ID in
-                                                characters
-        6-6+i   ID              i x bytes       ASCII, max 39 characters
-        7+i     password size   unsigned byte   length of WOW password in
-                                                characters
-        8+i-    password        p x bytes       ASCII, max 32 characters
-        8+i+p
-        9+i+p   station num     unsigned byte   length of WOW station num
-                size                            (unused)
-        10+i+p- station num     s x bytes       ASCII, max 32 characters
-        10+i+p+s                                (unused)
-        11+i+p+s fixed          1               fixed value 1
-        12+i+p+s checksum       byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
-        """
-
-        # determine the size of the system parameters data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
-        # initialise a dict to hold our final data
-        data_dict = {}
-        # obtain the required data from the response decoding any bytestrings
-        id_size = data[0]
-        data_dict['id'] = data[1:1 + id_size].decode()
-        pw_size = data[1 + id_size]
-        data_dict['password'] = data[2 + id_size:2 + id_size + pw_size].decode()
-        stn_num_size = data[1 + id_size]
-        data_dict['station_num'] = data[3 + id_size + pw_size:3 + id_size + pw_size + stn_num_size].decode()
-        # return the parsed response
-        return data_dict
-
-    @staticmethod
-    def parse_weathercloud(response):
-        """Parse a CMD_READ_WEATHERCLOUD API response.
-
-        Response consists of a variable number of bytes. Number of
-        bytes = 8 + i + k where i = length of the Weathercloud ID in
-        characters and p is the length of the Weathercloud key in
-        characters. Decode as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x24
-        4       size            byte
-        5       ID size         unsigned byte   length of Weathercloud ID
-                                                in characters
-        6-6+i   ID              i x bytes       ASCII, max 32 characters
-        7+i     key size        unsigned byte   length of Weathercloud key
-                                                in characters
-        8+i-    key             k x bytes       ASCII, max 32 characters
-        8+i+k
-        9+i+k   fixed           1               fixed value 1
-        10+i+k  checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
-        """
-
-        # determine the size of the system parameters data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
-        # initialise a dict to hold our final data
-        data_dict = {}
-        # obtain the required data from the response decoding any bytestrings
-        id_size = data[0]
-        data_dict['id'] = data[1:1 + id_size].decode()
-        key_size = data[1 + id_size]
-        data_dict['password'] = data[2 + id_size:2 + id_size + key_size].decode()
-        # return the parsed response
-        return data_dict
-
-    @staticmethod
-    def parse_customized(response):
-        """Parse a CMD_READ_CUSTOMIZED API response.
+    def parse_customized(payload):
+        """Parse a CMD_READ_CUSTOMIZED API response data payload.
 
         Response consists of a variable number of bytes. Number of
         bytes = 14 + i + p + s where i = length of the ID in characters,
         p is the length of the password in characters and s is the length
         of the server address in characters. Decode as follows:
-        Byte(s)   Data            Format          Comments
-        1-2       header          -               fixed header 0xFFFF
-        3         command code    byte            0x2A
-        4         size            byte
-        5         ID size         unsigned byte   length of ID in characters
-        6-5+i     ID              i x bytes       ASCII, max 40 characters
-        6+i       password size   unsigned byte   length of password in
-                                                  characters
-        7+i-      password        p x bytes       ASCII, max 40 characters
-        6+i+p
-        7+i+p     server address  unsigned byte   length of server address in
-                  size                            characters
-        8+i+p-    server address  s x bytes       ASCII, max 64 characters
-        7+i+p+s
-        8+i+p+s-  port number     unsigned short  0 to 65535
-        9+i+p+s
-        10+i+p+s- interval        unsigned short  16 to 600 seconds
-        11+i+p+s
-        12+i+p+s  type            byte            0 = Ecowitt, 1 = WU
-        13+i+p+s  active          byte            0 = disable, 1 = enable
-        14+i+p+s  checksum        byte            LSB of the sum of the
-                                                  command, size and data
-                                                  bytes
+
+        Parameter Name  Byte(s)     Format          Comments
+        ID size         0           unsigned byte   length of ID in ASCII
+                                                    characters
+        station ID      1 to +i     i x bytes       ASCII, max 40 characters
+        password size   1+i         unsigned byte   length of password in
+                                                    ASCII characters
+        password        2+i to      p x bytes       ASCII, max 40 characters
+                        1+i+p
+        server address  2+i+p       unsigned byte   length of server address in
+        size                                        ASCII characters
+        server address  3+i+p to    s x bytes       ASCII, max 64 characters
+                        2+i+p+s
+        port number     3+i+p+s to  unsigned short  0 to 65535
+                        4+i+p+s
+        interval        5+i+p+s to  unsigned short  16 to 600 seconds
+                        6+i+p+s
+        type            7+i+p+s     byte            0=Ecowitt, 1=WU
+        active          8+i+p+s     byte            0=disable, 1=enable
         """
 
-        # determine the size of the system parameters data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         data_dict = {}
-        # obtain the required data from the response decoding any bytestrings
+        # initialise a byte index/placeholder, we will be stepping through the
+        # data payload bytestring
         index = 0
-        id_size = data[index]
+        # obtain ID size in bytes
+        id_size = payload[index]
+        # move to the first byte of the next field
         index += 1
-        data_dict['id'] = data[index:index + id_size].decode()
+        # obtain the station ID as a bytestring, convert to ASCII and save to
+        # dict
+        data_dict['id'] = payload[index:index + id_size].decode()
+        # move to the first byte of the next field
         index += id_size
-        password_size = data[index]
+        # obtain password/key size in bytes
+        password_size = payload[index]
+        # move to the first byte of the next field
         index += 1
-        data_dict['password'] = data[index:index + password_size].decode()
+        # obtain the password/key as a bytestring, convert to ASCII and save to
+        # dict
+        data_dict['password'] = payload[index:index + password_size].decode()
+        # move to the first byte of the next field
         index += password_size
-        server_size = data[index]
+        # obtain server name size in bytes
+        server_size = payload[index]
+        # move to the first byte of the next field
         index += 1
-        data_dict['server'] = data[index:index + server_size].decode()
+        # obtain the server name as a bytestring, convert to ASCII and save to
+        # dict
+        data_dict['server'] = payload[index:index + server_size].decode()
+        # move to the first byte of the next field
         index += server_size
-        data_dict['port'] = struct.unpack(">h", data[index:index + 2])[0]
+        # obtain the port number and save to dict
+        data_dict['port'] = struct.unpack(">h", payload[index:index + 2])[0]
+        # move to the first byte of the next field
         index += 2
-        data_dict['interval'] = struct.unpack(">h", data[index:index + 2])[0]
+        # obtain the upload interval and save to dict
+        data_dict['interval'] = struct.unpack(">h", payload[index:index + 2])[0]
+        # move to the first byte of the next field
         index += 2
-        data_dict['type'] = data[index]
+        # obtain the upload data format and save to dict
+        data_dict['type'] = payload[index]
+        # move to the first byte of the next field
         index += 1
-        data_dict['active'] = data[index]
-        # return the parsed response
+        # determine whether the uplaod is active or not amd save to dict
+        data_dict['active'] = payload[index]
+        # return the parsed data payload
         return data_dict
 
     @staticmethod
-    def parse_usr_path(response):
-        """Parse a CMD_READ_USR_PATH API response.
+    def encode_customized(**custom):
+        """Encode data parameters used for CMD_WRITE_CUSTOMIZED.
 
-        Response consists of a variable number of bytes. Number of
-        bytes = 7 + e + w where e = length of the 'Ecowitt path' in
-        characters and w is the length of the 'Weather Underground path'.
-        Decode as follows:
-        Byte(s)     Data            Format          Comments
-        1-2         header          -               fixed header 0xFFFF
-        3           command code    byte            0x51
-        4           size            byte
-        5           Ecowitt size    unsigned byte   length of Ecowitt path
-                                                    in characters
-        6-5+e       Ecowitt path    e x bytes       ASCII, max 64 characters
-        6+e         WU size         unsigned byte   length of WU path in
-                                                    characters
-        7+e-6+e+w   WU path         w x bytes       ASCII, max 64 characters
-        7+e+w       checksum        byte            LSB of the sum of the
-                                                    command, size and data
-                                                    bytes
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_CUSTOMIZED. Required payload parameters are contained in the
+        custom dict keyed as follows:
+
+        active:     whether the custom upload is active, 0 = inactive,
+                    1 = active
+        type:       what protocol (Ecowitt or WeatherUnderground) to use for
+                    upload, 0 = Ecowitt, 1 = WeatherUnderground
+        server:     server IP address or host name, string
+        port:       server port number, integer 0 to 65536
+        interval:   upload interval in seconds
+        id:         WeatherUnderground station ID
+        password:   WeatherUnderground key
+
+        The encoded bytestring format is:
+
+        Byte(s)       Format            Comments
+        0             byte              length of station ID (i)
+        1 to i        i bytes           station ID (i characters)
+        1+i           byte              length of station password/key (p)
+        2+i to 1+i+p  p bytes           station password (p characters)
+        2+i+p         byte              length of server address
+        3+i+p to      s bytes           server address
+        2+i+p+s
+        3+i+p+s to    unsigned short    server port
+        4+i+p+s
+        5+i+p+s to    unsigned short    upload interval
+        6+i+p+s
+        7+i+p+s       byte              type
+        8+i+p+s       byte              active/inactive
+
+        Returns a bytestring of length 9+i+p+s.
         """
 
-        # determine the size of the user path data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
+        id_b = custom['id'].encode()
+        password_b = custom['password'].encode()
+        server_b = custom['server'].encode()
+        port_b = struct.pack('>h', custom['port'])
+        interval_b = struct.pack('>h', custom['interval'])
+        type_b = struct.pack('B', custom['type'])
+        active_b = struct.pack('B', custom['active'])
+        return b''.join([struct.pack('B', len(id_b)),
+                         id_b,
+                         struct.pack('B', len(password_b)),
+                         password_b,
+                         struct.pack('B', len(server_b)),
+                         server_b,
+                         port_b,
+                         interval_b,
+                         type_b,
+                         active_b])
+
+    @staticmethod
+    def parse_usr_path(payload):
+        """Parse a CMD_READ_USR_PATH API response data payload.
+
+        Response data payload consists of 2+e+w bytes where e = length of the
+        'Ecowitt path' in characters and w is the length of the
+        'WeatherUnderground path'. Decode as follows:
+
+        Parameter Name  Byte(s)     Format          Comments
+        Ecowitt size    0           unsigned byte   length of Ecowitt path in
+                                                    ASCII characters
+        Ecowitt path    1 to +i     i x bytes       ASCII, max 40 characters
+        WU size         1+i         unsigned byte   length of WU path in ASCII
+                                                    characters
+        WU path         2+i to      p x bytes       ASCII, max 40 characters
+                        1+i+p
+        """
+
         # initialise a dict to hold our final data
         data_dict = {}
+        # initialise a byte index/placeholder, we will be stepping through the
+        # data payload bytestring
         index = 0
-        ecowitt_size = data[index]
+        # obtain Ecowitt path size in bytes
+        ecowitt_size = payload[index]
+        # move to the first byte of the next field
         index += 1
-        data_dict['ecowitt_path'] = data[index:index + ecowitt_size].decode()
+        # obtain the Ecowitt path as a bytestring, convert to ASCII and save to
+        # dict
+        data_dict['ecowitt_path'] = payload[index:index + ecowitt_size].decode()
+        # move to the first byte of the next field
         index += ecowitt_size
-        wu_size = data[index]
+        # obtain WU path size in bytes
+        wu_size = payload[index]
+        # move to the first byte of the next field
         index += 1
-        data_dict['wu_path'] = data[index:index + wu_size].decode()
-        # return the parsed response
+        # obtain the WU path as a bytestring, convert to ASCII and save to dict
+        data_dict['wu_path'] = payload[index:index + wu_size].decode()
+        # return the parsed data payload
         return data_dict
+
+    @staticmethod
+    def encode_usr_path(**usr_path):
+        """Encode data parameters used for CMD_WRITE_USRPATH.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_USRPATH. Required payload parameters are contained in the
+        custom dict keyed as follows:
+
+        ecowit_path:    the Ecowitt.net path
+        wu_path:        the WeatherUnderground path
+
+        The encoded bytestring format is:
+
+        Byte(s)       Format            Comments
+        0             byte              length of Ecowitt path (i)
+        1 to i        i bytes           Ecowitt path (i characters)
+        1+i           byte              length of WU path (p)
+        2+i to 1+i+p  p bytes           WU path (p characters)
+
+        Returns a bytestring of length 2+i+p.
+        """
+
+        ec_path_b = usr_path['ecowitt_path'].encode()
+        wu_path_b = usr_path['wu_path'].encode()
+        return b''.join([struct.pack('B', len(ec_path_b)),
+                         ec_path_b,
+                         struct.pack('B', len(wu_path_b)),
+                         wu_path_b])
 
     @staticmethod
     def parse_station_mac(response):
@@ -1543,96 +1690,6 @@ class GatewayApiParser:
         return None
 
     @staticmethod
-    def encode_ecowitt(**ecowitt):
-        """Encode data parameters used for CMD_WRITE_ECOWITT.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_ECOWITT. Required payload parameters are contained in the
-        ecowitt dict keyed as follows:
-
-        interval:   upload interval in minutes, integer 0-5 inclusive, 0 means
-                    upload is disabled
-
-        Returns a bytestring.
-        """
-
-        interval_byte = struct.pack('B', ecowitt['interval'])
-        return interval_byte
-
-    @staticmethod
-    def encode_wu_wcloud_wow(**wu_wow_wcloud):
-        """Encode data parameters used for CMD_WRITE_WUNDERGROUND,
-        CMD_WRITE_WOW and CMD_WRITE_WEATHERCLOUD.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_WUNDERGROUND, CMD_WRITE_WOW and CMD_WRITE_WEATHERCLOUD.
-        Required payload parameters are contained in the wu_wow_wcloud dict
-        keyed as follows:
-
-        id:         WeatherUnderground/WOW/Weathercloud station ID
-        password:   WeatherUnderground/WOW/Weathercloud key
-
-        Returns a bytestring.
-        """
-
-        station_id_b = wu_wow_wcloud['id'].encode()
-        station_key_b = wu_wow_wcloud['password'].encode()
-        return b''.join([struct.pack('B', len(station_id_b)),
-                         station_id_b,
-                         struct.pack('B', len(station_key_b)),
-                         station_key_b])
-
-    @staticmethod
-    def encode_custom(**custom):
-        """Encode data parameters used for CMD_WRITE_CUSTOMIZED.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_CUSTOMIZED. Required payload parameters are contained in the
-        custom dict keyed as follows:
-
-        active:     whether the custom upload is active, 0 = inactive,
-                    1 = active
-        type:       what protocol (Ecowitt or WeatherUnderground) to use for
-                    upload, 0 = Ecowitt, 1 = WeatherUnderground
-        server:     server IP address or host name, string
-        port:       server port number, integer 0 to 65536
-        interval:   upload interval in seconds
-        id:         WeatherUnderground station ID
-        password:   WeatherUnderground key
-
-        Returns a bytestring.
-        """
-
-        id_b = custom['id'].encode()
-        password_b = custom['password'].encode()
-        server_b = custom['server'].encode()
-        port_b = struct.pack('>h', custom['port'])
-        interval_b = struct.pack('>h', custom['interval'])
-        type_b = struct.pack('B', custom['type'])
-        active_b = struct.pack('B', custom['active'])
-        return b''.join([struct.pack('B', len(id_b)),
-                         id_b,
-                         struct.pack('B', len(password_b)),
-                         password_b,
-                         struct.pack('B', len(server_b)),
-                         server_b,
-                         port_b,
-                         interval_b,
-                         type_b,
-                         active_b])
-
-    @staticmethod
-    def encode_custom_paths(**custom_paths):
-        """Encode """
-
-        ec_path_b = custom_paths['ecowitt_path'].encode()
-        wu_path_b = custom_paths['wu_path'].encode()
-        return b''.join([struct.pack('B', len(ec_path_b)),
-                         ec_path_b,
-                         struct.pack('B', len(wu_path_b)),
-                         wu_path_b])
-
-    @staticmethod
     def encode_gain(**gain):
         """Encode data parameters used for CMD_WRITE_GAIN.
 
@@ -1764,6 +1821,50 @@ class GatewayApiParser:
         co2:  CO2 offset, float -600 - +10 000  --> signed short
         pm25: PM2.5 offset, float -200 - +200   --> signed short
         pm10: PM10 offset, float -200 - +200    --> signed short
+
+        Returns a bytestring.
+        """
+
+        co2_b = struct.pack('>h', int(offsets['co2']))
+        pm25_b = struct.pack('>h', int(offsets['pm25'] * 10))
+        pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
+        return b''.join([co2_b, pm25_b, pm10_b])
+
+    @staticmethod
+    def encode_rain_params(**offsets):
+        """Encode data parameters used for CMD_WRITE_RAIN.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_RAIN. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        rate:       rain rate, float -600 - +10 000  --> signed short
+        day:        PM2.5 offset, float -200 - +200   --> signed short
+        week:       PM10 offset, float -200 - +200    --> signed short
+        month:
+        year:
+        event:
+        gain:
+        p_rate:
+        p_event:
+        p_day:
+        p_week:
+        p_month:
+        p_year:
+        priority:
+        gain0:
+        gain1:
+        gain2:
+        gain3:
+        gain4:
+        gain5:
+        gain6:
+        gain7:
+        gain8:
+        gain9:
+        day_reset:
+        week_reset:
+        year_reset:
 
         Returns a bytestring.
         """
@@ -2717,13 +2818,23 @@ class GatewayApi():
         Sends the API command to obtain the device Ecowitt.net parameters
         with retries. If the device cannot be contacted a GWIOError will
         have been raised by send_cmd_with_retries() which will be passed
-        through by get_ecowitt(). Any code calling
-        get_ecowitt() should be prepared to handle this
-        exception.
+        through by get_ecowitt(). Any code calling get_ecowitt() should be
+        prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_ECOWITT')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_ECOWITT')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_wunderground(self):
         """Get Weather Underground parameters.
@@ -2734,10 +2845,21 @@ class GatewayApi():
         will be passed through by get_wunderground(). Any code
         calling get_wunderground() should be prepared to handle this
         exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_weathercloud(self):
         """Get Weathercloud parameters.
@@ -2748,10 +2870,21 @@ class GatewayApi():
         through by get_weathercloud(). Any code calling
         get_weathercloud() should be prepared to handle this
         exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_wow(self):
         """Get Weather Observations Website parameters.
@@ -2761,10 +2894,21 @@ class GatewayApi():
         a GWIOError will have been raised by send_cmd_with_retries() which
         will be passed through by get_wow(). Any code calling
         get_wow() should be prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_WOW')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_WOW')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_customized(self):
         """Get custom server parameters.
@@ -2774,10 +2918,21 @@ class GatewayApi():
         have been raised by send_cmd_with_retries() which will be passed
         through by get_customized(). Any code calling
         get_customized() should be prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response
-        return self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_usr_path(self):
         """Get user defined custom path.
@@ -2787,10 +2942,21 @@ class GatewayApi():
         have been raised by send_cmd_with_retries() which will be passed
         through by get_usr_path(). Any code calling get_usr_path() should
         be prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_USR_PATH')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_USR_PATH')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_station_mac(self):
         """Get device MAC address.
@@ -3124,6 +3290,23 @@ class GatewayApi():
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
+    def write_rain_params(self, payload):
+        """Write the rain related parameters.
+
+        Sends the API command to write the rain related parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_rain_params(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_rain_params() should be
+        prepared to handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_RAIN', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send an API command to the device with retries and return
         the response.
@@ -3295,6 +3478,10 @@ class GatewayApi():
             used in the API call
         2.  the calculated checksum of the data in the response matches the
             checksum byte in the response
+
+        The packet length byte (byte 3) could also be checked against the
+        actual number of bytes in the packet but as the checksum is verified
+        the former would be largely superfluous.
 
         If any check fails an appropriate exception is raised, if all checks
         pass the method exits without raising an exception.
@@ -3753,17 +3940,19 @@ class GatewayDevice:
     def ecowitt_net_params(self):
         """Gateway device Ecowitt.net parameters.
 
-        The WSView+ app displays the Ecowitt service parameters including the
-        device MAC address. When queried for the Ecowitt service parameters the
-        Gateway API returns all parameters except the device MAC address. To
-        include the device MAC address we separately obtain the device MAC
-        address and add it to the Ecowitt service parameter dict.
+        There is only one Ecowitt.net upload parameter:
+
+        Parameter     Description
+        interval      upload interval in minutes. Range 0-5, 0=off
+
+        Returns a dict of Ecowitt.net upload parameters.
         """
 
-        # obtain a dict containing the Ecowitt service parameters
-        _data = self.gateway_api.get_ecowitt()
+        # obtain the Ecowitt.net upload parameters via the gateway API, the
+        # result will be a bytestring or None
+        payload = self.gateway_api.get_ecowitt()
         # parse the Ecowitt service parameter data
-        _parsed_data = self.gateway_api_parser.parse_ecowitt(_data)
+        _parsed_data = self.gateway_api_parser.parse_ecowitt(payload)
         # now obtain the device MAC address and add it to the Ecowitt service
         # parameter dict
         _parsed_data['mac'] = self.mac_address
@@ -3772,38 +3961,103 @@ class GatewayDevice:
 
     @property
     def wu_params(self):
-        """Gateway device Weather Underground parameters."""
+        """Gateway device WeatherUnderground parameters.
 
-        _data = self.gateway_api.get_wunderground()
-        return self.gateway_api_parser.parse_wunderground(_data)
+        Supports the following WeatherUnderground upload parameters:
+
+        Parameter     Description
+        id            WeatherUnderground station ID
+        password      WeatherUnderground password/key
+
+        Returns a dict of WeatherUnderground upload parameters.
+        """
+
+        # obtain the WU upload parameters via the gateway API, the result will
+        # be a bytestring or None
+        payload = self.gateway_api.get_wunderground()
+        # return the parsed WU upload data
+        return self.gateway_api_parser.parse_wunderground(payload)
 
     @property
     def wcloud_params(self):
-        """Gateway device Weathercloud parameters."""
+        """Gateway device Weathercloud parameters.
 
-        _data = self.gateway_api.get_weathercloud()
-        return self.gateway_api_parser.parse_weathercloud(_data)
+        Supports the following Weathercloud upload parameters:
+
+        Parameter     Description
+        id            Weathercloud station ID
+        password      Weathercloud password/key
+
+        Returns a dict of Weathercloud upload parameters.
+        """
+
+        # obtain the Weathercloud upload parameters via the gateway API, the
+        # result will be a bytestring or None
+        payload = self.gateway_api.get_weathercloud()
+        # return the parsed Weathercloud upload data
+        return self.gateway_api_parser.parse_weathercloud(payload)
 
     @property
     def wow_params(self):
-        """Gateway device Weather Observations Website parameters."""
+        """Gateway device Weather Observations Website parameters.
 
-        _data = self.gateway_api.get_wow()
-        return self.gateway_api_parser.parse_wow(_data)
+        Supports the following Weathercloud upload parameters:
+
+        Parameter     Description
+        id            Weather Observations Website station ID
+        password      Weather Observations Website password/key
+
+        Returns a dict of Weather Observations Website upload parameters.
+        """
+
+        # obtain the Weather Observations Website upload parameters via the
+        # gateway API, the result will be a bytestring or None
+        payload = self.gateway_api.get_wow()
+        # return the parsed Weather Observations Website upload data
+        return self.gateway_api_parser.parse_wow(payload)
 
     @property
     def custom_params(self):
-        """Gateway device custom server parameters."""
+        """Gateway device custom server parameters.
 
-        _data = self.gateway_api.get_customized()
-        return self.gateway_api_parser.parse_customized(_data)
+        Supports the following custom server upload parameters:
+
+        Parameter       Description
+        id:             station ID
+        password:       station password/key
+        server:         server address/name
+        port:           server port
+        interval:       upload interval
+        type:           upload data format
+        active:         whether upload is enabled/disabled
+
+        Returns a dict of custom upload parameters.
+        """
+
+        # obtain the customized upload parameters via the gateway API, the
+        # result will be a bytestring or None
+        payload = self.gateway_api.get_customized()
+        # return the parsed customized upload data
+        return self.gateway_api_parser.parse_customized(payload)
 
     @property
     def usr_path(self):
-        """Gateway device user defined custom path parameters."""
+        """Gateway device user defined custom path parameters.
 
-        _data = self.gateway_api.get_usr_path()
-        return self.gateway_api_parser.parse_usr_path(_data)
+        Supports the following usr path parameters:
+
+        Parameter       Description
+        ecowitt_path:   Ecowitt.net path
+        wu_path:        WeatherUnderground path
+
+        Returns a dict of usr path parameters.
+        """
+
+        # obtain the usr path parameters via the gateway API, the result will
+        # be a bytestring or None
+        payload = self.gateway_api.get_usr_path()
+        # return the parsed usr path data
+        return self.gateway_api_parser.parse_usr_path(payload)
 
     @property
     def all_custom_params(self):
@@ -4006,7 +4260,7 @@ class GatewayDevice:
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_wu_wcloud_wow(**wu)
+        payload = self.gateway_api_parser.encode_wu(**wu)
         # update the gateway device
         self.gateway_api.set_wu(payload)
 
@@ -4021,7 +4275,7 @@ class GatewayDevice:
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_wu_wcloud_wow(**wcloud)
+        payload = self.gateway_api_parser.encode_wcloud(**wcloud)
         # update the gateway device
         self.gateway_api.set_wcloud(payload)
 
@@ -4036,7 +4290,7 @@ class GatewayDevice:
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_wu_wcloud_wow(**wow)
+        payload = self.gateway_api_parser.encode_wow(**wow)
         # update the gateway device
         self.gateway_api.set_wow(payload)
 
@@ -4063,8 +4317,8 @@ class GatewayDevice:
         """
 
         # obtain encoded data payloads for each API command
-        payload_custom = self.gateway_api_parser.encode_custom(**custom)
-        payload_paths = self.gateway_api_parser.encode_custom_paths(**custom)
+        payload_custom = self.gateway_api_parser.encode_customized(**custom)
+        payload_paths = self.gateway_api_parser.encode_usr_path(**custom)
         # update the gateway device
         self.gateway_api.set_custom(payload_custom)
         self.gateway_api.set_custom_paths(payload_paths)
@@ -4192,6 +4446,30 @@ class GatewayDevice:
         payload = self.gateway_api_parser.encode_co2_offsets(**offsets)
         # update the gateway device
         self.gateway_api.set_co2_offsets(payload)
+
+    def write_rain(self, **params):
+        """Write rain parameters.
+
+        Write rain parameters to a gateway device. The rain parameters consist
+        of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The rain parameters are first encoded to produce the command data
+        payload. The payload is then passed to a GatewayApi object for
+        uploading to the gateway device.
+        """
+
+        # obtain encoded data payload for the API command
+        payload = self.gateway_api_parser.encode_rain_params(**params)
+        # update the gateway device
+        self.gateway_api.write_rain_params(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
@@ -4415,6 +4693,10 @@ class DirectGateway:
             0: 'off',
             1: 'on'
         }
+        auto_tz_decode = {
+            0: 'enabled(auto)',
+            1: 'disabled(manual)'
+        }
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
@@ -4455,14 +4737,15 @@ class DirectGateway:
         _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
         # print the system parameters
         print()
-        print(f'{"sensor type":>26}: {sys_params_dict["sensor_type"]} ({_sensor_type_str})')
-        print(f'{"frequency":>26}: {sys_params_dict["frequency"]} ({freq_str})')
+        print(f'{"sensor type":>28}: {sys_params_dict["sensor_type"]} ({_sensor_type_str})')
+        print(f'{"frequency":>28}: {sys_params_dict["frequency"]} ({freq_str})')
         if temperature_comp is not None:
-            print(f'{"Temperature Compensation":>26}: {temperature_comp} '
+            print(f'{"Temperature Compensation":>28}: {temperature_comp} '
                   f'({temperature_comp_decode.get(temperature_comp, "unknown")})')
         else:
-            print(f'{"Temperature Compensation":>26}: unavailable')
-
+            print(f'{"Temperature Compensation":>28}: unavailable')
+        print(f'{"Auto Timezone":>28}: {auto_tz_decode[sys_params_dict["auto_timezone"]]}')
+        print(f'{"timezone index":>28}: {sys_params_dict["timezone_index"]}')
         # The gateway API returns what is labelled "UTC" but is in fact the
         # current epoch timestamp adjusted by the station timezone offset.
         # So when the timestamp is converted to a human-readable GMT
@@ -4475,9 +4758,8 @@ class DirectGateway:
         # this is not possible. We can only do what we can.
         date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                       time.gmtime(sys_params_dict['utc']))
-        print(f'{"date-time":>26}: {date_time_str}')
-        print(f'{"timezone index":>26}: {sys_params_dict["timezone_index"]}')
-        print(f'{"DST status":>26}: {sys_params_dict["dst_status"]}')
+        print(f'{"date-time":>28}: {date_time_str}')
+        print(f'{"Automatically adjust for DST":>28}: {sys_params_dict["dst_status"]}')
 
     def display_rain_data(self):
         """Display the device rain data.
@@ -4571,11 +4853,11 @@ class DirectGateway:
         else:
             print()
             if 'rain_priority' in rain_data:
-                print(f'{"Rainfall data priority":>26}: '
+                print(f'{"Rainfall data priority":>28}: '
                       f'{source_lookup.get(rain_data["rain_priority"], "unknown selection")}')
                 print()
             if any(field in rain_data for field in traditional):
-                print(f'{"Traditional rain data":>26}:')
+                print(f'{"Traditional rain data":>28}:')
                 _data = rain_data.get('t_rainrate')
                 _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
                 print(f'{"Rain rate":>30}: {_data_str})')
@@ -4601,7 +4883,7 @@ class DirectGateway:
                 print(f'{"No traditional rain data available":>38}')
             print()
             if any(field in rain_data for field in piezo):
-                print(f'{"Piezo rain data":>26}:')
+                print(f'{"Piezo rain data":>28}:')
                 _data = rain_data.get('p_rainrate')
                 _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
                 print(f'{"Rain rate":>30}: {_data_str})')
@@ -4639,7 +4921,7 @@ class DirectGateway:
                 print(f'{"No piezo rain data available":>32}')
             print()
             if any(field in rain_data for field in reset):
-                print(f'{"Rainfall reset time data:":>26}:')
+                print(f'{"Rainfall reset time data:":>28}:')
                 _data = rain_data.get('day_reset')
                 _data_str = f'{_data:02d}:00' if _data is not None else '-----'
                 print(f'{"Daily rainfall reset time":>30}: {_data_str}')
@@ -4804,7 +5086,7 @@ class DirectGateway:
                         print(f'{channel_str:>13}: PM2.5 offset: {offset_str:5}')
                 else:
                     # we have no results, so display a suitable message
-                    print(f'{"No PM2.5 sensors found":>26}')
+                    print(f'{"No PM2.5 sensors found":>28}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -4886,16 +5168,16 @@ class DirectGateway:
                 # now format and display the data
                 print()
                 print("Calibration")
-                print(f'{"Irradiance gain":>26}: {calibration_data["solar"]:5.2f}')
-                print(f'{"UV gain":>26}: {calibration_data["uv"]:4.1f}')
-                print(f'{"Wind gain":>26}: {calibration_data["wind"]:4.1f}')
-                print(f'{"Inside temperature offset":>26}: {calibration_data["intemp"]:4.1f} \xb0C')
-                print(f'{"Inside humidity offset":>26}: {calibration_data["inhum"]:4.1f} %')
-                print(f'{"Outside temperature offset":>26}: {calibration_data["outtemp"]:4.1f} \xb0C')
-                print(f'{"Outside humidity offset":>26}: {calibration_data["outhum"]:4.1f} %')
-                print(f'{"Absolute pressure offset":>26}: {calibration_data["abs"]:4.1f} hPa')
-                print(f'{"Relative pressure offset":>26}: {calibration_data["rel"]:4.1f} hPa')
-                print(f'{"Wind direction offset":>26}: {calibration_data["dir"]:4.1f} \xb0')
+                print(f'{"Irradiance gain":>28}: {calibration_data["solar"]:5.2f}')
+                print(f'{"UV gain":>28}: {calibration_data["uv"]:4.1f}')
+                print(f'{"Wind gain":>28}: {calibration_data["wind"]:4.1f}')
+                print(f'{"Inside temperature offset":>28}: {calibration_data["intemp"]:4.1f} \xb0C')
+                print(f'{"Inside humidity offset":>28}: {calibration_data["inhum"]:4.1f} %')
+                print(f'{"Outside temperature offset":>28}: {calibration_data["outtemp"]:4.1f} \xb0C')
+                print(f'{"Outside humidity offset":>28}: {calibration_data["outhum"]:4.1f} %')
+                print(f'{"Absolute pressure offset":>28}: {calibration_data["abs"]:4.1f} hPa')
+                print(f'{"Relative pressure offset":>28}: {calibration_data["rel"]:4.1f} hPa')
+                print(f'{"Wind direction offset":>28}: {calibration_data["dir"]:4.1f} \xb0')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -5639,7 +5921,7 @@ class DirectGateway:
         if arg_offsets != offsets:
             # something has changed, so write the updated offsets to the device
             try:
-                device.write_pm2_offsets(**arg_offsets)
+                device.write_pm25_offsets(**arg_offsets)
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
             else:
@@ -5695,7 +5977,7 @@ class DirectGateway:
             print("No changes to current device settings")
 
     def write_rain(self):
-        """Process pm25-offset write sub-subcommand."""
+        """Process rain write sub-subcommand."""
 
         # wrap in a try..except in case there is an error
         try:
@@ -5716,25 +5998,24 @@ class DirectGateway:
         print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
               f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
         print()
-        # obtain the current pm2.5 sensor offsets from the device
-        pm25_offsets = device.pm25_offset
-        # make a copy of the current pm2.5 sensor offsets, this copy will be
-        # updated with the subcommand arguments and then used to update the
-        # device
-        arg_pm25_offsets = dict(pm25_offsets)
-        # iterate over each sensor ID param (param, value) pair
-        for channel, offset in pm25_offsets.items():
+        # obtain the current rain related parameters from the device
+        parameters = device.rain
+        # make a copy of the current parameters, this copy will be updated with
+        # the subcommand arguments and then used to update the device
+        arg_parameters = dict(parameters)
+        # iterate over each parameter (param, value) pair
+        for param, value in parameters.items():
             # obtain the corresponding argument from the namespace, if the
             # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, channel, None)
-            # update our pm25 offset dict copy if the namespace argument is not
-            # None, otherwise keep the current pm25 offsets
-            arg_pm25_offsets[channel] = _arg if _arg is not None else offset
+            _arg = getattr(self.namespace, param, None)
+            # update our dict copy if the namespace argument is not None,
+            # otherwise keep the current parameter value
+            arg_parameters[param] = _arg if _arg is not None else value
         # do we have any changes from our existing settings
-        if arg_pm25_offsets != pm25_offsets:
+        if arg_parameters != parameters:
             # something has changed, so write the updated offsets to the device
             try:
-                device.write_sensor_id(**arg_pm25_offsets)
+                device.write_rain(**arg_parameters)
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
             else:
