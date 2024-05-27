@@ -436,7 +436,7 @@ class GatewayApiParser:
         Payload consists of a bytestring of length 66 as follows:
 
         Field Name              Byte(s)     Data format     Comments
-
+#TODO. This is not correct, what about address bytes?
         ITEM_RAINRATE           0 to 1      unsigned short
         ITEM_RAINDAY            2 to 5      unsigned long
         ITEM_RAINWEEK           6 to 9      unsigned long
@@ -4870,8 +4870,12 @@ class DirectGateway:
             1: 'on'
         }
         auto_tz_decode = {
-            0: 'enabled(auto)',
-            1: 'disabled(manual)'
+            0: 'enabled (auto)',
+            1: 'disabled (manual)'
+        }
+        dst_decode = {
+            0: 'disabled (manual update)',
+            1: 'enabled (automatic update)'
         }
         # wrap in a try..except in case there is an error
         try:
@@ -4903,7 +4907,7 @@ class DirectGateway:
         except GWIOError:
             temperature_comp = None
         else:
-            temperature_comp = _rain_data.get('temperature_comp')
+            temperature_comp = _rain_data.get('ITEM_radcompensation')
         # create a meaningful string for frequency representation
         freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
         # if sensor_type is 0 there is a WH24 connected, if it's a 1 there
@@ -4935,7 +4939,8 @@ class DirectGateway:
         date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
                                       time.gmtime(sys_params_dict['utc']))
         print(f'{"date-time":>28}: {date_time_str}')
-        print(f'{"Automatically adjust for DST":>28}: {sys_params_dict["dst_status"]}')
+        print(f'{"Automatically adjust for DST":>28}: '
+              f'{dst_decode.get(sys_params_dict["dst_status"], "unknown")}')
 
     def display_rain_data(self):
         """Display the device rain data.
