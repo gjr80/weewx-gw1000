@@ -1858,6 +1858,57 @@ class GatewayApiParser:
         pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
         return b''.join([co2_b, pm25_b, pm10_b])
 
+    @staticmethod
+    def encode_system_params(**params):
+        """Encode data parameters used for CMD_WRITE_SSSS.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSSS. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        freq_b = struct.pack('b', params['frequency'])
+        sensor_type_b = struct.pack('b', params['sensor_type'])
+        utc_b = struct.pack('>L', params['utc'])
+        tz_b = struct.pack('b', params['timezone_index'])
+        # The DST param is a combination of DST status (bit 0) and auto
+        # timezone (bit 1)
+        # start with nothing
+        _dst = 0
+        # set the DST bit if DST enabled
+        if params['dst_status'] == 1:
+            _dst = _dst | (1 << 0)
+        # set the auto timezone bit if auto timezone is disabled
+        if params['auto_timezone'] == 1:
+            _dst = _dst | (1 << 1)
+        # convert to a byte
+        dst_b = struct.pack('b', _dst)
+        return b''.join([freq_b, sensor_type_b, utc_b, tz_b, dst_b])
+
 
 class Sensors:
     """Class to manage device sensor ID data.
@@ -3357,6 +3408,23 @@ class GatewayApi():
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
+    def write_system_params(self, payload):
+        """Write the system related parameters.
+
+        Sends the API command to write the system related parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_system_params(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_system_params() should be
+        prepared to handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_SSSS', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send an API command to the device with retries and return
         the response.
@@ -4554,6 +4622,30 @@ class GatewayDevice:
         payload = self.gateway_api_parser.encode_rain_params(**params)
         # update the gateway device
         self.gateway_api.write_rain_params(payload)
+
+    def write_system_params(self, **params):
+        """Write system parameters.
+
+        Write system parameters to a gateway device. The system parameters
+        consist of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The parameters are first encoded to produce the command data payload.
+        The payload is then passed to a GatewayApi object for uploading to the
+        gateway device.
+        """
+
+        # obtain encoded data payload for the API command
+        payload = self.gateway_api_parser.encode_system_params(**params)
+        # update the gateway device
+        self.gateway_api.write_system_params(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
@@ -6108,7 +6200,7 @@ class DirectGateway:
             print("No changes to current device settings")
 
     def write_system(self):
-        """Process pm25-offset write sub-subcommand."""
+        """Process system write sub-subcommand."""
 
         # wrap in a try..except in case there is an error
         try:
@@ -6129,25 +6221,24 @@ class DirectGateway:
         print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
               f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
         print()
-        # obtain the current pm2.5 sensor offsets from the device
-        pm25_offsets = device.pm25_offset
-        # make a copy of the current pm2.5 sensor offsets, this copy will be
-        # updated with the subcommand arguments and then used to update the
-        # device
-        arg_pm25_offsets = dict(pm25_offsets)
-        # iterate over each sensor ID param (param, value) pair
-        for channel, offset in pm25_offsets.items():
+        # obtain the current system params from the device
+        _params = device.system_params
+        # make a copy of the current system params, this copy will be updated
+        # with the subcommand arguments and then used to update the device
+        arg_params = dict(_params)
+        # iterate over each system param (param, value) pair
+        for param, value in _params.items():
             # obtain the corresponding argument from the namespace, if the
             # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, channel, None)
-            # update our pm25 offset dict copy if the namespace argument is not
-            # None, otherwise keep the current pm25 offsets
-            arg_pm25_offsets[channel] = _arg if _arg is not None else offset
+            _arg = getattr(self.namespace, param, None)
+            # update our dict copy if the namespace argument is not None,
+            # otherwise keep the current param value
+            arg_params[param] = _arg if _arg is not None else value
         # do we have any changes from our existing settings
-        if arg_pm25_offsets != pm25_offsets:
+        if arg_params != _params:
             # something has changed, so write the updated offsets to the device
             try:
-                device.write_sensor_id(**arg_pm25_offsets)
+                device.write_system_params(**arg_params)
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
             else:
@@ -6300,6 +6391,65 @@ def sensor_id_type(digits):
                 raise argparse.ArgumentTypeError(f"argument must be 0x{(16 ** digits - 1):02x} or less ({arg})")
             # the argument meets all checks, return the converted argument
             return _arg
+
+    # return a handle to the check function
+    return check
+
+def sensor_type(sensor_types):
+    """Argparse type support for Ecowitt sensor type selection.
+
+    Returns a handle to a function that checks an argument is a member of a
+    given list of possible choices. If the argument is not in the list of
+    choices an ArgumentTypeError exception is raised with a suitable error
+    message.
+
+    If the argument is in the list of choices the index number of the argument
+    in the choices list is returned.
+    """
+
+    # define a function to perform the necessary checks, we will return a
+    # handle to this function
+    def check(arg):
+        """Check an argument is a member of a given list."""
+
+        # check if the argument is in the choices list
+        if arg.upper() in sensor_types:
+            # we have a valid argument, return its index
+            return sensor_types.index(arg.upper())
+        else:
+            # we have an invalid argument, raise an ArgumentTypeError exception
+            option_list_str = ", ".join(["'{}'".format(o) for o in sensor_types])
+            raise argparse.ArgumentTypeError(f"invalid choice: {arg} (choose from {option_list_str})")
+
+    # return a handle to the check function
+    return check
+
+
+def enable_disable_type(opts=('disable', 'enable')):
+    """Argparse type support for Ecowitt sensor type selection.
+
+    Returns a handle to a function that checks an argument is a member of a
+    given list of possible choices. If the argument is not in the list of
+    choices an ArgumentTypeError exception is raised with a suitable error
+    message.
+
+    If the argument is in the list of choices the index number of the argument
+    in the choices list is returned.
+    """
+
+    # define a function to perform the necessary checks, we will return a
+    # handle to this function
+    def check(arg):
+        """Check an argument is a member of a given list."""
+
+        # check if the argument is in the choices list
+        if arg.lower() in opts:
+            # we have a valid argument, return its index
+            return opts.index(arg.lower())
+        else:
+            # we have an invalid argument, raise an ArgumentTypeError exception
+            option_list_str = ", ".join(["'{}'".format(o) for o in opts])
+            raise argparse.ArgumentTypeError(f"invalid choice: {arg} (choose from {option_list_str})")
 
     # return a handle to the check function
     return check
@@ -7277,10 +7427,13 @@ def rain_write_subparser(subparsers):
 def system_write_subparser(subparsers):
     """Define 'ecowitt write system' sub-subparser."""
 
+    conv_table = {'WH24': 0,
+                  'WH65': 1}
+
     sys_write_usage = f"""{Bcolors.BOLD}ecowitt write system --help
        ecowitt write system --ip-address=IP_ADDRESS [--port=PORT]
                             [--sensor-type OFFSET] [--tz INDEX] [--dst enable | disable]
-                            [--debug]
+                            [--auto-tz enable | disable] [--debug]
 {Bcolors.ENDC}"""
     sys_write_description = """Set system parameters. If a parameter
     is omitted the corresponding current gateway device parameter is left
@@ -7291,21 +7444,24 @@ def system_write_subparser(subparsers):
                                               help="Set system parameters.")
     sys_write_parser.add_argument('--sensor-type',
                                   dest='sensor_type',
-                                  choices=('WH24', 'WH65'),
-                                  type=lambda p: 0 if p.upper() == 'WH24' else 1,
-                                  metavar='PRIORITY',
+                                  type=sensor_type(['WH24', 'WH65']),
+                                  metavar='SENSOR',
                                   help='sensor type, WH24 or WH65')
     sys_write_parser.add_argument('--tz',
-                                   dest='tz',
-                                   type=ranged_type(int, 0, 20),
+                                   dest='timezone_index',
+                                   type=ranged_type(int, 0, 255),
                                    metavar='INDEX',
                                    help='timezone index')
     sys_write_parser.add_argument('--dst',
-                                  dest='dst',
-                                  choices=('enabled', 'disabled'),
-                                  type=lambda p: 1 if p.lower() == 'enabled' else 0,
-                                  metavar='enabled | disabled',
-                                  help='DST status, enabled or disabled')
+                                  dest='dst_status',
+                                  type=enable_disable_type(),
+                                  metavar='disable | enable',
+                                  help='DST status, enable or disable')
+    sys_write_parser.add_argument('--auto-tz',
+                                   dest='auto_timezone',
+                                   type=enable_disable_type(('enable', 'disable')),
+                                   metavar='disable | enable',
+                                   help='automatically detect and set timezone')
     add_common_args(sys_write_parser)
     sys_write_parser.set_defaults(func=dispatch_write)
     return sys_write_parser
