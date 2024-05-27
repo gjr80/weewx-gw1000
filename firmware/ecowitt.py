@@ -771,6 +771,7 @@ class GatewayApiParser:
         Response consists of a variable number of bytes determined by the
         number of WH51 soil moisture sensors. Number of bytes = 5 + (n x 9)
         where n is the number of connected WH51 sensors. Decode as follows:
+
         Byte(s) Data            Format          Comments
         1-2     header          -               fixed header 0xFFFF
         3       command code    byte            0x29
@@ -823,37 +824,43 @@ class GatewayApiParser:
         # return the parsed response
         return cal_dict
 
-    def parse_ssss(self, response):
-        """Parse a CMD_READ_SSSS API response.
+    def parse_ssss(self, payload):
+        """Parse a CMD_READ_SSSS API response data payload.
 
-        Response consists of 13 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x30
-        4       size            byte
-        5       frequency       byte            0=433, 1=868, 2=915, 3=920
-        6       sensor type     byte            0=WH24, 1=WH65
-        7-10    utc time        unsigned long
-        11      timezone index  byte
-        # TODO. Need to sort out DST decode, this is wrong
-        12      dst status      byte            0=False, 1=True
-        13      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        Payload consists of a bytestring of length 8. Decode as
+        follows:
+
+        Parameter Name  Byte(s)     Data format     Comments
+        frequency       0           unsigned byte   operating frequency
+                                                    (0=433MHz, 1=868MHz,
+                                                    2=915MHz, 3=920MHz)
+        sensor type     1           unsigned byte   sensor type (0=WH25, 1=WH65)
+        utc time        2 to 5      unsigned long   utc time
+        timezone index  6           byte            timezone index
+        dst status      7           bit 0           daylight saving status
+                                                    (0=DST off, 1=DST on)
+        auto timezone   7           bit 1           auto timezone selection
+                                                    (0=auto selection,
+                                                    1=manual selection)
+
+        Returns a dict keyed as follows:
+
+        'frequency'         operating frequency
+        'sensor_type'       sensor type
+        'utc':              local time
+        'timezone_index':   timezone index
+        'dst_status':       dst status
+        'auto_timezone':    auto timezone selection
         """
 
-        # determine the size of the system parameters data
-        size = response[3]
-        # extract the actual system parameters data
-        data = response[4:4 + size - 3]
-        # create a dict holding our parsed data
-        data_dict = {'frequency': data[0],
-                     'sensor_type': data[1],
-                     'utc': self.decode_utc(data[2:6]),
-                     'timezone_index': data[6],
-                     'dst_status': data[7] >> 0 & 1,
-                     'auto_timezone': data[7] >> 1 & 1}
-        # return the parsed response
+        # create a dict holding our parsed data payload
+        data_dict = {'frequency': payload[0],
+                     'sensor_type': payload[1],
+                     'utc': self.decode_utc(payload[2:6]),
+                     'timezone_index': payload[6],
+                     'dst_status': payload[7] >> 0 & 1,
+                     'auto_timezone': payload[7] >> 1 & 1}
+        # return the parsed response data payload
         return data_dict
 
     @staticmethod
@@ -2807,10 +2814,21 @@ class GatewayApi():
         have been raised by send_cmd_with_retries() which will be passed
         through by get_system_params(). Any code calling
         get_system_params() should be prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_SSSS')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_SSSS')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_ecowitt(self):
         """Get Ecowitt.net parameters.
@@ -3953,10 +3971,28 @@ class GatewayDevice:
 
     @property
     def system_params(self):
-        """Gateway device system parameters."""
+        """Gateway device system parameters.
 
-        _data = self.gateway_api.get_ssss()
-        return self.gateway_api_parser.parse_ssss(_data)
+        Supports the following system parameters:
+
+        Parameter     Description
+        frequency:      sensor operating frequency
+        sensor_type:    whether WH24 or WH65 is installed
+        utc:            UTC time (incorrectly labelled as 'local time' in API
+                        documentation)
+        timezone_index: timezone index
+        dst_status:     daylight saving status
+        auto_timezone:  whether automatic timezone operation is in
+                        enabled/disabled
+
+        Returns a dict of system parameters.
+        """
+
+        # obtain the system parameters via the gateway API, the result will
+        # be a bytestring or None
+        payload = self.gateway_api.get_ssss()
+        # return the parsed system parameters data
+        return self.gateway_api_parser.parse_ssss(payload)
 
     @property
     def ecowitt_net_params(self):
@@ -4097,8 +4133,8 @@ class GatewayDevice:
     def mac_address(self):
         """Gateway device MAC address."""
 
-        _data = self.gateway_api.get_station_mac()
-        return self.gateway_api_parser.parse_station_mac(_data)
+        payload = self.gateway_api.get_station_mac()
+        return self.gateway_api_parser.parse_station_mac(payload)
 
     @property
     def firmware_version(self):
