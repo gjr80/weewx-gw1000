@@ -1280,7 +1280,7 @@ class GatewayApiParser:
     def parse_station_mac(response):
         """Parse a CMD_READ_STATION_MAC API response data payload.
 
-        Response consists of 6 bytes as follows:
+        Response consists of a bytestring 6 bytes in length as follows:
 
         Parameter Name  Byte(s)     Format          Comments
         station MAC     0 - 5       6 x bytes       6 x ASCII characters
@@ -1295,39 +1295,26 @@ class GatewayApiParser:
         return bytes_to_hex(response[4:10], separator=":")
 
     @staticmethod
-    def parse_firmware_version(response):
-        """Parse a CMD_READ_FIRMWARE_VERSION API response.
+    def parse_firmware_version(payload):
+        """Parse a CMD_READ_FIRMWARE_VERSION API response data payload.
 
-        Response consists of a variable number of bytes. Number of
-        bytes = 6 + f where f = length of the firmware version string in
-        characters. Decode as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x50
-        4       size            byte
-        5       fw size         byte            length of firmware version
-                                                string in characters
-        6-5+f   fw string       f x byte        firmware version string
-                                                (ASCII ?)
-        6+f     checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        Response consists of a bytestring of length 1+f where f is the length
+        of the firmware version string. Decode as follows:
 
-        Returns a unicode string
+        Parameter Name  Byte(s)     Format          Comments
+        firmware        0           byte            length of firmware version
+        version size                                string
+        firmware        1 to f      f x bytes       firmware version string
+
+        Returns a dict containing a single field keyed 'firmware' that contains
+        a unicode firmware version string.
         """
 
-        # create a format string so the firmware string can be unpacked into
-        # its bytes
-        firmware_format = "B" * len(response)
-        # unpack the firmware response bytestring, we now have a tuple of
-        # integers representing each of the bytes
-        firmware_t = struct.unpack(firmware_format, response)
-        # get the length of the firmware string, it is in byte 4
-        str_length = firmware_t[4]
-        # the firmware string starts at byte 5 and is str_length bytes long,
-        # convert the sequence of bytes to unicode characters and assemble as a
-        # string and return the result
-        return ''.join([chr(x) for x in firmware_t[5:5 + str_length]])
+        # get the length of the firmware version string
+        fw_size = payload[0]
+        # get the firmware version bytestring, decode to a unicode string and
+        # return the resulting string
+        return payload[1:1 + fw_size].decode()
 
     @staticmethod
     def decode_reserved(data, field='reserved'):
@@ -3003,10 +2990,21 @@ class GatewayApi():
         been raised by send_cmd_with_retries() which will be passed through
         by get_firmware_version(). Any code calling get_firmware_version()
         should be prepared to handle this exception.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an integer in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_sensor_id_new(self):
         """Get sensor ID data.
