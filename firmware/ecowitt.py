@@ -461,7 +461,7 @@ class GatewayApiParser:
         # return the result
         return self.parse_addressed_data(payload, self.addressed_data_struct)
 
-    def parse_raindata(self, response):
+    def parse_raindata(self, payload):
         """Parse data from a CMD_READ_RAINDATA API response.
 
         Response consists of 25 bytes as follows:
@@ -484,16 +484,12 @@ class GatewayApiParser:
                                                 bytes
         """
 
-        # determine the size of the rain data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
         # create a dict holding our parsed data
-        data_dict = {'t_rainrate': self.decode_big_rain(data[0:4]),
-                     't_rainday': self.decode_big_rain(data[4:8]),
-                     't_rainweek': self.decode_big_rain(data[8:12]),
-                     't_rainmonth': self.decode_big_rain(data[12:16]),
-                     't_rainyear': self.decode_big_rain(data[16:20])}
+        data_dict = {'t_rate': self.decode_big_rain(payload[0:4]),
+                     't_day': self.decode_big_rain(payload[4:8]),
+                     't_week': self.decode_big_rain(payload[8:12]),
+                     't_month': self.decode_big_rain(payload[12:16]),
+                     't_year': self.decode_big_rain(payload[16:20])}
         return data_dict
 
     @staticmethod
@@ -1908,6 +1904,45 @@ class GatewayApiParser:
         # convert to a byte
         dst_b = struct.pack('b', _dst)
         return b''.join([freq_b, sensor_type_b, utc_b, tz_b, dst_b])
+
+    @staticmethod
+    def encode_rain_data(**params):
+        """Encode data parameters used for CMD_WRITE_RAINDATA.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSSS. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        day_b = struct.pack('>L', int(params['t_day'] * 10))
+        week_b = struct.pack('>L', int(params['t_week'] * 10))
+        month_b = struct.pack('>L', int(params['t_month'] * 10))
+        year_b = struct.pack('>L', int(params['t_year'] * 10))
+        return b''.join([day_b, week_b, month_b, year_b])
 
 
 class Sensors:
@@ -3425,6 +3460,23 @@ class GatewayApi():
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
+    def write_rain_data(self, payload):
+        """Write rain data parameters.
+
+        Sends the API command to write the rain data parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_rain_data(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling write_rain_data() should be prepared to
+        handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_RAINDATA', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
     def send_cmd_with_retries(self, cmd, payload=b''):
         """Send an API command to the device with retries and return
         the response.
@@ -4646,6 +4698,30 @@ class GatewayDevice:
         payload = self.gateway_api_parser.encode_system_params(**params)
         # update the gateway device
         self.gateway_api.write_system_params(payload)
+
+    def write_rain_data(self, **params):
+        """Write rain data parameters.
+
+        Write system parameters to a gateway device. The system parameters
+        consist of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The parameters are first encoded to produce the command data payload.
+        The payload is then passed to a GatewayApi object for uploading to the
+        gateway device.
+        """
+
+        # obtain encoded data payload for the API command
+        payload = self.gateway_api_parser.encode_rain_data(**params)
+        # update the gateway device
+        self.gateway_api.write_rain_data(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
@@ -6252,7 +6328,7 @@ class DirectGateway:
             print("No changes to current device settings")
 
     def write_rain_data(self):
-        """Process pm25-offset write sub-subcommand."""
+        """Process rain-data write sub-subcommand."""
 
         # wrap in a try..except in case there is an error
         try:
@@ -6273,25 +6349,24 @@ class DirectGateway:
         print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
               f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
         print()
-        # obtain the current pm2.5 sensor offsets from the device
-        pm25_offsets = device.pm25_offset
-        # make a copy of the current pm2.5 sensor offsets, this copy will be
-        # updated with the subcommand arguments and then used to update the
-        # device
-        arg_pm25_offsets = dict(pm25_offsets)
-        # iterate over each sensor ID param (param, value) pair
-        for channel, offset in pm25_offsets.items():
+        # obtain the current rain data from the device
+        rain_data = device.raindata
+        # make a copy of the current rain data, this copy will be updated with
+        # the subcommand arguments and then used to update the device
+        arg_rain_data = dict(rain_data)
+        # iterate over each rain data (param, value) pair
+        for param, value in rain_data.items():
             # obtain the corresponding argument from the namespace, if the
             # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, channel, None)
-            # update our pm25 offset dict copy if the namespace argument is not
-            # None, otherwise keep the current pm25 offsets
-            arg_pm25_offsets[channel] = _arg if _arg is not None else offset
+            _arg = getattr(self.namespace, param, None)
+            # update our dict copy if the namespace argument is not None,
+            # otherwise keep the current pm25 offsets
+            arg_rain_data[param] = _arg if _arg is not None else value
         # do we have any changes from our existing settings
-        if arg_pm25_offsets != pm25_offsets:
+        if arg_rain_data != rain_data:
             # something has changed, so write the updated offsets to the device
             try:
-                device.write_sensor_id(**arg_pm25_offsets)
+                device.write_rain_data(**arg_rain_data)
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
             else:
@@ -7488,22 +7563,22 @@ def rain_data_write_subparser(subparsers):
                                               description=rain_data_write_description,
                                               help="Set rain data related paramters.")
     rain_data_write_parser.add_argument('--day',
-                                        dest='day',
+                                        dest='t_day',
                                         type=ranged_type(float, 0, 9999.9),
                                         metavar='TOTAL',
                                         help='day rain total')
     rain_data_write_parser.add_argument('--week',
-                                        dest='week',
+                                        dest='t_week',
                                         type=ranged_type(float, 0, 9999.9),
                                         metavar='TOTAL',
                                         help='week rain total')
     rain_data_write_parser.add_argument('--month',
-                                        dest='month',
+                                        dest='t_month',
                                         type=ranged_type(float, 0, 9999.9),
                                         metavar='TOTAL',
                                         help='month rain total')
     rain_data_write_parser.add_argument('--year',
-                                        dest='year',
+                                        dest='t_year',
                                         type=ranged_type(float, 0, 9999.9),
                                         metavar='TOTAL',
                                         help='year rain total')
