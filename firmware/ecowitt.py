@@ -344,7 +344,10 @@ class GatewayApiParser:
 
     def __init__(self):
 
-        pass
+        _field_idt = InvertibleMap()
+        for key, value in GatewayApiParser.addressed_data_struct.items():
+            _field_idt[value[0]] = key
+        self.field_idt = _field_idt
 
     def parse_addressed_data(self, payload, structure):
         """Parse an address based API response data payload.
@@ -493,9 +496,9 @@ class GatewayApiParser:
         return data_dict
 
     @staticmethod
-    def parse_mulch_offset(response):
+    def parse_mulch_offset(payload):
         """Parse data from a CMD_GET_MulCH_OFFSET API response.
-
+# TODO. Rewrite comments
         Response consists of 29 bytes as follows:
         Byte(s) Data            Format          Comments
         1-2     header          -               fixed header 0xFFFF
@@ -519,31 +522,26 @@ class GatewayApiParser:
                                                 bytes
         """
 
-        # determine the size of the mulch offset data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
         # initialise a counter
         index = 0
         # initialise a dict to hold our parsed data
         offset_dict = {}
         # iterate over the data
-        while index < len(data):
-            channel = data[index]
+        while index < len(payload):
+            channel = payload[index]
             offset_dict[channel] = {}
             try:
-                offset_dict[channel]['hum'] = struct.unpack("b", data[index + 1])[0]
+                offset_dict[channel]['hum'] = struct.unpack("b", payload[index + 1])[0]
             except TypeError:
-                offset_dict[channel]['hum'] = struct.unpack("b", bytes([data[index + 1]]))[0]
+                offset_dict[channel]['hum'] = struct.unpack("b", bytes([payload[index + 1]]))[0]
             try:
-                offset_dict[channel]['temp'] = struct.unpack("b", data[index + 2])[0] / 10.0
+                offset_dict[channel]['temp'] = struct.unpack("b", payload[index + 2])[0] / 10.0
             except TypeError:
-                offset_dict[channel]['temp'] = struct.unpack("b", bytes([data[index + 2]]))[0] / 10.0
+                offset_dict[channel]['temp'] = struct.unpack("b", bytes([payload[index + 2]]))[0] / 10.0
             index += 3
         return offset_dict
 
-    @staticmethod
-    def parse_mulch_t_offset(response):
+    def parse_mulch_t_offset(self, payload):
         """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
 
         Response consists of a variable number of bytes determined by the
@@ -566,25 +564,25 @@ class GatewayApiParser:
                                                     bytes
         """
 
-        # obtain the payload size, it's a big endian short (two byte) integer
-        size = struct.unpack(">H", response[3:5])[0]
-        # extract the actual data
-        data = response[5:5 + size - 4]
         # initialise a counter
         index = 0
         # initialise a dict to hold our parsed data
         offset_dict = {}
         # iterate over the data
-        while index < len(data):
-            channel = data[index]
-            offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
-            index += 3
+        while index < len(payload):
+            # channel = payload[index]
+            channel = self.field_idt.inverse[payload[index:index + 1]]
+            offset_dict[channel] = struct.unpack("b", payload[index + 1:index + 2])[0] / 10.0
+            # offset_dict[channel] = struct.unpack(">h", payload[index + 1:index + 3])[0] / 10.0
+            index += 2
+            # index += 3
+        print("offset_dict=%s" % (offset_dict,))
         return offset_dict
 
     @staticmethod
-    def parse_pm25_offset(response):
+    def parse_pm25_offset(payload):
         """Parse data from a CMD_GET_PM25_OFFSET API response.
-
+# TODO. Rework these comments
         Response consists of 17 bytes as follows:
         Byte(s) Data            Format          Comments
         1-2     header          -               fixed header 0xFFFF
@@ -602,25 +600,21 @@ class GatewayApiParser:
                                                 bytes
         """
 
-        # determine the size of the PM2.5 offset data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
         # initialise a counter
         index = 0
         # initialise a dict to hold our parsed data
         offset_dict = {}
         # iterate over the data
-        while index < len(data):
-            channel = data[index]
-            offset_dict[channel] = struct.unpack(">h", data[index + 1:index + 3])[0] / 10.0
+        while index < len(payload):
+            channel = payload[index]
+            offset_dict[channel] = struct.unpack(">h", payload[index + 1:index + 3])[0] / 10.0
             index += 3
         return offset_dict
 
     @staticmethod
-    def parse_co2_offset(response):
+    def parse_co2_offset(payload):
         """Parse data from a CMD_GET_CO2_OFFSET API response.
-
+# TODO. Rework comments
         Response consists of 11 bytes as follows:
         Byte(s) Data            Format          Comments
         1-2     header          -               fixed header 0xFFFF
@@ -636,16 +630,12 @@ class GatewayApiParser:
                                                 bytes
         """
 
-        # determine the size of the WH45 offset data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
         # Create a dict holding our parsed data. bytes 0 and 1 hold the CO2
         # offset, bytes 2 and 3 hold the PM2.5 offset, bytes 4 and 5 hold the
         # PM10 offset
-        offset_dict = {'co2': struct.unpack(">h", data[0:2])[0],
-                       'pm25': struct.unpack(">h", data[2:4])[0] / 10.0,
-                       'pm10': struct.unpack(">h", data[4:6])[0] / 10.0}
+        offset_dict = {'co2': struct.unpack(">h", payload[0:2])[0],
+                       'pm25': struct.unpack(">h", payload[2:4])[0] / 10.0,
+                       'pm10': struct.unpack(">h", payload[4:6])[0] / 10.0}
         return offset_dict
 
     @staticmethod
@@ -690,9 +680,9 @@ class GatewayApiParser:
         return gain_dict
 
     @staticmethod
-    def parse_calibration(response):
+    def parse_calibration(payload):
         """Parse a CMD_READ_CALIBRATION API response.
-
+# TODO. Rework comments
         Response consists of 21 bytes as follows:
         Byte(s) Data            Format          Comments
         1-2     header          -               fixed header 0xFFFF
@@ -714,33 +704,29 @@ class GatewayApiParser:
                                                 bytes
         """
 
-        # determine the size of the calibration data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
         # initialise a dict to hold our parsed data
         cal_dict = {}
         # and decode/store the offset calibration data
-        cal_dict['intemp'] = struct.unpack(">h", data[0:2])[0] / 10.0
+        cal_dict['intemp'] = struct.unpack(">h", payload[0:2])[0] / 10.0
         try:
-            cal_dict['inhum'] = struct.unpack("b", data[2])[0]
+            cal_dict['inhum'] = struct.unpack("b", payload[2])[0]
         except TypeError:
-            cal_dict['inhum'] = struct.unpack("b", bytes([data[2]]))[0]
-        cal_dict['abs'] = struct.unpack(">l", data[3:7])[0] / 10.0
-        cal_dict['rel'] = struct.unpack(">l", data[7:11])[0] / 10.0
-        cal_dict['outtemp'] = struct.unpack(">h", data[11:13])[0] / 10.0
+            cal_dict['inhum'] = struct.unpack("b", bytes([payload[2]]))[0]
+        cal_dict['abs'] = struct.unpack(">l", payload[3:7])[0] / 10.0
+        cal_dict['rel'] = struct.unpack(">l", payload[7:11])[0] / 10.0
+        cal_dict['outtemp'] = struct.unpack(">h", payload[11:13])[0] / 10.0
         try:
-            cal_dict['outhum'] = struct.unpack("b", data[13])[0]
+            cal_dict['outhum'] = struct.unpack("b", payload[13])[0]
         except TypeError:
-            cal_dict['outhum'] = struct.unpack("b", bytes([data[13]]))[0]
-        cal_dict['dir'] = struct.unpack(">h", data[14:16])[0]
+            cal_dict['outhum'] = struct.unpack("b", bytes([payload[13]]))[0]
+        cal_dict['dir'] = struct.unpack(">h", payload[14:16])[0]
         # return the parsed response
         return cal_dict
 
     @staticmethod
-    def parse_soil_humiad(response):
+    def parse_soil_humiad(payload):
         """Parse a CMD_GET_SOILHUMIAD API response.
-
+# TODO. Rework comments
         Response consists of a variable number of bytes determined by the
         number of WH51 soil moisture sensors. Number of bytes = 5 + (n x 9)
         where n is the number of connected WH51 sensors. Decode as follows:
@@ -763,36 +749,32 @@ class GatewayApiParser:
                                                 bytes
         """
 
-        # determine the size of the calibration data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
         # initialise a dict to hold our final data
         cal_dict = {}
         # initialise a counter
         index = 0
         # iterate over the data
-        while index < len(data):
-            channel = data[index]
+        while index < len(payload):
+            channel = payload[index]
             cal_dict[channel] = {}
             try:
-                humidity = data[index + 1]
+                humidity = payload[index + 1]
             except TypeError:
-                humidity = data[index + 1]
+                humidity = payload[index + 1]
             cal_dict[channel]['humidity'] = humidity
-            cal_dict[channel]['ad'] = struct.unpack(">h", data[index + 2:index + 4])[0]
+            cal_dict[channel]['ad'] = struct.unpack(">h", payload[index + 2:index + 4])[0]
             try:
-                ad_select = data[index + 4]
+                ad_select = payload[index + 4]
             except TypeError:
-                ad_select = data[index + 4]
+                ad_select = payload[index + 4]
             # get 'Customize' setting 1 = enable, 0 = customized
             cal_dict[channel]['ad_select'] = ad_select
             try:
-                min_ad = data[index + 5]
+                min_ad = payload[index + 5]
             except TypeError:
-                min_ad = data[index + 5]
+                min_ad = payload[index + 5]
             cal_dict[channel]['adj_min'] = min_ad
-            cal_dict[channel]['adj_max'] = struct.unpack(">h", data[index + 6:index + 8])[0]
+            cal_dict[channel]['adj_max'] = struct.unpack(">h", payload[index + 6:index + 8])[0]
             index += 8
         # return the parsed response
         return cal_dict
@@ -1944,6 +1926,129 @@ class GatewayApiParser:
         year_b = struct.pack('>L', int(params['t_year'] * 10))
         return b''.join([day_b, week_b, month_b, year_b])
 
+    @staticmethod
+    def encode_mulch_th(**params):
+        """Encode data parameters used for CMD_WRITE_RAINDATA.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSSS. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        day_b = struct.pack('>L', int(params['t_day'] * 10))
+        week_b = struct.pack('>L', int(params['t_week'] * 10))
+        month_b = struct.pack('>L', int(params['t_month'] * 10))
+        year_b = struct.pack('>L', int(params['t_year'] * 10))
+        return b''.join([day_b, week_b, month_b, year_b])
+
+    @staticmethod
+    def encode_soil_moist(**params):
+        """Encode data parameters used for CMD_WRITE_RAINDATA.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSSS. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        day_b = struct.pack('>L', int(params['t_day'] * 10))
+        week_b = struct.pack('>L', int(params['t_week'] * 10))
+        month_b = struct.pack('>L', int(params['t_month'] * 10))
+        year_b = struct.pack('>L', int(params['t_year'] * 10))
+        return b''.join([day_b, week_b, month_b, year_b])
+
+    def encode_mulch_t(self, **offsets):
+        """Encode data parameters used for CMD_SET_MulCH_T_OFFSET.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_SET_MulCH_T_OFFSET. Required payload parameters are contained in
+        the calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+
+        # initialise a list to hold bytestring components of the result
+        comp = []
+        # iterate over the list of sensor addresses in address order
+        for channel, offset in offsets.items():
+            # append the channel number to our result list
+            comp.append(self.field_idt[channel])
+            # append the offset value to our result list
+            comp.append(struct.pack('b', int(offset * 10)))
+        # return a bytestring consisting of the concatenated list elements
+        print("comp=%s" % (comp,))
+        return b''.join(comp)
+
 
 class Sensors:
     """Class to manage device sensor ID data.
@@ -2557,7 +2662,8 @@ class GatewayApi():
         'CMD_WRITE_RSTRAIN_TIME': b'\x56',
         'CMD_READ_RAIN': b'\x57',
         'CMD_WRITE_RAIN': b'\x58',
-        'CMD_GET_MulCH_T_OFFSET': b'\x59'
+        'CMD_GET_MulCH_T_OFFSET': b'\x59',
+        'CMD_SET_MulCH_T_OFFSET': b'\x5A'
     })
     destructive_cmd_codes = (b'\x11', b'\x1F', b'\x21', b'\x23', b'\x25',
                              b'\x29', b'\x2B', b'\x2D', b'\x2F', b'\x31',
@@ -2846,11 +2952,9 @@ class GatewayApi():
     def get_livedata(self):
         """Get live data.
 
-        Sends the API command to the device to obtain live data with retries.
-        If the device cannot be contacted a GWIOError will have been raised by
-        send_cmd_with_retries() which will be passed through by get_livedata().
-        Any code calling get_livedata() should be prepared to handle this
-        exception.
+        Sends the API command to the device to obtain live data. If the device
+        cannot be contacted or the data is invalid the value None will be
+        returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -2871,10 +2975,8 @@ class GatewayApi():
         """Get traditional gauge rain data.
 
         Sends the API command to obtain traditional gauge rain data from the
-        device with retries. If the device cannot be contacted a GWIOError will
-        be raised by send_cmd_with_retries() which will be passed through by
-        get_raindata(). Any code calling get_raindata() should be prepared to
-        handle this exception.
+        device. If the device cannot be contacted or the data is invalid the
+        value None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -2894,11 +2996,9 @@ class GatewayApi():
     def get_ssss(self):
         """Read system parameters.
 
-        Sends the API command to obtain system parameters from the device
-        with retries. If the device cannot be contacted a GWIOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_system_params(). Any code calling
-        get_system_params() should be prepared to handle this exception.
+        Sends the API command to obtain system parameters from the device. If
+        the device cannot be contacted or the data is invalid the value None
+        will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -2918,11 +3018,9 @@ class GatewayApi():
     def get_ecowitt(self):
         """Get Ecowitt.net parameters.
 
-        Sends the API command to obtain the device Ecowitt.net parameters
-        with retries. If the device cannot be contacted a GWIOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_ecowitt(). Any code calling get_ecowitt() should be
-        prepared to handle this exception.
+        Sends the API command to obtain the device Ecowitt.net parameters. If
+        the device cannot be contacted or the data is invalid the value None
+        will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -2943,11 +3041,8 @@ class GatewayApi():
         """Get Weather Underground parameters.
 
         Sends the API command to obtain the device Weather Underground
-        parameters with retries. If the device cannot be contacted a
-        GWIOError will have been raised by send_cmd_with_retries() which
-        will be passed through by get_wunderground(). Any code
-        calling get_wunderground() should be prepared to handle this
-        exception.
+        parameters. If the device cannot be contacted or the data is invalid
+        the value None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -2967,12 +3062,9 @@ class GatewayApi():
     def get_weathercloud(self):
         """Get Weathercloud parameters.
 
-        Sends the API command to obtain the device Weathercloud parameters
-        with retries. If the device cannot be contacted a GWIOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_weathercloud(). Any code calling
-        get_weathercloud() should be prepared to handle this
-        exception.
+        Sends the API command to obtain the device Weathercloud parameters. If
+        the device cannot be contacted or the data is invalid the value None
+        will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -2993,10 +3085,8 @@ class GatewayApi():
         """Get Weather Observations Website parameters.
 
         Sends the API command to obtain the device Weather Observations
-        Website parameters with retries. If the device cannot be contacted
-        a GWIOError will have been raised by send_cmd_with_retries() which
-        will be passed through by get_wow(). Any code calling
-        get_wow() should be prepared to handle this exception.
+        Website parameters. If the device cannot be contacted or the data is
+        invalid the value None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3016,11 +3106,9 @@ class GatewayApi():
     def get_customized(self):
         """Get custom server parameters.
 
-        Sends the API command to obtain the device custom server parameters
-        with retries. If the device cannot be contacted a GWIOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_customized(). Any code calling
-        get_customized() should be prepared to handle this exception.
+        Sends the API command to obtain the device custom server parameters.
+        If the device cannot be contacted or the  data is invalid the value
+        None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3041,10 +3129,8 @@ class GatewayApi():
         """Get user defined custom path.
 
         Sends the API command to obtain the device user defined custom path
-        with retries. If the device cannot be contacted a GWIOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_usr_path(). Any code calling get_usr_path() should
-        be prepared to handle this exception.
+        data. If the device cannot be contacted or the data is invalid the
+        value None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3064,11 +3150,9 @@ class GatewayApi():
     def get_station_mac(self):
         """Get device MAC address.
 
-        Sends the API command to obtain the device MAC address with
-        retries. If the device cannot be contacted a GWIOError will have
-        been raised by send_cmd_with_retries() which will be passed through
-        by get_station_mac(). Any code calling get_station_mac() should be
-        prepared to handle this exception.
+        Sends the API command to obtain the device MAC address. If the device
+        cannot be contacted or the data is invalid the value None will be
+        returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3088,11 +3172,9 @@ class GatewayApi():
     def get_firmware_version(self):
         """Get device firmware version.
 
-        Sends the API command to obtain device firmware version with
-        retries. If the device cannot be contacted a GWIOError will have
-        been raised by send_cmd_with_retries() which will be passed through
-        by get_firmware_version(). Any code calling get_firmware_version()
-        should be prepared to handle this exception.
+        Sends the API command to obtain device firmware version. If the device
+        cannot be contacted or the data is invalid the value None will be
+        returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3110,120 +3192,187 @@ class GatewayApi():
         return _response[4:packet_length + 1]
 
     def get_sensor_id_new(self):
+        # TODO. Need to ensure consumer of this method know its now the data payload
         """Get sensor ID data.
 
-        Sends the API command to obtain sensor ID data from the device with
-        retries. If the device cannot be contacted a GWIOError will have been
-        raised by send_cmd_with_retries() which will be passed through by
-        get_sensor_id_new(). Any code calling get_sensor_id_new() should be prepared to
-        handle this exception.
+        Sends the API command to obtain sensor ID data from the device. If the device cannot be contacted or the offset data is
+        invalid the value None will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned short in bytes 3 and 4
+        packet_length = struct.unpack(">H", _response[3:5])[0]
+        # return the data payload
+        return _response[5:5 + packet_length - 4]
 
     def get_mulch_offset(self):
         """Get multichannel temperature and humidity offset data.
 
         Sends the API command to obtain the multichannel temperature and
-        humidity offset data with retries. If the device cannot be
-        contacted a GWIOError will have been raised by
-        send_cmd_with_retries() which will be passed through by
-        display_mulch_offset(). Any code calling display_mulch_offset() should be
-        prepared to handle this exception.
+        humidity offset data. If the device cannot be contacted or the data is
+        invalid the value None will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned byte in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_mulch_t_offset(self):
         """Get multichannel temperature (WN34) offset data.
 
         Sends the API command to obtain the multichannel temperature (WN34)
-        offset data with retries. If the device cannot be contacted a
-        GWIOError will have been raised by send_cmd_with_retries() which
-        will be passed through by display_mulch_t_offset(). Any code calling
-        display_mulch_t_offset() should be prepared to handle this exception.
+        offset data. If the device cannot be contacted or the data is invalid
+        the value None will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned short in bytes 3 and 4
+        packet_length = struct.unpack(">H", _response[3:5])[0]
+        # return the data payload
+        return _response[5:5 + packet_length - 4]
 
     def get_pm25_offset(self):
         """Get PM2.5 offset data.
 
-        Sends the API command to obtain the PM2.5 sensor offset data with
-        retries. If the device cannot be contacted a GWIOError will have
-        been raised by send_cmd_with_retries() which will be passed through
-        by display_pm25_offset(). Any code calling display_pm25_offset() should be
-        prepared to handle this exception.
+        Sends the API command to obtain the PM2.5 sensor offset data.
+        If the device cannot be contacted or the data is invalid the value None
+        will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned byte in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_gain(self):
         """Get calibration coefficient data.
 
-        Sends the API command to obtain the calibration coefficient data
-        with retries. If the device cannot be contacted a GWIOError will
-        have been raised by send_cmd_with_retries() which will be passed
-        through by get_gain(). Any code calling
-        get_gain() should be prepared to handle this
-        exception.
+        Sends the API command to obtain the calibration coefficient data. If
+        the device cannot be contacted or the data is invalid the value None
+        will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_GAIN')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_GAIN')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned byte in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_soil_humiad(self):
         """Get soil moisture sensor calibration data.
 
-        Sends the API command to obtain the soil moisture sensor
-        calibration data with retries. If the device cannot be contacted a
-        GWIOError will have been raised by send_cmd_with_retries() which
-        will be passed through by display_soil_calibration(). Any code calling
-        display_soil_calibration() should be prepared to handle this exception.
+        Sends the API command to obtain the soil moisture sensor calibration
+        data. If the device cannot be contacted or the data is invalid the
+        value None will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned byte in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_calibration(self):
         """Get offset calibration data.
 
-        Sends the API command to obtain the offset calibration data with
-        retries. If the device cannot be contacted a GWIOError will have
-        been raised by send_cmd_with_retries() which will be passed through
-        by get_offset_calibration(). Any code calling
-        get_offset_calibration() should be prepared to handle this
-        exception.
+        Sends the API command to obtain the offset calibration data. If the
+        device cannot be contacted or the data is invalid the value None will
+        be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_READ_CALIBRATION')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_READ_CALIBRATION')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned byte in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_co2_offset(self):
         """Get WH45 CO2, PM10 and PM2.5 offset data.
 
         Sends the API command to obtain the WH45 CO2, PM10 and PM2.5 sensor
-        offset data with retries. If the device cannot be contacted a
-        GWIOError will have been raised by send_cmd_with_retries() which
-        will be passed through by display_co2_offset(). Any code calling
-        display_co2_offset() should be prepared to handle this exception.
+        offset data. If the device cannot be contacted or the data is invalid
+        the value None will be returned.
+
+        Returns the API response data payload as a bytestring or None if a
+        valid response was not obtained.
         """
 
-        # obtain the API response and return the validated API response
-        return self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
+        # obtain the API response, if the response is non-None it has been
+        # already been validated
+        try:
+            _response = self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
+        except (GWIOError, InvalidChecksum) as e:
+            return None
+        # get the packet length, it is an unsigned byte in byte 3
+        packet_length = _response[3]
+        # return the data payload
+        return _response[4:packet_length + 1]
 
     def get_rain(self):
         """Get traditional gauge and piezo gauge rain data.
 
         Sends the API command to obtain the traditional gauge and piezo gauge
-        rain data with retries. If the device cannot be contacted a GWIOError
-        will be raised by send_cmd_with_retries() which will be passed through
-        by get_rain(). Any code calling get_rain() should be prepared to handle
-        this exception.
+        rain data. If the device cannot be contacted or the data is invalid the
+        value None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3473,6 +3622,57 @@ class GatewayApi():
 
         # send the command and obtain the result
         result = self.send_cmd_with_retries('CMD_WRITE_RAINDATA', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
+    def write_mulch_th(self, payload):
+        """Write rain data parameters.
+
+        Sends the API command to write the rain data parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_rain_data(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling write_rain_data() should be prepared to
+        handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_RAINDATA', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
+    def write_soil_moist(self, payload):
+        """Write rain data parameters.
+
+        Sends the API command to write the rain data parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_rain_data(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling write_rain_data() should be prepared to
+        handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_RAINDATA', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
+    def write_mulch_t(self, payload):
+        """Write mulch-t parameters.
+
+        Sends the API command to write the mulch-t offset parameters to the
+        gateway device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_mulch_t(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling write_mulch_t() should be prepared to
+        handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_SET_MulCH_T_OFFSET', payload)
         # check the result to confirm the command executed successfully, if
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
@@ -4221,18 +4421,18 @@ class GatewayDevice:
     def custom_params(self):
         """Gateway device custom server parameters.
 
-        Supports the following custom server upload parameters:
+        Returns a dict containing the following custom server upload
+        parameters:
 
         Parameter       Description
-        id:             station ID
-        password:       station password/key
-        server:         server address/name
-        port:           server port
-        interval:       upload interval
-        type:           upload data format
-        active:         whether upload is enabled/disabled
-
-        Returns a dict of custom upload parameters.
+        id:             station ID, string max 40 char
+        password:       station password/key, string max 40 char
+        server:         server address/name, string max 64 char
+        port:           server port, integer 0-65535
+        interval:       upload interval in seconds, integer 16-600
+        type:           upload data format, integer 0=Ecowitt, 1=WU
+        active:         whether upload is enabled/disabled, integer 0=disabled,
+                        1=enabled
         """
 
         # obtain the customized upload parameters via the gateway API, the
@@ -4262,29 +4462,40 @@ class GatewayDevice:
 
     @property
     def all_custom_params(self):
-        """Gateway device custom server parameters."""
-        # TODO. Needs comments
+        """Gateway device custom server parameters.
 
-        custom_data = self.gateway_api.get_customized()
-        parsed_custom_data = self.gateway_api_parser.parse_customized(custom_data)
-        user_path_data = self.gateway_api.get_usr_path()
-        parsed_user_path_data = self.gateway_api_parser.parse_usr_path(user_path_data)
-        parsed_custom_data.update(parsed_user_path_data)
-        return parsed_custom_data
+        The gateway API provides access to custom server upload properties via
+        two API commands; CMD_READ_CUSTOMIZED and CMD_READ_USR_PATH. The
+        GatewayDevice.all_custom_params property provides the combined parsed
+        data from these two API commands. This is useful when displaying the
+        entire customs server upload parameters.
+
+        The individual customized and user path parameters are available via
+        the GatewayDevice.custom_params and GatewayDevice.usr_path properties
+        respectively.
+        """
+
+        # obtain the parsed customized parameters
+        parsed_custom_data = self.custom_params
+        # return the parsed customized parameters updated with the parsed user
+        # path parameters
+        return parsed_custom_data.update(self.usr_path)
 
     @property
     def mac_address(self):
         """Gateway device MAC address."""
 
         payload = self.gateway_api.get_station_mac()
+        # return the parsed data
         return self.gateway_api_parser.parse_station_mac(payload)
 
     @property
     def firmware_version(self):
         """Gateway device firmware version."""
 
-        _data = self.gateway_api.get_firmware_version()
-        return self.gateway_api_parser.parse_firmware_version(_data)
+        payload = self.gateway_api.get_firmware_version()
+        # return the parsed data
+        return self.gateway_api_parser.parse_firmware_version(payload)
 
     @property
     def sensor_id(self):
@@ -4298,51 +4509,66 @@ class GatewayDevice:
     def mulch_offset(self):
         """Gateway device multichannel temperature and humidity offset data."""
 
-        _data = self.gateway_api.get_mulch_offset()
-        return self.gateway_api_parser.parse_mulch_offset(_data)
+        payload = self.gateway_api.get_mulch_offset()
+        # return the parsed data
+        return self.gateway_api_parser.parse_mulch_offset(payload)
 
     @property
     def mulch_t_offset(self):
         """Gateway device multichannel temperature (WN34) offset data."""
 
-        _data = self.gateway_api.get_mulch_t_offset()
-        return self.gateway_api_parser.parse_mulch_t_offset(_data)
+        payload = self.gateway_api.get_mulch_t_offset()
+        # return the parsed data
+        return self.gateway_api_parser.parse_mulch_t_offset(payload)
 
     @property
     def pm25_offset(self):
         """Gateway device PM2.5 offset data."""
 
-        _data = self.gateway_api.get_pm25_offset()
-        return self.gateway_api_parser.parse_pm25_offset(_data)
+        payload = self.gateway_api.get_pm25_offset()
+        # return the parsed data
+        return self.gateway_api_parser.parse_pm25_offset(payload)
 
     @property
     def calibration_coefficient(self):
         """Gateway device calibration coefficient data."""
 
-        _data = self.gateway_api.get_gain()
-        return self.gateway_api_parser.parse_calibration(_data)
+        payload = self.gateway_api.get_gain()
+        # return the parsed data
+        return self.gateway_api_parser.parse_calibration(payload)
 
     @property
     def soil_calibration(self):
         """Gateway device soil calibration data."""
 
-        _data = self.gateway_api.get_soil_humiad()
-        return self.gateway_api_parser.parse_soil_humiad(_data)
+        payload = self.gateway_api.get_soil_humiad()
+        # return the parsed data
+        return self.gateway_api_parser.parse_soil_humiad(payload)
 
     # TODO. Is this method appropriately named?
     @property
-    def offset_calibration(self):
-        """Gateway device offset calibration data."""
+    def calibration(self):
+        """Gateway device calibration data.
 
-        _data = self.gateway_api.get_calibration()
-        return self.gateway_api_parser.parse_calibration(_data)
+        This is the offset calibration data from the main WSView+ calibration
+        tab. It contains offset data for the major sensors. The
+        GatewayDevice.gain property provides the gain calibration data for the
+        major sensors on the WSView+ calibration tab. The
+        GatewayDevice.offset_and_gain property provides combine offset and gain
+        calibration data for the major sensors on the WSView+ calibration tab.
+        """
+
+        payload = self.gateway_api.get_calibration()
+        # return the parsed data
+        return self.gateway_api_parser.parse_calibration(payload)
 
     @property
     def co2_offset(self):
         """Gateway device CO2 offset data."""
 
-        _data = self.gateway_api.get_co2_offset()
-        return self.gateway_api_parser.parse_co2_offset(_data)
+        payload = self.gateway_api.get_co2_offset()
+        # return the parsed data
+        return self.gateway_api_parser.parse_co2_offset(payload)
 
     @property
     def rain(self):
@@ -4351,7 +4577,7 @@ class GatewayDevice:
         # obtain the traditional gauge and piezo gauge rain data via the
         # gateway API, the result will be a bytestring or None
         payload = self.gateway_api.get_rain()
-        # return the parsed traditional gauge and piezo gauge rain data
+        # return the parsed data
         return self.gateway_api_parser.parse_rain(payload)
 
     @property
@@ -4410,8 +4636,13 @@ class GatewayDevice:
         return device_info.get('curr_msg') if device_info is not None else None
 
     @property
-    def calibration(self):
-        """Device device calibration data."""
+    def offset_and_gain(self):
+        """Device combined offset and gain calibration data.
+
+        This property mimics the data displayed on the WSView+ main calibration
+        tab. It provides the offset and gain calibration data for the major
+        sensors.
+        """
 
         # obtain the calibration data via the API
         gain_data = self.gateway_api.get_gain()
@@ -4421,7 +4652,7 @@ class GatewayDevice:
         calibration_data = self.gateway_api.get_calibration()
         # update our parsed gain data with the parsed calibration data
         parsed_gain.update(self.gateway_api_parser.parse_calibration(calibration_data))
-        # return the parsed data
+        # return the combined parsed data
         return parsed_gain
 
     @property
@@ -4722,6 +4953,78 @@ class GatewayDevice:
         payload = self.gateway_api_parser.encode_rain_data(**params)
         # update the gateway device
         self.gateway_api.write_rain_data(payload)
+
+    def write_mulch_th(self, **params):
+        """Write rain data parameters.
+
+        Write system parameters to a gateway device. The system parameters
+        consist of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The parameters are first encoded to produce the command data payload.
+        The payload is then passed to a GatewayApi object for uploading to the
+        gateway device.
+        """
+
+        # obtain encoded data payload for the API command
+        payload = self.gateway_api_parser.encode_rain_data(**params)
+        # update the gateway device
+        self.gateway_api.write_rain_data(payload)
+
+    def write_soil_moist(self, **params):
+        """Write rain data parameters.
+
+        Write system parameters to a gateway device. The system parameters
+        consist of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The parameters are first encoded to produce the command data payload.
+        The payload is then passed to a GatewayApi object for uploading to the
+        gateway device.
+        """
+
+        # obtain encoded data payload for the API command
+        payload = self.gateway_api_parser.encode_rain_data(**params)
+        # update the gateway device
+        self.gateway_api.write_rain_data(payload)
+
+    def write_mulch_t(self, **params):
+        """Write mulch-t offset parameters.
+
+        Write mulch-t offset parameters to a gateway device. The mulch-t offset
+        parameters consist of:
+
+        wh65: inside temperature offset, float -10.0 - +10.0 °C
+        inhum:  inside humidity offset, integer -10 - +10 %
+        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
+        rel:    relative pressure offset, float -80.0 - +80.0 hPa
+        outemp: outside temperature offset, float -10.0 - +10.0 °C
+        outhum: outside humidity offset, integer -10 - +10 %
+        winddir: wind direction offset, integer -180 - +180 °
+
+        The parameters are first encoded to produce the command data payload.
+        The payload is then passed to a GatewayApi object for uploading to the
+        gateway device.
+        """
+
+        # obtain encoded data payload for the API command
+        payload = self.gateway_api_parser.encode_mulch_t(**params)
+        # update the gateway device
+        self.gateway_api.write_mulch_t(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
@@ -5288,7 +5591,8 @@ class DirectGateway:
                         # channels starting at 0x63, but the WSView Plus app
                         # displays channels starting at 1, so subtract 0x62
                         # (or 98) from our channel number
-                        channel_str = f'{"Channel":>11} {channel - 0x62:d}'
+                        # channel_str = f'{"Channel":>11} {channel - 0x62:d}'
+                        channel_str = f'{"Channel":>11} {channel[-1]}'
                         temp_offset_str = f'{mulch_t_offset_data[channel]:2.1f}'
                         print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5}')
 
@@ -5410,9 +5714,8 @@ class DirectGateway:
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            # get the calibration data from the collector object's calibration
-            # property
-            calibration_data = device.calibration
+            # get the main offset and gain calibration data from the device
+            calibration_data = device.offset_and_gain
         except GWIOError as e:
             print()
             print(f'Unable to connect to device at {self.ip_address}: {e}')
@@ -6056,8 +6359,8 @@ class DirectGateway:
         print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
               f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
         print()
-        # obtain the current calibration params from the device
-        cal_params = device.calibration
+        # obtain the current ofsset and gain params from the device
+        cal_params = device.offset_and_gain
         # make a copy of the current cal params, this copy will be updated
         # with the subcommand arguments and then used to update the device
         arg_cal_params = dict(cal_params)
@@ -6374,6 +6677,149 @@ class DirectGateway:
         else:
             print("No changes to current device settings")
 
+    def write_mulch_th(self):
+        """Process rain-data write sub-subcommand."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current rain data from the device
+        rain_data = device.raindata
+        # make a copy of the current rain data, this copy will be updated with
+        # the subcommand arguments and then used to update the device
+        arg_rain_data = dict(rain_data)
+        # iterate over each rain data (param, value) pair
+        for param, value in rain_data.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our dict copy if the namespace argument is not None,
+            # otherwise keep the current pm25 offsets
+            arg_rain_data[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_rain_data != rain_data:
+            # something has changed, so write the updated offsets to the device
+            try:
+                device.write_rain_data(**arg_rain_data)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print("No changes to current device settings")
+
+    def write_soil_moist(self):
+        """Process rain-data write sub-subcommand."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current rain data from the device
+        rain_data = device.raindata
+        # make a copy of the current rain data, this copy will be updated with
+        # the subcommand arguments and then used to update the device
+        arg_rain_data = dict(rain_data)
+        # iterate over each rain data (param, value) pair
+        for param, value in rain_data.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, param, None)
+            # update our dict copy if the namespace argument is not None,
+            # otherwise keep the current pm25 offsets
+            arg_rain_data[param] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_rain_data != rain_data:
+            # something has changed, so write the updated offsets to the device
+            try:
+                device.write_rain_data(**arg_rain_data)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print("No changes to current device settings")
+
+    def write_mulch_t(self):
+        """Process mulch-t-cal write sub-subcommand."""
+
+        # wrap in a try..except in case there is an error
+        try:
+            # obtain a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            print()
+            print(f'Unable to connect to device at {self.ip_address}: {e}')
+            return
+        except socket.timeout:
+            print()
+            print(f'Timeout. Device at {self.ip_address} did not respond.')
+            return
+        # identify the device being used
+        print()
+        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        print()
+        # obtain the current mulch temperature offset data from the device
+        offset_data = device.mulch_t_offset
+        # make a copy of the current mulch temperature offset data, this copy
+        # will be updated with the subcommand arguments and then used to update
+        # the device
+        arg_offset_data = dict(offset_data)
+        # iterate over each offset (param, value) pair
+        for offset, value in offset_data.items():
+            # obtain the corresponding argument from the namespace, if the
+            # argument does not exist or is not set it will be None
+            _arg = getattr(self.namespace, offset, None)
+            # update our dict copy if the namespace argument is not None,
+            # otherwise keep the current pm25 offsets
+            arg_offset_data[offset] = _arg if _arg is not None else value
+        # do we have any changes from our existing settings
+        if arg_offset_data != offset_data:
+            # something has changed, so write the updated offsets to the device
+            try:
+                device.write_mulch_t(**arg_offset_data)
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            else:
+                print("Device write completed successfully")
+        else:
+            print("No changes to current device settings")
+
+
 # ============================================================================
 #                             Argparse utility functions
 # ============================================================================
@@ -6599,6 +7045,12 @@ def dispatch_write(namespace):
         direct_gw.write_system()
     if getattr(namespace, 'write_subcommand', False)  == 'rain-data':
         direct_gw.write_rain_data()
+    if getattr(namespace, 'write_subcommand', False)  == 'mulch-th-offset':
+        direct_gw.write_mulch_th()
+    if getattr(namespace, 'write_subcommand', False)  == 'soil-moist':
+        direct_gw.write_soil_moist()
+    if getattr(namespace, 'write_subcommand', False)  == 'mulch-t-offset':
+        direct_gw.write_mulch_t()
 
 
 def add_common_args(parser):
@@ -7586,6 +8038,144 @@ def rain_data_write_subparser(subparsers):
     rain_data_write_parser.set_defaults(func=dispatch_write)
     return rain_data_write_parser
 
+def soil_write_subparser(subparsers):
+    """Define 'ecowitt write pm25-offset' sub-subparser."""
+
+    pm25_write_usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
+       ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
+                                 [--debug]
+{Bcolors.ENDC}"""
+    pm25_write_description = """Set PM2.5 sensor offset values. If a parameter
+    is omitted the corresponding current gateway device parameter is left
+    unchanged."""
+    pm25_write_parser = subparsers.add_parser('pm25-offset',
+                                              usage=pm25_write_usage,
+                                              description=pm25_write_description,
+                                              help="Set PM2.5 sensor offset values.")
+    pm25_write_parser.add_argument('--ch1',
+                                   dest='ch1',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 1 offset')
+    pm25_write_parser.add_argument('--ch2',
+                                   dest='ch2',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 2 offset')
+    pm25_write_parser.add_argument('--ch3',
+                                   dest='ch3',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 3 offset')
+    pm25_write_parser.add_argument('--ch4',
+                                   dest='ch4',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 4 offset')
+    add_common_args(pm25_write_parser)
+    pm25_write_parser.set_defaults(func=dispatch_write)
+    return pm25_write_parser
+
+def mulch_th_write_subparser(subparsers):
+    """Define 'ecowitt write pm25-offset' sub-subparser."""
+
+    pm25_write_usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
+       ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
+                                 [--debug]
+{Bcolors.ENDC}"""
+    pm25_write_description = """Set PM2.5 sensor offset values. If a parameter
+    is omitted the corresponding current gateway device parameter is left
+    unchanged."""
+    pm25_write_parser = subparsers.add_parser('pm25-offset',
+                                              usage=pm25_write_usage,
+                                              description=pm25_write_description,
+                                              help="Set PM2.5 sensor offset values.")
+    pm25_write_parser.add_argument('--ch1',
+                                   dest='ch1',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 1 offset')
+    pm25_write_parser.add_argument('--ch2',
+                                   dest='ch2',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 2 offset')
+    pm25_write_parser.add_argument('--ch3',
+                                   dest='ch3',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 3 offset')
+    pm25_write_parser.add_argument('--ch4',
+                                   dest='ch4',
+                                   type=ranged_type(float, -20, 20),
+                                   metavar='OFFSET',
+                                   help='PM2.5 channel 4 offset')
+    add_common_args(pm25_write_parser)
+    pm25_write_parser.set_defaults(func=dispatch_write)
+    return pm25_write_parser
+
+def mulch_t_write_subparser(subparsers):
+    """Define 'ecowitt write mulch-t' sub-subparser."""
+
+    mulch_t_write_usage = f"""{Bcolors.BOLD}ecowitt write mulch-t-offset --help
+       ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
+                                 [--ch5 OFFSET] [--ch6 OFFSET] [--ch7 OFFSET] [--ch8 OFFSET]
+                                 [--debug]
+{Bcolors.ENDC}"""
+    mulch_t_write_description = """Set multi-channel temperature sensor offset 
+    values. If a parameter is omitted the corresponding current gateway device 
+    parameter is left unchanged."""
+    mulch_t_write_parser = subparsers.add_parser('mulch-t-offset',
+                                                 usage=mulch_t_write_usage,
+                                                 description=mulch_t_write_description,
+                                                 help="Set Multi-channel temperature sensor offset values.")
+    mulch_t_write_parser.add_argument('--ch1',
+                                      dest='ITEM_TF_USR1',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 1 offset')
+    mulch_t_write_parser.add_argument('--ch2',
+                                      dest='ITEM_TF_USR2',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 2 offset')
+    mulch_t_write_parser.add_argument('--ch3',
+                                      dest='ITEM_TF_USR3',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 3 offset')
+    mulch_t_write_parser.add_argument('--ch4',
+                                      dest='ITEM_TF_USR4',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 4 offset')
+    mulch_t_write_parser.add_argument('--ch5',
+                                      dest='ITEM_TF_USR5',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 5 offset')
+    mulch_t_write_parser.add_argument('--ch6',
+                                      dest='ITEM_TF_USR6',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 6 offset')
+    mulch_t_write_parser.add_argument('--ch7',
+                                      dest='ITEM_TF_USR7',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 7 offset')
+    mulch_t_write_parser.add_argument('--ch8',
+                                      dest='ITEM_TF_USR8',
+                                      type=ranged_type(float, -10, 10),
+                                      metavar='OFFSET',
+                                      help='Multi-channel temperature channel 8 offset')
+    add_common_args(mulch_t_write_parser)
+    mulch_t_write_parser.set_defaults(func=dispatch_write)
+    return mulch_t_write_parser
+
 
 def write_subparser(subparsers):
     """Define the 'ecowitt write' subcommand."""
@@ -7603,6 +8193,9 @@ def write_subparser(subparsers):
        ecowitt write rain --help
        ecowitt write system --help
        ecowitt write rain-data --help
+       ecowitt write soil-offset --help
+       ecowitt write mulch-th-cal --help
+       ecowitt write mulch-t-cal --help
 {Bcolors.ENDC}"""
     write_description = """Set various Ecowitt gateway device configuration parameters."""
     write_parser = subparsers.add_parser('write',
@@ -7624,6 +8217,9 @@ def write_subparser(subparsers):
     rain_write_subparser(write_subparsers)
     system_write_subparser(write_subparsers)
     rain_data_write_subparser(write_subparsers)
+    soil_write_subparser(write_subparsers)
+    mulch_th_write_subparser(write_subparsers)
+    mulch_t_write_subparser(write_subparsers)
     return write_parser
 
 
