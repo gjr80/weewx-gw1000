@@ -703,45 +703,46 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_calibration(payload):
-        """Parse a CMD_READ_CALIBRATION API response.
-# TODO. Rework comments
-        Response consists of 21 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x38
-        4       size            byte
-        5-6     intemp offset   signed short    -100 to +100 in tenths C
-                                                (-10.0 to +10.0)
-        7       inhum offset    signed byte     -10 to +10 %
-        8-11    abs offset      signed long     -800 to +800 in tenths hPa
-                                                (-80.0 to +80.0)
-        12-15   rel offset      signed long     -800 to +800 in tenths hPa
-                                                (-80.0 to +80.0)
-        16-17   outtemp offset  signed short    -100 to +100 in tenths C
-                                                (-10.0 to +10.0)
-        18      outhum offset   signed byte     -10 to +10 %
-        19-20   wind dir offset signed short    -180 to +180 degrees
-        21      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        """Parse the data from a CMD_READ_CALIBRATION API response.
+
+        Payload consists of a bytestring of length 16. Decode as follows:
+
+        Parameter           Byte(s)     Data format     Comments
+        ------------------------------------------------------------------------
+        intemp offset       0 to 1      signed short    inside temperature offset,
+                                                        -100 - +100 tenths °C
+        inhum offset        2           signed byte     inside temperature offset,
+                                                        -10 - +10 %
+        abs offset          3 to 6      signed long     absolute pressure offset,
+                                                        -800 - +800 tenths hPa
+        rel offset          7 to 10     signed long     relative pressure offset,
+                                                        -800 - +800 tenths hPa
+        outtemp offset      10 to 12    signed short    outside temperature offset,
+                                                        -100 - +100 tenths °C
+        outhum offset       13          signed byte     outside temperature offset,
+                                                        -10 - +10 %
+        winddir offset      14 to 15    signed short    wind direction offset,
+                                                        -180 - +180 °
+
+        Returns a dict of gain values keyed as follows:
+
+        'intemp'    inside temperature offset (-10.0 to +10.0 °C)
+        'inhum'     inside humidity (-10 to +10 %)
+        'abs'       absolute pressure offset (-80.0 to +80.0 hPa)
+        'rel'       relative pressure offset (-80.0 to +80.0 hPa)
+        'outtemp'   outside temperature offset (-10.0 to +10.0 °C)
+        'outhum'    outside humidity (-10 to +10 %)
+        'dir'       wind direction offset (-180 - +180 °)
         """
 
-        # initialise a dict to hold our parsed data
-        cal_dict = {}
-        # and decode/store the offset calibration data
-        cal_dict['intemp'] = struct.unpack(">h", payload[0:2])[0] / 10.0
-        try:
-            cal_dict['inhum'] = struct.unpack("b", payload[2])[0]
-        except TypeError:
-            cal_dict['inhum'] = struct.unpack("b", bytes([payload[2]]))[0]
-        cal_dict['abs'] = struct.unpack(">l", payload[3:7])[0] / 10.0
-        cal_dict['rel'] = struct.unpack(">l", payload[7:11])[0] / 10.0
-        cal_dict['outtemp'] = struct.unpack(">h", payload[11:13])[0] / 10.0
-        try:
-            cal_dict['outhum'] = struct.unpack("b", payload[13])[0]
-        except TypeError:
-            cal_dict['outhum'] = struct.unpack("b", bytes([payload[13]]))[0]
-        cal_dict['dir'] = struct.unpack(">h", payload[14:16])[0]
+        # create a dict containing the decoded offset data
+        cal_dict = {'intemp': struct.unpack(">h", payload[0:2])[0] / 10.0,
+                    'inhum': struct.unpack("b", payload[2])[0],
+                    'abs': struct.unpack(">l", payload[3:7])[0] / 10.0,
+                    'rel': struct.unpack(">l", payload[7:11])[0] / 10.0,
+                    'outtemp': struct.unpack(">h", payload[11:13])[0] / 10.0,
+                    'outhum': struct.unpack("b", payload[13])[0],
+                    'dir':  struct.unpack(">h", payload[14:16])[0]}
         # return the parsed response
         return cal_dict
 
