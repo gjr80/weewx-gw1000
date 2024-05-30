@@ -198,16 +198,17 @@ class GatewayApiParser:
     with the device in any way.
     """
 
-    # Dictionary of address based data received using various gateway API
-    # commands. The dictionary is keyed by the device data field 'address'
+    # Dictionary of common address based data received using various gateway
+    # API commands. The dictionary is keyed by the device data field 'address'
     # and contains various parameters for each 'address'. Dictionary tuple
     # format is:
-    #   (field name, decode fn, field size)
+    #   (field name, decode fn, field size, common name)
     # where:
-    #   field name: the name of the device field as per the gateway API
-    #               documentation
-    #   decode fn:  the name of the function used to decode the field data
-    #   field size: the size of field data in bytes
+    #   field name:  the name of the device field as per the gateway API
+    #                documentation.eg ITEM_INTEMP
+    #   decode fn:   the name of the function used to decode the field data
+    #   field size:  the size of field data in bytes
+    #   common name: common use name for the field, eg intemp
     addressed_data_struct = {
         b'\x01': ('ITEM_INTEMP', 'decode_temp', 2, 'intemp'),
         b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2, 'outtemp'),
@@ -298,8 +299,8 @@ class GatewayApiParser:
         b'\x60': ('ITEM_LIGHTNING', 'decode_distance', 1, 'lightningdist'),
         b'\x61': ('ITEM_LIGHTNING_TIME', 'decode_utc', 4, 'lightningdettime'),
         b'\x62': ('ITEM_LIGHTNING_POWER', 'decode_count', 4, 'lightningcount'),
-        # WN34 battery data is not obtained from live data rather it is
-        # obtained from sensor ID data
+        # whilst WN34 battery data is available via live data the preference is
+        # to obtain such data from sensor ID data (as with other sensors)
         b'\x63': ('ITEM_TF_USR1', 'decode_wn34', 3, 'temp9'),
         b'\x64': ('ITEM_TF_USR2', 'decode_wn34', 3, 'temp10'),
         b'\x65': ('ITEM_TF_USR3', 'decode_wn34', 3, 'temp11'),
@@ -309,15 +310,14 @@ class GatewayApiParser:
         b'\x69': ('ITEM_TF_USR7', 'decode_wn34', 3, 'temp15'),
         b'\x6A': ('ITEM_TF_USR8', 'decode_wn34', 3, 'temp16'),
         b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4, 'heap_free'),
-        # WH45 battery data is not obtained from live data rather it is
-        # obtained from sensor ID data
+        # whilst WH45 battery data is available via live data the preference is
+        # to obtain such data from sensor ID data (as with other sensors)
         b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                                          'pm10_24h_avg', 'pm255',
                                                          'pm255_24h_avg', 'co2',
-                                                         'co2_24h_avg')
-                  ),
+                                                         'co2_24h_avg')),
         # placeholder for unknown field 0x71
-        b'\x71': ('ITEMPM25_AQI', None, None),
+        b'\x71': ('ITEM_PM25_AQI', None, None),
         b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1, 'leafwet1'),
         b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1, 'leafwet2'),
         b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1, 'leafwet3'),
@@ -343,10 +343,20 @@ class GatewayApiParser:
     }
 
     def __init__(self):
+        """Initialise a GatewayApiParser object."""
 
+        # Create an invertible API field name to field address dict. We could
+        # define this statically but then any future changes to address based
+        # data structure by ecowitt would require changes to the same
+        # information in multiple locations within the code base. This way such
+        # changes are limited to one location only.
         _field_idt = InvertibleMap()
+        # iterate over the address based data structure
         for key, value in GatewayApiParser.addressed_data_struct.items():
+            # for each address based data structure entry create an equivalent
+            # API field name to field address in our invertible dict
             _field_idt[value[0]] = key
+        # save our invertible dict for later use
         self.field_idt = _field_idt
 
     def parse_addressed_data(self, payload, structure):
@@ -382,7 +392,7 @@ class GatewayApiParser:
                 # the current field, wrap in a try..except in case we
                 # encounter a field address we do not know about
                 try:
-                    item, decode_fn_str, field_size, field = structure[payload[index:index + 1]]
+                    field_name, decode_fn_str, field_size, common_name = structure[payload[index:index + 1]]
                 except KeyError:
                     # We struck a field 'address' we do not know how to
                     # process. We can't skip to the next field so all we
@@ -396,7 +406,7 @@ class GatewayApiParser:
                     break
                 else:
                     _field_data = getattr(self, decode_fn_str)(payload[index + 1:index + 1 + field_size],
-                                                               item)
+                                                               field_name)
                     # do we have any decoded data?
                     if _field_data is not None:
                         # we have decoded data so add the decoded data to
@@ -415,18 +425,10 @@ class GatewayApiParser:
         """Parse data from a CMD_GW1000_LIVEDATA API response data payload.
 
         Payload consists of a bytestring of variable length dependent on the
-        number of connected sensors. Decode as follows:
+        number of connected sensors.
 
-        Parameter Name  Byte(s)     Data format     Comments
-        sensor1 address 0           byte            sensor1 address
-        sensor1 data    1 to s1     s1 bytes        s1 = sensor1 data size in bytes
-        sensor2 address 1+s1        byte            sensor2 address
-        sensor2 data    2+s1 to     s2 bytes        s2 = sensor2 data size in bytes
-                        1+s1+s2
-
-        etc
-
-        Returns a dict keyed field name obtained from addressed_data_struct.
+        Returns a dict of live sensor data keyed by gateway API field name
+        (eg ITEM_INTEMP etc).
         """
 
         # this is addressed data, so we can call parse_addressed_data() and
@@ -436,28 +438,12 @@ class GatewayApiParser:
     def parse_rain(self, payload):
         """Parse data from a CMD_READ_RAIN API response data payload.
 
-        Payload consists of a bytestring of length 66 as follows:
 
-        Field Name              Byte(s)     Data format     Comments
-#TODO. This is not correct, what about address bytes?
-        ITEM_RAINRATE           0 to 1      unsigned short
-        ITEM_RAINDAY            2 to 5      unsigned long
-        ITEM_RAINWEEK           6 to 9      unsigned long
-        ITEM_RAINMONTH          10 to 13    unsigned long
-        ITEM_RAINYEAR           14 to 17    unsigned long
-        ITEM_RAINEVENT          18 to 19    unsigned short
-        ITEM_RAIN_Gain          20 to 21    unsigned short
-        ITEM_Piezo_Rain_Rate    22 to 23    unsigned short
-        ITEM_Piezo_Event_Rain   24 to 25    unsigned short
-        ITEM_Piezo_Daily_Rain   26 to 29    unsigned long
-        ITEM_Piezo_Weekly_Rain  30 to 33    unsigned long
-        ITEM_Piezo_Monthly_Rain 34 to 37    unsigned long
-        ITEM_Piezo_yearly_Rain  38 to 41    unsigned long
-        ITEM_RAIN_Priority      42          byte
-        ITEM_Piezo_Gain10       43 to 62    10 x unsigned short
-        ITEM_RST_RainTime       63 to 65    3 x byte
+        Payload consists of a bytestring of variable length dependent on the
+        number of connected sensors.
 
-        Returns a dict keyed field name obtained from addressed_data_struct.
+        Returns a dict of live rain data keyed by gateway API field name
+        (eg ITEM_RAINRATE etc).
         """
 
         # this is addressed data, so we can call parse_addressed_data() and
@@ -467,24 +453,28 @@ class GatewayApiParser:
     def parse_raindata(self, payload):
         """Parse data from a CMD_READ_RAINDATA API response.
 
-        Response consists of 25 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x2C
-        4       size            byte
-        5-8     rainrate        unsigned long   0 to 60000 in tenths mm/hr
-                                                0 to 6000.0
-        9-12    rainday         unsigned long   0 to 99999 in tenths mm
-                                                0 to 9999.9
-        13-16   rainweek        unsigned long   0 to 99999 in tenths mm
-                                                0 to 9999.9
-        17-20   rainmonth       unsigned long   0 to 99999 in tenths mm
-                                                0 to 9999.9
-        21-24   rainyear        unsigned long   0 to 99999 in tenths mm
-                                                0 to 9999.9
-        25      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        Payload consists of a bytestring of length 20. Decode as
+        follows:
+
+        Parameter       Byte(s)     Data format     Comments
+          Name
+        ------------------------------------------------------------------------
+        rain rate       0 to 3      unsigned long   0 to 60000 in tenths mm/hr
+        day rain        4 to 7      unsigned long   0 to 99999 in tenths mm
+        week rain       8 to 11     unsigned long   0 to 99999 in tenths mm
+        month rain      12 to 15    unsigned long   0 to 99999 in tenths mm
+        year rain       16 to 19    unsigned long   0 to 99999 in tenths mm
+
+        Note CMD_READ_RAINDATA returns traditional rain gauge rain data only.
+        It does not return piezo rain data.
+
+        Returns a dict keyed as follows:
+
+        't_rate'    rain rate (0 - 6000 mm/hr)
+        't_day'     rain rate (0 - 9999.9 mm)
+        't_week'    rain rate (0 - 9999.9 mm)
+        't_month'   rain rate (0 - 9999.9 mm)
+        't_year'    rain rate (0 - 9999.9 mm)
         """
 
         # create a dict holding our parsed data
@@ -498,28 +488,28 @@ class GatewayApiParser:
     @staticmethod
     def parse_mulch_offset(payload):
         """Parse data from a CMD_GET_MulCH_OFFSET API response.
-# TODO. Rewrite comments
-        Response consists of 29 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x2C
-        4       size            byte
-        5       channel 1       byte            fixed 00
-        6       hum offset      signed byte     -10 to +10
-        7       temp offset     signed byte     -100 to +100 in tenths C
-                                                (-10.0 to +10.0)
-        8       channel 2       byte            fixed 01
-        9       hum offset      signed byte     -10 to +10
-        10      temp offset     signed byte     -100 to +100 in tenths C
-                                                (-10.0 to +10.0)
-        ....
-        26      channel 8       byte            fixed 07
-        27      hum offset      signed byte     -10 to +10
-        28      temp offset     signed byte     -100 to +100 in tenths C
-                                                (-10.0 to +10.0)
-        29      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+
+        Payload consists of a bytestring of variable length depending on the
+        number of sensors. Decode as follows:
+
+        Parameter                Byte(s)    Data format    Comments
+          Name
+        ------------------------------------------------------------------------
+        ch 1 humidity offset     0          unsigned byte  -10 to 10 %
+        ch 1 temperature offset  1          unsigned byte  -100 - +100 tenths °C
+        ch 2 humidity offset     2          unsigned byte  -10 to 10 %
+        ch 2 temperature offset  3          unsigned byte  -100 - +100 tenths °C
+        ..
+        ch n humidity offset     (n-1)*2    unsigned byte  -10 to 10 %
+        ch n temperature offset  (n-1)*2+1  unsigned byte  -100 - +100 tenths °C
+
+        Returns a nested dict keyed by channel number (eg 1, 2 etc) with each
+        sub-dict keyed as follows:
+
+        'hum'    channel n humidity offset (-10 - 10 %)
+        'temp'   channel n temperature offset (-10.0 - 10.0 °C)
+
+        Response only includes channels with active sensors.
         """
 
         # initialise a counter
@@ -544,39 +534,70 @@ class GatewayApiParser:
     def parse_mulch_t_offset(self, payload):
         """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
 
-        Response consists of a variable number of bytes determined by the
-        connected sensors. Decode as follows:
-        Byte(s)     Data            Format          Comments
-        1-2         header          -               fixed header 0xFFFF
-        3           command code    byte            0x59
-        4-5         size            unsigned big
-                                    endian short
-        ....
-        6-2nd last byte
-            three bytes per connected WN34 sensor:
-                    address         byte            sensor address, 0x63 to
-                                                    0x6A incl
-                    temp offset     signed big      -100 to +100 in tenths C
-                                    endian short    (-10.0 to +10.0)
-        ....
-        last byte   checksum        byte            LSB of the sum of the
-                                                    command, size and data
-                                                    bytes
+        Note: As of gateway API documentation v1.6.9 the CMD_GET_MulCH_T_OFFSET
+        command is still not documented. The command code 0x59 has been
+        supported in firmware for various devices for some time. The
+        CMD_GET_MulCH_T_OFFSET command and response format has been deduced and
+        the command appears stable. However, it has been noted that on GW1000
+        devices the offset data is presented in a single signed byte whereas for
+        other devices the offset data is presented as a signed short.
+
+        The payload consists of addressed sensor offset data where each address
+        matches one of the ITEM_TF_USRx field addresses.
+
+        The payload consists of a bytestring of variable length depending on
+        connected sensors. Each sensor address is decoded as follows:
+
+        Parameter           Byte(s)  Data format    Comments
+          Name
+        ------------------------------------------------------------------------
+        address             0        unsigned byte  0x63 - 0x6A
+        temperature offset  1 or     signed byte    temperature offset for given
+                            1 to 2   signed short   address, maybe a signed byte
+                                                    or signed short depending on
+                                                    device/firmware.
+                                                    -100 - +100 tenths °C
+        etc
+
+        Returns a dict of temperature offset data keyed by address (eg 0x63 etc)
         """
 
-        # initialise a counter
-        index = 0
-        # initialise a dict to hold our parsed data
-        offset_dict = {}
-        # iterate over the data
-        while index < len(payload):
-            # channel = payload[index]
-            channel = self.field_idt.inverse[payload[index:index + 1]]
-            offset_dict[channel] = struct.unpack("b", payload[index + 1:index + 2])[0] / 10.0
-            # offset_dict[channel] = struct.unpack(">h", payload[index + 1:index + 3])[0] / 10.0
-            index += 2
-            # index += 3
-        print("offset_dict=%s" % (offset_dict,))
+        def parse_addressed(payload, st_format):
+            """Parse simple address based data with user specified format."""
+
+            # obtain a struct.Struct object using the specified format
+            st = struct.Struct(st_format)
+            # initialise a counter
+            index = 0
+            # initialise a dict to hold our parsed data
+            _dict = {}
+            # iterate over the data
+            while index < len(payload):
+                # obtain the address, this is the first byte of each address
+                # based data chunk
+                address = self.field_idt.inverse[payload[index:index + 1]]
+                # obtain the data, in this case the data is in tenths so divide
+                # by 10 to get the real value
+                _dict[address] = st.unpack(payload[index + 1:index + 1 + st.size])[0] / 10.0
+                # increment our index, the amount to increment is dependent on
+                # the size of the data
+                index += st.size + 1
+            # return the parsed data
+            return _dict
+
+        # Try parsing the data as a signed short, if we have data that is a
+        # signed byte we will likely encounter a KeyError or struct.error
+        # exception. In that case we should try parsing the data as a signed
+        # byte.
+        try:
+            # attempt to parse as a signed short
+            offset_dict = parse_addressed(payload, '>h')
+        except (KeyError, struct.error):
+            # We encountered an error, try parsing as a signed byte. If this
+            # does not work an exception will likely be raised which will halt
+            # the program.
+            offset_dict = parse_addressed(payload, 'b')
+        # return the parsed data
         return offset_dict
 
     @staticmethod
@@ -785,7 +806,9 @@ class GatewayApiParser:
         Payload consists of a bytestring of length 8. Decode as
         follows:
 
-        Parameter Name  Byte(s)     Data format     Comments
+        Parameter       Byte(s)     Data format     Comments
+          Name
+        ------------------------------------------------------------------------
         frequency       0           unsigned byte   operating frequency
                                                     (0=433MHz, 1=868MHz,
                                                     2=915MHz, 3=920MHz)
