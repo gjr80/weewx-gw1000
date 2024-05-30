@@ -422,7 +422,7 @@ class GatewayApiParser:
         return data
 
     def parse_livedata(self, payload):
-        """Parse data from a CMD_GW1000_LIVEDATA API response data payload.
+        """Parse the data payload from a CMD_GW1000_LIVEDATA API response.
 
         Payload consists of a bytestring of variable length dependent on the
         number of connected sensors.
@@ -436,7 +436,7 @@ class GatewayApiParser:
         return self.parse_addressed_data(payload, self.addressed_data_struct)
 
     def parse_rain(self, payload):
-        """Parse data from a CMD_READ_RAIN API response data payload.
+        """Parse the data payload from a CMD_READ_RAIN API response.
 
 
         Payload consists of a bytestring of variable length dependent on the
@@ -451,7 +451,7 @@ class GatewayApiParser:
         return self.parse_addressed_data(payload, self.addressed_data_struct)
 
     def parse_raindata(self, payload):
-        """Parse data from a CMD_READ_RAINDATA API response.
+        """Parse the data payload from a CMD_READ_RAINDATA API response.
 
         Payload consists of a bytestring of length 20. Decode as
         follows:
@@ -487,29 +487,29 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_mulch_offset(payload):
-        """Parse data from a CMD_GET_MulCH_OFFSET API response.
+        """Parse the data payload from a CMD_GET_MulCH_OFFSET API response.
 
-        Payload consists of a bytestring of variable length depending on the
-        number of sensors. Decode as follows:
+        Payload consists of a bytestring of length 24. Decode as follows:
 
-        Parameter                Byte(s)    Data format    Comments
+        Parameter                Byte(s)  Data format    Comments
           Name
         ------------------------------------------------------------------------
-        ch 1 humidity offset     0          unsigned byte  -10 to 10 %
-        ch 1 temperature offset  1          unsigned byte  -100 - +100 tenths °C
-        ch 2 humidity offset     2          unsigned byte  -10 to 10 %
-        ch 2 temperature offset  3          unsigned byte  -100 - +100 tenths °C
+        channel                  0        unsigned byte  fixed value 0 = channel 1
+        ch 1 humidity offset     1        unsigned byte  -10 to 10 %
+        ch 1 temperature offset  2        unsigned byte  -100 - +100 tenths °C
+        channel                  3        unsigned byte  fixed value 1 = channel 2
+        ch 2 humidity offset     4        unsigned byte  -10 to 10 %
+        ch 2 temperature offset  5        unsigned byte  -100 - +100 tenths °C
         ..
-        ch n humidity offset     (n-1)*2    unsigned byte  -10 to 10 %
-        ch n temperature offset  (n-1)*2+1  unsigned byte  -100 - +100 tenths °C
+        channel                  21       unsigned byte  fixed value 7 = channel 8
+        ch n humidity offset     22       unsigned byte  -10 to 10 %
+        ch n temperature offset  23       unsigned byte  -100 - +100 tenths °C
 
-        Returns a nested dict keyed by channel number (eg 1, 2 etc) with each
+        Returns a nested dict keyed by channel (eg 0, 1, 2 .. 7) with each
         sub-dict keyed as follows:
 
         'hum'    channel n humidity offset (-10 - 10 %)
         'temp'   channel n temperature offset (-10.0 - 10.0 °C)
-
-        Response only includes channels with active sensors.
         """
 
         # initialise a counter
@@ -532,7 +532,7 @@ class GatewayApiParser:
         return offset_dict
 
     def parse_mulch_t_offset(self, payload):
-        """Parse data from a CMD_GET_MulCH_T_OFFSET API response.
+        """Parse the data payload from a CMD_GET_MulCH_T_OFFSET API response.
 
         Note: As of gateway API documentation v1.6.9 the CMD_GET_MulCH_T_OFFSET
         command is still not documented. The command code 0x59 has been
@@ -602,23 +602,25 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_pm25_offset(payload):
-        """Parse data from a CMD_GET_PM25_OFFSET API response.
-# TODO. Rework these comments
-        Response consists of 17 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x2E
-        4       size            byte
-        5       channel num     byte            fixed 00 (ch1)
-        6-7     pm25 offset     signed short    -200 to +200 in tenths µg/m³
-                                                (-20.0 to +20.0)
-        ....
-        14      channel num     byte            fixed 03 (ch4)
-        15-16   pm25 offset     signed short    -200 to +200 in tenths µg/m³
-                                                (-20.0 to +20.0)
-        17      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        """Parse the data from a CMD_GET_PM25_OFFSET API response.
+
+        Payload consists of a bytestring of length 12. Decode as follows:
+
+        Parameter         Byte(s)    Data format      Comments
+        ------------------------------------------------------------------------
+        channel           0          unsigned byte   fixed value 0 = channel 1
+        PM2.5 offset      1 to 2     signed short    -200 - +200 tenths μg/m³
+        channel           3          unsigned byte   fixed value 1 = channel 2
+        PM2.5 offset      4 to 5     signed short    -200 - +200 tenths μg/m³
+        channel           6          unsigned byte   fixed value 2 = channel 3
+        PM2.5 offset      7 to 8     signed short    -200 - +200 tenths μg/m³
+        channel           9          unsigned byte   fixed value 3 = channel 4
+        PM2.5 offset      10 to 11   signed short    -200 - +200 tenths μg/m³
+
+        Returns a dict of PM2.5 offset values (-20.0 to +20.0 μg/m³) keyed by
+        channel (eg 0, 1 .. 7).
+
+        Response only includes channels with active sensors.
         """
 
         # initialise a counter
@@ -627,28 +629,32 @@ class GatewayApiParser:
         offset_dict = {}
         # iterate over the data
         while index < len(payload):
+            # obtain the channel
             channel = payload[index]
+            # obtian the offset value for the channel and add to the dict
             offset_dict[channel] = struct.unpack(">h", payload[index + 1:index + 3])[0] / 10.0
+            # increment the index to the next channel
             index += 3
+        # return the parsed data
         return offset_dict
 
     @staticmethod
     def parse_co2_offset(payload):
-        """Parse data from a CMD_GET_CO2_OFFSET API response.
-# TODO. Rework comments
-        Response consists of 11 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x53
-        4       size            byte
-        5-6     co2 offset      signed short    -600 to +10000 in tenths µg/m³
-        7-8     pm25 offset     signed short    -200 to +200 in tenths µg/m³
-                                               (-20.0 to +20.0)
-        9-10    pm10 offset     signed short    -200 to +200 in tenths µg/m³
-                                               (-20.0 to +20.0)
-        17      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        """Parse the data from a CMD_GET_CO2_OFFSET API response.
+
+        Payload consists of a bytestring of length 6. Decode as follows:
+
+        Parameter         Byte(s)    Data format      Comments
+        ------------------------------------------------------------------------
+        CO2 offset        0 to 1     signed short     -600 - +10000 ppm
+        PM2.5 offset      2 to 3     signed short     -200 - +200 tenths μg/m³
+        PM10 offset       4 to 5     signed short     -200 - +200 tenths μg/m³
+
+        Returns a dict of offset values keyed as follows:
+
+        'co2'   CO2 offset (CO2 -600 - +10000 ppm)
+        'pm25'  PM2.5 offset (PM2.5 -20.0 to +20.0 μg/m³)
+        'pm10'  PM10 offset (PM2.5 -20.0 to +20.0 μg/m³)
         """
 
         # Create a dict holding our parsed data. bytes 0 and 1 hold the CO2
@@ -657,47 +663,42 @@ class GatewayApiParser:
         offset_dict = {'co2': struct.unpack(">h", payload[0:2])[0],
                        'pm25': struct.unpack(">h", payload[2:4])[0] / 10.0,
                        'pm10': struct.unpack(">h", payload[4:6])[0] / 10.0}
+        # return the parsed data
         return offset_dict
 
     @staticmethod
-    def parse_gain(response):
-        """Parse a CMD_READ_GAIN API response.
+    def parse_gain(payload):
+        """Parse the data from a CMD_READ_GAIN API response.
 
-        Response consists of 17 bytes as follows:
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x36
-        4       size            byte
-        5-6     fixed           short           fixed value 1267
-        7-8     uvGain          unsigned short  10 to 500 in hundredths
-                                                (0.10 to 5.00)
-        9-10    solarRadGain    unsigned short  10 to 500 in hundredths
-                                                (0.10 to 5.00)
-        11-12   windGain        unsigned short  10 to 500 in hundredths
-                                                (0.10 to 5.00)
-        13-14   rainGain        unsigned short  10 to 500 in hundredths
-                                                (0.10 to 5.00)
-        15-16   reserved                        reserved
-        17      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        Payload consists of a bytestring of length 12. Decode as follows:
+
+        Parameter         Byte(s)    Data format      Comments
+        ------------------------------------------------------------------------
+        reserved          0 to 1      unsigned short      fixed value 1267 in tenths
+        uvGain            2 to 3      unsigned short      10 to 500 in hundredths
+        solarRadGain      4 to 5      unsigned short      10 to 500 in hundredths
+        windGain          6 to 7      unsigned short      10 to 500 in hundredths
+        rainGain          8 to 9      unsigned short      10 to 500 in hundredths
+        reserved          10 to 11    unsigned short      reserved
+
+        Returns a dict of gain values keyed as follows:
+
+        'reserved1'     the value 126.7
+        'uv'            UV gain (0.10 to 5.00)
+        'solar'         solar radiation gain (0.10 to 5.00)
+        'wind'          wind speed gain (0.10 to 5.00)
+        'rain'          traditional rain gain (0.10 to 5.00)
+        'reserved2'     reserved
         """
 
-        # determine the size of the calibration data
-        size = response[3]
-        # extract the actual data
-        data = response[4:4 + size - 3]
-        # create a dict holding our parsed data
-        # decode/store the calibration data
-        # bytes 0 and 1 are reserved (lux to solar radiation conversion
-        # gain (126.7))
-        gain_dict = {'reserved1': struct.unpack(">H", data[0:2])[0],
-                     'uv': struct.unpack(">H", data[2:4])[0] / 100.0,
-                     'solar': struct.unpack(">H", data[4:6])[0] / 100.0,
-                     'wind': struct.unpack(">H", data[6:8])[0] / 100.0,
-                     'rain': struct.unpack(">H", data[8:10])[0] / 100.0,
-                     'reserved2': struct.unpack(">H", data[10:12])[0]}
-        # return the parsed response
+        # create a dict holding the parsed data
+        gain_dict = {'reserved1': struct.unpack(">H", payload[0:2])[0] / 10.0,
+                     'uv': struct.unpack(">H", payload[2:4])[0] / 100.0,
+                     'solar': struct.unpack(">H", payload[4:6])[0] / 100.0,
+                     'wind': struct.unpack(">H", payload[6:8])[0] / 100.0,
+                     'rain': struct.unpack(">H", payload[8:10])[0] / 100.0,
+                     'reserved2': struct.unpack(">H", payload[10:12])[0]}
+        # return the parsed data
         return gain_dict
 
     @staticmethod
@@ -7794,7 +7795,7 @@ def co2_offset_write_subparser(subparsers):
                                              help="Set CO2 sensor offset values.")
     co2_write_parser.add_argument('--co2',
                                   dest='co2',
-                                  type=ranged_type(float, -6, 100),
+                                  type=ranged_type(float, -600, 10000),
                                   metavar='OFFSET',
                                   help='CO2 offset')
     co2_write_parser.add_argument('--pm25',
