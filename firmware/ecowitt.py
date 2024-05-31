@@ -748,28 +748,33 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_soil_humiad(payload):
-        """Parse a CMD_GET_SOILHUMIAD API response.
-# TODO. Rework comments
-        Response consists of a variable number of bytes determined by the
-        number of WH51 soil moisture sensors. Number of bytes = 5 + (n x 9)
-        where n is the number of connected WH51 sensors. Decode as follows:
+        """Parse the data from a CMD_GET_SOILHUMIAD API response.
 
-        Byte(s) Data            Format          Comments
-        1-2     header          -               fixed header 0xFFFF
-        3       command code    byte            0x29
-        4       size            byte
-        5       channel         byte            channel number (0 to 8)
-        6       current hum     byte            from sensor
-        7-8     current ad      unsigned short  from sensor
-        9       custom cal      byte            0 = sensor, 1 = enabled
-        10      min ad          unsigned byte   0% ad setting (70 to 200)
-        11-12   max ad          unsigned short  100% ad setting (80 to 1000)
-        ....
-        structure of bytes 5 to 12 incl repeated for each WH51 sensor
-        ....
-        21      checksum        byte            LSB of the sum of the
-                                                command, size and data
-                                                bytes
+        Payload consists of a bytestring of variable length depending on the
+        number of connected sensors (n * 8 bytes where n is the number of
+        connected sensors). Decode as follows:
+
+        Parameter         Byte(s)    Data format      Comments
+        ------------------------------------------------------------------------
+        channel number    0           unsigned byte       channel number (0 to 8)
+        current hum       1           unsigned byte       current humidity (0 to 100 %)
+        current ad        2 to 3      unsigned short      current AD (0 to 100 %)
+        custom cal        4           unsigned byte       humidity ad select, 0 = sensor,
+                                                          1 = enabled
+        min ad            5           unsigned byte       0% ad setting (70 to 200)
+        max ad            6 to 7      unsigned short      100% ad setting (80 to 1000)
+        ...
+        structure (bytes 0 to 7) repeats for remaining connected sensors
+
+        Returns a nested dict keyed by channel (eg 0, 1, 2 .. 7) with each
+        sub-dict keyed as follows:
+
+        'humidity'      channel n humidity offset (-10 - 10 %)
+        'ad'            channel n temperature offset (-10.0 - 10.0 °C)
+        'ad_select'
+        'adj_min'
+        'adj_max'
+
         """
 
         # initialise a dict to hold our final data
