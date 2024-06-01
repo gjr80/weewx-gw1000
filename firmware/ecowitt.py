@@ -725,7 +725,7 @@ class GatewayApiParser:
             # append the offset value to our result list
             comp.append(struct.pack('b', int(offset * 10)))
         # return a bytestring consisting of the concatenated list elements
-        #TODO. Remove before release
+        # TODO. Remove before release
         print("comp=%s" % (comp,))
         return b''.join(comp)
 
@@ -2623,7 +2623,7 @@ class Sensors:
         return round(0.1 * batt, 1)
 
 
-class GatewayApi():
+class GatewayApi:
     """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
     Gateway API.
 
@@ -2687,8 +2687,8 @@ class GatewayApi():
     })
     destructive_cmd_codes = (b'\x11', b'\x1F', b'\x21', b'\x23', b'\x25',
                              b'\x29', b'\x2B', b'\x2D', b'\x2F', b'\x31',
-                             b'\x35',b'\x37', b'\x39', b'\x3B', b'\x40',
-                             b'\x41',b'\x43', b'\x52', b'\x54', b'\x56',
+                             b'\x35', b'\x37', b'\x39', b'\x3B', b'\x40',
+                             b'\x41', b'\x43', b'\x52', b'\x54', b'\x56',
                              b'\x58')
     # header used in each API command and response packet
     header = b'\xff\xff'
@@ -2854,14 +2854,11 @@ class GatewayApi():
         # now extract the actual data payload
         data = raw_data[5:resp_size + 2]
         # initialise a dict to hold our result
-        data_dict = {}
-        # extract and decode the MAC address
-        data_dict['mac'] = bytes_to_hex(data[0:6], separator=":")
-        # extract and decode the IP address
-        data_dict['ip_address'] = '%d.%d.%d.%d' % struct.unpack('>BBBB',
-                                                                data[6:10])
-        # extract and decode the port number
-        data_dict['port'] = struct.unpack('>H', data[10: 12])[0]
+        data_dict = {'mac': bytes_to_hex(data[0:6], separator=":"),
+                     'ip_address': '%d.%d.%d.%d' % struct.unpack('>BBBB',
+                                                                 data[6:10]),
+                     'port': struct.unpack('>H', data[10: 12])[0]
+                     }
         # get the SSID as a bytestring
         ssid_b = data[13:]
         # create a format string so the SSID string can be unpacked into its
@@ -3215,8 +3212,9 @@ class GatewayApi():
         # TODO. Need to ensure consumer of this method know its now the data payload
         """Get sensor ID data.
 
-        Sends the API command to obtain sensor ID data from the device. If the device cannot be contacted or the offset data is
-        invalid the value None will be returned.
+        Sends the API command to obtain sensor ID data from the device. If the
+        device cannot be contacted or the offset data is invalid the value None
+        will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -3969,7 +3967,7 @@ class GatewayApi():
 #                             GatewayHttp class
 # ============================================================================
 
-class HttpApi():
+class HttpApi:
     """Class to interact with a gateway device via HTTP requests."""
 
     # HTTP request commands
@@ -3984,7 +3982,7 @@ class HttpApi():
 
         # the IP address to be used (stored as a string)
         self.ip_address = ip_address
-        self.debug=debug
+        self.debug = debug
 
     def request(self, command_str, data=None, headers=None):
         """Send a HTTP request to the device and return the response.
@@ -4750,7 +4748,7 @@ class GatewayDevice:
         self.gateway_api.set_wow(payload)
 
     def write_custom(self, **custom):
-        #TODO. Need comments here to expand on dual-update
+        # TODO. Need comments here to expand on dual-update
         """Write 'Custom' upload parameters.
 
         Write 'Custom' upload parameters to a gateway device. The 'Custom'
@@ -4779,7 +4777,7 @@ class GatewayDevice:
         self.gateway_api.set_custom_paths(payload_paths)
 
     def write_gain(self, **gain):
-        #TODO. Need to update these comments
+        # TODO. Need to update these comments
         """Write gain parameters.
 
         Write gain parameters to a gateway device. The gain parameters consist
@@ -4806,7 +4804,7 @@ class GatewayDevice:
         self.gateway_api.set_gain(payload)
 
     def write_calibration(self, **calibration):
-        #TODO. Need to update these comments
+        # TODO. Need to update these comments
         """Write calibration parameters.
 
         Write calibration parameters to a gateway device. The calibration
@@ -5185,7 +5183,7 @@ def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
             # print the grabbed bytes as a space separated sequence of
             # hexadecimal digit pairs
             yield {'hex': f"{' ' * (start_column - 1)}{bytes_to_hex(row_bytes)}",
-                  'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
+                   'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
             # increment our index to grab the next group of bytes
             index += columns
 
@@ -6159,7 +6157,7 @@ class DirectGateway:
             for item_num in device.gateway_api_parser.addressed_data_struct.keys():
                 if item_num in live_sensor_data_dict:
                     item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
-                    value_str = re.sub(r'\.?0+$',lambda match: ' '*(match.end()-match.start()),'{:>12.1f}'.format(live_sensor_data_dict[item_num]))
+                    value_str = re.sub(r'\.?0+$', lambda match: ' '*(match.end()-match.start()), '{:>12.1f}'.format(live_sensor_data_dict[item_num]))
                     print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
         print(f"live sensor data={live_sensor_data_dict}")
 
@@ -6941,6 +6939,7 @@ def sensor_id_type(digits):
     # return a handle to the check function
     return check
 
+
 def sensor_type(sensor_types):
     """Argparse type support for Ecowitt sensor type selection.
 
@@ -7045,31 +7044,31 @@ def dispatch_write(namespace):
     direct_gw = DirectGateway(namespace)
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
-    if getattr(namespace, 'write_subcommand', False)  == 'ecowitt':
+    if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
         direct_gw.write_ecowitt()
-    if getattr(namespace, 'write_subcommand', False)  in ('wu', 'wow', 'wcloud'):
+    if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
         direct_gw.write_wu_wow_wcloud()
-    if getattr(namespace, 'write_subcommand', False)  == 'custom':
+    if getattr(namespace, 'write_subcommand', False) == 'custom':
         direct_gw.write_custom()
-    if getattr(namespace, 'write_subcommand', False)  == 'calibration':
+    if getattr(namespace, 'write_subcommand', False) == 'calibration':
         direct_gw.write_calibration()
-    if getattr(namespace, 'write_subcommand', False)  == 'sensor-id':
+    if getattr(namespace, 'write_subcommand', False) == 'sensor-id':
         direct_gw.write_sensor_id()
-    if getattr(namespace, 'write_subcommand', False)  == 'pm25-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'pm25-offset':
         direct_gw.write_pm25_offset()
-    if getattr(namespace, 'write_subcommand', False)  == 'co2-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'co2-offset':
         direct_gw.write_co2_offset()
-    if getattr(namespace, 'write_subcommand', False)  == 'rain':
+    if getattr(namespace, 'write_subcommand', False) == 'rain':
         direct_gw.write_rain()
-    if getattr(namespace, 'write_subcommand', False)  == 'system':
+    if getattr(namespace, 'write_subcommand', False) == 'system':
         direct_gw.write_system()
-    if getattr(namespace, 'write_subcommand', False)  == 'rain-data':
+    if getattr(namespace, 'write_subcommand', False) == 'rain-data':
         direct_gw.write_rain_data()
-    if getattr(namespace, 'write_subcommand', False)  == 'mulch-th-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'mulch-th-offset':
         direct_gw.write_mulch_th()
-    if getattr(namespace, 'write_subcommand', False)  == 'soil-moist':
+    if getattr(namespace, 'write_subcommand', False) == 'soil-moist':
         direct_gw.write_soil_moist()
-    if getattr(namespace, 'write_subcommand', False)  == 'mulch-t-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'mulch-t-offset':
         direct_gw.write_mulch_t()
 
 
@@ -7455,6 +7454,7 @@ def cal_write_subparser(subparsers):
     cal_write_parser.set_defaults(func=dispatch_write)
     return cal_write_parser
 
+
 def sensor_id_write_subparser(subparsers):
     """Define 'ecowitt write sensor-id' sub-subparser."""
 
@@ -7481,9 +7481,9 @@ def sensor_id_write_subparser(subparsers):
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
     id_write_parser = subparsers.add_parser('sensor-id',
-                                             usage=id_write_usage,
-                                             description=id_write_description,
-                                             help="Set sensor identification values.")
+                                            usage=id_write_usage,
+                                            description=id_write_description,
+                                            help="Set sensor identification values.")
     id_write_parser.add_argument('--wh65',
                                  dest='eWH65_SENSOR',
                                  type=sensor_id_type(digits=8),
@@ -7991,29 +7991,29 @@ def system_write_subparser(subparsers):
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
     sys_write_parser = subparsers.add_parser('system',
-                                              usage=sys_write_usage,
-                                              description=sys_write_description,
-                                              help="Set system parameters.")
+                                             usage=sys_write_usage,
+                                             description=sys_write_description,
+                                             help="Set system parameters.")
     sys_write_parser.add_argument('--sensor-type',
                                   dest='sensor_type',
                                   type=sensor_type(['WH24', 'WH65']),
                                   metavar='SENSOR',
                                   help='sensor type, WH24 or WH65')
     sys_write_parser.add_argument('--tz',
-                                   dest='timezone_index',
-                                   type=ranged_type(int, 0, 255),
-                                   metavar='INDEX',
-                                   help='timezone index')
+                                  dest='timezone_index',
+                                  type=ranged_type(int, 0, 255),
+                                  metavar='INDEX',
+                                  help='timezone index')
     sys_write_parser.add_argument('--dst',
                                   dest='dst_status',
                                   type=enable_disable_type(),
                                   metavar='disable | enable',
                                   help='DST status, enable or disable')
     sys_write_parser.add_argument('--auto-tz',
-                                   dest='auto_timezone',
-                                   type=enable_disable_type(('enable', 'disable')),
-                                   metavar='disable | enable',
-                                   help='automatically detect and set timezone')
+                                  dest='auto_timezone',
+                                  type=enable_disable_type(('enable', 'disable')),
+                                  metavar='disable | enable',
+                                  help='automatically detect and set timezone')
     add_common_args(sys_write_parser)
     sys_write_parser.set_defaults(func=dispatch_write)
     return sys_write_parser
@@ -8031,9 +8031,9 @@ def rain_data_write_subparser(subparsers):
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
     rain_data_write_parser = subparsers.add_parser('rain-data',
-                                              usage=rain_data_write_usage,
-                                              description=rain_data_write_description,
-                                              help="Set rain data related paramters.")
+                                                   usage=rain_data_write_usage,
+                                                   description=rain_data_write_description,
+                                                   help="Set rain data related paramters.")
     rain_data_write_parser.add_argument('--day',
                                         dest='t_day',
                                         type=ranged_type(float, 0, 9999.9),
@@ -8057,6 +8057,7 @@ def rain_data_write_subparser(subparsers):
     add_common_args(rain_data_write_parser)
     rain_data_write_parser.set_defaults(func=dispatch_write)
     return rain_data_write_parser
+
 
 def soil_write_subparser(subparsers):
     """Define 'ecowitt write pm25-offset' sub-subparser."""
@@ -8097,6 +8098,7 @@ def soil_write_subparser(subparsers):
     pm25_write_parser.set_defaults(func=dispatch_write)
     return pm25_write_parser
 
+
 def mulch_th_write_subparser(subparsers):
     """Define 'ecowitt write pm25-offset' sub-subparser."""
 
@@ -8135,6 +8137,7 @@ def mulch_th_write_subparser(subparsers):
     add_common_args(pm25_write_parser)
     pm25_write_parser.set_defaults(func=dispatch_write)
     return pm25_write_parser
+
 
 def mulch_t_write_subparser(subparsers):
     """Define 'ecowitt write mulch-t' sub-subparser."""
