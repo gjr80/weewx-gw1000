@@ -4756,7 +4756,7 @@ class GatewayDevice:
 
         active:     whether the custom upload is active, 0 = inactive,
                     1 = active
-        type:       what protocol (Ecwoitt or WeatherUnderground) to use for
+        type:       what protocol (Ecowitt or WeatherUnderground) to use for
                     upload, 0 = Ecowitt, 1 = WeatherUnderground
         server:     server IP address or host name, string
         port:       server port number, integer 0 to 65536
