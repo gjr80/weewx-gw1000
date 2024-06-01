@@ -450,6 +450,51 @@ class GatewayApiParser:
         # return the result
         return self.parse_addressed_data(payload, self.addressed_data_struct)
 
+    @staticmethod
+    def encode_rain_params(**offsets):
+        # TODO. Need comments to be completed
+        """Encode data parameters used for CMD_WRITE_RAIN.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_RAIN. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        rate:       rain rate, float -600 - +10 000  --> signed short
+        day:        PM2.5 offset, float -200 - +200   --> signed short
+        week:       PM10 offset, float -200 - +200    --> signed short
+        month:
+        year:
+        event:
+        gain:
+        p_rate:
+        p_event:
+        p_day:
+        p_week:
+        p_month:
+        p_year:
+        priority:
+        gain0:
+        gain1:
+        gain2:
+        gain3:
+        gain4:
+        gain5:
+        gain6:
+        gain7:
+        gain8:
+        gain9:
+        day_reset:
+        week_reset:
+        year_reset:
+
+        Returns a bytestring.
+        """
+
+        co2_b = struct.pack('>h', int(offsets['co2']))
+        pm25_b = struct.pack('>h', int(offsets['pm25'] * 10))
+        pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
+        return b''.join([co2_b, pm25_b, pm10_b])
+
     def parse_raindata(self, payload):
         """Parse the data payload from a CMD_READ_RAINDATA API response.
 
@@ -484,6 +529,45 @@ class GatewayApiParser:
                      't_month': self.decode_big_rain(payload[12:16]),
                      't_year': self.decode_big_rain(payload[16:20])}
         return data_dict
+
+    @staticmethod
+    def encode_rain_data(**params):
+        """Encode data parameters used for CMD_WRITE_RAINDATA.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSSS. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        day_b = struct.pack('>L', int(params['t_day'] * 10))
+        week_b = struct.pack('>L', int(params['t_week'] * 10))
+        month_b = struct.pack('>L', int(params['t_month'] * 10))
+        year_b = struct.pack('>L', int(params['t_year'] * 10))
+        return b''.join([day_b, week_b, month_b, year_b])
 
     @staticmethod
     def parse_mulch_offset(payload):
@@ -600,6 +684,51 @@ class GatewayApiParser:
         # return the parsed data
         return offset_dict
 
+    def encode_mulch_t(self, **offsets):
+        """Encode data parameters used for CMD_SET_MulCH_T_OFFSET.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_SET_MulCH_T_OFFSET. Required payload parameters are contained in
+        the calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        # initialise a list to hold bytestring components of the result
+        comp = []
+        # iterate over the list of sensor addresses in address order
+        for channel, offset in offsets.items():
+            # append the channel number to our result list
+            comp.append(self.field_idt[channel])
+            # append the offset value to our result list
+            comp.append(struct.pack('b', int(offset * 10)))
+        # return a bytestring consisting of the concatenated list elements
+        #TODO. Remove before release
+        print("comp=%s" % (comp,))
+        return b''.join(comp)
+
     @staticmethod
     def parse_pm25_offset(payload):
         """Parse the data from a CMD_GET_PM25_OFFSET API response.
@@ -639,6 +768,31 @@ class GatewayApiParser:
         return offset_dict
 
     @staticmethod
+    def encode_pm25_offsets(**offsets):
+        """Encode data parameters used for CMD_SET_PM25_OFFSET.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_SET_PM25_OFFSET. The ids dict consists of sensor ID data keyed by
+        sensor address. Payload consists of a sequence of sensor address
+        followed by sensor ID for each sensor. The sensor address is
+        represented as a single byte and sensor ID is represented as a long
+        integer.
+
+        Returns a bytestring.
+        """
+
+        # initialise a list to hold bytestring components of the result
+        comp = []
+        # iterate over the list of sensor addresses in address order
+        for channel, offset in offsets.items():
+            # append the channel number to our result list
+            comp.append(struct.pack('b', int(channel[-1])))
+            # append the offset value to our result list
+            comp.append(struct.pack('>h', offset * 10))
+        # return a bytestring consisting of the concatenated list elements
+        return b''.join(comp)
+
+    @staticmethod
     def parse_co2_offset(payload):
         """Parse the data from a CMD_GET_CO2_OFFSET API response.
 
@@ -665,6 +819,26 @@ class GatewayApiParser:
                        'pm10': struct.unpack(">h", payload[4:6])[0] / 10.0}
         # return the parsed data
         return offset_dict
+
+    @staticmethod
+    def encode_co2_offsets(**offsets):
+        """Encode data parameters used for CMD_SET_CO2_OFFSET.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_SET_CO2_OFFSET. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        co2:  CO2 offset, float -600 - +10 000  --> signed short
+        pm25: PM2.5 offset, float -200 - +200   --> signed short
+        pm10: PM10 offset, float -200 - +200    --> signed short
+
+        Returns a bytestring.
+        """
+
+        co2_b = struct.pack('>h', int(offsets['co2']))
+        pm25_b = struct.pack('>h', int(offsets['pm25'] * 10))
+        pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
+        return b''.join([co2_b, pm25_b, pm10_b])
 
     @staticmethod
     def parse_gain(payload):
@@ -700,6 +874,43 @@ class GatewayApiParser:
                      'reserved2': struct.unpack(">H", payload[10:12])[0]}
         # return the parsed data
         return gain_dict
+
+    @staticmethod
+    def encode_gain(**gain):
+        """Encode data parameters used for CMD_WRITE_GAIN.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_GAIN. Required payload parameters are contained in the gain
+        dict keyed as follows:
+
+        uv:     uv gain, integer 10-500                 --> unsigned short
+        solar:  solar radiation gain, integer 10-500    --> unsigned short
+        wind:   wind speed gain, integer 10-500         --> unsigned short
+        rain:   rain gain, integer 10-500               --> unsigned short
+
+        The CMD_WRITE_GAIN data payload includes two reserved integer values.
+        The first two bytes contain the value 1267 and the last two bytes are
+        only marked as 'reserved' with no value given (we will store the
+        value 0).
+
+        reserved1: reserved, fixed value of 1267        --> unsigned short
+        reserved2: reserved, value not specified        --> unsigned short
+
+        Returns a bytestring.
+        """
+
+        reserved1_b = struct.pack('>H', 1267)
+        uv_b = struct.pack('>H', int(gain['uv'] * 100))
+        solar_b = struct.pack('>H', int(gain['solar'] * 100))
+        wind_b = struct.pack('>H', int(gain['wind'] * 100))
+        rain_b = struct.pack('>H', int(gain['rain'] * 100))
+        reserved2_b = struct.pack('>H', 0)
+        return b''.join([reserved1_b,
+                         uv_b,
+                         solar_b,
+                         wind_b,
+                         rain_b,
+                         reserved2_b])
 
     @staticmethod
     def parse_calibration(payload):
@@ -743,8 +954,42 @@ class GatewayApiParser:
                     'outtemp': struct.unpack(">h", payload[11:13])[0] / 10.0,
                     'outhum': struct.unpack("b", payload[13])[0],
                     'dir':  struct.unpack(">h", payload[14:16])[0]}
-        # return the parsed response
+        # return the parsed data
         return cal_dict
+
+    @staticmethod
+    def encode_calibration(**calibration):
+        """Encode data parameters used for CMD_WRITE_CALIBRATION.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_CALIBRATION. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        intemp:  inside temperature offset, float -100 - +100  --> signed short
+        inhum:   inside humidity offset, float -10 - +10       --> signed byte
+        abs:     absolute pressure offset, float -800 - +800   --> signed long
+        rel:     relative pressure offset, float -800 - +800   --> signed long
+        outtemp: outside temperature offset, float -100 - +100 --> signed short
+        outhum:  outside humidity offset, float -10 - +10      --> signed byte
+        winddir: wind direction offset, float -180 - +180      --> signed short
+
+        Returns a bytestring.
+        """
+
+        intemp_b = struct.pack('>h', int(calibration['intemp'] * 100))
+        inhum_b = struct.pack('>b', int(calibration['inhum']))
+        abs_b = struct.pack('>l', int(calibration['abs'] * 100))
+        rel_b = struct.pack('>l', int(calibration['rel'] * 100))
+        outtemp_b = struct.pack('>h', int(calibration['outtemp'] * 100))
+        outhum_b = struct.pack('>b', int(calibration['outhum']))
+        winddir_b = struct.pack('>h', int(calibration['winddir']))
+        return b''.join([intemp_b,
+                         inhum_b,
+                         abs_b,
+                         rel_b,
+                         outtemp_b,
+                         outhum_b,
+                         winddir_b])
 
     @staticmethod
     def parse_soil_humiad(payload):
@@ -759,21 +1004,21 @@ class GatewayApiParser:
         channel number    0           unsigned byte       channel number (0 to 8)
         current hum       1           unsigned byte       current humidity (0 to 100 %)
         current ad        2 to 3      unsigned short      current AD (0 to 100 %)
-        custom cal        4           unsigned byte       humidity ad select, 0 = sensor,
-                                                          1 = enabled
-        min ad            5           unsigned byte       0% ad setting (70 to 200)
-        max ad            6 to 7      unsigned short      100% ad setting (80 to 1000)
+        custom cal        4           unsigned byte       humidity AD select, 0 = sensor,
+                                                          1 = min/max AD enabled
+        min ad            5           unsigned byte       0% AD setting (70 to 200)
+        max ad            6 to 7      unsigned short      100% AD setting (80 to 1000)
         ...
-        structure (bytes 0 to 7) repeats for remaining connected sensors
+        structure (bytes 0 to 7) repeats for each remaining connected sensor
 
         Returns a nested dict keyed by channel (eg 0, 1, 2 .. 7) with each
         sub-dict keyed as follows:
 
-        'humidity'      channel n humidity offset (-10 - 10 %)
-        'ad'            channel n temperature offset (-10.0 - 10.0 °C)
-        'ad_select'
-        'adj_min'
-        'adj_max'
+        'humidity'      channel current humidity (0 to 100 %)
+        'ad'            channel current AD (-10.0 - 10.0 °C)
+        'ad_select'     channel AD source, 0=sensor, 1=min/max AD
+        'ad_min'        channel custom 0% AD setting (70 to 200)
+        'ad_max'        channel custom 100% AD setting (80 to 1000)
 
         """
 
@@ -783,32 +1028,22 @@ class GatewayApiParser:
         index = 0
         # iterate over the data
         while index < len(payload):
+            # obtain the channel number
             channel = payload[index]
-            cal_dict[channel] = {}
-            try:
-                humidity = payload[index + 1]
-            except TypeError:
-                humidity = payload[index + 1]
-            cal_dict[channel]['humidity'] = humidity
-            cal_dict[channel]['ad'] = struct.unpack(">h", payload[index + 2:index + 4])[0]
-            try:
-                ad_select = payload[index + 4]
-            except TypeError:
-                ad_select = payload[index + 4]
-            # get 'Customize' setting 1 = enable, 0 = customized
-            cal_dict[channel]['ad_select'] = ad_select
-            try:
-                min_ad = payload[index + 5]
-            except TypeError:
-                min_ad = payload[index + 5]
-            cal_dict[channel]['adj_min'] = min_ad
-            cal_dict[channel]['adj_max'] = struct.unpack(">h", payload[index + 6:index + 8])[0]
+            # construct the dict of decoded channel data
+            cal_dict[channel] = {'humidity': payload[index + 1],
+                                 'ad': struct.unpack(">h", payload[index + 2:index + 4])[0],
+                                 'ad_select': payload[index + 4],
+                                 'ad_min': payload[index + 5],
+                                 'ad_max': struct.unpack(">h", payload[index + 6:index + 8])[0]
+                                 }
+            # increment the counter
             index += 8
-        # return the parsed response
+        # return the parsed data
         return cal_dict
 
     def parse_ssss(self, payload):
-        """Parse a CMD_READ_SSSS API response data payload.
+        """Parse the data from a CMD_READ_SSSS API response.
 
         Payload consists of a bytestring of length 8. Decode as
         follows:
@@ -845,31 +1080,82 @@ class GatewayApiParser:
                      'timezone_index': payload[6],
                      'dst_status': payload[7] >> 0 & 1,
                      'auto_timezone': payload[7] >> 1 & 1}
-        # return the parsed response data payload
+        # return the parsed data
         return data_dict
 
     @staticmethod
+    def encode_system_params(**params):
+        """Encode data parameters used for CMD_WRITE_SSSS.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSSS. Required payload parameters are contained in the
+        calibration dict keyed as follows:
+
+        frequency:      operating frequency, integer        --> byte (read only)
+                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        utc:            system time, integer                --> unsigned long
+                                                                (read only)
+        timezone_index: timezone index, integer             --> byte
+        dst_status:     DST status, integer                 --> byte (bit 0 only)
+                        0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+                        setting, integer 0=auto timezone,       (same byte as DST)
+                        1=manual timezone
+
+        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
+        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
+        includes both frequency and utc.
+
+        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
+            bit 0 = 0 if DST disabled
+            bit 0 = 1 if DST enabled
+            bit 1 = 0 if auto timezone is enabled
+            bit 1 = 1 if auto timezone is disabled
+
+        Returns a bytestring.
+        """
+
+        freq_b = struct.pack('b', params['frequency'])
+        sensor_type_b = struct.pack('b', params['sensor_type'])
+        utc_b = struct.pack('>L', params['utc'])
+        tz_b = struct.pack('b', params['timezone_index'])
+        # The DST param is a combination of DST status (bit 0) and auto
+        # timezone (bit 1)
+        # start with nothing
+        _dst = 0
+        # set the DST bit if DST enabled
+        if params['dst_status'] == 1:
+            _dst = _dst | (1 << 0)
+        # set the auto timezone bit if auto timezone is disabled
+        if params['auto_timezone'] == 1:
+            _dst = _dst | (1 << 1)
+        # convert to a byte
+        dst_b = struct.pack('b', _dst)
+        return b''.join([freq_b, sensor_type_b, utc_b, tz_b, dst_b])
+
+    @staticmethod
     def parse_ecowitt(payload):
-        """Parse a CMD_READ_ECOWITT API response data payload.
+        """Parse the data from a CMD_READ_ECOWITT API response.
 
         The data payload consists of one byte as follows:
 
         Parameter Name  Byte(s)  Data  Format  Comments
         interval        0        byte  0-5     upload interval in minutes
 
-        Returns a dict keyed by parameter name.
+        Returns a dict with a single key 'interval''.
         """
 
         # We have only one parameter, create a dict holding our parsed data.
         # Use [x] form rather than [x:x+1] so the result is an integer rather
         # than a bytestring
         data_dict = {'interval': payload[0]}
-        # return the parsed response
+        # return the parsed data
         return data_dict
 
     @staticmethod
     def encode_ecowitt(**ecowitt):
-        """Encode data parameters used for CMD_WRITE_ECOWITT.
+        """Encode the data parameters used for CMD_WRITE_ECOWITT.
 
         Assemble a bytestring to be used as the data payload for
         CMD_WRITE_ECOWITT. Required payload parameters are contained in the
@@ -881,12 +1167,11 @@ class GatewayApiParser:
         Returns a bytestring of length 1.
         """
 
-        interval_byte = struct.pack('B', ecowitt['interval'])
-        return interval_byte
+        return struct.pack('B', ecowitt['interval'])
 
     @staticmethod
     def parse_wunderground(payload):
-        """Parse a CMD_READ_WUNDERGROUND API response data payload.
+        """Parse the data from a CMD_READ_WUNDERGROUND API response.
 
         Payload consists of a variable number of bytes. Number of
         bytes = 3 + i + p where i = length of the WU ID in ASCII characters and
@@ -918,7 +1203,7 @@ class GatewayApiParser:
         # obtain the WU password/key as a bytestring, convert to ASCII and save to
         # dict
         data_dict['password'] = payload[2 + id_size:2 + id_size + password_size].decode()
-        # return the parsed payload data
+        # return the parsed data
         return data_dict
 
     @staticmethod
@@ -964,7 +1249,7 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_wow(payload):
-        """Parse a CMD_READ_WOW API response data payload.
+        """Parse the data from a CMD_READ_WOW API response.
 
         Payload consists of a variable number of bytes. Number of
         bytes = 4 + i + p + s where i = length of the WOW ID in ASCII
@@ -1010,12 +1295,12 @@ class GatewayApiParser:
         # obtain the WOW station number as a bytestring, convert to ASCII and
         # save to dict
         data_dict['station_num'] = payload[3 + id_size + pw_size:3 + id_size + pw_size + stn_num_size].decode()
-        # return the parsed payload data
+        # return the parsed data
         return data_dict
 
     @staticmethod
     def parse_weathercloud(payload):
-        """Parse a CMD_READ_WEATHERCLOUD API data payload.
+        """Parse the data from a CMD_READ_WEATHERCLOUD API response.
 
         Payload consists of a variable number of bytes. Number of
         bytes = 3 + i + p where i = length of the Weathercloud ID in ASCII
@@ -1046,12 +1331,12 @@ class GatewayApiParser:
         # obtain the Weathercloud key/password as a bytestring, convert to
         # ASCII and save to dict
         data_dict['password'] = payload[2 + id_size:2 + id_size + key_size].decode()
-        # return the parsed payload data
+        # return the parsed data
         return data_dict
 
     @staticmethod
     def parse_customized(payload):
-        """Parse a CMD_READ_CUSTOMIZED API response data payload.
+        """Parse the data from a CMD_READ_CUSTOMIZED API response.
 
         Response consists of a variable number of bytes. Number of
         bytes = 14 + i + p + s where i = length of the ID in characters,
@@ -1134,7 +1419,7 @@ class GatewayApiParser:
         index += 1
         # determine whether the uplaod is active or not amd save to dict
         data_dict['active'] = payload[index]
-        # return the parsed data payload
+        # return the parsed data
         return data_dict
 
     @staticmethod
@@ -1195,7 +1480,7 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_usr_path(payload):
-        """Parse a CMD_READ_USR_PATH API response data payload.
+        """Parse the data from a CMD_READ_USR_PATH API response.
 
         Response data payload consists of 2+e+w bytes where e = length of the
         'Ecowitt path' in characters and w is the length of the
@@ -1236,7 +1521,7 @@ class GatewayApiParser:
         index += 1
         # obtain the WU path as a bytestring, convert to ASCII and save to dict
         data_dict['wu_path'] = payload[index:index + wu_size].decode()
-        # return the parsed data payload
+        # return the parsed data
         return data_dict
 
     @staticmethod
@@ -1270,7 +1555,7 @@ class GatewayApiParser:
 
     @staticmethod
     def parse_station_mac(response):
-        """Parse a CMD_READ_STATION_MAC API response data payload.
+        """Parse the data from a CMD_READ_STATION_MAC API response.
 
         Response consists of a bytestring 6 bytes in length as follows:
 
@@ -1281,14 +1566,14 @@ class GatewayApiParser:
         string of colon separated uppercase hexadecimal digit pairs.
         """
 
-        # return the parsed response, in this case we convert the bytes to
+        # return the parsed data, in this case we convert the bytes to
         # hexadecimal digits and return a string of colon separated
         # hexadecimal digit pairs
         return bytes_to_hex(response[4:10], separator=":")
 
     @staticmethod
     def parse_firmware_version(payload):
-        """Parse a CMD_READ_FIRMWARE_VERSION API response data payload.
+        """Parse the data from a CMD_READ_FIRMWARE_VERSION API response.
 
         Response consists of a bytestring of length 1+f where f is the length
         of the firmware version string. Decode as follows:
@@ -1302,11 +1587,9 @@ class GatewayApiParser:
         a unicode firmware version string.
         """
 
-        # get the length of the firmware version string
-        fw_size = payload[0]
         # get the firmware version bytestring, decode to a unicode string and
         # return the resulting string
-        return payload[1:1 + fw_size].decode()
+        return payload[1:1 + payload[0]].decode()
 
     @staticmethod
     def decode_reserved(data, field='reserved'):
@@ -1682,77 +1965,6 @@ class GatewayApiParser:
         return None
 
     @staticmethod
-    def encode_gain(**gain):
-        """Encode data parameters used for CMD_WRITE_GAIN.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_GAIN. Required payload parameters are contained in the gain
-        dict keyed as follows:
-
-        uv:     uv gain, integer 10-500                 --> unsigned short
-        solar:  solar radiation gain, integer 10-500    --> unsigned short
-        wind:   wind speed gain, integer 10-500         --> unsigned short
-        rain:   rain gain, integer 10-500               --> unsigned short
-
-        The CMD_WRITE_GAIN data payload includes two reserved integer values.
-        The first two bytes contain the value 1267 and the last two bytes are
-        only marked as 'reserved' with no value given (we will store the
-        value 0).
-
-        reserved1: reserved, fixed value of 1267        --> unsigned short
-        reserved2: reserved, value not specified        --> unsigned short
-
-        Returns a bytestring.
-        """
-
-        reserved1_b = struct.pack('>H', 1267)
-        uv_b = struct.pack('>H', int(gain['uv'] * 100))
-        solar_b = struct.pack('>H', int(gain['solar'] * 100))
-        wind_b = struct.pack('>H', int(gain['wind'] * 100))
-        rain_b = struct.pack('>H', int(gain['rain'] * 100))
-        reserved2_b = struct.pack('>H', 0)
-        return b''.join([reserved1_b,
-                         uv_b,
-                         solar_b,
-                         wind_b,
-                         rain_b,
-                         reserved2_b])
-
-    @staticmethod
-    def encode_calibration(**calibration):
-        """Encode data parameters used for CMD_WRITE_CALIBRATION.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_CALIBRATION. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        intemp:  inside temperature offset, float -100 - +100  --> signed short
-        inhum:   inside humidity offset, float -10 - +10       --> signed byte
-        abs:     absolute pressure offset, float -800 - +800   --> signed long
-        rel:     relative pressure offset, float -800 - +800   --> signed long
-        outtemp: outside temperature offset, float -100 - +100 --> signed short
-        outhum:  outside humidity offset, float -10 - +10      --> signed byte
-        winddir: wind direction offset, float -180 - +180      --> signed short
-
-        Returns a bytestring.
-        """
-
-        intemp_b = struct.pack('>h', int(calibration['intemp'] * 100))
-        inhum_b = struct.pack('>b', int(calibration['inhum']))
-        abs_b = struct.pack('>l', int(calibration['abs'] * 100))
-        rel_b = struct.pack('>l', int(calibration['rel'] * 100))
-        outtemp_b = struct.pack('>h', int(calibration['outtemp'] * 100))
-        outhum_b = struct.pack('>b', int(calibration['outhum']))
-        winddir_b = struct.pack('>h', int(calibration['winddir']))
-        return b''.join([intemp_b,
-                         inhum_b,
-                         abs_b,
-                         rel_b,
-                         outtemp_b,
-                         outhum_b,
-                         winddir_b])
-
-    @staticmethod
     def encode_sensor_id(**ids):
         """Encode data parameters used for CMD_WRITE_SENSOR_ID.
 
@@ -1778,185 +1990,7 @@ class GatewayApiParser:
         return b''.join(comp)
 
     @staticmethod
-    def encode_pm25_offsets(**offsets):
-        """Encode data parameters used for CMD_SET_PM25_OFFSET.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_SET_PM25_OFFSET. The ids dict consists of sensor ID data keyed by
-        sensor address. Payload consists of a sequence of sensor address
-        followed by sensor ID for each sensor. The sensor address is
-        represented as a single byte and sensor ID is represented as a long
-        integer.
-
-        Returns a bytestring.
-        """
-
-        # initialise a list to hold bytestring components of the result
-        comp = []
-        # iterate over the list of sensor addresses in address order
-        for channel, offset in offsets.items():
-            # append the channel number to our result list
-            comp.append(struct.pack('b', int(channel[-1])))
-            # append the offset value to our result list
-            comp.append(struct.pack('>h', offset * 10))
-        # return a bytestring consisting of the concatenated list elements
-        return b''.join(comp)
-
-    @staticmethod
-    def encode_co2_offsets(**offsets):
-        """Encode data parameters used for CMD_SET_CO2_OFFSET.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_SET_CO2_OFFSET. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        co2:  CO2 offset, float -600 - +10 000  --> signed short
-        pm25: PM2.5 offset, float -200 - +200   --> signed short
-        pm10: PM10 offset, float -200 - +200    --> signed short
-
-        Returns a bytestring.
-        """
-
-        co2_b = struct.pack('>h', int(offsets['co2']))
-        pm25_b = struct.pack('>h', int(offsets['pm25'] * 10))
-        pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
-        return b''.join([co2_b, pm25_b, pm10_b])
-
-    @staticmethod
-    def encode_rain_params(**offsets):
-        """Encode data parameters used for CMD_WRITE_RAIN.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_RAIN. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        rate:       rain rate, float -600 - +10 000  --> signed short
-        day:        PM2.5 offset, float -200 - +200   --> signed short
-        week:       PM10 offset, float -200 - +200    --> signed short
-        month:
-        year:
-        event:
-        gain:
-        p_rate:
-        p_event:
-        p_day:
-        p_week:
-        p_month:
-        p_year:
-        priority:
-        gain0:
-        gain1:
-        gain2:
-        gain3:
-        gain4:
-        gain5:
-        gain6:
-        gain7:
-        gain8:
-        gain9:
-        day_reset:
-        week_reset:
-        year_reset:
-
-        Returns a bytestring.
-        """
-
-        co2_b = struct.pack('>h', int(offsets['co2']))
-        pm25_b = struct.pack('>h', int(offsets['pm25'] * 10))
-        pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
-        return b''.join([co2_b, pm25_b, pm10_b])
-
-    @staticmethod
-    def encode_system_params(**params):
-        """Encode data parameters used for CMD_WRITE_SSSS.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_SSSS. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
-
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
-
-        Returns a bytestring.
-        """
-
-        freq_b = struct.pack('b', params['frequency'])
-        sensor_type_b = struct.pack('b', params['sensor_type'])
-        utc_b = struct.pack('>L', params['utc'])
-        tz_b = struct.pack('b', params['timezone_index'])
-        # The DST param is a combination of DST status (bit 0) and auto
-        # timezone (bit 1)
-        # start with nothing
-        _dst = 0
-        # set the DST bit if DST enabled
-        if params['dst_status'] == 1:
-            _dst = _dst | (1 << 0)
-        # set the auto timezone bit if auto timezone is disabled
-        if params['auto_timezone'] == 1:
-            _dst = _dst | (1 << 1)
-        # convert to a byte
-        dst_b = struct.pack('b', _dst)
-        return b''.join([freq_b, sensor_type_b, utc_b, tz_b, dst_b])
-
-    @staticmethod
-    def encode_rain_data(**params):
-        """Encode data parameters used for CMD_WRITE_RAINDATA.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_SSSS. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
-
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
-
-        Returns a bytestring.
-        """
-
-        day_b = struct.pack('>L', int(params['t_day'] * 10))
-        week_b = struct.pack('>L', int(params['t_week'] * 10))
-        month_b = struct.pack('>L', int(params['t_month'] * 10))
-        year_b = struct.pack('>L', int(params['t_year'] * 10))
-        return b''.join([day_b, week_b, month_b, year_b])
-
-    @staticmethod
+    # TODO. method name does not agree with cited CMD
     def encode_mulch_th(**params):
         """Encode data parameters used for CMD_WRITE_RAINDATA.
 
@@ -1996,6 +2030,7 @@ class GatewayApiParser:
         return b''.join([day_b, week_b, month_b, year_b])
 
     @staticmethod
+    # TODO. method name does not agree with cited CMD
     def encode_soil_moist(**params):
         """Encode data parameters used for CMD_WRITE_RAINDATA.
 
@@ -2033,51 +2068,6 @@ class GatewayApiParser:
         month_b = struct.pack('>L', int(params['t_month'] * 10))
         year_b = struct.pack('>L', int(params['t_year'] * 10))
         return b''.join([day_b, week_b, month_b, year_b])
-
-    def encode_mulch_t(self, **offsets):
-        """Encode data parameters used for CMD_SET_MulCH_T_OFFSET.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_SET_MulCH_T_OFFSET. Required payload parameters are contained in
-        the calibration dict keyed as follows:
-
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
-
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
-
-        Returns a bytestring.
-        """
-
-
-        # initialise a list to hold bytestring components of the result
-        comp = []
-        # iterate over the list of sensor addresses in address order
-        for channel, offset in offsets.items():
-            # append the channel number to our result list
-            comp.append(self.field_idt[channel])
-            # append the offset value to our result list
-            comp.append(struct.pack('b', int(offset * 10)))
-        # return a bytestring consisting of the concatenated list elements
-        print("comp=%s" % (comp,))
-        return b''.join(comp)
 
 
 class Sensors:
@@ -5817,9 +5807,9 @@ class DirectGateway:
                     # WSView/WSView Plus apps display channels starting at 1,
                     # so add 1 to our channel number
                     print("    Channel %d (%d%%)" % (channel + 1, channel_dict['humidity']))
-                    print("%16s: %d" % ("Now AD", channel_dict['ad']))
-                    print("%16s: %d" % ("0% AD", channel_dict['adj_min']))
-                    print("%16s: %d" % ("100% AD", channel_dict['adj_max']))
+                    print("%16s: %d" % ("Current AD", channel_dict['ad']))
+                    print("%16s: %d" % ("0% AD", channel_dict['ad_min']))
+                    print("%16s: %d" % ("100% AD", channel_dict['ad_max']))
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
