@@ -978,11 +978,11 @@ class GatewayApiParser:
 
         # create a dict containing the decoded offset data
         cal_dict = {'intemp': struct.unpack(">h", payload[0:2])[0] / 10.0,
-                    'inhum': struct.unpack("b", payload[2])[0],
+                    'inhum': struct.unpack("b", payload[2:3])[0],
                     'abs': struct.unpack(">l", payload[3:7])[0] / 10.0,
                     'rel': struct.unpack(">l", payload[7:11])[0] / 10.0,
                     'outtemp': struct.unpack(">h", payload[11:13])[0] / 10.0,
-                    'outhum': struct.unpack("b", payload[13])[0],
+                    'outhum': struct.unpack("b", payload[13:14])[0],
                     'dir':  struct.unpack(">h", payload[14:16])[0]}
         # return the parsed data
         return cal_dict
@@ -1585,14 +1585,13 @@ class GatewayApiParser:
         Parameter Name  Byte(s)     Format          Comments
         station MAC     0 - 5       6 x bytes       6 x ASCII characters
 
-        Returns a dict containing a single field keyed 'mac' that contains a
-        string of colon separated uppercase hexadecimal digit pairs.
+        Returns a string of colon separated uppercase hexadecimal digit pairs.
         """
 
         # return the parsed data, in this case we convert the bytes to
         # hexadecimal digits and return a string of colon separated
         # hexadecimal digit pairs
-        return bytes_to_hex(response[4:10], separator=":")
+        return bytes_to_hex(response, separator=":")
 
     @staticmethod
     def parse_firmware_version(payload):
@@ -2217,25 +2216,27 @@ class Sensors:
         # debug sensors
         self.debug = debug
 
-    def parse_sensor_id_data(self, data):
+    def parse_sensor_id_data(self, payload):
         """Parse raw sensor ID data.
 
-        Parse raw data obtained via the CMD_READ_SENSOR_ID_NEW API command.
-        Sensor ID payload data consists of seven bytes of data for each
-        reported sensor as follows:
+        Raw sensor ID data consists of a bytestring of variable length
+        consisting of seven bytes of data for each paired sensor. These seven
+        bytes are decoded as follows:
 
-        byte 1      sensor index    1 byte integer
-        byte 2-5    sensor ID       4 byte unsigned long
-        byte 6      battery state   1 byte integer (meaning dependent on sensor
-                                                    type)
-        byte 7      signal level    1 byte integer (0-6)
+        Parameter       Byte(s)     Data format     Comments
+        -----------------------------------------------------------------------
+        index           byte 1      unsigned byte   sensor index, integer
+        ID              byte 2-5    unsigned long   sensor ID
+        battery state   byte 6      unsigned byte   sensor battery state, meaning
+                                                    dependent on sensor type
+        signal level    byte 7      unsigned byte   sensor signal level, integer
 
         Returns a dict keyed by sensor index with each dict value consisting of
         a dict keyed as follows:
 
         id:         Sensor ID as a four byte hexadecimal lowercase string.
                     String.
-        battery:    Sensor battery state decoded by the applicable battery
+        battery:    Sensor battery state decoded using the applicable battery
                     decode function. May be None if battery levels for sensors
                     with no signal are ignored. Integer, real or None.
         signal:     Sensor signal level. Integer.
@@ -2244,14 +2245,7 @@ class Sensors:
         # initialise a dict to hold the parsed data
         sensor_data_dict = dict()
         # do we have any raw sensor ID data
-        if data is not None and len(data) > 0:
-            # Determine the packet size, it's a big endian short (two byte)
-            # integer at bytes 4 and 5. The packet/packet size includes the
-            # command code, size byte(s), data payload and checksum.
-            packet_size = struct.unpack(">H", data[3:5])[0]
-            # Extract the actual sensor id data payload. The payload starts at
-            # byte 6 and is packet_size-4 bytes in length.
-            payload = data[5:5 + packet_size - 4]
+        if payload is not None and len(payload) > 0:
             # initialise a counter
             i = 0
             # iterate over the data payload
@@ -4482,12 +4476,14 @@ class GatewayDevice:
         parsed_custom_data = self.custom_params
         # return the parsed customized parameters updated with the parsed user
         # path parameters
-        return parsed_custom_data.update(self.usr_path)
+        parsed_custom_data.update(self.usr_path)
+        return parsed_custom_data
 
     @property
     def mac_address(self):
         """Gateway device MAC address."""
 
+        # obtain the API response data payload
         payload = self.gateway_api.get_station_mac()
         # return the parsed data
         return self.gateway_api_parser.parse_station_mac(payload)
@@ -5234,7 +5230,7 @@ class DirectGateway:
         # set our debug level
         self.debug = namespace.debug
 
-    def get_device(self):
+    def get_device(self, ip_address, port, debug=False):
         """Get a GatewayDevice object.
 
         Attempts to obtain a GatewayDevice object. If successful the
@@ -6774,41 +6770,39 @@ def enable_disable_type(opts=('disable', 'enable')):
     return check
 
 
-def dispatch_get(namespace):
-    """Process 'get' subcommand."""
+def dispatch_read(namespace):
+    """Process 'read' subcommand."""
 
     # get a DirectGateway object
     direct_gw = DirectGateway(namespace)
     # process the command line arguments to determine what we should do
-    if getattr(namespace, 'sys_params', False):
-        direct_gw.display_system_params()
-    elif getattr(namespace, 'rain_data', False):
-        direct_gw.display_rain_data()
-    elif getattr(namespace, 'all_rain_data', False):
-        direct_gw.display_all_rain_data()
-    elif getattr(namespace, 'mulch_calibration', False):
-        direct_gw.display_mulch_offset()
-    elif getattr(namespace, 'mulch_temp_calibration', False):
-        direct_gw.display_mulch_t_offset()
-    elif getattr(namespace, 'pm25_calibration', False):
-        direct_gw.display_pm25_offset()
-    elif getattr(namespace, 'co2_calibration', False):
-        direct_gw.display_co2_offset()
-    elif getattr(namespace, 'calibration', False):
-        direct_gw.display_calibration()
-    elif getattr(namespace, 'soil_calibration', False):
-        direct_gw.display_soil_calibration()
-    elif getattr(namespace, 'services', False):
-        direct_gw.display_services()
-    elif getattr(namespace, 'mac', False):
-        # TODO. Rename to remove 'station' ?
-        direct_gw.display_station_mac()
-    elif getattr(namespace, 'firmware', False):
-        direct_gw.display_firmware()
-    elif getattr(namespace, 'sensors', False):
-        direct_gw.display_sensors()
-    elif getattr(namespace, 'live_data', False):
+    # first look for sub-subcommands
+    if getattr(namespace, 'read_subcommand', False) == 'live-data':
         direct_gw.display_live_data()
+    if getattr(namespace, 'read_subcommand', False) == 'sensors':
+        direct_gw.display_sensors()
+    if getattr(namespace, 'read_subcommand', False) == 'firmware':
+        direct_gw.display_firmware()
+    if getattr(namespace, 'read_subcommand', False) == 'mac-address':
+        direct_gw.display_station_mac()
+    if getattr(namespace, 'read_subcommand', False) == 'system':
+        direct_gw.display_system_params()
+    if getattr(namespace, 'read_subcommand', False) == 'rain':
+        direct_gw.display_rain_data()
+    if getattr(namespace, 'read_subcommand', False) == 'all-rain':
+        direct_gw.display_all_rain_data()
+    if getattr(namespace, 'read_subcommand', False) == 'calibration':
+        direct_gw.display_calibration()
+    if getattr(namespace, 'read_subcommand', False) == 'th-cal':
+        direct_gw.display_mulch_offset()
+    if getattr(namespace, 'read_subcommand', False) == 'soil-cal':
+        direct_gw.display_soil_calibration()
+    if getattr(namespace, 'read_subcommand', False) == 'pm25-cal':
+        direct_gw.display_pm25_offset()
+    if getattr(namespace, 'read_subcommand', False) == 'co2-cal':
+        direct_gw.display_co2_offset()
+    if getattr(namespace, 'read_subcommand', False) == 'services':
+        direct_gw.display_services()
 
 
 def dispatch_write(namespace):
@@ -6887,109 +6881,297 @@ def get_action_exists(ns):
     return False
 
 
+def read_action_exists(ns):
+    """Does a given namespace contain at least one 'read' action."""
+
+    return False if getattr(ns, 'read_subcommand', None) is None else True
+
+
 def write_action_exists(ns):
     """Does a given namespace contain at least one write action."""
 
     return False if getattr(ns, 'write_subcommand', None) is None else True
 
 
-def get_subparser(subparsers):
-    """Add get subcommand."""
+def live_read_subparser(subparsers):
+    """Define 'ecowitt read live-data' sub-subparser."""
 
-    get_usage = f"""{Bcolors.BOLD}ecowitt get --help
-       ecowitt get --live-data | --sensors
-                   --ip-address=IP_ADDRESS [--port=PORT]
-                   [--show-all-batt] [--debug]
-       ecowitt get --firmware | --mac-address |
-                   --system-params | --rain-data | --all-rain-data
-                   --ip-address=IP_ADDRESS [--port=PORT]
-                   [--debug]
-       ecowitt get --calibration | --mulch-th-cal | --mulch-soil-cal |
-                   --pm25-cal | --co2-cal
-                   --ip-address=IP_ADDRESS [--port=PORT]
-                   [--debug]
-       ecowitt get --services
-                   --ip-address=IP_ADDRESS [--port=PORT]
-                   [--unmask] [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}ecowitt read live-data --help
+       ecowitt read live-data --ip-address=IP_ADDRESS [--port=PORT]
+                              [--max-tries=TRIES] [--retry-wait=SECONDS]
+                              [--debug]{Bcolors.ENDC}
     """
-    get_description = """Obtain and display various sensor and device configuration data from an 
-    Ecowitt gateway device."""
+    description = """Read device live data."""
+    parser = subparsers.add_parser('live-data',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read device live data.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
 
-    get_parser = subparsers.add_parser('get',
-                                       usage=get_usage,
-                                       description=get_description,
-                                       help="Obtain and display data from an Ecowitt gateway device.")
 
-    get_parser.add_argument('--live-data',
-                            dest='live_data',
-                            action='store_true',
-                            help='display device live sensor data')
-    get_parser.add_argument('--sensors',
-                            dest='sensors',
-                            action='store_true',
-                            help='display device sensor information')
-    get_parser.add_argument('--firmware',
-                            dest='firmware',
-                            action='store_true',
-                            help='display device firmware information')
-    get_parser.add_argument('--mac-address',
-                            dest='mac',
-                            action='store_true',
-                            help='display device station MAC address')
-    get_parser.add_argument('--system-params',
-                            dest='sys_params',
-                            action='store_true',
-                            help='display device system parameters')
-    get_parser.add_argument('--rain-data',
-                            dest='rain_data',
-                            action='store_true',
-                            help='display device traditional rain data only')
-    get_parser.add_argument('--all-rain-data',
-                            dest='all_rain_data',
-                            action='store_true',
-                            help='display device traditional, piezo and rain reset '
-                                 'time data')
-    get_parser.add_argument('--calibration',
-                            dest='calibration',
-                            action='store_true',
-                            help='display device calibration data')
-    get_parser.add_argument('--mulch-th-cal',
-                            dest='mulch_calibration',
-                            action='store_true',
-                            help='display device multi-channel temperature and '
-                                 'humidity calibration data')
-    get_parser.add_argument('--mulch-soil-cal',
-                            dest='soil_calibration',
-                            action='store_true',
-                            help='display device soil moisture calibration data')
-    get_parser.add_argument('--mulch-t-cal',
-                            dest='mulch_temp_calibration',
-                            action='store_true',
-                            help='display device temperature (WN34) calibration data')
-    get_parser.add_argument('--pm25-cal',
-                            dest='pm25_calibration',
-                            action='store_true',
-                            help='display device PM2.5 calibration data')
-    get_parser.add_argument('--co2-cal',
-                            dest='co2_calibration',
-                            action='store_true',
-                            help='display device CO2 (WH45) calibration data')
-    get_parser.add_argument('--services',
-                            dest='services',
-                            action='store_true',
-                            help='display device weather services configuration data')
-    get_parser.add_argument('--show-all-batt',
-                            dest='show_battery',
-                            action='store_true',
-                            help='show all available battery state data regardless of '
-                                 'sensor state')
-    get_parser.add_argument('--unmask',
-                            dest='unmask',
-                            action='store_true',
-                            help='unmask sensitive settings')
-    add_common_args(get_parser)
-    get_parser.set_defaults(func=dispatch_get)
-    return get_parser
+def sensors_read_subparser(subparsers):
+    """Define 'ecowitt read sensors' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read sensors --help
+       ecowitt read sensors --ip-address=IP_ADDRESS [--port=PORT]
+                            [--max-tries=TRIES] [--retry-wait=SECONDS]
+                            [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display sensor state information."""
+    parser = subparsers.add_parser('sensors',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display device sensor state information.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def firmware_read_subparser(subparsers):
+    """Define 'ecowitt read firmware' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read firmware --help
+       ecowitt read firmware --ip-address=IP_ADDRESS [--port=PORT]
+                            [--max-tries=TRIES] [--retry-wait=SECONDS]
+                            [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display the device firmware version."""
+    parser = subparsers.add_parser('firmware',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display the device firmware version.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def mac_read_subparser(subparsers):
+    """Define 'ecowitt read mac-address' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read mac-address --help
+       ecowitt read mac-address --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display the device MAC address."""
+    parser = subparsers.add_parser('mac-address',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display the device MAC address.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def system_read_subparser(subparsers):
+    """Define 'ecowitt read system' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read system --help
+       ecowitt read system --ip-address=IP_ADDRESS [--port=PORT]
+                           [--max-tries=TRIES] [--retry-wait=SECONDS]
+                           [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display the device system parameters."""
+    parser = subparsers.add_parser('system',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display the device system parameters.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def rain_read_subparser(subparsers):
+    """Define 'ecowitt read rain' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read rain --help
+       ecowitt read rain --ip-address=IP_ADDRESS [--port=PORT]
+                         [--max-tries=TRIES] [--retry-wait=SECONDS]
+                         [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display traditional rain data."""
+    parser = subparsers.add_parser('rain',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display traditional rain data.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def all_rain_read_subparser(subparsers):
+    """Define 'ecowitt read all-rain' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read all-rain --help
+       ecowitt read all-rain --ip-address=IP_ADDRESS [--port=PORT]
+                             [--max-tries=TRIES] [--retry-wait=SECONDS]
+                             [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display available traditional and piezo rain data."""
+    parser = subparsers.add_parser('all-rain',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display the available traditional and piezo rain data.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def cal_read_subparser(subparsers):
+    """Define 'ecowitt read calibration' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read calibration --help
+       ecowitt read calibration --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display device calibration parameters."""
+    parser = subparsers.add_parser('calibration',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display device calibration parameters.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def th_read_subparser(subparsers):
+    """Define 'ecowitt read th-cal' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read th-cal --help
+       ecowitt read th-cal --ip-address=IP_ADDRESS [--port=PORT]
+                           [--max-tries=TRIES] [--retry-wait=SECONDS]
+                           [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display multichannel temperature and humidity calibration parameters."""
+    parser = subparsers.add_parser('th-cal',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display multichannel temperature and humidity calibration parameters.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def soil_read_subparser(subparsers):
+    """Define 'ecowitt read soil-cal' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read soil-cal --help
+       ecowitt read soil-cal --ip-address=IP_ADDRESS [--port=PORT]
+                             [--max-tries=TRIES] [--retry-wait=SECONDS]
+                             [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display multichannel soil moisture calibration parameters."""
+    parser = subparsers.add_parser('soil-cal',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display multichannel soil moisture calibration parameters.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def pm25_read_subparser(subparsers):
+    """Define 'ecowitt read pm25-cal' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read pm25-cal --help
+       ecowitt read pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
+                             [--max-tries=TRIES] [--retry-wait=SECONDS]
+                             [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display multichannel PM2.5 calibration parameters."""
+    parser = subparsers.add_parser('pm25-cal',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display multichannel PM2.5 calibration parameters.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def co2_read_subparser(subparsers):
+    """Define 'ecowitt read co2-cal' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read co2-cal --help
+       ecowitt read co2-cal --ip-address=IP_ADDRESS [--port=PORT]
+                            [--max-tries=TRIES] [--retry-wait=SECONDS]
+                            [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display CO2 sensor calibration parameters."""
+    parser = subparsers.add_parser('co2-cal',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display CO2 sensor calibration parameters.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def services_read_subparser(subparsers):
+    """Define 'ecowitt read services' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read services --help
+       ecowitt read services --ip-address=IP_ADDRESS [--port=PORT]
+                             [--max-tries=TRIES] [--retry-wait=SECONDS]
+                             [--unmask] [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display weather services parameters."""
+    parser = subparsers.add_parser('services',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read and display weather services parameters.")
+    parser.add_argument('--unmask',
+                        dest='unmask',
+                        action='store_const',
+                        const=1,
+                        help='unmask sensitive parameters')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_read)
+    return parser
+
+
+def get_subparser(subparsers):
+    """Add 'read' subcommand."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt read --help
+       ecowitt read live-data --help
+       ecowitt read sensors --help
+       ecowitt read firmware --help
+       ecowitt read mac-address --help
+       ecowitt read system --help
+       ecowitt read rain --help
+       ecowitt read all-rain --help
+       ecowitt read calibration --help
+       ecowitt read th-cal --help
+       ecowitt read soil-cal --help
+       ecowitt read pm25-cal --help
+       ecowitt read co2-cal --help
+       ecowitt read services --help
+    {Bcolors.ENDC}"""
+    description = """Read various Ecowitt gateway device configuration parameters."""
+    parser = subparsers.add_parser('read',
+                                   usage=usage,
+                                   description=description,
+                                   help="Read various Ecowitt gateway device configuration parameters.")
+    # add a subparser to handle the various subcommands.
+    subparsers = parser.add_subparsers(dest='read_subcommand',
+                                       title="Available subcommands")
+    live_read_subparser(subparsers)
+    sensors_read_subparser(subparsers)
+    firmware_read_subparser(subparsers)
+    mac_read_subparser(subparsers)
+    system_read_subparser(subparsers)
+    rain_read_subparser(subparsers)
+    all_rain_read_subparser(subparsers)
+    cal_read_subparser(subparsers)
+    th_read_subparser(subparsers)
+    soil_read_subparser(subparsers)
+    pm25_read_subparser(subparsers)
+    co2_read_subparser(subparsers)
+    services_read_subparser(subparsers)
+    return parser
 
 
 def ecowitt_write_subparser(subparsers):
@@ -8030,14 +8212,14 @@ def main():
 
     # create a lookup table of functions used to determine if an action or
     # sub-subcommand was specified byt the user for a given subcommand
-    exists_fns = {'get': get_action_exists,
+    exists_fns = {'read': read_action_exists,
                   'write': write_action_exists}
     # top level usage instructions
     usage = f"""{Bcolors.BOLD}%(prog)s --help
        %(prog)s --version
        %(prog)s --discover
                   [--debug] [--max-tries]
-       %(prog)s get --help
+       %(prog)s read --help
        %(prog)s write --help{Bcolors.ENDC}
     """
     # top level description
@@ -8067,7 +8249,7 @@ def main():
     # help/usage
     parsers = dict()
     # create each subparser and add to our parser dict
-    parsers['get'] = get_subparser(subparsers)
+    parsers['read'] = get_subparser(subparsers)
     parsers['write'] = write_subparser(subparsers)
     # parse the arguments
     namespace = parser.parse_args()
