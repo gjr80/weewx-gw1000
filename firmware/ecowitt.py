@@ -615,6 +615,36 @@ class GatewayApiParser:
             index += 3
         return offset_dict
 
+    @staticmethod
+    def encode_mulch_offset(**params):
+        """Encode data parameters used for CMD_GET_MulCH_OFFSET.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_GET_MulCH_OFFSET. Required payload parameters are contained in the
+        params dict keyed as follows:
+
+        channel:      channel number, (1 to WH31_CHANNEL_MAX)   --> byte
+        hum offset:   humidity offset, (-10 to +10)             --> byte
+        temp offset:  temperature offset * 10, (-100 to +100)   --> byte
+        ...
+        repeat for remaining channels
+
+        Returns a bytestring.
+        """
+
+        # initialise a list to hold bytestring components of the result
+        components = []
+        # iterate over the channel numbers in ascending order
+        for channel in range(GatewayDevice.WH31_CHANNEL_MAX):
+            # append the channel number to our result list
+            components.append(channel + 1)
+            # append the humidity offset value to our component list
+            components.append(struct.pack('b', int(params[channel]['hum'])))
+            # append the temperature offset value to our component list
+            components.append(struct.pack('b', int(params[channel]['temp']) * 10))
+        # return a bytestring consisting of the concatenated list elements
+        return b''.join(components)
+
     def parse_mulch_t_offset(self, payload):
         """Parse the data payload from a CMD_GET_MulCH_T_OFFSET API response.
 
@@ -976,20 +1006,13 @@ class GatewayApiParser:
         Returns a bytestring.
         """
 
-        intemp_b = struct.pack('>h', int(calibration['intemp'] * 100))
-        inhum_b = struct.pack('>b', int(calibration['inhum']))
-        abs_b = struct.pack('>l', int(calibration['abs'] * 100))
-        rel_b = struct.pack('>l', int(calibration['rel'] * 100))
-        outtemp_b = struct.pack('>h', int(calibration['outtemp'] * 100))
-        outhum_b = struct.pack('>b', int(calibration['outhum']))
-        winddir_b = struct.pack('>h', int(calibration['winddir']))
-        return b''.join([intemp_b,
-                         inhum_b,
-                         abs_b,
-                         rel_b,
-                         outtemp_b,
-                         outhum_b,
-                         winddir_b])
+        return b''.join([struct.pack('>h', int(calibration['intemp'] * 100)),
+                         struct.pack('>b', int(calibration['inhum'])),
+                         struct.pack('>l', int(calibration['abs'] * 100)),
+                         struct.pack('>l', int(calibration['rel'] * 100)),
+                         struct.pack('>h', int(calibration['outtemp'] * 100)),
+                         struct.pack('>b', int(calibration['outhum'])),
+                         struct.pack('>h', int(calibration['winddir']))])
 
     @staticmethod
     def parse_soil_humiad(payload):
@@ -1587,6 +1610,7 @@ class GatewayApiParser:
         a unicode firmware version string.
         """
 
+        # the length of the firmware version string is payload[0]
         # get the firmware version bytestring, decode to a unicode string and
         # return the resulting string
         return payload[1:1 + payload[0]].decode()
@@ -1988,46 +2012,6 @@ class GatewayApiParser:
             comp.append(struct.pack('>L', id_and_address['id']))
         # return a bytestring consisting of the concatenated list elements
         return b''.join(comp)
-
-    @staticmethod
-    # TODO. method name does not agree with cited CMD
-    def encode_mulch_th(**params):
-        """Encode data parameters used for CMD_WRITE_RAINDATA.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_SSSS. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
-
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
-
-        Returns a bytestring.
-        """
-
-        day_b = struct.pack('>L', int(params['t_day'] * 10))
-        week_b = struct.pack('>L', int(params['t_week'] * 10))
-        month_b = struct.pack('>L', int(params['t_month'] * 10))
-        year_b = struct.pack('>L', int(params['t_year'] * 10))
-        return b''.join([day_b, week_b, month_b, year_b])
 
     @staticmethod
     # TODO. method name does not agree with cited CMD
@@ -3644,19 +3628,19 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def write_mulch_th(self, payload):
-        """Write rain data parameters.
+    def write_mulch_offset(self, payload):
+        """Write multichannel temp/humid offset parameters.
 
-        Sends the API command to write the rain data parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
-        write_rain_data(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling write_rain_data() should be prepared to
-        handle these exceptions.
+        Sends the API command to write the multichannel temp/humid offset
+        parameters to the gateway device. If the device cannot be contacted a
+        GWIOError will be raised by send_cmd_with_retries() which will be
+        passed through by write_mulch_offset(). If the command failed a
+        DeviceWriteFailed exception is raised. Any code calling
+        write_mulch_offset() should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
-        result = self.send_cmd_with_retries('CMD_WRITE_RAINDATA', payload)
+        result = self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET', payload)
         # check the result to confirm the command executed successfully, if
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
@@ -4259,6 +4243,7 @@ class GatewayDevice:
                  'long_name': 'Customized'
                  }
                 ]
+    WH31_CHANNEL_MAX = 8
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
@@ -4972,11 +4957,11 @@ class GatewayDevice:
         # update the gateway device
         self.gateway_api.write_rain_data(payload)
 
-    def write_mulch_th(self, **params):
-        """Write rain data parameters.
+    def write_mulch_offset(self, **params):
+        """Write multichannel temp/hum offset parameters.
 
-        Write system parameters to a gateway device. The system parameters
-        consist of:
+        Write multichannel temp/hum offset parameters to a gateway device. The
+        system parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -4992,9 +4977,9 @@ class GatewayDevice:
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_rain_data(**params)
+        payload = self.gateway_api_parser.encode_mulch_offset(**params)
         # update the gateway device
-        self.gateway_api.write_rain_data(payload)
+        self.gateway_api.write_mulch_offset(payload)
 
     def write_soil_moist(self, **params):
         """Write rain data parameters.
@@ -5249,6 +5234,34 @@ class DirectGateway:
         # set our debug level
         self.debug = namespace.debug
 
+    def get_device(self):
+        """Get a GatewayDevice object.
+
+        Attempts to obtain a GatewayDevice object. If successful the
+        GatewayDevice instance is returned, otherwise the return the value
+        None.
+        """
+
+        # wrap in a try..except in case there is an error
+        try:
+            # get a GatewayDevice object
+            device = GatewayDevice(ip_address=self.ip_address,
+                                   port=self.port,
+                                   debug=self.debug)
+        except GWIOError as e:
+            # we encountered an IO error with the device, advise the user and
+            # return None
+            print()
+            print(f"Unable to connect to device at {self.ip_address}: {e}")
+            return None
+        except socket.timeout:
+            # we encountered an device timeout, advise the user and return None
+            print()
+            print(f"Timeout. Device at {self.ip_address} did not respond.")
+            return None
+        # if we made it here we have a GatewayDevice object, return the object
+        return device
+
     def display_system_params(self):
         """Display system parameters.
 
@@ -5274,70 +5287,61 @@ class DirectGateway:
             0: 'disabled (manual update)',
             1: 'enabled (automatic update)'
         }
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f"Unable to connect to device at {self.ip_address}: {e}")
-            return
-        except socket.timeout:
+            print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+            # get the device display_system_params property
+            sys_params_dict = device.system_params
+            # we need the radiation compensation setting which, according to
+            # the v1.6.9 API documentation, resides in field 7B. But bizarrely
+            # this is only available via the CMD_READ_RAIN API command.
+            # CMD_READ_RAIN is a relatively new command so wrap in a
+            # try..except just in case.
+            try:
+                _rain_data = device.rain
+            except GWIOError:
+                temperature_comp = None
+            else:
+                temperature_comp = _rain_data.get('ITEM_radcompensation')
+            # create a meaningful string for frequency representation
+            freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
+            # if sensor_type is 0 there is a WH24 connected, if it's a 1 there
+            # is a WH65
+            _is_wh24 = sys_params_dict['sensor_type'] == 0
+            # string to use in sensor type message
+            _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
+            # print the system parameters
             print()
-            print(f"Timeout. Device at {self.ip_address} did not respond.")
-            return
-        # identify the device being used
-        print()
-        print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        # get the device display_system_params property
-        sys_params_dict = device.system_params
-        # we need the radiation compensation setting which, according to
-        # the v1.6.9 API documentation, resides in field 7B. But bizarrely
-        # this is only available via the CMD_READ_RAIN API command.
-        # CMD_READ_RAIN is a relatively new command so wrap in a
-        # try..except just in case.
-        try:
-            _rain_data = device.rain
-        except GWIOError:
-            temperature_comp = None
-        else:
-            temperature_comp = _rain_data.get('ITEM_radcompensation')
-        # create a meaningful string for frequency representation
-        freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
-        # if sensor_type is 0 there is a WH24 connected, if it's a 1 there
-        # is a WH65
-        _is_wh24 = sys_params_dict['sensor_type'] == 0
-        # string to use in sensor type message
-        _sensor_type_str = 'WH24' if _is_wh24 else 'WH65'
-        # print the system parameters
-        print()
-        print(f'{"sensor type":>28}: {sys_params_dict["sensor_type"]} ({_sensor_type_str})')
-        print(f'{"frequency":>28}: {sys_params_dict["frequency"]} ({freq_str})')
-        if temperature_comp is not None:
-            print(f'{"Temperature Compensation":>28}: {temperature_comp} '
-                  f'({temperature_comp_decode.get(temperature_comp, "unknown")})')
-        else:
-            print(f'{"Temperature Compensation":>28}: unavailable')
-        print(f'{"Auto Timezone":>28}: {auto_tz_decode[sys_params_dict["auto_timezone"]]}')
-        print(f'{"timezone index":>28}: {sys_params_dict["timezone_index"]}')
-        # The gateway API returns what is labelled "UTC" but is in fact the
-        # current epoch timestamp adjusted by the station timezone offset.
-        # So when the timestamp is converted to a human-readable GMT
-        # date-time string it in fact shows the local date-time. We can
-        # work around this by formatting this offset UTC time stamp as a
-        # UTC date-time but then calling it local time. ideally we would
-        # re-adjust to remove the timezone offset to get the real
-        # (unadjusted) epoch timestamp but since the timezone index is
-        # stored as an arbitrary number rather than an offset in seconds
-        # this is not possible. We can only do what we can.
-        date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
-                                      time.gmtime(sys_params_dict['utc']))
-        print(f'{"date-time":>28}: {date_time_str}')
-        print(f'{"Automatically adjust for DST":>28}: '
-              f'{dst_decode.get(sys_params_dict["dst_status"], "unknown")}')
+            print(f'{"sensor type":>28}: {sys_params_dict["sensor_type"]} ({_sensor_type_str})')
+            print(f'{"frequency":>28}: {sys_params_dict["frequency"]} ({freq_str})')
+            if temperature_comp is not None:
+                print(f'{"Temperature Compensation":>28}: {temperature_comp} '
+                      f'({temperature_comp_decode.get(temperature_comp, "unknown")})')
+            else:
+                print(f'{"Temperature Compensation":>28}: unavailable')
+            print(f'{"Auto Timezone":>28}: {auto_tz_decode[sys_params_dict["auto_timezone"]]}')
+            print(f'{"timezone index":>28}: {sys_params_dict["timezone_index"]}')
+            # The gateway API returns what is labelled "UTC" but is in fact the
+            # current epoch timestamp adjusted by the station timezone offset.
+            # So when the timestamp is converted to a human-readable GMT
+            # date-time string it in fact shows the local date-time. We can
+            # work around this by formatting this offset UTC time stamp as a
+            # UTC date-time but then calling it local time. ideally we would
+            # re-adjust to remove the timezone offset to get the real
+            # (unadjusted) epoch timestamp but since the timezone index is
+            # stored as an arbitrary number rather than an offset in seconds
+            # this is not possible. We can only do what we can.
+            date_time_str = time.strftime("%-d %B %Y %H:%M:%S",
+                                          time.gmtime(sys_params_dict['utc']))
+            print(f'{"date-time":>28}: {date_time_str}')
+            print(f'{"Automatically adjust for DST":>28}: '
+                  f'{dst_decode.get(sys_params_dict["dst_status"], "unknown")}')
 
     def display_rain_data(self):
         """Display the device rain data.
@@ -5349,25 +5353,13 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-            # identify the device being used
-            print()
-            print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # get the device objects raindata property
             rain_data = device.raindata
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             print()
             print(f'{"Rain rate":>10}: {rain_data["t_rainrate"]:.1f} mm/{rain_data["t_rainrate"] / 25.4:.1f} in')
             print(f'{"Day rain":>10}: {rain_data["t_rainday"]:.1f} mm/{rain_data["t_rainday"] / 25.4:.1f} in')
@@ -5403,12 +5395,11 @@ class DirectGateway:
                          1: 'Traditional rain gauge',
                          2: 'Piezoelectric rain gauge'
                          }
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -5422,13 +5413,6 @@ class DirectGateway:
             except UnknownApiCommand:
                 # use the rain_data property
                 rain_data = device.raindata
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             print()
             if 'rain_priority' in rain_data:
                 print(f'{"Rainfall data priority":>28}: '
@@ -5523,25 +5507,17 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the mulch offset data from the API
             mulch_offset_data = device.mulch_offset
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any mulch offset data
             if mulch_offset_data is not None:
                 # now format and display the data
@@ -5577,25 +5553,17 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the mulch temp offset data via the API
             mulch_t_offset_data = device.mulch_t_offset
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any mulch temp offset data
             if mulch_t_offset_data is not None:
                 print()
@@ -5631,25 +5599,17 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the PM2.5 offset data from the API
             pm25_offset_data = device.pm25_offset
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any PM2.5 offset data
             if pm25_offset_data is not None:
                 # do we have any results to display?
@@ -5681,25 +5641,17 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the offset data from the API
             co2_offset_data = device.co2_offset
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any offset data
             if co2_offset_data is not None:
                 # now format and display the data
@@ -5722,25 +5674,17 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the main offset and gain calibration data from the device
             calibration_data = device.offset_and_gain
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any calibration data
             if calibration_data is not None:
                 # now format and display the data
@@ -5771,25 +5715,17 @@ class DirectGateway:
         3. by discovery
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the device soil_calibration property
             calibration_data = device.soil_calibration
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any calibration data
             if calibration_data is not None:
                 # now format and display the data
@@ -5925,12 +5861,11 @@ class DirectGateway:
                      'wow_params': print_wow,
                      'all_custom_params': print_custom}
 
-        # wrap in a try..except in case there is an error
-        try:
-            # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
             # identify the device being used
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -5941,13 +5876,6 @@ class DirectGateway:
             services_data = {}
             for service in device.services:
                 services_data[service['name']] = getattr(device, service['name'])
-        except GWIOError as e:
-            print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-        else:
             # did we get any service data
             if len(services_data) > 0:
                 # now format and display the data
@@ -5970,27 +5898,18 @@ class DirectGateway:
         Obtain and display the hardware MAC address of the selected device.
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # get the device MAC address
-        print("    MAC address: %s" % device.mac_address)
+            # get the device MAC address
+            print("    MAC address: %s" % device.mac_address)
 
     def display_firmware(self):
         """Display device firmware details.
@@ -6000,68 +5919,59 @@ class DirectGateway:
         or not.
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # obtain the device model
+            model = device.model
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Interrogating {Bcolors.BOLD}{model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # obtain the device model
-        model = device.model
-        # identify the device being used
-        print()
-        print(f'Interrogating {Bcolors.BOLD}{model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # get the firmware version via the API
-        print("    installed %s firmware version is %s" % (model, device.firmware_version))
-        ws90_fw = device.ws90_firmware_version
-        if ws90_fw is not None:
-            print("    installed WS90 firmware version is %s" % ws90_fw)
-        print()
-        fw_update_avail = device.firmware_update_avail
-        if fw_update_avail:
-            # we have an available firmware update
-            # obtain the 'curr_msg' from the device HTTP API
-            # 'get_device_info' command, this field usually contains the
-            # firmware change details
-            curr_msg = device.firmware_update_message
-            # now print the firmware update details
-            print("    a firmware update is available for this %s," % model)
-            print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
-            # if we have firmware update details print them
-            if curr_msg is not None:
-                print()
-                # Ecowitt have not documented the HTTP API calls so we are
-                # not exactly sure what the 'curr_msg' field is used for,
-                # it might be for other things as well
-                print("    likely firmware update message:")
-                # multi-line messages seem to have \r\n at the end of each
-                # line, split the string so we can format it a little better
-                if '\r\n' in curr_msg:
-                    for line in curr_msg.split('\r\n'):
-                        # print each line
-                        print("      %s" % line)
+            # get the firmware version via the API
+            print("    installed %s firmware version is %s" % (model, device.firmware_version))
+            ws90_fw = device.ws90_firmware_version
+            if ws90_fw is not None:
+                print("    installed WS90 firmware version is %s" % ws90_fw)
+            print()
+            fw_update_avail = device.firmware_update_avail
+            if fw_update_avail:
+                # we have an available firmware update
+                # obtain the 'curr_msg' from the device HTTP API
+                # 'get_device_info' command, this field usually contains the
+                # firmware change details
+                curr_msg = device.firmware_update_message
+                # now print the firmware update details
+                print("    a firmware update is available for this %s," % model)
+                print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
+                # if we have firmware update details print them
+                if curr_msg is not None:
+                    print()
+                    # Ecowitt have not documented the HTTP API calls so we are
+                    # not exactly sure what the 'curr_msg' field is used for,
+                    # it might be for other things as well
+                    print("    likely firmware update message:")
+                    # multi-line messages seem to have \r\n at the end of each
+                    # line, split the string so we can format it a little better
+                    if '\r\n' in curr_msg:
+                        for line in curr_msg.split('\r\n'):
+                            # print each line
+                            print("      %s" % line)
+                    else:
+                        # print as a single line
+                        print("      %s" % curr_msg)
                 else:
-                    # print as a single line
-                    print("      %s" % curr_msg)
+                    # we had no 'curr_msg' for one reason or another
+                    print("    no firmware update message found")
+            elif fw_update_avail is None:
+                # we don't know if we have an available firmware update
+                print("    could not determine if a firmware update is available for this %s" % model)
             else:
-                # we had no 'curr_msg' for one reason or another
-                print("    no firmware update message found")
-        elif fw_update_avail is None:
-            # we don't know if we have an available firmware update
-            print("    could not determine if a firmware update is available for this %s" % model)
-        else:
-            # there must be no available firmware update
-            print("    the firmware is up to date for this %s" % model)
+                # there must be no available firmware update
+                print("    the firmware is up to date for this %s" % model)
 
     def display_sensors(self):
         """Display the device sensor ID information.
@@ -6070,60 +5980,51 @@ class DirectGateway:
         device.
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # obtain the device model
+            model = device.model
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # obtain the device model
-        model = device.model
-        # identify the device being used
-        print()
-        print(f'Interrogating {Bcolors.BOLD}{model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        # first update the GatewayDevice object sensor ID data
-        device.update_sensor_id_data()
-        # now get the sensors property from the GatewayDevice object
-        sensors = device.sensors
-        # the sensor ID data is in the sensors data property, did
-        # we get any sensor ID data
-        if sensors.data is not None and len(sensors.data) > 0:
-            # now format and display the data
-            print()
-            print(f"{'Sensor':<10} {'Status'}")
-            # iterate over each sensor for which we have data
-            for address, sensor_data in sensors.data.items():
-                # the sensor id indicates whether it is disabled, attempting to
-                # register a sensor or already registered
-                if sensor_data['id'] == 'fffffffe':
-                    state = 'sensor is disabled'
-                elif sensor_data['id'] == 'ffffffff':
-                    state = 'sensor is registering...'
-                else:
-                    # the sensor is registered, so we should have signal and
-                    # battery data as well
-                    battery_desc = sensors.batt_state_desc(address, sensor_data.get('battery'))
-                    battery_desc_text = f" ({battery_desc})" if battery_desc is not None else f""
-                    battery_str = f"{sensor_data.get('battery')}{battery_desc_text}"
-                    state = f"sensor ID: {sensor_data.get('id').lstrip('0'):<6}  "\
-                            f"signal: {sensor_data.get('signal'):1}  battery: {battery_str:<14}"
-                    # print the formatted data
-                print(f"{Sensors.sensor_ids[address].get('long_name'):<10} {state}")
-        elif len(sensors.data) == 0:
-            print()
-            print(f"Device at {self.ip_address} did not return any sensor data.")
-        else:
-            print()
-            print("Device at {self.ip_address} did not respond.")
+            print(f'Interrogating {Bcolors.BOLD}{model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+            # first update the GatewayDevice object sensor ID data
+            device.update_sensor_id_data()
+            # now get the sensors property from the GatewayDevice object
+            sensors = device.sensors
+            # the sensor ID data is in the sensors data property, did
+            # we get any sensor ID data
+            if sensors.data is not None and len(sensors.data) > 0:
+                # now format and display the data
+                print()
+                print(f"{'Sensor':<10} {'Status'}")
+                # iterate over each sensor for which we have data
+                for address, sensor_data in sensors.data.items():
+                    # the sensor id indicates whether it is disabled, attempting to
+                    # register a sensor or already registered
+                    if sensor_data['id'] == 'fffffffe':
+                        state = 'sensor is disabled'
+                    elif sensor_data['id'] == 'ffffffff':
+                        state = 'sensor is registering...'
+                    else:
+                        # the sensor is registered, so we should have signal and
+                        # battery data as well
+                        battery_desc = sensors.batt_state_desc(address, sensor_data.get('battery'))
+                        battery_desc_text = f" ({battery_desc})" if battery_desc is not None else f""
+                        battery_str = f"{sensor_data.get('battery')}{battery_desc_text}"
+                        state = f"sensor ID: {sensor_data.get('id').lstrip('0'):<6}  "\
+                                f"signal: {sensor_data.get('signal'):1}  battery: {battery_str:<14}"
+                        # print the formatted data
+                    print(f"{Sensors.sensor_ids[address].get('long_name'):<10} {state}")
+            elif len(sensors.data) == 0:
+                print()
+                print(f"Device at {self.ip_address} did not return any sensor data.")
+            else:
+                print()
+                print("Device at {self.ip_address} did not respond.")
 
     def display_live_data(self):
         """Display the device live sensor data.
@@ -6131,35 +6032,26 @@ class DirectGateway:
         Obtain and display live sensor data from the selected device.
         """
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
-            print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        # get the live sensor data
-        live_sensor_data_dict = device.livedata
-        # display the live sensor data if we have any
-        if len(live_sensor_data_dict) > 0:
-            print()
-            for item_num in device.gateway_api_parser.addressed_data_struct.keys():
-                if item_num in live_sensor_data_dict:
-                    item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
-                    value_str = re.sub(r'\.?0+$', lambda match: ' '*(match.end()-match.start()), '{:>12.1f}'.format(live_sensor_data_dict[item_num]))
-                    print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
-        print(f"live sensor data={live_sensor_data_dict}")
+            print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+            # get the live sensor data
+            live_sensor_data_dict = device.livedata
+            # display the live sensor data if we have any
+            if len(live_sensor_data_dict) > 0:
+                print()
+                for item_num in device.gateway_api_parser.addressed_data_struct.keys():
+                    if item_num in live_sensor_data_dict:
+                        item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
+                        value_str = re.sub(r'\.?0+$', lambda match: ' '*(match.end()-match.start()), '{:>12.1f}'.format(live_sensor_data_dict[item_num]))
+                        print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
+            print(f"live sensor data={live_sensor_data_dict}")
 
     def display_discovered_devices(self):
         """Display details of gateway devices on the local network."""
@@ -6196,646 +6088,528 @@ class DirectGateway:
     def write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current custom params and usr path settings from the
-        # device
-        ecowitt_params = device.ecowitt_net_params
-        # make a copy of the current ecowitt params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_ecowitt_params = dict(ecowitt_params)
-        # iterate over each ecowitt param (param, value) pair
-        for param, value in ecowitt_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our ecowitt param dict copy if the namespace argument is
-            # not None, otherwise keep the current custom param value
-            arg_ecowitt_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_ecowitt_params != ecowitt_params:
-            # something has changed, so write the updated params to the device
-            try:
-                device.write_custom(**arg_ecowitt_params)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current custom params and usr path settings from the
+            # device
+            ecowitt_params = device.ecowitt_net_params
+            # make a copy of the current ecowitt params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_ecowitt_params = dict(ecowitt_params)
+            # iterate over each ecowitt param (param, value) pair
+            for param, value in ecowitt_params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our ecowitt param dict copy if the namespace argument is
+                # not None, otherwise keep the current custom param value
+                arg_ecowitt_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_ecowitt_params != ecowitt_params:
+                # something has changed, so write the updated params to the device
+                try:
+                    device.write_custom(**arg_ecowitt_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print()
-            print("No changes to current device settings")
+                print()
+                print("No changes to current device settings")
 
     def write_wu_wow_wcloud(self):
         """Process wu, wow and wcloud write sub-subcommands."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current WU/WOW/Weathercloud upload params from the device
-        current_params = getattr(device, '_'.join([self.namespace.write_subcommand, 'params']))
-        # make a copy of the current params, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_service_params = dict(current_params)
-        # iterate over each current param (param, value) pair
-        for param, value in current_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our param dict copy if the namespace argument is not None,
-            # otherwise keep the current param value
-            arg_service_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_service_params != current_params:
-            # something has changed, so write the updated params to the device
-            try:
-                getattr(device, '_'.join(['write', self.namespace.write_subcommand]))(**arg_service_params)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current WU/WOW/Weathercloud upload params from the device
+            current_params = getattr(device, '_'.join([self.namespace.write_subcommand, 'params']))
+            # make a copy of the current params, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_service_params = dict(current_params)
+            # iterate over each current param (param, value) pair
+            for param, value in current_params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our param dict copy if the namespace argument is not None,
+                # otherwise keep the current param value
+                arg_service_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_service_params != current_params:
+                # something has changed, so write the updated params to the device
+                try:
+                    getattr(device, '_'.join(['write', self.namespace.write_subcommand]))(**arg_service_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print()
-            print("No changes to current device settings")
+                print()
+                print("No changes to current device settings")
 
     def write_custom(self):
         """Process custom write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current custom params and usr path settings from the
-        # device
-        custom_params = device.custom_params
-        usr_path = device.usr_path
-        # make a copy of the current custom params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_custom_params = dict(custom_params)
-        # iterate over each custom param (param, value) pair
-        for param, value in custom_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our custom param dict copy if the namespace argument is
-            # not None, otherwise keep the current custom param value
-            arg_custom_params[param] = _arg if _arg is not None else value
-        # make a copy of the current usr path params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_usr_path = dict(usr_path)
-        # iterate over each usr path param (param, value) pair
-        for param, value in usr_path.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our usr path param dict copy if the namespace argument is
-            # not None, otherwise keep the current usr path param value
-            arg_usr_path[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_custom_params != custom_params or arg_usr_path != usr_path:
-            # something has changed, so combine our updated dicts and write the
-            # updated params to the device
-            arg_custom_params.update(arg_usr_path)
-            # write the updated settings to the device
-            try:
-                device.write_custom(**arg_custom_params)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-
+            # obtain the current custom params and usr path settings from the
+            # device
+            custom_params = device.custom_params
+            usr_path = device.usr_path
+            # make a copy of the current custom params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_custom_params = dict(custom_params)
+            # iterate over each custom param (param, value) pair
+            for param, value in custom_params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our custom param dict copy if the namespace argument is
+                # not None, otherwise keep the current custom param value
+                arg_custom_params[param] = _arg if _arg is not None else value
+            # make a copy of the current usr path params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_usr_path = dict(usr_path)
+            # iterate over each usr path param (param, value) pair
+            for param, value in usr_path.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our usr path param dict copy if the namespace argument is
+                # not None, otherwise keep the current usr path param value
+                arg_usr_path[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_custom_params != custom_params or arg_usr_path != usr_path:
+                # something has changed, so combine our updated dicts and write the
+                # updated params to the device
+                arg_custom_params.update(arg_usr_path)
+                # write the updated settings to the device
+                try:
+                    device.write_custom(**arg_custom_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print()
-            print("No changes to current device settings")
+                print()
+                print("No changes to current device settings")
 
     def write_calibration(self):
         """Process calibration write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current ofsset and gain params from the device
-        cal_params = device.offset_and_gain
-        # make a copy of the current cal params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_cal_params = dict(cal_params)
-        # iterate over each cal param (param, value) pair
-        for param, value in cal_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our cal param dict copy if the namespace argument is
-            # not None, otherwise keep the current cal param value
-            arg_cal_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_cal_params != cal_params:
-            # something has changed, so write the updated params to the device
-            try:
-                device.write_gain(**arg_cal_params)
-                device.write_calibration(**arg_cal_params)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current ofsset and gain params from the device
+            cal_params = device.offset_and_gain
+            # make a copy of the current cal params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_cal_params = dict(cal_params)
+            # iterate over each cal param (param, value) pair
+            for param, value in cal_params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our cal param dict copy if the namespace argument is
+                # not None, otherwise keep the current cal param value
+                arg_cal_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_cal_params != cal_params:
+                # something has changed, so write the updated params to the device
+                try:
+                    device.write_gain(**arg_cal_params)
+                    device.write_calibration(**arg_cal_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print()
-            print("No changes to current device settings")
+                print()
+                print("No changes to current device settings")
 
     def write_sensor_id(self):
         """Process sensor-id write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current sensor ID params from the device
-        # first update the GatewayDevice object sensor ID data
-        device.update_sensor_id_data()
-        # now obtain a dict of current sensors IDs in numeric format
-        id_params = device.sensors.ids_by_name(numeric_id=True)
-        # make a copy of the current sensor ID params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_id_params = dict(id_params)
-        # iterate over each sensor ID param (param, value) pair
-        for sensor_name, sensor_id in id_params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, sensor_name, None)
-            # update our cal param dict copy if the namespace argument is
-            # not None, otherwise keep the current cal param value
-            arg_id_params[sensor_name] = _arg if _arg is not None else sensor_id
-        # do we have any changes from our existing settings
-        if arg_id_params != id_params:
-            # something has changed, so
-            id_and_address = dict()
-            for name, id in arg_id_params.items():
-                id_and_address[name] = {'id': id,
-                                        'address': device.sensors.sensor_idt[name]
-                                        }
-            # write the updated params to the device
-            try:
-                device.write_sensor_id(**id_and_address)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current sensor ID params from the device
+            # first update the GatewayDevice object sensor ID data
+            device.update_sensor_id_data()
+            # now obtain a dict of current sensors IDs in numeric format
+            id_params = device.sensors.ids_by_name(numeric_id=True)
+            # make a copy of the current sensor ID params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_id_params = dict(id_params)
+            # iterate over each sensor ID param (param, value) pair
+            for sensor_name, sensor_id in id_params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, sensor_name, None)
+                # update our cal param dict copy if the namespace argument is
+                # not None, otherwise keep the current cal param value
+                arg_id_params[sensor_name] = _arg if _arg is not None else sensor_id
+            # do we have any changes from our existing settings
+            if arg_id_params != id_params:
+                # something has changed, so
+                id_and_address = dict()
+                for name, id in arg_id_params.items():
+                    id_and_address[name] = {'id': id,
+                                            'address': device.sensors.sensor_idt[name]
+                                            }
+                # write the updated params to the device
+                try:
+                    device.write_sensor_id(**id_and_address)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
     def write_pm25_offset(self):
         """Process pm25-offset write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current pm2.5 sensor offsets from the device
-        offsets = device.pm25_offset
-        # make a copy of the current offsets, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_offsets = dict(offsets)
-        # iterate over each offset (param, value) pair
-        for channel, offset in offsets.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, channel, None)
-            # update our offset dict copy if the namespace argument is not
-            # None, otherwise keep the current offset
-            arg_offsets[channel] = _arg if _arg is not None else offset
-        # do we have any changes from our existing settings
-        if arg_offsets != offsets:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_pm25_offsets(**arg_offsets)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current pm2.5 sensor offsets from the device
+            offsets = device.pm25_offset
+            # make a copy of the current offsets, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_offsets = dict(offsets)
+            # iterate over each offset (param, value) pair
+            for channel, offset in offsets.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, channel, None)
+                # update our offset dict copy if the namespace argument is not
+                # None, otherwise keep the current offset
+                arg_offsets[channel] = _arg if _arg is not None else offset
+            # do we have any changes from our existing settings
+            if arg_offsets != offsets:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_pm25_offsets(**arg_offsets)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
     def write_co2_offset(self):
         """Process c02-offset write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current co2 sensor offsets from the device
-        offsets = device.co2_offset
-        # make a copy of the current sensor offsets, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_offsets = dict(offsets)
-        # iterate over each offset (param, value) pair
-        for type, offset in offsets.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, type, None)
-            # update our offset dict copy if the namespace argument is not
-            # None, otherwise keep the current offsets
-            arg_offsets[type] = _arg if _arg is not None else offset
-        # do we have any changes from our existing settings
-        if arg_offsets != offsets:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_co2_offsets(**arg_offsets)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current co2 sensor offsets from the device
+            offsets = device.co2_offset
+            # make a copy of the current sensor offsets, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_offsets = dict(offsets)
+            # iterate over each offset (param, value) pair
+            for type, offset in offsets.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, type, None)
+                # update our offset dict copy if the namespace argument is not
+                # None, otherwise keep the current offsets
+                arg_offsets[type] = _arg if _arg is not None else offset
+            # do we have any changes from our existing settings
+            if arg_offsets != offsets:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_co2_offsets(**arg_offsets)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
     def write_rain(self):
         """Process rain write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current rain related parameters from the device
-        parameters = device.rain
-        # make a copy of the current parameters, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_parameters = dict(parameters)
-        # iterate over each parameter (param, value) pair
-        for param, value in parameters.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our dict copy if the namespace argument is not None,
-            # otherwise keep the current parameter value
-            arg_parameters[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_parameters != parameters:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_rain(**arg_parameters)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current rain related parameters from the device
+            parameters = device.rain
+            # make a copy of the current parameters, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_parameters = dict(parameters)
+            # iterate over each parameter (param, value) pair
+            for param, value in parameters.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our dict copy if the namespace argument is not None,
+                # otherwise keep the current parameter value
+                arg_parameters[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_parameters != parameters:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_rain(**arg_parameters)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
     def write_system(self):
         """Process system write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current system params from the device
-        _params = device.system_params
-        # make a copy of the current system params, this copy will be updated
-        # with the subcommand arguments and then used to update the device
-        arg_params = dict(_params)
-        # iterate over each system param (param, value) pair
-        for param, value in _params.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our dict copy if the namespace argument is not None,
-            # otherwise keep the current param value
-            arg_params[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_params != _params:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_system_params(**arg_params)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current system params from the device
+            _params = device.system_params
+            # make a copy of the current system params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_params = dict(_params)
+            # iterate over each system param (param, value) pair
+            for param, value in _params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our dict copy if the namespace argument is not None,
+                # otherwise keep the current param value
+                arg_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_params != _params:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_system_params(**arg_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
     def write_rain_data(self):
         """Process rain-data write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current rain data from the device
-        rain_data = device.raindata
-        # make a copy of the current rain data, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_rain_data = dict(rain_data)
-        # iterate over each rain data (param, value) pair
-        for param, value in rain_data.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our dict copy if the namespace argument is not None,
-            # otherwise keep the current pm25 offsets
-            arg_rain_data[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_rain_data != rain_data:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_rain_data(**arg_rain_data)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current rain data from the device
+            rain_data = device.raindata
+            # make a copy of the current rain data, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_rain_data = dict(rain_data)
+            # iterate over each rain data (param, value) pair
+            for param, value in rain_data.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our dict copy if the namespace argument is not None,
+                # otherwise keep the current pm25 offsets
+                arg_rain_data[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_rain_data != rain_data:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_rain_data(**arg_rain_data)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
-    def write_mulch_th(self):
-        """Process rain-data write sub-subcommand."""
+    def process_write_mulch_offset(self):
+        """Process multichannel temp/humid offset write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current rain data from the device
-        rain_data = device.raindata
-        # make a copy of the current rain data, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_rain_data = dict(rain_data)
-        # iterate over each rain data (param, value) pair
-        for param, value in rain_data.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our dict copy if the namespace argument is not None,
-            # otherwise keep the current pm25 offsets
-            arg_rain_data[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_rain_data != rain_data:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_rain_data(**arg_rain_data)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current multichannel temp/hum offset params
+            params = device.mulch_offset
+            # make a copy of the current params, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_params = dict(params)
+            # iterate over each params (param, value) pair
+            for param, value in params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our dict copy if the namespace argument is not None,
+                # otherwise keep the current param value
+                arg_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_params != params:
+                # something has changed, so save the updated offsets to the device
+                try:
+                    device.write_mulch_offset(**arg_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
-    def write_soil_moist(self):
-        """Process rain-data write sub-subcommand."""
+    def process_write_soil_humiad(self):
+        """Process soil humiad write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current rain data from the device
-        rain_data = device.raindata
-        # make a copy of the current rain data, this copy will be updated with
-        # the subcommand arguments and then used to update the device
-        arg_rain_data = dict(rain_data)
-        # iterate over each rain data (param, value) pair
-        for param, value in rain_data.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, param, None)
-            # update our dict copy if the namespace argument is not None,
-            # otherwise keep the current pm25 offsets
-            arg_rain_data[param] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_rain_data != rain_data:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_rain_data(**arg_rain_data)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current rain data from the device
+            rain_data = device.soil_calibration
+            # make a copy of the current rain data, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_rain_data = dict(rain_data)
+            # iterate over each rain data (param, value) pair
+            for param, value in rain_data.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our dict copy if the namespace argument is not None,
+                # otherwise keep the current pm25 offsets
+                arg_rain_data[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_rain_data != rain_data:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_rain_data(**arg_rain_data)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
     def write_mulch_t(self):
         """Process mulch-t-cal write sub-subcommand."""
 
-        # wrap in a try..except in case there is an error
-        try:
-            # obtain a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
-                                   port=self.port,
-                                   debug=self.debug)
-        except GWIOError as e:
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
             print()
-            print(f'Unable to connect to device at {self.ip_address}: {e}')
-            return
-        except socket.timeout:
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            print(f'Timeout. Device at {self.ip_address} did not respond.')
-            return
-        # identify the device being used
-        print()
-        print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-              f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-        print()
-        # obtain the current mulch temperature offset data from the device
-        offset_data = device.mulch_t_offset
-        # make a copy of the current mulch temperature offset data, this copy
-        # will be updated with the subcommand arguments and then used to update
-        # the device
-        arg_offset_data = dict(offset_data)
-        # iterate over each offset (param, value) pair
-        for offset, value in offset_data.items():
-            # obtain the corresponding argument from the namespace, if the
-            # argument does not exist or is not set it will be None
-            _arg = getattr(self.namespace, offset, None)
-            # update our dict copy if the namespace argument is not None,
-            # otherwise keep the current pm25 offsets
-            arg_offset_data[offset] = _arg if _arg is not None else value
-        # do we have any changes from our existing settings
-        if arg_offset_data != offset_data:
-            # something has changed, so write the updated offsets to the device
-            try:
-                device.write_mulch_t(**arg_offset_data)
-            except DeviceWriteFailed as e:
-                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+            # obtain the current mulch temperature offset data from the device
+            offset_data = device.mulch_t_offset
+            # make a copy of the current mulch temperature offset data, this copy
+            # will be updated with the subcommand arguments and then used to update
+            # the device
+            arg_offset_data = dict(offset_data)
+            # iterate over each offset (param, value) pair
+            for offset, value in offset_data.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, offset, None)
+                # update our dict copy if the namespace argument is not None,
+                # otherwise keep the current pm25 offsets
+                arg_offset_data[offset] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_offset_data != offset_data:
+                # something has changed, so write the updated offsets to the device
+                try:
+                    device.write_mulch_t(**arg_offset_data)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
             else:
-                print("Device write completed successfully")
-        else:
-            print("No changes to current device settings")
+                print("No changes to current device settings")
 
 
 # ============================================================================
@@ -7065,9 +6839,9 @@ def dispatch_write(namespace):
     if getattr(namespace, 'write_subcommand', False) == 'rain-data':
         direct_gw.write_rain_data()
     if getattr(namespace, 'write_subcommand', False) == 'mulch-th-offset':
-        direct_gw.write_mulch_th()
+        direct_gw.process_write_mulch_offset()
     if getattr(namespace, 'write_subcommand', False) == 'soil-moist':
-        direct_gw.write_soil_moist()
+        direct_gw.process_write_soil_humiad()
     if getattr(namespace, 'write_subcommand', False) == 'mulch-t-offset':
         direct_gw.write_mulch_t()
 
