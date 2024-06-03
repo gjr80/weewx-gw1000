@@ -2733,7 +2733,7 @@ class GatewayApi:
                 # if required display the response packet
                 if self.debug:
                     _first_row = True
-                    for row in gen_pretty_bytes_as_hex(response):
+                    for row in gen_pretty_bytes_as_hex(response, quote=True):
                         if _first_row:
                             print()
                             print(f"Received broadcast response: {row['hex']}")
@@ -3804,9 +3804,9 @@ class GatewayApi:
                 # if required display the packet we are sending
                 if self.debug:
                     _first_row = True
-                    for row in gen_pretty_bytes_as_hex(packet):
+                    for row in gen_pretty_bytes_as_hex(packet, quote=True):
                         if _first_row:
-                            print(f"sending packet '{row['hex']}' to {self.ip_address}:{self.port}")
+                            print(f"sending packet {row['hex']} to {self.ip_address}:{self.port}")
                             _first_row = False
                         else:
                             print(f"               {row['hex']}")
@@ -3824,7 +3824,7 @@ class GatewayApi:
             # if required display the response packet
             if self.debug:
                 _first_row = True
-                for row in gen_pretty_bytes_as_hex(response):
+                for row in gen_pretty_bytes_as_hex(response, quote=True):
                     if _first_row:
                         print(f"response: {row['hex']}")
                         _first_row = False
@@ -3994,6 +3994,12 @@ class HttpApi:
             # rather than using the Request object's 'data' parameter so that the
             # request is sent as a GET request rather than a POST request.
             full_url = '?'.join([url, data_enc])
+            # if required display the packet we are sending
+            if self.debug:
+                print(f"{'submitting request using URL ':>30} '{url}'")
+                if headers is not None:
+                    print(f"{'headers':>30} {headers_dict}")
+                print()
             # create a Request object
             req = urllib.request.Request(url=full_url, headers=headers_dict)
             try:
@@ -4268,10 +4274,10 @@ class GatewayDevice:
 
         # get a GatewayHttp object to handle any HTTP requests, a GatewayHttp
         # object requires an IP address
-        self.http_api = HttpApi(ip_address=ip_address)
+        self.http_api = HttpApi(ip_address=ip_address, debug=debug)
 
         # get a Sensors object for dealing with sensor state data
-        self.sensors = Sensors()
+        self.sensors = Sensors(debug=debug)
 
         # start off logging failures
         self.log_failures = True
@@ -5136,7 +5142,7 @@ def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
         return {'hex': '', 'printable': ''}
 
 
-def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
+def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3, quote=False):
     """Pretty print a byte string.
 
     Print a sequence of bytes as a sequence of space separated hexadecimal
@@ -5151,6 +5157,7 @@ def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
 
     # do we have any bytes to print
     if len(raw_bytes) > 0:
+        quote_char = "'" if quote else ""
         # we have bytes to print
         # set an index to 0
         index = 0
@@ -5163,7 +5170,7 @@ def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
                 row_bytes = raw_bytes[index:]
             # print the grabbed bytes as a space separated sequence of
             # hexadecimal digit pairs
-            yield {'hex': f"{' ' * (start_column - 1)}{bytes_to_hex(row_bytes)}",
+            yield {'hex': f"{' ' * (start_column - 1)}{quote_char}{bytes_to_hex(row_bytes)}{quote_char}",
                    'printable': f"{' ' * (start_column - 1)}{bytes_to_printable(row_bytes)}"}
             # increment our index to grab the next group of bytes
             index += columns
@@ -7177,108 +7184,108 @@ def get_subparser(subparsers):
 def ecowitt_write_subparser(subparsers):
     """Define 'ecowitt write ecowitt' sub-subparser."""
     
-    ecowitt_write_usage = f"""{Bcolors.BOLD}ecowitt write ecowitt --help
+    usage = f"""{Bcolors.BOLD}ecowitt write ecowitt --help
        ecowitt write ecowitt --interval INTERVAL
             --ip-address=IP_ADDRESS [--port=PORT]
             [--debug]{Bcolors.ENDC}
     """
-    ecowitt_write_description = """Set Ecowitt.net upload parameters."""
-    ecowitt_write_parser = subparsers.add_parser('ecowitt',
-                                                 usage=ecowitt_write_usage,
-                                                 description=ecowitt_write_description,
-                                                 help="Set Ecowitt.net upload parameters.")
-    ecowitt_write_parser.add_argument('--interval',
-                                      dest='interval',
-                                      type=int,
-                                      choices=range(0, 6),
-                                      default=0,
-                                      metavar='INTERVAL',
-                                      help='Ecowitt.net upload interval (0-5) in minutes. '
-                                           '0 indicates upload is disabled. Default is 0.')
-    add_common_args(ecowitt_write_parser)
-    ecowitt_write_parser.set_defaults(func=dispatch_write)
-    return ecowitt_write_parser
+    description = """Set Ecowitt.net upload parameters."""
+    parser = subparsers.add_parser('ecowitt',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set Ecowitt.net upload parameters.")
+    parser.add_argument('--interval',
+                        dest='interval',
+                        type=int,
+                        choices=range(0, 6),
+                        default=0,
+                        metavar='INTERVAL',
+                        help='Ecowitt.net upload interval (0-5) in minutes. '
+                             '0 indicates upload is disabled. Default is 0.')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def wu_write_subparser(subparsers):
     """Define 'ecowitt write wu' sub-subparser."""
 
-    wu_write_usage = f"""{Bcolors.BOLD}ecowitt write wu --help
+    usage = f"""{Bcolors.BOLD}ecowitt write wu --help
        ecowitt write wu --station-id STATION_ID --station-key STATION_KEY
                         --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
     """
-    wu_write_description = """Set WeatherUnderground upload parameters."""
-    wu_write_parser = subparsers.add_parser('wu',
-                                            usage=wu_write_usage,
-                                            description=wu_write_description,
-                                            help="Set WeatherUnderground upload parameters.")
-    wu_write_parser.add_argument('--station-id',
-                                 dest='id',
-                                 metavar='STATION_ID',
-                                 help='WeatherUnderground station ID')
-    wu_write_parser.add_argument('--station-key',
-                                 dest='key',
-                                 metavar='STATION_KEY',
-                                 help='WeatherUnderground station key')
-    add_common_args(wu_write_parser)
-    wu_write_parser.set_defaults(func=dispatch_write)
-    return wu_write_parser
+    description = """Set WeatherUnderground upload parameters."""
+    parser = subparsers.add_parser('wu',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set WeatherUnderground upload parameters.")
+    parser.add_argument('--station-id',
+                        dest='id',
+                        metavar='STATION_ID',
+                        help='WeatherUnderground station ID')
+    parser.add_argument('--station-key',
+                        dest='key',
+                        metavar='STATION_KEY',
+                        help='WeatherUnderground station key')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def wow_write_subparser(subparsers):
     """Define 'ecowitt write wow' sub-subparser."""
 
-    wow_write_usage = f"""{Bcolors.BOLD}ecowitt write wow --help
+    usage = f"""{Bcolors.BOLD}ecowitt write wow --help
        ecowitt write wow --station-id STATION_ID --station-key STATION_KEY
                          --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
     """
-    wow_write_description = """Set Weather Observations Website upload parameters."""
-    wow_write_parser = subparsers.add_parser('wow',
-                                             usage=wow_write_usage,
-                                             description=wow_write_description,
-                                             help="Set Weather Observations Website upload parameters.")
-    wow_write_parser.add_argument('--station-id',
-                                  dest='id',
-                                  metavar='STATION_ID',
-                                  help='Weather Observations Website station ID')
-    wow_write_parser.add_argument('--station-key',
-                                  dest='key',
-                                  metavar='STATION_KEY',
-                                  help='Weather Observations Website station key')
-    add_common_args(wow_write_parser)
-    wow_write_parser.set_defaults(func=dispatch_write)
-    return wow_write_parser
+    description = """Set Weather Observations Website upload parameters."""
+    parser = subparsers.add_parser('wow',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set Weather Observations Website upload parameters.")
+    parser.add_argument('--station-id',
+                        dest='id',
+                        metavar='STATION_ID',
+                        help='Weather Observations Website station ID')
+    parser.add_argument('--station-key',
+                        dest='key',
+                        metavar='STATION_KEY',
+                        help='Weather Observations Website station key')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def wcloud_write_subparser(subparsers):
     """Define 'ecowitt write wcloud' sub-subparser."""
 
-    wcloud_write_usage = f"""{Bcolors.BOLD}ecowitt write wcloud --help
+    usage = f"""{Bcolors.BOLD}ecowitt write wcloud --help
        ecowitt write wcloud --station-id STATION_ID --station-key STATION_KEY
                             --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
     """
-    wcloud_write_description = """Set Weathercloud upload parameters."""
-    wcloud_write_parser = subparsers.add_parser('wcloud',
-                                                usage=wcloud_write_usage,
-                                                description=wcloud_write_description,
-                                                help="Set Weathercloud upload parameters.")
-    wcloud_write_parser.add_argument('--station-id',
-                                     dest='id',
-                                     metavar='STATION_ID',
-                                     help='Weathercloud station ID')
-    wcloud_write_parser.add_argument('--station-key',
-                                     dest='key',
-                                     metavar='STATION_KEY',
-                                     help='Weathercloud station key')
-    add_common_args(wcloud_write_parser)
-    wcloud_write_parser.set_defaults(func=dispatch_write)
-    return wcloud_write_parser
+    description = """Set Weathercloud upload parameters."""
+    parser = subparsers.add_parser('wcloud',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set Weathercloud upload parameters.")
+    parser.add_argument('--station-id',
+                        dest='id',
+                        metavar='STATION_ID',
+                        help='Weathercloud station ID')
+    parser.add_argument('--station-key',
+                        dest='key',
+                        metavar='STATION_KEY',
+                        help='Weathercloud station key')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def custom_write_subparser(subparsers):
     """Define 'ecowitt write custom' sub-subparser."""
 
-    custom_write_usage = f"""{Bcolors.BOLD}ecowitt write custom --help
+    usage = f"""{Bcolors.BOLD}ecowitt write custom --help
        ecowitt write custom --ip-address=IP_ADDRESS [--port=PORT]
                             [--enabled | --disabled] [--protocol EC | WU] [--server IP_ADDRESS | NAME] 
                             [--upload-port UPLOAD_PORT] [--interval INTERVAL] 
@@ -7286,489 +7293,489 @@ def custom_write_subparser(subparsers):
                             [--station-id STATION_ID] [--station-key STATION_KEY]
                             [--debug]
 {Bcolors.ENDC}"""
-    custom_write_description = """Set Customized upload parameters. If a 
+    description = """Set Customized upload parameters. If a 
     parameter is omitted the corresponding current gateway device parameter is 
     left unchanged."""
-    custom_write_parser = subparsers.add_parser('custom',
-                                                usage=custom_write_usage,
-                                                description=custom_write_description,
-                                                help="Set Customized upload parameters.")
-    custom_write_parser.add_argument('--enabled',
-                                     dest='active',
-                                     action='store_const',
-                                     const=1,
-                                     help='enable customized uploads')
-    custom_write_parser.add_argument('--disabled',
-                                     dest='active',
-                                     action='store_const',
-                                     const=0,
-                                     help='disable customized uploads')
-    custom_write_parser.add_argument('--protocol',
-                                     dest='type',
-                                     choices=('EC', 'WU'),
-                                     type=lambda p: 0 if p.upper() == 'EC' else 1,
-                                     metavar='PROTOCOL',
-                                     help='upload protocol EC = Ecowitt WU = WeatherUnderground '
-                                          '(WU requires --station-id and --station-key be populated)')
-    custom_write_parser.add_argument('--server',
-                                     dest='server',
-                                     type=maxlen(64),
-                                     metavar='IP_ADDRESS | NAME',
-                                     help='destination server IP address or host name, max length 64 characters')
-    custom_write_parser.add_argument('--upload-port',
-                                     dest='port',
-                                     type=ranged_type(int, 0, 65536),
-                                     metavar='UPLOAD_PORT',
-                                     help='destination server port number')
-    custom_write_parser.add_argument('--ec-path',
-                                     dest='ecowitt_path',
-                                     type=maxlen(64),
-                                     metavar='EC_PATH',
-                                     help='Ecowitt protocol upload path')
-    custom_write_parser.add_argument('--wu-path',
-                                     dest='wu_path',
-                                     type=maxlen(64),
-                                     metavar='WU_PATH',
-                                     help='WeatherUnderground protocol upload path')
-    custom_write_parser.add_argument('--station-id',
-                                     dest='id',
-                                     type=maxlen(40),
-                                     metavar='STATION_ID',
-                                     help='WeatherUnderground protocol station ID')
-    custom_write_parser.add_argument('--station-key',
-                                     dest='password',
-                                     type=maxlen(40),
-                                     metavar='STATION_KEY',
-                                     help='WeatherUnderground protocol station key')
-    custom_write_parser.add_argument('--interval',
-                                     dest='interval',
-                                     type=ranged_type(int, 16, 600),
-                                     metavar='UPLOAD_PORT',
-                                     help='destination server port number')
-    add_common_args(custom_write_parser)
-    custom_write_parser.set_defaults(active=0, func=dispatch_write)
-    return custom_write_parser
+    parser = subparsers.add_parser('custom',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set Customized upload parameters.")
+    parser.add_argument('--enabled',
+                        dest='active',
+                        action='store_const',
+                        const=1,
+                        help='enable customized uploads')
+    parser.add_argument('--disabled',
+                        dest='active',
+                        action='store_const',
+                        const=0,
+                        help='disable customized uploads')
+    parser.add_argument('--protocol',
+                        dest='type',
+                        choices=('EC', 'WU'),
+                        type=lambda p: 0 if p.upper() == 'EC' else 1,
+                        metavar='PROTOCOL',
+                        help='upload protocol EC = Ecowitt WU = WeatherUnderground '
+                             '(WU requires --station-id and --station-key be populated)')
+    parser.add_argument('--server',
+                        dest='server',
+                        type=maxlen(64),
+                        metavar='IP_ADDRESS | NAME',
+                        help='destination server IP address or host name, max length 64 characters')
+    parser.add_argument('--upload-port',
+                        dest='port',
+                        type=ranged_type(int, 0, 65536),
+                        metavar='UPLOAD_PORT',
+                        help='destination server port number')
+    parser.add_argument('--ec-path',
+                        dest='ecowitt_path',
+                        type=maxlen(64),
+                        metavar='EC_PATH',
+                        help='Ecowitt protocol upload path')
+    parser.add_argument('--wu-path',
+                        dest='wu_path',
+                        type=maxlen(64),
+                        metavar='WU_PATH',
+                        help='WeatherUnderground protocol upload path')
+    parser.add_argument('--station-id',
+                        dest='id',
+                        type=maxlen(40),
+                        metavar='STATION_ID',
+                        help='WeatherUnderground protocol station ID')
+    parser.add_argument('--station-key',
+                        dest='password',
+                        type=maxlen(40),
+                        metavar='STATION_KEY',
+                        help='WeatherUnderground protocol station key')
+    parser.add_argument('--interval',
+                        dest='interval',
+                        type=ranged_type(int, 16, 600),
+                        metavar='UPLOAD_PORT',
+                        help='destination server port number')
+    add_common_args(parser)
+    parser.set_defaults(active=0, func=dispatch_write)
+    return parser
 
 
 def cal_write_subparser(subparsers):
     """Define 'ecowitt write calibration' sub-subparser."""
 
-    cal_write_usage = f"""{Bcolors.BOLD}ecowitt write calibration --help
+    usage = f"""{Bcolors.BOLD}ecowitt write calibration --help
        ecowitt write calibration --ip-address=IP_ADDRESS [--port=PORT]
                                  [--uv UV_GAIN] [--solar SOLAR_GAIN]
                                  [---wind-speed WIND_GAIN] [--rain RAIN_GAIN]
                                  [--debug]
 {Bcolors.ENDC}"""
-    cal_write_description = """Set calibration coefficients. If a parameter
+    description = """Set calibration coefficients. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    cal_write_parser = subparsers.add_parser('calibration',
-                                             usage=cal_write_usage,
-                                             description=cal_write_description,
-                                             help="Set calibration coefficients.")
-    cal_write_parser.add_argument('--uv',
-                                  dest='uv',
-                                  type=ranged_type(float, 0.1, 5.0),
-                                  help='UV calibration gain')
-    cal_write_parser.add_argument('--solar',
-                                  dest='solar',
-                                  type=ranged_type(float, 0.1, 5.0),
-                                  help='solar radiation calibration gain')
-    cal_write_parser.add_argument('--wind-speed',
-                                  dest='wind',
-                                  type=ranged_type(float, 0.1, 5.0),
-                                  help='wind speed calibration gain')
-    cal_write_parser.add_argument('--intemp',
-                                  dest='intemp',
-                                  type=ranged_type(float, -10.0, 10.0),
-                                  help='Inside temperature offset')
-    cal_write_parser.add_argument('--inhum',
-                                  dest='inhum',
-                                  type=ranged_type(float, -10.0, 10.0),
-                                  help='Inside humidity offset')
-    cal_write_parser.add_argument('--outtemp',
-                                  dest='outtemp',
-                                  type=ranged_type(float, -10.0, 10.0),
-                                  help='Outside temperature offset')
-    cal_write_parser.add_argument('--outhum',
-                                  dest='outhum',
-                                  type=ranged_type(float, -10.0, 10.0),
-                                  help='Outside humidity offset')
-    cal_write_parser.add_argument('--abs',
-                                  dest='abs',
-                                  type=ranged_type(float, -80.0, 80.0),
-                                  help='Absolute pressure offset')
-    cal_write_parser.add_argument('--rel',
-                                  dest='rel',
-                                  type=ranged_type(float, -80.0, 80.0),
-                                  help='Relative pressure offset')
-    cal_write_parser.add_argument('--winddir',
-                                  dest='winddir',
-                                  type=ranged_type(float, -180, 180),
-                                  help='Wind direction offset')
-    add_common_args(cal_write_parser)
-    cal_write_parser.set_defaults(func=dispatch_write)
-    return cal_write_parser
+    parser = subparsers.add_parser('calibration',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set calibration coefficients.")
+    parser.add_argument('--uv',
+                        dest='uv',
+                        type=ranged_type(float, 0.1, 5.0),
+                        help='UV calibration gain')
+    parser.add_argument('--solar',
+                        dest='solar',
+                        type=ranged_type(float, 0.1, 5.0),
+                        help='solar radiation calibration gain')
+    parser.add_argument('--wind-speed',
+                        dest='wind',
+                        type=ranged_type(float, 0.1, 5.0),
+                        help='wind speed calibration gain')
+    parser.add_argument('--intemp',
+                        dest='intemp',
+                        type=ranged_type(float, -10.0, 10.0),
+                        help='Inside temperature offset')
+    parser.add_argument('--inhum',
+                        dest='inhum',
+                        type=ranged_type(float, -10.0, 10.0),
+                        help='Inside humidity offset')
+    parser.add_argument('--outtemp',
+                        dest='outtemp',
+                        type=ranged_type(float, -10.0, 10.0),
+                        help='Outside temperature offset')
+    parser.add_argument('--outhum',
+                        dest='outhum',
+                        type=ranged_type(float, -10.0, 10.0),
+                        help='Outside humidity offset')
+    parser.add_argument('--abs',
+                        dest='abs',
+                        type=ranged_type(float, -80.0, 80.0),
+                        help='Absolute pressure offset')
+    parser.add_argument('--rel',
+                        dest='rel',
+                        type=ranged_type(float, -80.0, 80.0),
+                        help='Relative pressure offset')
+    parser.add_argument('--winddir',
+                        dest='winddir',
+                        type=ranged_type(float, -180, 180),
+                        help='Wind direction offset')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def sensor_id_write_subparser(subparsers):
     """Define 'ecowitt write sensor-id' sub-subparser."""
 
-    id_write_usage = f"""{Bcolors.BOLD}ecowitt write sensor-id --help
+    usage = f"""{Bcolors.BOLD}ecowitt write sensor-id --help
        ecowitt write sensor-id --ip-address=IP_ADDRESS [--port=PORT]
-                                 [--wh65 ID] [--wh68 ID] [--wh80 ID] [--wh40 ID]
-                                 [--wh25 ID] [--wh26 ID]
-                                 [--wh31-1 ID] [--wh31-2 ID] [--wh31-3 ID] [--wh31-4 ID]
-                                 [--wh31-5 ID] [--wh31-6 ID] [--wh31-7 ID] [--wh31-8 ID]
-                                 [--wh51-1 ID] [--wh51-2 ID] [--wh51-3 ID] [--wh51-4 ID]
-                                 [--wh51-5 ID] [--wh51-6 ID] [--wh51-7 ID] [--wh51-8 ID]
-                                 [--wh41-1 ID] [--wh41-2 ID] [--wh41-3 ID] [--wh41-4 ID]
-                                 [--wh57 ID]
-                                 [--wh55-1 ID] [--wh55-2 ID] [--wh55-3 ID] [--wh55-4 ID]
-                                 [--wh34-1 ID] [--wh34-2 ID] [--wh34-3 ID] [--wh34-4 ID]
-                                 [--wh34-5 ID] [--wh34-6 ID] [--wh34-7 ID] [--wh34-8 ID]
-                                 [--wh45 ID]
-                                 [--wh35-1 ID] [--wh35-2 ID] [--wh35-3 ID] [--wh35-4 ID]
-                                 [--wh35-5 ID] [--wh35-6 ID] [--wh35-7 ID] [--wh35-8 ID]
-                                 [--wh90 ID]
-                                 [--debug]
+                               [--wh65 ID] [--wh68 ID] [--wh80 ID] [--wh40 ID]
+                               [--wh25 ID] [--wh26 ID]
+                               [--wh31-1 ID] [--wh31-2 ID] [--wh31-3 ID] [--wh31-4 ID]
+                               [--wh31-5 ID] [--wh31-6 ID] [--wh31-7 ID] [--wh31-8 ID]
+                               [--wh51-1 ID] [--wh51-2 ID] [--wh51-3 ID] [--wh51-4 ID]
+                               [--wh51-5 ID] [--wh51-6 ID] [--wh51-7 ID] [--wh51-8 ID]
+                               [--wh41-1 ID] [--wh41-2 ID] [--wh41-3 ID] [--wh41-4 ID]
+                               [--wh57 ID]
+                               [--wh55-1 ID] [--wh55-2 ID] [--wh55-3 ID] [--wh55-4 ID]
+                               [--wh34-1 ID] [--wh34-2 ID] [--wh34-3 ID] [--wh34-4 ID]
+                               [--wh34-5 ID] [--wh34-6 ID] [--wh34-7 ID] [--wh34-8 ID]
+                               [--wh45 ID]
+                               [--wh35-1 ID] [--wh35-2 ID] [--wh35-3 ID] [--wh35-4 ID]
+                               [--wh35-5 ID] [--wh35-6 ID] [--wh35-7 ID] [--wh35-8 ID]
+                               [--wh90 ID]
+                               [--debug]
 {Bcolors.ENDC}"""
-    id_write_description = """Set sensor identification values. If a parameter
+    description = """Set sensor identification values. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    id_write_parser = subparsers.add_parser('sensor-id',
-                                            usage=id_write_usage,
-                                            description=id_write_description,
-                                            help="Set sensor identification values.")
-    id_write_parser.add_argument('--wh65',
-                                 dest='eWH65_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH65 sensor identification value')
-    id_write_parser.add_argument('--wh68',
-                                 dest='eWH68_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH68 sensor identification value')
-    id_write_parser.add_argument('--wh80',
-                                 dest='eWH80_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH80 sensor identification value')
-    id_write_parser.add_argument('--wh40',
-                                 dest='eWH40_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH40 sensor identification value')
-    id_write_parser.add_argument('--wh25',
-                                 dest='eWH25_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH25 sensor identification value')
-    id_write_parser.add_argument('--wh26',
-                                 dest='eWH26_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH26 sensor identification value')
-    id_write_parser.add_argument('--wh31-1',
-                                 dest='eWH31_SENSORCH1',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 1 sensor identification value')
-    id_write_parser.add_argument('--wh31-2',
-                                 dest='eWH31_SENSORCH2',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 2 sensor identification value')
-    id_write_parser.add_argument('--wh31-3',
-                                 dest='eWH31_SENSORCH3',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 3 sensor identification value')
-    id_write_parser.add_argument('--wh31-4',
-                                 dest='eWH31_SENSORCH4',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 4 sensor identification value')
-    id_write_parser.add_argument('--wh31-5',
-                                 dest='eWH31_SENSORCH5',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 5 sensor identification value')
-    id_write_parser.add_argument('--wh31-6',
-                                 dest='eWH31_SENSORCH6',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 6 sensor identification value')
-    id_write_parser.add_argument('--wh31-7',
-                                 dest='eWH31_SENSORCH7',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 7 sensor identification value')
-    id_write_parser.add_argument('--wh31-8',
-                                 dest='eWH31_SENSORCH8',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH31 channel 8 sensor identification value')
-    id_write_parser.add_argument('--wh51-1',
-                                 dest='eWH51_SENSORCH1',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 1 sensor identification value')
-    id_write_parser.add_argument('--wh51-2',
-                                 dest='eWH51_SENSORCH2',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 2 sensor identification value')
-    id_write_parser.add_argument('--wh51-3',
-                                 dest='eWH51_SENSORCH3',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 3 sensor identification value')
-    id_write_parser.add_argument('--wh51-4',
-                                 dest='eWH51_SENSORCH4',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 4 sensor identification value')
-    id_write_parser.add_argument('--wh51-5',
-                                 dest='eWH51_SENSORCH5',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 5 sensor identification value')
-    id_write_parser.add_argument('--wh51-6',
-                                 dest='eWH51_SENSORCH6',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 6 sensor identification value')
-    id_write_parser.add_argument('--wh51-7',
-                                 dest='eWH51_SENSORCH7',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 7 sensor identification value')
-    id_write_parser.add_argument('--wh51-8',
-                                 dest='eWH51_SENSORCH8',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH51 channel 8 sensor identification value')
-    id_write_parser.add_argument('--wh41-1',
-                                 dest='eWH41_SENSORCH1',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH41 channel 1 sensor identification value')
-    id_write_parser.add_argument('--wh41-2',
-                                 dest='eWH41_SENSORCH2',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH41 channel 2 sensor identification value')
-    id_write_parser.add_argument('--wh41-3',
-                                 dest='eWH41_SENSORCH3',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH41 channel 3 sensor identification value')
-    id_write_parser.add_argument('--wh41-4',
-                                 dest='eWH41_SENSORCH4',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH41 channel 4 sensor identification value')
-    id_write_parser.add_argument('--wh57',
-                                 dest='eWH57_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH57 sensor identification value')
-    id_write_parser.add_argument('--wh55-1',
-                                 dest='eWH55_SENSORCH1',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH55 channel 1 sensor identification value')
-    id_write_parser.add_argument('--wh55-2',
-                                 dest='eWH55_SENSORCH2',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH55 channel 2 sensor identification value')
-    id_write_parser.add_argument('--wh55-3',
-                                 dest='eWH55_SENSORCH3',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH55 channel 3 sensor identification value')
-    id_write_parser.add_argument('--wh55-4',
-                                 dest='eWH55_SENSORCH4',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH55 channel 4 sensor identification value')
-    id_write_parser.add_argument('--wh34-1',
-                                 dest='eWH34_SENSORCH1',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 1 sensor identification value')
-    id_write_parser.add_argument('--wh34-2',
-                                 dest='eWH34_SENSORCH2',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 2 sensor identification value')
-    id_write_parser.add_argument('--wh34-3',
-                                 dest='eWH34_SENSORCH3',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 3 sensor identification value')
-    id_write_parser.add_argument('--wh34-4',
-                                 dest='eWH34_SENSORCH4',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 4 sensor identification value')
-    id_write_parser.add_argument('--wh34-5',
-                                 dest='eWH34_SENSORCH5',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 5 sensor identification value')
-    id_write_parser.add_argument('--wh34-6',
-                                 dest='eWH34_SENSORCH6',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 6 sensor identification value')
-    id_write_parser.add_argument('--wh34-7',
-                                 dest='eWH34_SENSORCH7',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 7 sensor identification value')
-    id_write_parser.add_argument('--wh34-8',
-                                 dest='eWH34_SENSORCH8',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH34 channel 8 sensor identification value')
-    id_write_parser.add_argument('--wh45',
-                                 dest='eWH45_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH45 sensor identification value')
-    id_write_parser.add_argument('--wh35-1',
-                                 dest='eWH35_SENSORCH1',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 1 sensor identification value')
-    id_write_parser.add_argument('--wh35-2',
-                                 dest='eWH35_SENSORCH2',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 2 sensor identification value')
-    id_write_parser.add_argument('--wh35-3',
-                                 dest='eWH35_SENSORCH3',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 3 sensor identification value')
-    id_write_parser.add_argument('--wh35-4',
-                                 dest='eWH35_SENSORCH4',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 4 sensor identification value')
-    id_write_parser.add_argument('--wh35-5',
-                                 dest='eWH35_SENSORCH5',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 5 sensor identification value')
-    id_write_parser.add_argument('--wh35-6',
-                                 dest='eWH35_SENSORCH6',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 6 sensor identification value')
-    id_write_parser.add_argument('--wh35-7',
-                                 dest='eWH35_SENSORCH7',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 7 sensor identification value')
-    id_write_parser.add_argument('--wh35-8',
-                                 dest='eWH35_SENSORCH8',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH35 channel 8 sensor identification value')
-    id_write_parser.add_argument('--wh90',
-                                 dest='eWH90_SENSOR',
-                                 type=sensor_id_type(digits=8),
-                                 metavar='ID',
-                                 help='WH90 sensor identification value')
-    add_common_args(id_write_parser)
-    id_write_parser.set_defaults(func=dispatch_write)
-    return id_write_parser
+    parser = subparsers.add_parser('sensor-id',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set sensor identification values.")
+    parser.add_argument('--wh65',
+                        dest='eWH65_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH65 sensor identification value')
+    parser.add_argument('--wh68',
+                        dest='eWH68_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH68 sensor identification value')
+    parser.add_argument('--wh80',
+                        dest='eWH80_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH80 sensor identification value')
+    parser.add_argument('--wh40',
+                        dest='eWH40_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH40 sensor identification value')
+    parser.add_argument('--wh25',
+                        dest='eWH25_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH25 sensor identification value')
+    parser.add_argument('--wh26',
+                        dest='eWH26_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH26 sensor identification value')
+    parser.add_argument('--wh31-1',
+                        dest='eWH31_SENSORCH1',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 1 sensor identification value')
+    parser.add_argument('--wh31-2',
+                        dest='eWH31_SENSORCH2',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 2 sensor identification value')
+    parser.add_argument('--wh31-3',
+                        dest='eWH31_SENSORCH3',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 3 sensor identification value')
+    parser.add_argument('--wh31-4',
+                        dest='eWH31_SENSORCH4',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 4 sensor identification value')
+    parser.add_argument('--wh31-5',
+                        dest='eWH31_SENSORCH5',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 5 sensor identification value')
+    parser.add_argument('--wh31-6',
+                        dest='eWH31_SENSORCH6',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 6 sensor identification value')
+    parser.add_argument('--wh31-7',
+                        dest='eWH31_SENSORCH7',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 7 sensor identification value')
+    parser.add_argument('--wh31-8',
+                        dest='eWH31_SENSORCH8',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH31 channel 8 sensor identification value')
+    parser.add_argument('--wh51-1',
+                        dest='eWH51_SENSORCH1',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 1 sensor identification value')
+    parser.add_argument('--wh51-2',
+                        dest='eWH51_SENSORCH2',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 2 sensor identification value')
+    parser.add_argument('--wh51-3',
+                        dest='eWH51_SENSORCH3',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 3 sensor identification value')
+    parser.add_argument('--wh51-4',
+                        dest='eWH51_SENSORCH4',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 4 sensor identification value')
+    parser.add_argument('--wh51-5',
+                        dest='eWH51_SENSORCH5',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 5 sensor identification value')
+    parser.add_argument('--wh51-6',
+                        dest='eWH51_SENSORCH6',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 6 sensor identification value')
+    parser.add_argument('--wh51-7',
+                        dest='eWH51_SENSORCH7',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 7 sensor identification value')
+    parser.add_argument('--wh51-8',
+                        dest='eWH51_SENSORCH8',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH51 channel 8 sensor identification value')
+    parser.add_argument('--wh41-1',
+                        dest='eWH41_SENSORCH1',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH41 channel 1 sensor identification value')
+    parser.add_argument('--wh41-2',
+                        dest='eWH41_SENSORCH2',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH41 channel 2 sensor identification value')
+    parser.add_argument('--wh41-3',
+                        dest='eWH41_SENSORCH3',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH41 channel 3 sensor identification value')
+    parser.add_argument('--wh41-4',
+                        dest='eWH41_SENSORCH4',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH41 channel 4 sensor identification value')
+    parser.add_argument('--wh57',
+                        dest='eWH57_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH57 sensor identification value')
+    parser.add_argument('--wh55-1',
+                        dest='eWH55_SENSORCH1',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH55 channel 1 sensor identification value')
+    parser.add_argument('--wh55-2',
+                        dest='eWH55_SENSORCH2',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH55 channel 2 sensor identification value')
+    parser.add_argument('--wh55-3',
+                        dest='eWH55_SENSORCH3',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH55 channel 3 sensor identification value')
+    parser.add_argument('--wh55-4',
+                        dest='eWH55_SENSORCH4',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH55 channel 4 sensor identification value')
+    parser.add_argument('--wh34-1',
+                        dest='eWH34_SENSORCH1',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 1 sensor identification value')
+    parser.add_argument('--wh34-2',
+                        dest='eWH34_SENSORCH2',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 2 sensor identification value')
+    parser.add_argument('--wh34-3',
+                        dest='eWH34_SENSORCH3',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 3 sensor identification value')
+    parser.add_argument('--wh34-4',
+                        dest='eWH34_SENSORCH4',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 4 sensor identification value')
+    parser.add_argument('--wh34-5',
+                        dest='eWH34_SENSORCH5',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 5 sensor identification value')
+    parser.add_argument('--wh34-6',
+                        dest='eWH34_SENSORCH6',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 6 sensor identification value')
+    parser.add_argument('--wh34-7',
+                        dest='eWH34_SENSORCH7',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 7 sensor identification value')
+    parser.add_argument('--wh34-8',
+                        dest='eWH34_SENSORCH8',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH34 channel 8 sensor identification value')
+    parser.add_argument('--wh45',
+                        dest='eWH45_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH45 sensor identification value')
+    parser.add_argument('--wh35-1',
+                        dest='eWH35_SENSORCH1',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 1 sensor identification value')
+    parser.add_argument('--wh35-2',
+                        dest='eWH35_SENSORCH2',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 2 sensor identification value')
+    parser.add_argument('--wh35-3',
+                        dest='eWH35_SENSORCH3',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 3 sensor identification value')
+    parser.add_argument('--wh35-4',
+                        dest='eWH35_SENSORCH4',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 4 sensor identification value')
+    parser.add_argument('--wh35-5',
+                        dest='eWH35_SENSORCH5',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 5 sensor identification value')
+    parser.add_argument('--wh35-6',
+                        dest='eWH35_SENSORCH6',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 6 sensor identification value')
+    parser.add_argument('--wh35-7',
+                        dest='eWH35_SENSORCH7',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 7 sensor identification value')
+    parser.add_argument('--wh35-8',
+                        dest='eWH35_SENSORCH8',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH35 channel 8 sensor identification value')
+    parser.add_argument('--wh90',
+                        dest='eWH90_SENSOR',
+                        type=sensor_id_type(digits=8),
+                        metavar='ID',
+                        help='WH90 sensor identification value')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def pm25_offset_write_subparser(subparsers):
     """Define 'ecowitt write pm25-offset' sub-subparser."""
 
-    pm25_write_usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
+    usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
        ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
                                  [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                                  [--debug]
 {Bcolors.ENDC}"""
-    pm25_write_description = """Set PM2.5 sensor offset values. If a parameter
+    description = """Set PM2.5 sensor offset values. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    pm25_write_parser = subparsers.add_parser('pm25-offset',
-                                              usage=pm25_write_usage,
-                                              description=pm25_write_description,
-                                              help="Set PM2.5 sensor offset values.")
-    pm25_write_parser.add_argument('--ch1',
-                                   dest='ch1',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 1 offset')
-    pm25_write_parser.add_argument('--ch2',
-                                   dest='ch2',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 2 offset')
-    pm25_write_parser.add_argument('--ch3',
-                                   dest='ch3',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 3 offset')
-    pm25_write_parser.add_argument('--ch4',
-                                   dest='ch4',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 4 offset')
-    add_common_args(pm25_write_parser)
-    pm25_write_parser.set_defaults(func=dispatch_write)
-    return pm25_write_parser
+    parser = subparsers.add_parser('pm25-offset',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set PM2.5 sensor offset values.")
+    parser.add_argument('--ch1',
+                        dest='ch1',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 1 offset')
+    parser.add_argument('--ch2',
+                        dest='ch2',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 2 offset')
+    parser.add_argument('--ch3',
+                        dest='ch3',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 3 offset')
+    parser.add_argument('--ch4',
+                        dest='ch4',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 4 offset')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def co2_offset_write_subparser(subparsers):
     """Define 'ecowitt write co2-offset' sub-subparser."""
 
-    co2_write_usage = f"""{Bcolors.BOLD}ecowitt write co2-offset --help
+    usage = f"""{Bcolors.BOLD}ecowitt write co2-offset --help
        ecowitt write co2-offset --ip-address=IP_ADDRESS [--port=PORT]
                                 [--co2 OFFSET] [--pm25 OFFSET] [--pm10 OFFSET]
                                 [--debug]
 {Bcolors.ENDC}"""
-    co2_write_description = """Set WH45 sensor offset values. If a parameter
+    description = """Set WH45 sensor offset values. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    co2_write_parser = subparsers.add_parser('co2-offset',
-                                             usage=co2_write_usage,
-                                             description=co2_write_description,
-                                             help="Set CO2 sensor offset values.")
-    co2_write_parser.add_argument('--co2',
-                                  dest='co2',
-                                  type=ranged_type(float, -600, 10000),
-                                  metavar='OFFSET',
-                                  help='CO2 offset')
-    co2_write_parser.add_argument('--pm25',
-                                  dest='pm25',
-                                  type=ranged_type(float, -20, 20),
-                                  metavar='OFFSET',
-                                  help='PM2.5 offset')
-    co2_write_parser.add_argument('--pm10',
-                                  dest='pm10',
-                                  type=ranged_type(float, -20, 20),
-                                  metavar='OFFSET',
-                                  help='PM10 offset')
-    add_common_args(co2_write_parser)
-    co2_write_parser.set_defaults(func=dispatch_write)
-    return co2_write_parser
+    parser = subparsers.add_parser('co2-offset',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set CO2 sensor offset values.")
+    parser.add_argument('--co2',
+                        dest='co2',
+                        type=ranged_type(float, -600, 10000),
+                        metavar='OFFSET',
+                        help='CO2 offset')
+    parser.add_argument('--pm25',
+                        dest='pm25',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 offset')
+    parser.add_argument('--pm10',
+                        dest='pm10',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM10 offset')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def rain_write_subparser(subparsers):
     """Define 'ecowitt write rain' sub-subparser."""
 
-    rain_write_usage = f"""{Bcolors.BOLD}ecowitt write rain --help
+    usage = f"""{Bcolors.BOLD}ecowitt write rain --help
        ecowitt write rain --ip-address IP_ADDRESS [--port PORT]
                           [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
                           [--event TOTAL] [--rate RATE] [--gain GAIN]
@@ -7780,156 +7787,156 @@ def rain_write_subparser(subparsers):
                           [--day-reset HOUR] [--week-reset DAY] [--year-reset MONTH]
                           [--debug]
 {Bcolors.ENDC}"""
-    rain_write_description = """Set rain related parameters. If a parameter
+    description = """Set rain related parameters. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    rain_write_parser = subparsers.add_parser('rain',
-                                              usage=rain_write_usage,
-                                              description=rain_write_description,
-                                              help="Set rain related parameters.")
-    rain_write_parser.add_argument('--day',
-                                   dest='day',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='day rain total')
-    rain_write_parser.add_argument('--week',
-                                   dest='week',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='week rain total')
-    rain_write_parser.add_argument('--month',
-                                   dest='month',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='month rain total')
-    rain_write_parser.add_argument('--year',
-                                   dest='year',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='year rain total')
-    rain_write_parser.add_argument('--event',
-                                   dest='event',
-                                   # TODO. Event is 2 bytes only so not 9999.9
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='rain event total')
-    rain_write_parser.add_argument('--rate',
-                                   dest='rate',
-                                   type=ranged_type(float, 0, 6000.0),
-                                   metavar='RATE',
-                                   help='rain rate')
-    rain_write_parser.add_argument('--gain',
-                                   dest='gain',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='rain gain')
-    rain_write_parser.add_argument('--p-day',
-                                   dest='p_day',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='day piezo rain total')
-    rain_write_parser.add_argument('--p-week',
-                                   dest='p_week',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='week piezo rain total')
-    rain_write_parser.add_argument('--p-month',
-                                   dest='p_month',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='month piezo rain total')
-    rain_write_parser.add_argument('--p-year',
-                                   dest='p_year',
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='year rain total')
-    rain_write_parser.add_argument('--p-event',
-                                   dest='p_event',
-                                   # TODO. Event is 2 bytes only so not 9999.9
-                                   type=ranged_type(float, 0, 9999.9),
-                                   metavar='TOTAL',
-                                   help='piezo rain event total')
-    rain_write_parser.add_argument('--p-rate',
-                                   dest='p_rate',
-                                   type=ranged_type(float, 0, 6000.0),
-                                   metavar='RATE',
-                                   help='piezo rain rate')
-    rain_write_parser.add_argument('--gain0',
-                                   dest='gain0',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain0')
-    rain_write_parser.add_argument('--gain1',
-                                   dest='gain1',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain1')
-    rain_write_parser.add_argument('--gain2',
-                                   dest='gain2',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain2')
-    rain_write_parser.add_argument('--gain3',
-                                   dest='gain3',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain3')
-    rain_write_parser.add_argument('--gain4',
-                                   dest='gain4',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain4')
-    rain_write_parser.add_argument('--gain5',
-                                   dest='gain5',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain5')
-    rain_write_parser.add_argument('--gain6',
-                                   dest='gain6',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain6')
-    rain_write_parser.add_argument('--gain7',
-                                   dest='gain7',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain7')
-    rain_write_parser.add_argument('--gain8',
-                                   dest='gain8',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain8')
-    rain_write_parser.add_argument('--gain9',
-                                   dest='gain9',
-                                   type=ranged_type(float, 0.1, 5.0),
-                                   metavar='GAIN',
-                                   help='piezo rain gain9')
-    rain_write_parser.add_argument('--priority',
-                                   dest='priority',
-                                   choices=('traditional', 'piezo'),
-                                   type=lambda p: 1 if p.lower() == 'traditional' else 2,
-                                   metavar='PRIORITY',
-                                   help='rain priority, traditional = traditional tipping rain gauge, '
-                                        'piezo = piezo rain gauge')
-    rain_write_parser.add_argument('--day-reset',
-                                   dest='day_reset',
-                                   type=ranged_type(int, 0, 23),
-                                   metavar='HOUR',
-                                   help='daily rain reset time (hour)')
-    rain_write_parser.add_argument('--week-reset',
-                                   dest='week_reset',
-                                   choices=('Sunday', 'Monday'),
-                                   type=lambda p: 1 if p.lower() == 'monday' else 1,
-                                   metavar='DAY',
-                                   help='weekly rain reset time (day)')
-    rain_write_parser.add_argument('--year-reset',
-                                   dest='year_reset',
-                                   type=ranged_type(int, 0, 11),
-                                   metavar='MONTH',
-                                   help='yearly rain reset time (month)')
-    add_common_args(rain_write_parser)
-    rain_write_parser.set_defaults(func=dispatch_write)
-    return rain_write_parser
+    parser = subparsers.add_parser('rain',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set rain related parameters.")
+    parser.add_argument('--day',
+                        dest='day',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='day rain total')
+    parser.add_argument('--week',
+                        dest='week',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='week rain total')
+    parser.add_argument('--month',
+                        dest='month',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='month rain total')
+    parser.add_argument('--year',
+                        dest='year',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='year rain total')
+    parser.add_argument('--event',
+                        dest='event',
+                        # TODO. Event is 2 bytes only so not 9999.9
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='rain event total')
+    parser.add_argument('--rate',
+                        dest='rate',
+                        type=ranged_type(float, 0, 6000.0),
+                        metavar='RATE',
+                        help='rain rate')
+    parser.add_argument('--gain',
+                        dest='gain',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='rain gain')
+    parser.add_argument('--p-day',
+                        dest='p_day',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='day piezo rain total')
+    parser.add_argument('--p-week',
+                        dest='p_week',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='week piezo rain total')
+    parser.add_argument('--p-month',
+                        dest='p_month',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='month piezo rain total')
+    parser.add_argument('--p-year',
+                        dest='p_year',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='year rain total')
+    parser.add_argument('--p-event',
+                        dest='p_event',
+                        # TODO. Event is 2 bytes only so not 9999.9
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='piezo rain event total')
+    parser.add_argument('--p-rate',
+                        dest='p_rate',
+                        type=ranged_type(float, 0, 6000.0),
+                        metavar='RATE',
+                        help='piezo rain rate')
+    parser.add_argument('--gain0',
+                        dest='gain0',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain0')
+    parser.add_argument('--gain1',
+                        dest='gain1',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain1')
+    parser.add_argument('--gain2',
+                        dest='gain2',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain2')
+    parser.add_argument('--gain3',
+                        dest='gain3',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain3')
+    parser.add_argument('--gain4',
+                        dest='gain4',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain4')
+    parser.add_argument('--gain5',
+                        dest='gain5',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain5')
+    parser.add_argument('--gain6',
+                        dest='gain6',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain6')
+    parser.add_argument('--gain7',
+                        dest='gain7',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain7')
+    parser.add_argument('--gain8',
+                        dest='gain8',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain8')
+    parser.add_argument('--gain9',
+                        dest='gain9',
+                        type=ranged_type(float, 0.1, 5.0),
+                        metavar='GAIN',
+                        help='piezo rain gain9')
+    parser.add_argument('--priority',
+                        dest='priority',
+                        choices=('traditional', 'piezo'),
+                        type=lambda p: 1 if p.lower() == 'traditional' else 2,
+                        metavar='PRIORITY',
+                        help='rain priority, traditional = traditional tipping rain gauge, '
+                             'piezo = piezo rain gauge')
+    parser.add_argument('--day-reset',
+                        dest='day_reset',
+                        type=ranged_type(int, 0, 23),
+                        metavar='HOUR',
+                        help='daily rain reset time (hour)')
+    parser.add_argument('--week-reset',
+                        dest='week_reset',
+                        choices=('Sunday', 'Monday'),
+                        type=lambda p: 1 if p.lower() == 'monday' else 1,
+                        metavar='DAY',
+                        help='weekly rain reset time (day)')
+    parser.add_argument('--year-reset',
+                        dest='year_reset',
+                        type=ranged_type(int, 0, 11),
+                        metavar='MONTH',
+                        help='yearly rain reset time (month)')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def system_write_subparser(subparsers):
@@ -7938,228 +7945,229 @@ def system_write_subparser(subparsers):
     conv_table = {'WH24': 0,
                   'WH65': 1}
 
-    sys_write_usage = f"""{Bcolors.BOLD}ecowitt write system --help
+    usage = f"""{Bcolors.BOLD}ecowitt write system --help
        ecowitt write system --ip-address=IP_ADDRESS [--port=PORT]
                             [--sensor-type OFFSET] [--tz INDEX] [--dst enable | disable]
                             [--auto-tz enable | disable] [--debug]
 {Bcolors.ENDC}"""
-    sys_write_description = """Set system parameters. If a parameter
+    description = """Set system parameters. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    sys_write_parser = subparsers.add_parser('system',
-                                             usage=sys_write_usage,
-                                             description=sys_write_description,
-                                             help="Set system parameters.")
-    sys_write_parser.add_argument('--sensor-type',
-                                  dest='sensor_type',
-                                  type=sensor_type(['WH24', 'WH65']),
-                                  metavar='SENSOR',
-                                  help='sensor type, WH24 or WH65')
-    sys_write_parser.add_argument('--tz',
-                                  dest='timezone_index',
-                                  type=ranged_type(int, 0, 255),
-                                  metavar='INDEX',
-                                  help='timezone index')
-    sys_write_parser.add_argument('--dst',
-                                  dest='dst_status',
-                                  type=enable_disable_type(),
-                                  metavar='disable | enable',
-                                  help='DST status, enable or disable')
-    sys_write_parser.add_argument('--auto-tz',
-                                  dest='auto_timezone',
-                                  type=enable_disable_type(('enable', 'disable')),
-                                  metavar='disable | enable',
-                                  help='automatically detect and set timezone')
-    add_common_args(sys_write_parser)
-    sys_write_parser.set_defaults(func=dispatch_write)
-    return sys_write_parser
+    parser = subparsers.add_parser('system',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set system parameters.")
+    parser.add_argument('--sensor-type',
+                        dest='sensor_type',
+                        type=sensor_type(['WH24', 'WH65']),
+                        metavar='SENSOR',
+                        help='sensor type, WH24 or WH65')
+    parser.add_argument('--tz',
+                        dest='timezone_index',
+                        type=ranged_type(int, 0, 255),
+                        metavar='INDEX',
+                        help='timezone index')
+    parser.add_argument('--dst',
+                        dest='dst_status',
+                        type=enable_disable_type(),
+                        metavar='disable | enable',
+                        help='DST status, enable or disable')
+    parser.add_argument('--auto-tz',
+                        dest='auto_timezone',
+                        type=enable_disable_type(('enable', 'disable')),
+                        metavar='disable | enable',
+                        help='automatically detect and set timezone')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def rain_data_write_subparser(subparsers):
     """Define 'ecowitt write pm25-offset' sub-subparser."""
 
-    rain_data_write_usage = f"""{Bcolors.BOLD}ecowitt write rain-data --help
+    usage = f"""{Bcolors.BOLD}ecowitt write rain-data --help
        ecowitt write rain-data --ip-address=IP_ADDRESS [--port=PORT]
                                [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
                                [--debug]
 {Bcolors.ENDC}"""
-    rain_data_write_description = """Set rain data relted parameters. If a parameter
+    description = """Set rain data relted parameters. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    rain_data_write_parser = subparsers.add_parser('rain-data',
-                                                   usage=rain_data_write_usage,
-                                                   description=rain_data_write_description,
-                                                   help="Set rain data related paramters.")
-    rain_data_write_parser.add_argument('--day',
-                                        dest='t_day',
-                                        type=ranged_type(float, 0, 9999.9),
-                                        metavar='TOTAL',
-                                        help='day rain total')
-    rain_data_write_parser.add_argument('--week',
-                                        dest='t_week',
-                                        type=ranged_type(float, 0, 9999.9),
-                                        metavar='TOTAL',
-                                        help='week rain total')
-    rain_data_write_parser.add_argument('--month',
-                                        dest='t_month',
-                                        type=ranged_type(float, 0, 9999.9),
-                                        metavar='TOTAL',
-                                        help='month rain total')
-    rain_data_write_parser.add_argument('--year',
-                                        dest='t_year',
-                                        type=ranged_type(float, 0, 9999.9),
-                                        metavar='TOTAL',
-                                        help='year rain total')
-    add_common_args(rain_data_write_parser)
-    rain_data_write_parser.set_defaults(func=dispatch_write)
-    return rain_data_write_parser
+    parser = subparsers.add_parser('rain-data',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set rain data related paramters.")
+    parser.add_argument('--day',
+                        dest='t_day',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='day rain total')
+    parser.add_argument('--week',
+                        dest='t_week',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='week rain total')
+    parser.add_argument('--month',
+                        dest='t_month',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='month rain total')
+    parser.add_argument('--year',
+                        dest='t_year',
+                        type=ranged_type(float, 0, 9999.9),
+                        metavar='TOTAL',
+                        help='year rain total')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def soil_write_subparser(subparsers):
     """Define 'ecowitt write pm25-offset' sub-subparser."""
 
-    pm25_write_usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
+    usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
        ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
                                  [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                                  [--debug]
 {Bcolors.ENDC}"""
-    pm25_write_description = """Set PM2.5 sensor offset values. If a parameter
+    description = """Set PM2.5 sensor offset values. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    pm25_write_parser = subparsers.add_parser('pm25-offset',
-                                              usage=pm25_write_usage,
-                                              description=pm25_write_description,
-                                              help="Set PM2.5 sensor offset values.")
-    pm25_write_parser.add_argument('--ch1',
-                                   dest='ch1',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 1 offset')
-    pm25_write_parser.add_argument('--ch2',
-                                   dest='ch2',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 2 offset')
-    pm25_write_parser.add_argument('--ch3',
-                                   dest='ch3',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 3 offset')
-    pm25_write_parser.add_argument('--ch4',
-                                   dest='ch4',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 4 offset')
-    add_common_args(pm25_write_parser)
-    pm25_write_parser.set_defaults(func=dispatch_write)
-    return pm25_write_parser
+    parser = subparsers.add_parser('pm25-offset',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set PM2.5 sensor offset values.")
+    parser.add_argument('--ch1',
+                        dest='ch1',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 1 offset')
+    parser.add_argument('--ch2',
+                        dest='ch2',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 2 offset')
+    parser.add_argument('--ch3',
+                        dest='ch3',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 3 offset')
+    parser.add_argument('--ch4',
+                        dest='ch4',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 4 offset')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def mulch_th_write_subparser(subparsers):
+    # TODO. Incorrect naming
     """Define 'ecowitt write pm25-offset' sub-subparser."""
 
-    pm25_write_usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
+    usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
        ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
                                  [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                                  [--debug]
 {Bcolors.ENDC}"""
-    pm25_write_description = """Set PM2.5 sensor offset values. If a parameter
+    description = """Set PM2.5 sensor offset values. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
-    pm25_write_parser = subparsers.add_parser('pm25-offset',
-                                              usage=pm25_write_usage,
-                                              description=pm25_write_description,
-                                              help="Set PM2.5 sensor offset values.")
-    pm25_write_parser.add_argument('--ch1',
-                                   dest='ch1',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 1 offset')
-    pm25_write_parser.add_argument('--ch2',
-                                   dest='ch2',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 2 offset')
-    pm25_write_parser.add_argument('--ch3',
-                                   dest='ch3',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 3 offset')
-    pm25_write_parser.add_argument('--ch4',
-                                   dest='ch4',
-                                   type=ranged_type(float, -20, 20),
-                                   metavar='OFFSET',
-                                   help='PM2.5 channel 4 offset')
-    add_common_args(pm25_write_parser)
-    pm25_write_parser.set_defaults(func=dispatch_write)
-    return pm25_write_parser
+    parser = subparsers.add_parser('pm25-offset',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set PM2.5 sensor offset values.")
+    parser.add_argument('--ch1',
+                        dest='ch1',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 1 offset')
+    parser.add_argument('--ch2',
+                        dest='ch2',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 2 offset')
+    parser.add_argument('--ch3',
+                        dest='ch3',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 3 offset')
+    parser.add_argument('--ch4',
+                        dest='ch4',
+                        type=ranged_type(float, -20, 20),
+                        metavar='OFFSET',
+                        help='PM2.5 channel 4 offset')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def mulch_t_write_subparser(subparsers):
     """Define 'ecowitt write mulch-t' sub-subparser."""
 
-    mulch_t_write_usage = f"""{Bcolors.BOLD}ecowitt write mulch-t-offset --help
+    usage = f"""{Bcolors.BOLD}ecowitt write mulch-t-offset --help
        ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
                                  [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                                  [--ch5 OFFSET] [--ch6 OFFSET] [--ch7 OFFSET] [--ch8 OFFSET]
                                  [--debug]
 {Bcolors.ENDC}"""
-    mulch_t_write_description = """Set multi-channel temperature sensor offset 
+    description = """Set multi-channel temperature sensor offset 
     values. If a parameter is omitted the corresponding current gateway device 
     parameter is left unchanged."""
-    mulch_t_write_parser = subparsers.add_parser('mulch-t-offset',
-                                                 usage=mulch_t_write_usage,
-                                                 description=mulch_t_write_description,
-                                                 help="Set Multi-channel temperature sensor offset values.")
-    mulch_t_write_parser.add_argument('--ch1',
-                                      dest='ITEM_TF_USR1',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 1 offset')
-    mulch_t_write_parser.add_argument('--ch2',
-                                      dest='ITEM_TF_USR2',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 2 offset')
-    mulch_t_write_parser.add_argument('--ch3',
-                                      dest='ITEM_TF_USR3',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 3 offset')
-    mulch_t_write_parser.add_argument('--ch4',
-                                      dest='ITEM_TF_USR4',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 4 offset')
-    mulch_t_write_parser.add_argument('--ch5',
-                                      dest='ITEM_TF_USR5',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 5 offset')
-    mulch_t_write_parser.add_argument('--ch6',
-                                      dest='ITEM_TF_USR6',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 6 offset')
-    mulch_t_write_parser.add_argument('--ch7',
-                                      dest='ITEM_TF_USR7',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 7 offset')
-    mulch_t_write_parser.add_argument('--ch8',
-                                      dest='ITEM_TF_USR8',
-                                      type=ranged_type(float, -10, 10),
-                                      metavar='OFFSET',
-                                      help='Multi-channel temperature channel 8 offset')
-    add_common_args(mulch_t_write_parser)
-    mulch_t_write_parser.set_defaults(func=dispatch_write)
-    return mulch_t_write_parser
+    parser = subparsers.add_parser('mulch-t-offset',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set Multi-channel temperature sensor offset values.")
+    parser.add_argument('--ch1',
+                        dest='ITEM_TF_USR1',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 1 offset')
+    parser.add_argument('--ch2',
+                        dest='ITEM_TF_USR2',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 2 offset')
+    parser.add_argument('--ch3',
+                        dest='ITEM_TF_USR3',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 3 offset')
+    parser.add_argument('--ch4',
+                        dest='ITEM_TF_USR4',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 4 offset')
+    parser.add_argument('--ch5',
+                        dest='ITEM_TF_USR5',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 5 offset')
+    parser.add_argument('--ch6',
+                        dest='ITEM_TF_USR6',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 6 offset')
+    parser.add_argument('--ch7',
+                        dest='ITEM_TF_USR7',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 7 offset')
+    parser.add_argument('--ch8',
+                        dest='ITEM_TF_USR8',
+                        type=ranged_type(float, -10, 10),
+                        metavar='OFFSET',
+                        help='Multi-channel temperature channel 8 offset')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
 
 
 def write_subparser(subparsers):
     """Define the 'ecowitt write' subcommand."""
 
-    write_usage = f"""{Bcolors.BOLD}ecowitt write --help
+    usage = f"""{Bcolors.BOLD}ecowitt write --help
        ecowitt write ecowitt --help
        ecowitt write wu --help
        ecowitt write wow --help
@@ -8176,14 +8184,14 @@ def write_subparser(subparsers):
        ecowitt write mulch-th-cal --help
        ecowitt write mulch-t-cal --help
 {Bcolors.ENDC}"""
-    write_description = """Set various Ecowitt gateway device configuration parameters."""
-    write_parser = subparsers.add_parser('write',
-                                         usage=write_usage,
-                                         description=write_description,
-                                         help="Set various Ecowitt gateway device configuration parameters.")
+    description = """Set various Ecowitt gateway device configuration parameters."""
+    parser = subparsers.add_parser('write',
+                                   usage=usage,
+                                   description=description,
+                                   help="Set various Ecowitt gateway device configuration parameters.")
     # add a subparser to handle the various subcommands.
-    write_subparsers = write_parser.add_subparsers(dest='write_subcommand',
-                                                   title="Available subcommands")
+    write_subparsers = parser.add_subparsers(dest='write_subcommand',
+                                             title="Available subcommands")
     ecowitt_write_subparser(write_subparsers)
     wu_write_subparser(write_subparsers)
     wow_write_subparser(write_subparsers)
@@ -8199,7 +8207,7 @@ def write_subparser(subparsers):
     soil_write_subparser(write_subparsers)
     mulch_th_write_subparser(write_subparsers)
     mulch_t_write_subparser(write_subparsers)
-    return write_parser
+    return parser
 
 
 # To use this utility use the following command:
@@ -8253,8 +8261,6 @@ def main():
     parsers['write'] = write_subparser(subparsers)
     # parse the arguments
     namespace = parser.parse_args()
-    print("namespace=%s" % (namespace,))
-#    exit(1)
     # inform the user if debug is set
     if int(namespace.debug):
         print(f"debug is set")
