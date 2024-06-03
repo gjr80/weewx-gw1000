@@ -2733,7 +2733,7 @@ class GatewayApi:
                 # if required display the response packet
                 if self.debug:
                     _first_row = True
-                    for row in gen_pretty_bytes_as_hex(response, quote=True):
+                    for row in gen_pretty_bytes_as_hex(response, quote=False):
                         if _first_row:
                             print()
                             print(f"Received broadcast response: {row['hex']}")
@@ -3824,7 +3824,7 @@ class GatewayApi:
             # if required display the response packet
             if self.debug:
                 _first_row = True
-                for row in gen_pretty_bytes_as_hex(response, quote=True):
+                for row in gen_pretty_bytes_as_hex(response, quote=False):
                     if _first_row:
                         print(f"response: {row['hex']}")
                         _first_row = False
@@ -8271,19 +8271,11 @@ def main():
         sys.exit(0)
     if namespace.discover:
         # discover gateway devices and display the results
-        # first, make sure we have a device IP address
-        if namespace.device_ip_address is not None:
-            # get a DirectGateway object
-            direct_gw = DirectGateway(namespace)
-            # discover any gateway devices and display the results
-            direct_gw.display_discovered_devices()
-            exit(0)
-        else:
-            print()
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: device IP address not specified")
-            print()
-            parser.print_help()
-            exit(1)
+        # get a DirectGateway object
+        direct_gw = DirectGateway(namespace)
+        # discover any gateway devices and display the results
+        direct_gw.display_discovered_devices()
+        sys.exit(0)
     # if we made it here we must have a subcommand
     # do we have a subcommand function we can call
     if hasattr(namespace, 'subcommand'):
@@ -8303,7 +8295,7 @@ def main():
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: device IP address not specified")
                 print()
                 parsers[namespace.subcommand].print_help()
-                exit(1)
+                sys.exit(1)
         else:
             # we do not have an action or sub-subcommand, advise the user,
             # display our help and exit
@@ -8311,14 +8303,14 @@ def main():
             print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no action or subcommand specified")
             print()
             parsers[namespace.subcommand].print_help()
-            exit(1)
+            sys.exit(1)
 
     else:
         # Only non-subcommands do not have a subcommand function, but we have
         # already processed all non-subcommands. So display our help and exit.
         print()
         parser.print_help()
-        exit(0)
+        sys.exit(0)
 
 
 if __name__ == '__main__':
