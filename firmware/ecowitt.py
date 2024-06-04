@@ -7181,6 +7181,24 @@ def get_subparser(subparsers):
     return parser
 
 
+def reboot_write_subparser(subparsers):
+    """Define 'ecowitt write reboot' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt write reboot --help
+       ecowitt write reboot
+            --ip-address=IP_ADDRESS [--port=PORT]
+            [--debug]{Bcolors.ENDC}
+    """
+    description = """Reboot an Ecowitt device."""
+    parser = subparsers.add_parser('reboot',
+                                   usage=usage,
+                                   description=description,
+                                   help="Reboot an Ecowitt device.")
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
+
+
 def ecowitt_write_subparser(subparsers):
     """Define 'ecowitt write ecowitt' sub-subparser."""
     
