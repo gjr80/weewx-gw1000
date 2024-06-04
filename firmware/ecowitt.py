@@ -5364,11 +5364,11 @@ class DirectGateway:
             # get the device objects raindata property
             rain_data = device.raindata
             print()
-            print(f'{"Rain rate":>10}: {rain_data["t_rainrate"]:.1f} mm/{rain_data["t_rainrate"] / 25.4:.1f} in')
-            print(f'{"Day rain":>10}: {rain_data["t_rainday"]:.1f} mm/{rain_data["t_rainday"] / 25.4:.1f} in')
-            print(f'{"Week rain":>10}: {rain_data["t_rainweek"]:.1f} mm/{rain_data["t_rainweek"] / 25.4:.1f} in')
-            print(f'{"Month rain":>10}: {rain_data["t_rainmonth"]:.1f} mm/{rain_data["t_rainmonth"] / 25.4:.1f} in')
-            print(f'{"Year rain":>10}: {rain_data["t_rainyear"]:.1f} mm/{rain_data["t_rainyear"] / 25.4:.1f} in')
+            print(f'{"Rain rate":>10}: {rain_data["t_rate"]:.1f} mm/{rain_data["t_rate"] / 25.4:.1f} in')
+            print(f'{"Day rain":>10}: {rain_data["t_day"]:.1f} mm/{rain_data["t_day"] / 25.4:.1f} in')
+            print(f'{"Week rain":>10}: {rain_data["t_week"]:.1f} mm/{rain_data["t_week"] / 25.4:.1f} in')
+            print(f'{"Month rain":>10}: {rain_data["t_month"]:.1f} mm/{rain_data["t_month"] / 25.4:.1f} in')
+            print(f'{"Year rain":>10}: {rain_data["t_year"]:.1f} mm/{rain_data["t_year"] / 25.4:.1f} in')
 
     def display_all_rain_data(self):
         """Display the device rain data including piezo data.
