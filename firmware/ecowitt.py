@@ -111,7 +111,7 @@ class Bcolors:
 
 
 # ============================================================================
-#                         Gateway API error classes
+#                            InvertibleMap classes
 # ============================================================================
 
 class InvertibleSetError(Exception):
