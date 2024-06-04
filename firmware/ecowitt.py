@@ -188,6 +188,10 @@ class DeviceWriteFailed(Exception):
     """Exception raised when a gateway device write failed."""
 
 
+class DataUnobtainable(Exception):
+    """Exception raised when data was unobtainable from a device."""
+
+
 class GatewayApiParser:
     """Class to parse, decode and encode data to/from the gateway device API.
 
@@ -3180,7 +3184,7 @@ class GatewayApi:
         try:
             _response = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
         except (GWIOError, InvalidChecksum) as e:
-            return None
+            raise
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
         # return the data payload
@@ -3940,6 +3944,23 @@ class GatewayApi:
                    f"({result[2:3]}) failed to write to gateway device"
             raise DeviceWriteFailed(_msg)
 
+    def reboot_device(self):
+        """Reboot a gateway device.
+
+        Sends the API command to reboot the gateway device. If the device
+        cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
+        reboot_device(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_ecowitt() should be prepared to handle
+        these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_REBOOT')
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
 
 # ============================================================================
 #                             GatewayHttp class
@@ -4286,7 +4307,12 @@ class GatewayDevice:
     def model(self):
         """Gateway device model."""
 
-        return self.gateway_api.get_model_from_firmware(self.firmware_version)
+        try:
+            model = self.gateway_api.get_model_from_firmware(self.firmware_version)
+        except DataUnobtainable as e:
+            return "<undetermined model>"
+        else:
+            return model
 
     @property
     def livedata(self):
@@ -4498,9 +4524,13 @@ class GatewayDevice:
     def firmware_version(self):
         """Gateway device firmware version."""
 
-        payload = self.gateway_api.get_firmware_version()
-        # return the parsed data
-        return self.gateway_api_parser.parse_firmware_version(payload)
+        try:
+            payload = self.gateway_api.get_firmware_version()
+        except (GWIOError, InvalidChecksum) as e:
+            raise DataUnobtainable("Could not obtain firmware version from device") from e
+        else:
+            # return the parsed data
+            return self.gateway_api_parser.parse_firmware_version(payload)
 
     @property
     def sensor_id(self):
@@ -4674,6 +4704,12 @@ class GatewayDevice:
                 if sensor.get('img') == 'wh90':
                     return sensor.get('version', 'not available')
         return None
+
+    def write_reboot(self):
+        """Reboot a gateway device."""
+
+        # send the reboot command to the gateway device
+        self.gateway_api.reboot_device()
 
     def write_ecowitt(self, **ecowitt):
         """Write Ecowitt.net upload parameters.
@@ -5201,6 +5237,29 @@ def obfuscate(plain, obf_char='*'):
         return obfuscated
     # if we received None or a zero length string then return it
     return plain
+
+
+def y_or_n(msg, noprompt=False, default=None):
+    """Prompt and look for a 'y' or 'n' response
+
+    Args:
+        msg(str): A prompting message
+        noprompt(bool): If truthy, don't prompt the user. Just do it.
+        default(str|None): Value to be returned if no prompting has been requested
+    Returns:
+        str: Either 'y', or 'n'.
+    """
+
+    # If noprompt is truthy, return the default
+    if noprompt:
+        return 'y' if default is None else default
+
+    while True:
+        ans = input(msg).strip().lower()
+        if not ans and default is not None:
+            return default
+        elif ans in ('y', 'n'):
+            return ans
 
 
 # ============================================================================
@@ -6088,6 +6147,34 @@ class DirectGateway:
             # we have no results
             print("No devices were discovered.")
 
+    def write_reboot(self):
+        """Reboot to a gateway device."""
+
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            print(f'You have asked to reboot {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
+            ans = y_or_n("Rebooting the device will interrupt the "
+                         "connection to the device. Continue (y/n)? ")
+            if ans == 'n':
+                print("Nothing done")
+                return
+            # identify the device being used
+            print()
+            print(f'Rebooting {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
+            print()
+            try:
+                device.write_reboot()
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                print("Unable to reboot device.")
+            else:
+                print("Device is rebooting...")
+
     def write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
 
@@ -6819,6 +6906,8 @@ def dispatch_write(namespace):
     direct_gw = DirectGateway(namespace)
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
+    if getattr(namespace, 'write_subcommand', False) == 'reboot':
+        direct_gw.write_reboot()
     if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
         direct_gw.write_ecowitt()
     if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
@@ -7192,8 +7281,7 @@ def reboot_write_subparser(subparsers):
     description = """Reboot an Ecowitt device."""
     parser = subparsers.add_parser('reboot',
                                    usage=usage,
-                                   description=description,
-                                   help="Reboot an Ecowitt device.")
+                                   description=description)
     add_common_args(parser)
     parser.set_defaults(func=dispatch_write)
     return parser
@@ -8209,7 +8297,11 @@ def write_subparser(subparsers):
                                    help="Set various Ecowitt gateway device configuration parameters.")
     # add a subparser to handle the various subcommands.
     write_subparsers = parser.add_subparsers(dest='write_subcommand',
-                                             title="Available subcommands")
+                                             title="Available subcommands",
+                                             metavar='{ecowitt,wu,wow,wcloud,custom,calibration,'
+                                                     'sensor-id,pm25-offset,co2-offset,rain,'
+                                                     'system,rain-data,mulch-t-offset}')
+    reboot_write_subparser(write_subparsers)
     ecowitt_write_subparser(write_subparsers)
     wu_write_subparser(write_subparsers)
     wow_write_subparser(write_subparsers)
