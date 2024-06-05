@@ -2676,7 +2676,7 @@ class GatewayApi:
     header = b'\xff\xff'
     # known device models
     known_models = ('GW1000', 'GW1100', 'GW1200', 'GW2000',
-                    'WH2650', 'WH2680', 'WN1900')
+                    'WH2650', 'WH2680', 'WN1900', 'WS3910')
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
@@ -5282,6 +5282,133 @@ class DirectGateway:
 
     # list of sensors to be displayed in the sensor ID output
     sensors_list = []
+    # map of Ecowitt sensor field to plain text (for display purposes)
+    field_to_text = {
+        'ITEM_INTEMP': 'inside temperature',
+        'ITEM_OUTTEMP': 'outside temperature',
+        'ITEM_DEWPOINT': 'dew point',
+        'ITEM_WINDCHILL': 'wind chill',
+        'ITEM_HEATINDEX': 'heat index',
+        'ITEM_INHUMI': 'inside humidity',
+        'ITEM_OUTHUMI': 'outside humidity',
+        'ITEM_ABSBARO': 'absolute pressure',
+        'ITEM_RELBARO': 'relative pressure',
+        'ITEM_WINDDIRECTION': 'wind direction',
+        'ITEM_WINDSPEED': 'wind speed',
+        'ITEM_GUSTSPEED': 'gust speed',
+        'ITEM_RAINEVENT': 'rain event',
+        'ITEM_RAINRATE': 'rain rate',
+        'ITEM_RAIN_Gain': 'rain gain',
+        'ITEM_RAINDAY': 'day rain',
+        'ITEM_RAINWEEK': 'week rain',
+        'ITEM_RAINMONTH': 'month rain',
+        'ITEM_RAINYEAR': 'year rain',
+        'ITEM_TOTALS': 'total rain',
+        'ITEM_LIGHT': 'illuminance',
+        'ITEM_UV': 'uv radiation',
+        'ITEM_UVI': 'uv index',
+        'ITEM_TIME': 'date and time',
+        'ITEM_DAYLWINDMAX': 'day max wind speed',
+        'ITEM_TEMP1': 'temperature 1',
+        'ITEM_TEMP2': 'temperature 2',
+        'ITEM_TEMP3': 'temperature 3',
+        'ITEM_TEMP4': 'temperature 4',
+        'ITEM_TEMP5': 'temperature 5',
+        'ITEM_TEMP6': 'temperature 6',
+        'ITEM_TEMP7': 'temperature 7',
+        'ITEM_TEMP8': 'temperature 8',
+        'ITEM_HUMI1': 'humidity 1',
+        'ITEM_HUMI2': 'humidity 2',
+        'ITEM_HUMI3': 'humidity 3',
+        'ITEM_HUMI4': 'humidity 4',
+        'ITEM_HUMI5': 'humidity 5',
+        'ITEM_HUMI6': 'humidity 6',
+        'ITEM_HUMI7': 'humidity 7',
+        'ITEM_HUMI8': 'humidity 8',
+        'ITEM_PM25_CH1': 'pm2.5 channel 1',
+        'ITEM_SOILTEMP1': 'soil temperature 1',
+        'ITEM_SOILMOISTURE1': 'soil moisture 1',
+        'ITEM_SOILTEMP2': 'soil temperature 2',
+        'ITEM_SOILMOISTURE2': 'soil moisture 2',
+        'ITEM_SOILTEMP3': 'soil temperature 3',
+        'ITEM_SOILMOISTURE3': 'soil moisture 3',
+        'ITEM_SOILTEMP4': 'soil temperature 4',
+        'ITEM_SOILMOISTURE4': 'soil moisture 4',
+        'ITEM_SOILTEMP5': 'soil temperature 5',
+        'ITEM_SOILMOISTURE5': 'soil moisture 5',
+        'ITEM_SOILTEMP6': 'soil temperature 6',
+        'ITEM_SOILMOISTURE6': 'soil moisture 6',
+        'ITEM_SOILTEMP7': 'soil temperature 7',
+        'ITEM_SOILMOISTURE7': 'soil moisture 7',
+        'ITEM_SOILTEMP8': 'soil temperature 8',
+        'ITEM_SOILMOISTURE8': 'soil moisture 8',
+        'ITEM_SOILTEMP9': 'soil temperature 9',
+        'ITEM_SOILMOISTURE9': 'soil moisture 9',
+        'ITEM_SOILTEMP10': 'soil temperature 10',
+        'ITEM_SOILMOISTURE10': 'soil moisture 10',
+        'ITEM_SOILTEMP11': 'soil temperature 11',
+        'ITEM_SOILMOISTURE11': 'soil moisture 11',
+        'ITEM_SOILTEMP12': 'soil temperature 12',
+        'ITEM_SOILMOISTURE12': 'soil moisture 12',
+        'ITEM_SOILTEMP13': 'soil temperature 13',
+        'ITEM_SOILMOISTURE13': 'soil moisture 13',
+        'ITEM_SOILTEMP14': 'soil temperature 14',
+        'ITEM_SOILMOISTURE14': 'soil moisture 14',
+        'ITEM_SOILTEMP15': 'soil temperature 15',
+        'ITEM_SOILMOISTURE15': 'soil moisture 15',
+        'ITEM_SOILTEMP16': 'soil temperature 16',
+        'ITEM_SOILMOISTURE16': 'soil moisture 16',
+        'ITEM_LOWBATT': 'low battery',
+        'ITEM_PM25_24HAVG1': 'pm2.5 channel 1 24hour average',
+        'ITEM_PM25_24HAVG2': 'pm2.5 channel 2 24hour average',
+        'ITEM_PM25_24HAVG3': 'pm2.5 channel 3 24hour average',
+        'ITEM_PM25_24HAVG4': 'pm2.5 channel 4 24hour average',
+        'ITEM_PM25_CH2': 'pm2.5 channel 2',
+        'ITEM_PM25_CH3': 'pm2.5 channel 3',
+        'ITEM_PM25_CH4': 'pm2.5 channel 4',
+        'ITEM_LEAK_CH1': 'leak channel 1',
+        'ITEM_LEAK_CH2': 'leak channel 2',
+        'ITEM_LEAK_CH3': 'leak channel 3',
+        'ITEM_LEAK_CH4': 'leak channel 4',
+        'ITEM_LIGHTNING': 'lightning distance',
+        'ITEM_LIGHTNING_TIME': 'lightning detection time',
+        'ITEM_LIGHTNING_POWER': 'lightning strikes today',
+        # whilst WN34 battery data is available via live data the preference is
+        # to obtain such data from sensor ID data (as with other sensors)
+        'ITEM_TF_USR1': 'user temperature 1',
+        'ITEM_TF_USR2': 'user temperature 2',
+        'ITEM_TF_USR3': 'user temperature 3',
+        'ITEM_TF_USR4': 'user temperature 4',
+        'ITEM_TF_USR5': 'user temperature 5',
+        'ITEM_TF_USR6': 'user temperature 6',
+        'ITEM_TF_USR7': 'user temperature 7',
+        'ITEM_TF_USR8': 'user temperature 8',
+        'ITEM_HEAP_FREE': 'heap free',
+        # whilst WH45 battery data is available via live data the preference is
+        # to obtain such data from sensor ID data (as with other sensors)
+        'ITEM_SENSOR_CO2': 'decode_wh45',
+        # placeholder for unknown field 0x71
+        'ITEM_PM25_AQI': 'pm2.5 AQI',
+        'ITEM_LEAF_WETNESS_CH1': 'leaf wetness channel 1',
+        'ITEM_LEAF_WETNESS_CH2': 'leaf wetness channel 2',
+        'ITEM_LEAF_WETNESS_CH3': 'leaf wetness channel 3',
+        'ITEM_LEAF_WETNESS_CH4': 'leaf wetness channel 4',
+        'ITEM_LEAF_WETNESS_CH5': 'leaf wetness channel 5',
+        'ITEM_LEAF_WETNESS_CH6': 'leaf wetness channel 6',
+        'ITEM_LEAF_WETNESS_CH7': 'leaf wetness channel 7',
+        'ITEM_LEAF_WETNESS_CH8': 'leaf wetness channel 8',
+        'ITEM_RAIN_Priority': 'rain priority',
+        'ITEM_radcompensation': 'radiation compensation',
+        'ITEM_Piezo_Rain_Rate': 'piezo rain rate',
+        'ITEM_Piezo_Event_Rain': 'piezo event rain',
+        'ITEM_Piezo_Hourly_Rain': 'piezo hour rain',
+        'ITEM_Piezo_Daily_Rain': 'piezo day rain',
+        'ITEM_Piezo_Weekly_Rain': 'piezo week rain',
+        'ITEM_Piezo_Monthly_Rain': 'piezo month rain',
+        'ITEM_Piezo_yearly_Rain': 'piezo year rain',
+        'ITEM_Piezo_Gain10': 'piezo gain',
+        'ITEM_RST_RainTime': 'rain reset time'
+    }
 
     def __init__(self, namespace):
         """Initialise a DirectGateway object."""
@@ -6108,12 +6235,16 @@ class DirectGateway:
             # display the live sensor data if we have any
             if len(live_sensor_data_dict) > 0:
                 print()
-                for item_num in device.gateway_api_parser.addressed_data_struct.keys():
-                    if item_num in live_sensor_data_dict:
-                        item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
-                        value_str = re.sub(r'\.?0+$', lambda match: ' '*(match.end()-match.start()), '{:>12.1f}'.format(live_sensor_data_dict[item_num]))
-                        print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
-            print(f"live sensor data={live_sensor_data_dict}")
+                print("Live sensor data:")
+                for field, common_name in self.field_to_text.items():
+                    if field in live_sensor_data_dict:
+                        print(f"{common_name:>30}: {live_sensor_data_dict[field]}")
+            #     for item_num in device.gateway_api_parser.addressed_data_struct.keys():
+            #         if item_num in live_sensor_data_dict:
+            #             item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
+            #             value_str = re.sub(r'\.?0+$', lambda match: ' '*(match.end()-match.start()), '{:>12.1f}'.format(live_sensor_data_dict[item_num]))
+            #             print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
+            # print(f"live sensor data={live_sensor_data_dict}")
 
     def display_discovered_devices(self):
         """Display details of gateway devices on the local network."""
@@ -7418,7 +7549,7 @@ def custom_write_subparser(subparsers):
                         help='disable customized uploads')
     parser.add_argument('--protocol',
                         dest='type',
-                        choices=('EC', 'WU'),
+                        choices=('EC': '',
                         type=lambda p: 0 if p.upper() == 'EC' else 1,
                         metavar='PROTOCOL',
                         help='upload protocol EC = Ecowitt WU = WeatherUnderground '
@@ -8019,7 +8150,7 @@ def rain_write_subparser(subparsers):
                         help='piezo rain gain9')
     parser.add_argument('--priority',
                         dest='priority',
-                        choices=('traditional', 'piezo'),
+                        choices=('traditional': '',
                         type=lambda p: 1 if p.lower() == 'traditional' else 2,
                         metavar='PRIORITY',
                         help='rain priority, traditional = traditional tipping rain gauge, '
@@ -8031,7 +8162,7 @@ def rain_write_subparser(subparsers):
                         help='daily rain reset time (hour)')
     parser.add_argument('--week-reset',
                         dest='week_reset',
-                        choices=('Sunday', 'Monday'),
+                        choices=('Sunday': '',
                         type=lambda p: 1 if p.lower() == 'monday' else 1,
                         metavar='DAY',
                         help='weekly rain reset time (day)')
