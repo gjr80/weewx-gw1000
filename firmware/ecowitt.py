@@ -6,9 +6,23 @@ ecowitt.py
 A utility for reading, displaying and updating devices using the Ecowitt
 LAN/Wi-Fi Gateway API.
 
-As of the time of release this utility supports the GW1000, GW1100, GW1200 and
-GW2000 gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather
-stations.
+Based on the WeeWX Ecowitt gateway driver and inspiration from wxforum.net user
+jbroome.
+
+As of the time of release this utility supports and has been tested with the
+following Ecowitt devices:
+
+-   GW1000, GW1100, GW1200 and GW2000 gateway devices
+-   WS3910 weather station receiver
+
+As this utility uses the Ecowitt telnet API it should support any Ecowitt
+device that supports the Ecowitt telnet API. This includes but is not limited
+to:
+
+-   WH2650 weather hub
+-   WN1900/WN1910 weather station receiver
+-   WS2900 weather station receiver
+-   WS3900 weather station receiver
 
 Copyright (C) 2024 Gary Roderick                        gjroderick<at>gmail.com
 
@@ -29,7 +43,23 @@ Version: 0.1.0a1                                   Date: X Xxxxxxxxx 2024
 Revision History
         - initial release
 
+Pre-Requisites
 
+The following pre-requisites are required to run this utility:
+
+-   a system with Python v3.7.x or later
+-   a supported Ecowitt device on the same network segment as the computer
+    running this utility
+
+Instruction for Use
+
+To use:
+
+1.  copy this file to the system on which it is to be used
+
+2.  run the utility and display the main help using:
+
+$ python /path/to/ecowitt.py --help
 """
 
 # Outstanding TODOs:
@@ -40,10 +70,6 @@ Revision History
 # TODO. Confirm WH24 battery status
 # TODO. Confirm WH25 battery status
 # TODO. Need to know date-time data format for decode date_time()
-# TODO. Need to re-order sensor output for --display_sensors to better match app
-# Refactor TODOS:
-# TODO. self.sensor_ids vs Sensors.sensor_ids
-# TODO. Where should IP address, port and MAC be properties
 
 # Python imports
 from __future__ import absolute_import
@@ -1758,9 +1784,14 @@ class GatewayApiParser:
     def decode_datetime(data, field=None):
         """Decode date-time data.
 
-        Unknown format but length is six bytes. If field is not None return
-        the result as a dict in the format {field: decoded value} otherwise
-        return just the decoded value.
+        API documentation specifies field ITEM_TIME as 'date and time'
+        consisting of six bytes. No further detail is provided. As there are no
+        standard six byte numeric data types the individual bytes are decoded
+        and the decoded data presented as a dict of individual byte values,
+        eg [23, 45, 24, 56, 12, 36].
+
+        If field is not None return the result as a dict in the format
+        {field: decoded data} otherwise return just the decoded data.
         """
 
         if len(data) == 6:
@@ -5532,7 +5563,8 @@ class DirectGateway:
         # if we made it here we have a GatewayDevice object, return the object
         return device
 
-    def convert(self, value, unit):
+    @staticmethod
+    def convert(value, unit):
 
         if unit == 'mm':
             return f"mm ({value/25.4:.1f}inch)"
@@ -5551,7 +5583,7 @@ class DirectGateway:
             return f"km ({value * 0.621371192:.1f}miles | {value * 1000:d}m)"
         elif unit == 'lux':
             return f"lux ({value/126.7:.1f}W/m² | {value * 0.09290304 / 1000:.2f}kfc)"
-        elif unit  == 'time':
+        elif unit == 'time':
             _dt = datetime.datetime.fromtimestamp(value)
             return f" ({_dt.strftime('%-d %B %Y %H:%M:%S')})"
         elif unit == 'micro_watt_per_square_meter':
@@ -5720,22 +5752,28 @@ class DirectGateway:
             if any(field in rain_data for field in traditional):
                 print(f'{"Traditional rain data":>28}:')
                 _data = rain_data.get('t_rainrate')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Rain rate":>30}: {_data_str})')
                 _data = rain_data.get('t_rainevent')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Event rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainday')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Daily rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainweek')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Weekly rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainmonth')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Monthly rain":>30}: {_data_str})')
                 _data = rain_data.get('t_rainyear')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Yearly rain":>30}: {_data_str})')
                 _data = rain_data.get('t_raingain')
                 _data_str = "%.2f" % _data / 100.0 if _data is not None else "---"
@@ -5746,22 +5784,28 @@ class DirectGateway:
             if any(field in rain_data for field in piezo):
                 print(f'{"Piezo rain data":>28}:')
                 _data = rain_data.get('p_rainrate')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Rain rate":>30}: {_data_str})')
                 _data = rain_data.get('p_rainevent')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Event rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainday')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Daily rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainweek')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Weekly rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainmonth')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Monthly rain":>30}: {_data_str})')
                 _data = rain_data.get('p_rainyear')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None else "---mm/hr (---in/hr)"
+                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
+                    else "---mm/hr (---in/hr)"
                 print(f'{"Yearly rain":>30}: {_data_str})')
                 _data = rain_data.get('gain1')
                 _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 4mm/h)'
@@ -6350,12 +6394,6 @@ class DirectGateway:
                     if field in live_sensor_data_dict:
                         unit_str = self.convert(live_sensor_data_dict[field], field_info['unit'])
                         print(f"{field_info['text']:>30}: {live_sensor_data_dict[field]}{unit_str}")
-            #     for item_num in device.gateway_api_parser.addressed_data_struct.keys():
-            #         if item_num in live_sensor_data_dict:
-            #             item_str = ''.join(['(', device.gateway_api_parser.addressed_data_struct[item_num][3], ')', ':'])
-            #             value_str = re.sub(r'\.?0+$', lambda match: ' '*(match.end()-match.start()), '{:>12.1f}'.format(live_sensor_data_dict[item_num]))
-            #             print(f"0x{bytes_to_hex(item_num):<3}{item_str:<23} {value_str}")
-            # print(f"live sensor data={live_sensor_data_dict}")
 
     def display_discovered_devices(self):
         """Display details of gateway devices on the local network."""
@@ -7459,7 +7497,8 @@ def th_read_subparser(subparsers):
     parser = subparsers.add_parser('th-cal',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display multichannel temperature and humidity calibration parameters.")
+                                   help="Read and display multichannel temperature "
+                                        "and humidity calibration parameters.")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7593,22 +7632,6 @@ def reboot_write_subparser(subparsers):
     """
     description = """Reboot an Ecowitt device."""
     parser = subparsers.add_parser('reboot',
-                                   usage=usage,
-                                   description=description)
-    add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
-    return parser
-
-
-def reset_write_subparser(subparsers):
-    """Define 'ecowitt write reset' sub-subparser."""
-
-    usage = f"""{Bcolors.BOLD}ecowitt write reset --help
-       ecowitt write reset --ip-address=IP_ADDRESS [--port=PORT]
-                           [--debug]{Bcolors.ENDC}
-    """
-    description = """Factory reset an Ecowitt device."""
-    parser = subparsers.add_parser('reset',
                                    usage=usage,
                                    description=description)
     add_common_args(parser)
@@ -8694,7 +8717,7 @@ def write_subparser(subparsers):
     return parser
 
 
-# To use this utility use the following command:
+# To use this utility use the following command under python v3.7.x or later:
 #
 #   $ python3 /path/to/ecowitt.py --help
 #
