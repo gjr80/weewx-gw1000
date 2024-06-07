@@ -1582,6 +1582,35 @@ class GatewayApiParser:
                          wu_path_b])
 
     @staticmethod
+    def encode_ssid(**ssid):
+        """Encode the data parameters used for CMD_WRITE_SSID.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_SSID. Required payload parameters are contained in the
+        ssid dict keyed as follows:
+
+        ssid:       SSID, string, max 32 char
+        password:   SSID password, string, max 64 char
+
+        The encoded bytestring format is:
+
+        Byte(s)       Format            Comments
+        0             byte              length of SSID (i)
+        1 to i        i bytes           SSID (i characters)
+        1+i           byte              length of SSID password (p)
+        2+i to 1+i+p  p bytes           SSID password (p characters)
+
+        Returns a bytestring of length 2+i+p.
+        """
+
+        ssid_b = ssid['ssid'].encode()
+        password_b = ssid['password'].encode()
+        return b''.join([struct.pack('B', len(ssid_b)),
+                         ssid_b,
+                         struct.pack('B', len(password_b)),
+                         password_b])
+
+    @staticmethod
     def parse_station_mac(response):
         """Parse the data from a CMD_READ_STATION_MAC API response.
 
@@ -3390,6 +3419,22 @@ class GatewayApi:
         # return the data payload
         return _response[5:5 + packet_length - 4]
 
+    def set_ssid(self, payload):
+        """Set the SSID parameters.
+
+        Sends the API command to write the SSID parameters to the gateway
+        device. If the device cannot be contacted a GWIOError will be raised
+        by send_cmd_with_retries() which will be passed through by set_ssid().
+        If the command failed a DeviceWriteFailed exception is raised. Any code
+        calling set_ssid() should be prepared to handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_SSID', payload)
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
     def set_ecowitt(self, payload):
         """Set the Ecowitt.net upload parameters.
 
@@ -3952,12 +3997,28 @@ class GatewayApi:
         cannot be contacted a GWIOError will be raised by
         send_cmd_with_retries() which will be passed through by
         reboot_device(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_ecowitt() should be prepared to handle
+        raised. Any code calling reboot_device() should be prepared to handle
         these exceptions.
         """
 
         # send the command and obtain the result
         result = self.send_cmd_with_retries('CMD_WRITE_REBOOT')
+        # check the result to confirm the command executed successfully, if
+        # unsuccessful a DeviceWriteFailed exception will be raised
+        self.confirm_write_success(result)
+
+    def reset_device(self):
+        """Factory reset a gateway device.
+
+        Sends the API command to factory reset the gateway device. If the
+        device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by reset_device().
+        If the command failed a DeviceWriteFailed exception is raised. Any code
+        calling reset_device() should be prepared to handle these exceptions.
+        """
+
+        # send the command and obtain the result
+        result = self.send_cmd_with_retries('CMD_WRITE_RESET')
         # check the result to confirm the command executed successfully, if
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
@@ -4711,6 +4772,25 @@ class GatewayDevice:
 
         # send the reboot command to the gateway device
         self.gateway_api.reboot_device()
+
+    def write_reset(self):
+        """Factory reset a device."""
+
+        # send the reset command to the gateway device
+        self.gateway_api.reset_device()
+
+    def write_ssid(self, **ssid):
+        """Write SSID parameters.
+
+        Write SSID and SSID password to a gateway device. The parameters are
+        first encoded to produce the command data payload. The payload is then
+        passed to a GatewayApi object for uploading to the gateway device.
+        """
+
+        # encode the payload parameters to produce the data payload
+        payload = self.gateway_api_parser.encode_ssid(**ssid)
+        # update the gateway device
+        self.gateway_api.set_ssid(payload)
 
     def write_ecowitt(self, **ecowitt):
         """Write Ecowitt.net upload parameters.
@@ -6337,6 +6417,74 @@ class DirectGateway:
             else:
                 print("Device is rebooting...")
 
+    def write_reset(self):
+        """Factory reset a gateway device."""
+
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            print(f'You have asked to factory reset {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
+            print("A factory reset will clear all settings from the device and will almost")
+            ans = y_or_n("certainly disconnect the device from the network. Continue (y/n)? ")
+            if ans == 'n':
+                print("Nothing done")
+                return
+            # identify the device being used
+            print()
+            print(f'Performing a factory reset of {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
+            print()
+            try:
+                device.write_reset()
+            except DeviceWriteFailed as e:
+                print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                print("Unable to factory reset device.")
+            else:
+                print("Device was factory reset.")
+
+    def write_ssid(self):
+        """Write ssid and password to a gateway device."""
+
+        # get a GatewayDevice object
+        device = self.get_device(ip_address=self.ip_address,
+                                 port=self.port,
+                                 debug=self.debug)
+        if device:
+            # identify the device being used
+            print()
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+            print()
+            # obtain the current custom params and usr path settings from the
+            # device
+            params = device.ecowitt_net_params
+            # make a copy of the current ecowitt params, this copy will be updated
+            # with the subcommand arguments and then used to update the device
+            arg_params = dict(params)
+            # iterate over each ecowitt param (param, value) pair
+            for param, value in params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our ecowitt param dict copy if the namespace argument is
+                # not None, otherwise keep the current custom param value
+                arg_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_params != params:
+                # something has changed, so write the updated params to the device
+                try:
+                    device.write_ssid(**arg_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    print("Device write completed successfully")
+            else:
+                print()
+                print("No changes to current device settings")
+
     def write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
 
@@ -7070,6 +7218,10 @@ def dispatch_write(namespace):
     # first look for sub-subcommands
     if getattr(namespace, 'write_subcommand', False) == 'reboot':
         direct_gw.write_reboot()
+    if getattr(namespace, 'write_subcommand', False) == 'reset':
+        direct_gw.write_reset()
+    if getattr(namespace, 'write_subcommand', False) == 'ssid':
+        direct_gw.write_ssid()
     if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
         direct_gw.write_ecowitt()
     if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
@@ -7436,14 +7588,72 @@ def reboot_write_subparser(subparsers):
     """Define 'ecowitt write reboot' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}ecowitt write reboot --help
-       ecowitt write reboot
-            --ip-address=IP_ADDRESS [--port=PORT]
-            [--debug]{Bcolors.ENDC}
+       ecowitt write reboot --ip-address=IP_ADDRESS [--port=PORT]
+                            [--debug]{Bcolors.ENDC}
     """
     description = """Reboot an Ecowitt device."""
     parser = subparsers.add_parser('reboot',
                                    usage=usage,
                                    description=description)
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
+
+
+def reset_write_subparser(subparsers):
+    """Define 'ecowitt write reset' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt write reset --help
+       ecowitt write reset --ip-address=IP_ADDRESS [--port=PORT]
+                           [--debug]{Bcolors.ENDC}
+    """
+    description = """Factory reset an Ecowitt device."""
+    parser = subparsers.add_parser('reset',
+                                   usage=usage,
+                                   description=description)
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
+
+
+def reset_write_subparser(subparsers):
+    """Define 'ecowitt write reset' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt write reset --help
+       ecowitt write reset --ip-address=IP_ADDRESS [--port=PORT]
+                           [--debug]{Bcolors.ENDC}
+    """
+    description = """Factory reset an Ecowitt device."""
+    parser = subparsers.add_parser('reset',
+                                   usage=usage,
+                                   description=description)
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
+
+
+def ssid_write_subparser(subparsers):
+    """Define 'ecowitt write ssid' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}ecowitt write ssid --help
+       ecowitt write ssid --ssid=SSID --password=PASSWORD
+                          --ip-address=IP_ADDRESS [--port=PORT]
+                          [--debug]{Bcolors.ENDC}
+    """
+    description = """Set SSID and SSID password used by the device."""
+    parser = subparsers.add_parser('ssid',
+                                   usage=usage,
+                                   description=description)
+    parser.add_argument('--ssid',
+                        dest='ssid',
+                        type=maxlen(32),
+                        metavar='SSID',
+                        help='SSID')
+    parser.add_argument('--password',
+                        dest='password',
+                        type=maxlen(64),
+                        metavar='PASSWORD',
+                        help='SSID password')
     add_common_args(parser)
     parser.set_defaults(func=dispatch_write)
     return parser
@@ -8464,6 +8674,8 @@ def write_subparser(subparsers):
                                                      'sensor-id,pm25-offset,co2-offset,rain,'
                                                      'system,rain-data,mulch-t-offset}')
     reboot_write_subparser(write_subparsers)
+    reset_write_subparser(write_subparsers)
+    ssid_write_subparser(write_subparsers)
     ecowitt_write_subparser(write_subparsers)
     wu_write_subparser(write_subparsers)
     wow_write_subparser(write_subparsers)
