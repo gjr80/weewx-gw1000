@@ -7603,7 +7603,8 @@ def get_subparser(subparsers):
     parser = subparsers.add_parser('read',
                                    usage=usage,
                                    description=description,
-                                   help="Read various Ecowitt gateway device configuration parameters.")
+                                   help="read and display various Ecowitt gateway "
+                                        "device configuration parameters.")
     # add a subparser to handle the various subcommands.
     subparsers = parser.add_subparsers(dest='read_subcommand',
                                        title="Available subcommands")
@@ -8689,7 +8690,7 @@ def write_subparser(subparsers):
     parser = subparsers.add_parser('write',
                                    usage=usage,
                                    description=description,
-                                   help="Set various Ecowitt gateway device configuration parameters.")
+                                   help="set various Ecowitt gateway device configuration parameters.")
     # add a subparser to handle the various subcommands.
     write_subparsers = parser.add_subparsers(dest='write_subcommand',
                                              title="Available subcommands",
@@ -8738,7 +8739,16 @@ def main():
        %(prog)s write --help{Bcolors.ENDC}
     """
     # top level description
-    description = """Interact with an Ecowitt gateway device."""
+    description = "Interact with an Ecowitt gateway device using the Ecowitt "\
+                  "TCP Data Exchange Protocol (aka the 'telnet API')(*). This "\
+                  "utility allows supported devices to be interrogated and "\
+                  "current sensor data and device state information to be "\
+                  "displayed. The utility also supported setting various "\
+                  "device parameters supported by the TCP Data Exchange "\
+                  "Protocol.\n\n *  whilst the TCP Data Exchange Protocol is "\
+                  "used for all functions performed by this utility some "\
+                  "sensor state information is obtained from the device via "\
+                  "the so called 'local HTTP API'."
     # obtain an ArgumentParser object
     parser = argparse.ArgumentParser(usage=usage,
                                      description=description,
