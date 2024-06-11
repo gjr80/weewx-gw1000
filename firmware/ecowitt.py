@@ -16,7 +16,7 @@ following Ecowitt devices:
 -   WS3910 weather station receiver
 
 As this utility uses the Ecowitt telnet API it should support any Ecowitt
-device that supports the Ecowitt telnet API. This includes but is not limited
+device that supports the Ecowitt telnet API. This includes, but is not limited
 to:
 
 -   WH2650 weather hub
@@ -110,18 +110,6 @@ DEFAULT_BROADCAST_TIMEOUT = 5
 DEFAULT_RETRY_WAIT = 10
 # default max tries when polling the API
 DEFAULT_MAX_TRIES = 3
-# When run as a service the default age in seconds after which API data is
-# considered stale and will not be used to augment loop packets
-DEFAULT_MAX_AGE = 60
-# default device poll interval
-DEFAULT_POLL_INTERVAL = 20
-# default period between lost contact log entries during an extended period of
-# lost contact when run as a Service
-DEFAULT_LOST_CONTACT_LOG_PERIOD = 21600
-# default battery state filtering
-DEFAULT_SHOW_BATTERY = False
-# default firmware update check interval
-DEFAULT_FW_CHECK_INTERVAL = 86400
 
 
 class Bcolors:
@@ -219,6 +207,10 @@ class DataUnobtainable(Exception):
     """Exception raised when data was unobtainable from a device."""
 
 
+# ============================================================================
+#                           class GatewayApiParser
+# ============================================================================
+
 class GatewayApiParser:
     """Class to parse, decode and encode data to/from the gateway device API.
 
@@ -229,148 +221,144 @@ class GatewayApiParser:
     with the device in any way.
     """
 
-    # Dictionary of common address based data received using various gateway
-    # API commands. The dictionary is keyed by the device data field 'address'
-    # and contains various parameters for each 'address'. Dictionary tuple
-    # format is:
+    # Dictionary of address based data received using various gateway API
+    # commands. The dictionary is keyed by the device data field 'address' and
+    # contains various parameters for each 'address'. Dictionary tuple format
+    # is:
     #   (field name, decode fn, field size, common name)
     # where:
     #   field name:  the name of the device field as per the gateway API
     #                documentation.eg ITEM_INTEMP
     #   decode fn:   the name of the function used to decode the field data
     #   field size:  the size of field data in bytes
-    #   common name: common use name for the field, eg intemp
     addressed_data_struct = {
-        b'\x01': ('ITEM_INTEMP', 'decode_temp', 2, 'intemp'),
-        b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2, 'outtemp'),
-        b'\x03': ('ITEM_DEWPOINT', 'decode_temp', 2, 'dewpoint'),
-        b'\x04': ('ITEM_WINDCHILL', 'decode_temp', 2, 'windchill'),
-        b'\x05': ('ITEM_HEATINDEX', 'decode_temp', 2, 'heatindex'),
-        b'\x06': ('ITEM_INHUMI', 'decode_humid', 1, 'inhumid'),
-        b'\x07': ('ITEM_OUTHUMI', 'decode_humid', 1, 'outhumid'),
-        b'\x08': ('ITEM_ABSBARO', 'decode_press', 2, 'absbarometer'),
-        b'\x09': ('ITEM_RELBARO', 'decode_press', 2, 'relbarometer'),
-        b'\x0A': ('ITEM_WINDDIRECTION', 'decode_dir', 2, 'winddir'),
-        b'\x0B': ('ITEM_WINDSPEED', 'decode_speed', 2, 'windspeed'),
-        b'\x0C': ('ITEM_GUSTSPEED', 'decode_speed', 2, 'gustspeed'),
-        b'\x0D': ('ITEM_RAINEVENT', 'decode_rain', 2, 't_rainevent'),
-        b'\x0E': ('ITEM_RAINRATE', 'decode_rainrate', 2, 't_rainrate'),
-        b'\x0F': ('ITEM_RAIN_Gain', 'decode_gain_100', 2, 't_raingain'),
-        b'\x10': ('ITEM_RAINDAY', 'decode_rain', 2, 't_rainday'),
-        b'\x11': ('ITEM_RAINWEEK', 'decode_rain', 2, 't_rainweek'),
-        b'\x12': ('ITEM_RAINMONTH', 'decode_big_rain', 4, 't_rainmonth'),
-        b'\x13': ('ITEM_RAINYEAR', 'decode_big_rain', 4, 't_rainyear'),
-        b'\x14': ('ITEM_TOTALS', 'decode_big_rain', 4, 't_raintotals'),
-        b'\x15': ('ITEM_LIGHT', 'decode_light', 4, 'light'),
-        b'\x16': ('ITEM_UV', 'decode_uv', 2, 'uv'),
-        b'\x17': ('ITEM_UVI', 'decode_uvi', 1, 'uvi'),
-        b'\x18': ('ITEM_TIME', 'decode_datetime', 6, 'datetime'),
-        b'\x19': ('ITEM_DAYLWINDMAX', 'decode_speed', 2, 'daymaxwind'),
-        b'\x1A': ('ITEM_TEMP1', 'decode_temp', 2, 'temp1'),
-        b'\x1B': ('ITEM_TEMP2', 'decode_temp', 2, 'temp2'),
-        b'\x1C': ('ITEM_TEMP3', 'decode_temp', 2, 'temp3'),
-        b'\x1D': ('ITEM_TEMP4', 'decode_temp', 2, 'temp4'),
-        b'\x1E': ('ITEM_TEMP5', 'decode_temp', 2, 'temp5'),
-        b'\x1F': ('ITEM_TEMP6', 'decode_temp', 2, 'temp6'),
-        b'\x20': ('ITEM_TEMP7', 'decode_temp', 2, 'temp7'),
-        b'\x21': ('ITEM_TEMP8', 'decode_temp', 2, 'temp8'),
-        b'\x22': ('ITEM_HUMI1', 'decode_humid', 1, 'humid1'),
-        b'\x23': ('ITEM_HUMI2', 'decode_humid', 1, 'humid2'),
-        b'\x24': ('ITEM_HUMI3', 'decode_humid', 1, 'humid3'),
-        b'\x25': ('ITEM_HUMI4', 'decode_humid', 1, 'humid4'),
-        b'\x26': ('ITEM_HUMI5', 'decode_humid', 1, 'humid5'),
-        b'\x27': ('ITEM_HUMI6', 'decode_humid', 1, 'humid6'),
-        b'\x28': ('ITEM_HUMI7', 'decode_humid', 1, 'humid7'),
-        b'\x29': ('ITEM_HUMI8', 'decode_humid', 1, 'humid8'),
-        b'\x2A': ('ITEM_PM25_CH1', 'decode_pm25', 2, 'pm251'),
-        b'\x2B': ('ITEM_SOILTEMP1', 'decode_temp', 2, 'soiltemp1'),
-        b'\x2C': ('ITEM_SOILMOISTURE1', 'decode_moist', 1, 'soilmoist1'),
-        b'\x2D': ('ITEM_SOILTEMP2', 'decode_temp', 2, 'soiltemp2'),
-        b'\x2E': ('ITEM_SOILMOISTURE2', 'decode_moist', 1, 'soilmoist2'),
-        b'\x2F': ('ITEM_SOILTEMP3', 'decode_temp', 2, 'soiltemp3'),
-        b'\x30': ('ITEM_SOILMOISTURE3', 'decode_moist', 1, 'soilmoist3'),
-        b'\x31': ('ITEM_SOILTEMP4', 'decode_temp', 2, 'soiltemp4'),
-        b'\x32': ('ITEM_SOILMOISTURE4', 'decode_moist', 1, 'soilmoist4'),
-        b'\x33': ('ITEM_SOILTEMP5', 'decode_temp', 2, 'soiltemp5'),
-        b'\x34': ('ITEM_SOILMOISTURE5', 'decode_moist', 1, 'soilmoist5'),
-        b'\x35': ('ITEM_SOILTEMP6', 'decode_temp', 2, 'soiltemp6'),
-        b'\x36': ('ITEM_SOILMOISTURE6', 'decode_moist', 1, 'soilmoist6'),
-        b'\x37': ('ITEM_SOILTEMP7', 'decode_temp', 2, 'soiltemp7'),
-        b'\x38': ('ITEM_SOILMOISTURE7', 'decode_moist', 1, 'soilmoist7'),
-        b'\x39': ('ITEM_SOILTEMP8', 'decode_temp', 2, 'soiltemp8'),
-        b'\x3A': ('ITEM_SOILMOISTURE8', 'decode_moist', 1, 'soilmoist8'),
-        b'\x3B': ('ITEM_SOILTEMP9', 'decode_temp', 2, 'soiltemp9'),
-        b'\x3C': ('ITEM_SOILMOISTURE9', 'decode_moist', 1, 'soilmoist9'),
-        b'\x3D': ('ITEM_SOILTEMP10', 'decode_temp', 2, 'soiltemp10'),
-        b'\x3E': ('ITEM_SOILMOISTURE10', 'decode_moist', 1, 'soilmoist10'),
-        b'\x3F': ('ITEM_SOILTEMP11', 'decode_temp', 2, 'soiltemp11'),
-        b'\x40': ('ITEM_SOILMOISTURE11', 'decode_moist', 1, 'soilmoist11'),
-        b'\x41': ('ITEM_SOILTEMP12', 'decode_temp', 2, 'soiltemp12'),
-        b'\x42': ('ITEM_SOILMOISTURE12', 'decode_moist', 1, 'soilmoist12'),
-        b'\x43': ('ITEM_SOILTEMP13', 'decode_temp', 2, 'soiltemp13'),
-        b'\x44': ('ITEM_SOILMOISTURE13', 'decode_moist', 1, 'soilmoist13'),
-        b'\x45': ('ITEM_SOILTEMP14', 'decode_temp', 2, 'soiltemp14'),
-        b'\x46': ('ITEM_SOILMOISTURE14', 'decode_moist', 1, 'soilmoist14'),
-        b'\x47': ('ITEM_SOILTEMP15', 'decode_temp', 2, 'soiltemp15'),
-        b'\x48': ('ITEM_SOILMOISTURE15', 'decode_moist', 1, 'soilmoist15'),
-        b'\x49': ('ITEM_SOILTEMP16', 'decode_temp', 2, 'soiltemp16'),
-        b'\x4A': ('ITEM_SOILMOISTURE16', 'decode_moist', 1, 'soilmoist16'),
-        b'\x4C': ('ITEM_LOWBATT', 'decode_batt', 16, 'lowbatt'),
-        b'\x4D': ('ITEM_PM25_24HAVG1', 'decode_pm25', 2, 'pm251_24h_avg'),
-        b'\x4E': ('ITEM_PM25_24HAVG2', 'decode_pm25', 2, 'pm252_24h_avg'),
-        b'\x4F': ('ITEM_PM25_24HAVG3', 'decode_pm25', 2, 'pm253_24h_avg'),
-        b'\x50': ('ITEM_PM25_24HAVG4', 'decode_pm25', 2, 'pm254_24h_avg'),
-        b'\x51': ('ITEM_PM25_CH2', 'decode_pm25', 2, 'pm252'),
-        b'\x52': ('ITEM_PM25_CH3', 'decode_pm25', 2, 'pm253'),
-        b'\x53': ('ITEM_PM25_CH4', 'decode_pm25', 2, 'pm254'),
-        b'\x58': ('ITEM_LEAK_CH1', 'decode_leak', 1, 'leak1'),
-        b'\x59': ('ITEM_LEAK_CH2', 'decode_leak', 1, 'leak2'),
-        b'\x5A': ('ITEM_LEAK_CH3', 'decode_leak', 1, 'leak3'),
-        b'\x5B': ('ITEM_LEAK_CH4', 'decode_leak', 1, 'leak4'),
-        b'\x60': ('ITEM_LIGHTNING', 'decode_distance', 1, 'lightningdist'),
-        b'\x61': ('ITEM_LIGHTNING_TIME', 'decode_utc', 4, 'lightningdettime'),
-        b'\x62': ('ITEM_LIGHTNING_POWER', 'decode_count', 4, 'lightningcount'),
+        b'\x01': ('ITEM_INTEMP', 'decode_temp', 2),
+        b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2),
+        b'\x03': ('ITEM_DEWPOINT', 'decode_temp', 2),
+        b'\x04': ('ITEM_WINDCHILL', 'decode_temp', 2),
+        b'\x05': ('ITEM_HEATINDEX', 'decode_temp', 2),
+        b'\x06': ('ITEM_INHUMI', 'decode_humid', 1),
+        b'\x07': ('ITEM_OUTHUMI', 'decode_humid', 1),
+        b'\x08': ('ITEM_ABSBARO', 'decode_press', 2),
+        b'\x09': ('ITEM_RELBARO', 'decode_press', 2),
+        b'\x0A': ('ITEM_WINDDIRECTION', 'decode_dir', 2),
+        b'\x0B': ('ITEM_WINDSPEED', 'decode_speed', 2),
+        b'\x0C': ('ITEM_GUSTSPEED', 'decode_speed', 2),
+        b'\x0D': ('ITEM_RAINEVENT', 'decode_rain', 2),
+        b'\x0E': ('ITEM_RAINRATE', 'decode_rainrate', 2),
+        b'\x0F': ('ITEM_RAIN_Gain', 'decode_gain_100', 2),
+        b'\x10': ('ITEM_RAINDAY', 'decode_rain', 2),
+        b'\x11': ('ITEM_RAINWEEK', 'decode_rain', 2),
+        b'\x12': ('ITEM_RAINMONTH', 'decode_big_rain', 4),
+        b'\x13': ('ITEM_RAINYEAR', 'decode_big_rain', 4),
+        b'\x14': ('ITEM_TOTALS', 'decode_big_rain', 4),
+        b'\x15': ('ITEM_LIGHT', 'decode_light', 4),
+        b'\x16': ('ITEM_UV', 'decode_uv', 2),
+        b'\x17': ('ITEM_UVI', 'decode_uvi', 1),
+        b'\x18': ('ITEM_TIME', 'decode_datetime', 6),
+        b'\x19': ('ITEM_DAYLWINDMAX', 'decode_speed', 2),
+        b'\x1A': ('ITEM_TEMP1', 'decode_temp', 2),
+        b'\x1B': ('ITEM_TEMP2', 'decode_temp', 2),
+        b'\x1C': ('ITEM_TEMP3', 'decode_temp', 2),
+        b'\x1D': ('ITEM_TEMP4', 'decode_temp', 2),
+        b'\x1E': ('ITEM_TEMP5', 'decode_temp', 2),
+        b'\x1F': ('ITEM_TEMP6', 'decode_temp', 2),
+        b'\x20': ('ITEM_TEMP7', 'decode_temp', 2),
+        b'\x21': ('ITEM_TEMP8', 'decode_temp', 2),
+        b'\x22': ('ITEM_HUMI1', 'decode_humid', 1),
+        b'\x23': ('ITEM_HUMI2', 'decode_humid', 1),
+        b'\x24': ('ITEM_HUMI3', 'decode_humid', 1),
+        b'\x25': ('ITEM_HUMI4', 'decode_humid', 1),
+        b'\x26': ('ITEM_HUMI5', 'decode_humid', 1),
+        b'\x27': ('ITEM_HUMI6', 'decode_humid', 1),
+        b'\x28': ('ITEM_HUMI7', 'decode_humid', 1),
+        b'\x29': ('ITEM_HUMI8', 'decode_humid', 1),
+        b'\x2A': ('ITEM_PM25_CH1', 'decode_pm25', 2),
+        b'\x2B': ('ITEM_SOILTEMP1', 'decode_temp', 2),
+        b'\x2C': ('ITEM_SOILMOISTURE1', 'decode_moist', 1),
+        b'\x2D': ('ITEM_SOILTEMP2', 'decode_temp', 2),
+        b'\x2E': ('ITEM_SOILMOISTURE2', 'decode_moist', 1),
+        b'\x2F': ('ITEM_SOILTEMP3', 'decode_temp', 2),
+        b'\x30': ('ITEM_SOILMOISTURE3', 'decode_moist', 1),
+        b'\x31': ('ITEM_SOILTEMP4', 'decode_temp', 2),
+        b'\x32': ('ITEM_SOILMOISTURE4', 'decode_moist', 1),
+        b'\x33': ('ITEM_SOILTEMP5', 'decode_temp', 2),
+        b'\x34': ('ITEM_SOILMOISTURE5', 'decode_moist', 1),
+        b'\x35': ('ITEM_SOILTEMP6', 'decode_temp', 2),
+        b'\x36': ('ITEM_SOILMOISTURE6', 'decode_moist', 1),
+        b'\x37': ('ITEM_SOILTEMP7', 'decode_temp', 2),
+        b'\x38': ('ITEM_SOILMOISTURE7', 'decode_moist', 1),
+        b'\x39': ('ITEM_SOILTEMP8', 'decode_temp', 2),
+        b'\x3A': ('ITEM_SOILMOISTURE8', 'decode_moist', 1),
+        b'\x3B': ('ITEM_SOILTEMP9', 'decode_temp', 2),
+        b'\x3C': ('ITEM_SOILMOISTURE9', 'decode_moist', 1),
+        b'\x3D': ('ITEM_SOILTEMP10', 'decode_temp', 2),
+        b'\x3E': ('ITEM_SOILMOISTURE10', 'decode_moist', 1),
+        b'\x3F': ('ITEM_SOILTEMP11', 'decode_temp', 2),
+        b'\x40': ('ITEM_SOILMOISTURE11', 'decode_moist', 1),
+        b'\x41': ('ITEM_SOILTEMP12', 'decode_temp', 2),
+        b'\x42': ('ITEM_SOILMOISTURE12', 'decode_moist', 1),
+        b'\x43': ('ITEM_SOILTEMP13', 'decode_temp', 2),
+        b'\x44': ('ITEM_SOILMOISTURE13', 'decode_moist', 1),
+        b'\x45': ('ITEM_SOILTEMP14', 'decode_temp', 2),
+        b'\x46': ('ITEM_SOILMOISTURE14', 'decode_moist', 1),
+        b'\x47': ('ITEM_SOILTEMP15', 'decode_temp', 2),
+        b'\x48': ('ITEM_SOILMOISTURE15', 'decode_moist', 1),
+        b'\x49': ('ITEM_SOILTEMP16', 'decode_temp', 2),
+        b'\x4A': ('ITEM_SOILMOISTURE16', 'decode_moist', 1),
+        b'\x4C': ('ITEM_LOWBATT', 'decode_batt', 16),
+        b'\x4D': ('ITEM_PM25_24HAVG1', 'decode_pm25', 2),
+        b'\x4E': ('ITEM_PM25_24HAVG2', 'decode_pm25', 2),
+        b'\x4F': ('ITEM_PM25_24HAVG3', 'decode_pm25', 2),
+        b'\x50': ('ITEM_PM25_24HAVG4', 'decode_pm25', 2),
+        b'\x51': ('ITEM_PM25_CH2', 'decode_pm25', 2),
+        b'\x52': ('ITEM_PM25_CH3', 'decode_pm25', 2),
+        b'\x53': ('ITEM_PM25_CH4', 'decode_pm25', 2),
+        b'\x58': ('ITEM_LEAK_CH1', 'decode_leak', 1),
+        b'\x59': ('ITEM_LEAK_CH2', 'decode_leak', 1),
+        b'\x5A': ('ITEM_LEAK_CH3', 'decode_leak', 1),
+        b'\x5B': ('ITEM_LEAK_CH4', 'decode_leak', 1),
+        b'\x60': ('ITEM_LIGHTNING', 'decode_distance', 1),
+        b'\x61': ('ITEM_LIGHTNING_TIME', 'decode_utc', 4),
+        b'\x62': ('ITEM_LIGHTNING_POWER', 'decode_count', 4),
         # whilst WN34 battery data is available via live data the preference is
         # to obtain such data from sensor ID data (as with other sensors)
-        b'\x63': ('ITEM_TF_USR1', 'decode_wn34', 3, 'temp9'),
-        b'\x64': ('ITEM_TF_USR2', 'decode_wn34', 3, 'temp10'),
-        b'\x65': ('ITEM_TF_USR3', 'decode_wn34', 3, 'temp11'),
-        b'\x66': ('ITEM_TF_USR4', 'decode_wn34', 3, 'temp12'),
-        b'\x67': ('ITEM_TF_USR5', 'decode_wn34', 3, 'temp13'),
-        b'\x68': ('ITEM_TF_USR6', 'decode_wn34', 3, 'temp14'),
-        b'\x69': ('ITEM_TF_USR7', 'decode_wn34', 3, 'temp15'),
-        b'\x6A': ('ITEM_TF_USR8', 'decode_wn34', 3, 'temp16'),
-        b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4, 'heap_free'),
+        b'\x63': ('ITEM_TF_USR1', 'decode_wn34', 3),
+        b'\x64': ('ITEM_TF_USR2', 'decode_wn34', 3),
+        b'\x65': ('ITEM_TF_USR3', 'decode_wn34', 3),
+        b'\x66': ('ITEM_TF_USR4', 'decode_wn34', 3),
+        b'\x67': ('ITEM_TF_USR5', 'decode_wn34', 3),
+        b'\x68': ('ITEM_TF_USR6', 'decode_wn34', 3),
+        b'\x69': ('ITEM_TF_USR7', 'decode_wn34', 3),
+        b'\x6A': ('ITEM_TF_USR8', 'decode_wn34', 3),
+        b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4),
         # whilst WH45 battery data is available via live data the preference is
         # to obtain such data from sensor ID data (as with other sensors)
-        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16, ('temp17', 'humid17', 'pm10',
-                                                         'pm10_24h_avg', 'pm255',
-                                                         'pm255_24h_avg', 'co2',
-                                                         'co2_24h_avg')),
+        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16),
         # placeholder for unknown field 0x71
         b'\x71': ('ITEM_PM25_AQI', None, None),
-        b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1, 'leafwet1'),
-        b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1, 'leafwet2'),
-        b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1, 'leafwet3'),
-        b'\x75': ('ITEM_LEAF_WETNESS_CH4', 'decode_wet', 1, 'leafwet4'),
-        b'\x76': ('ITEM_LEAF_WETNESS_CH5', 'decode_wet', 1, 'leafwet5'),
-        b'\x77': ('ITEM_LEAF_WETNESS_CH6', 'decode_wet', 1, 'leafwet6'),
-        b'\x78': ('ITEM_LEAF_WETNESS_CH7', 'decode_wet', 1, 'leafwet7'),
-        b'\x79': ('ITEM_LEAF_WETNESS_CH8', 'decode_wet', 1, 'leafwet8'),
-        b'\x7A': ('ITEM_RAIN_Priority', 'decode_int', 1, 'rain_priority'),
-        b'\x7B': ('ITEM_radcompensation', 'decode_int', 1, 'temperature_comp'),
-        b'\x80': ('ITEM_Piezo_Rain_Rate', 'decode_rainrate', 2, 'p_rainrate'),
-        b'\x81': ('ITEM_Piezo_Event_Rain', 'decode_rain', 2, 'p_rainevent'),
-        b'\x82': ('ITEM_Piezo_Hourly_Rain', 'decode_reserved', 2, 'p_rainhour'),
-        b'\x83': ('ITEM_Piezo_Daily_Rain', 'decode_big_rain', 4, 'p_rainday'),
-        b'\x84': ('ITEM_Piezo_Weekly_Rain', 'decode_big_rain', 4, 'p_rainweek'),
-        b'\x85': ('ITEM_Piezo_Monthly_Rain', 'decode_big_rain', 4, 'p_rainmonth'),
-        b'\x86': ('ITEM_Piezo_yearly_Rain', 'decode_big_rain', 4, 'p_rainyear'),
+        b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1),
+        b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1),
+        b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1),
+        b'\x75': ('ITEM_LEAF_WETNESS_CH4', 'decode_wet', 1),
+        b'\x76': ('ITEM_LEAF_WETNESS_CH5', 'decode_wet', 1),
+        b'\x77': ('ITEM_LEAF_WETNESS_CH6', 'decode_wet', 1),
+        b'\x78': ('ITEM_LEAF_WETNESS_CH7', 'decode_wet', 1),
+        b'\x79': ('ITEM_LEAF_WETNESS_CH8', 'decode_wet', 1),
+        b'\x7A': ('ITEM_RAIN_Priority', 'decode_int', 1),
+        b'\x7B': ('ITEM_radcompensation', 'decode_int', 1),
+        b'\x80': ('ITEM_Piezo_Rain_Rate', 'decode_rainrate', 2),
+        b'\x81': ('ITEM_Piezo_Event_Rain', 'decode_rain', 2),
+        b'\x82': ('ITEM_Piezo_Hourly_Rain', 'decode_reserved', 2),
+        b'\x83': ('ITEM_Piezo_Daily_Rain', 'decode_big_rain', 4),
+        b'\x84': ('ITEM_Piezo_Weekly_Rain', 'decode_big_rain', 4),
+        b'\x85': ('ITEM_Piezo_Monthly_Rain', 'decode_big_rain', 4),
+        b'\x86': ('ITEM_Piezo_yearly_Rain', 'decode_big_rain', 4),
         # field 0x87 and 0x88 hold device parameter data that is not
         # included in the loop packets, hence the device field is not
         # used (None).
-        b'\x87': ('ITEM_Piezo_Gain10', 'decode_rain_gain', 20, None),
-        b'\x88': ('ITEM_RST_RainTime', 'decode_rain_reset', 3, None)
+        b'\x87': ('ITEM_Piezo_Gain10', 'decode_rain_gain', 20),
+        b'\x88': ('ITEM_RST_RainTime', 'decode_rain_reset', 3)
     }
 
     def __init__(self):
@@ -423,7 +411,7 @@ class GatewayApiParser:
                 # the current field, wrap in a try..except in case we
                 # encounter a field address we do not know about
                 try:
-                    field_name, decode_fn_str, field_size, common_name = structure[payload[index:index + 1]]
+                    field_name, decode_fn_str, field_size = structure[payload[index:index + 1]]
                 except KeyError:
                     # We struck a field 'address' we do not know how to
                     # process. We can't skip to the next field so all we
@@ -482,7 +470,7 @@ class GatewayApiParser:
         return self.parse_addressed_data(payload, self.addressed_data_struct)
 
     @staticmethod
-    def encode_rain_params(**offsets):
+    def encode_rain_params(**params):
         # TODO. Need comments to be completed
         """Encode data parameters used for CMD_WRITE_RAIN.
 
@@ -490,41 +478,75 @@ class GatewayApiParser:
         CMD_WRITE_RAIN. Required payload parameters are contained in the
         calibration dict keyed as follows:
 
-        rate:       rain rate, float -600 - +10 000  --> signed short
-        day:        PM2.5 offset, float -200 - +200   --> signed short
-        week:       PM10 offset, float -200 - +200    --> signed short
-        month:
-        year:
-        event:
+        rate:       rain rate, int 0 - 60 000   --> unsigned short
+        day:        day rain, int 0 - 99 999    --> unsigned long
+        week:       week rain, int 0 - 99 999   --> unsigned long
+        month:      month rain, int 0 - 99 999   --> unsigned long
+        year:       year rain, int 0 - 99 999   --> unsigned long
+        event:      event rain, int 0 - ?   --> unsigned short
         gain:
-        p_rate:
-        p_event:
-        p_day:
-        p_week:
-        p_month:
-        p_year:
-        priority:
-        gain0:
-        gain1:
-        gain2:
-        gain3:
-        gain4:
-        gain5:
-        gain6:
-        gain7:
-        gain8:
-        gain9:
-        day_reset:
-        week_reset:
-        year_reset:
+        p_rate:     piezo rain rate, int 0 - 60 000   --> unsigned short
+        p_event:    piezo event rain, int 0 - 99 999    --> unsigned short
+        p_day:      piezo day rain, int 0 - 99 999   --> unsigned long
+        p_week:     piezo week rain, int 0 - 99 999   --> unsigned long
+        p_month:    piezo month rain, int 0 - 99 999   --> unsigned long
+        p_year:     piezo year rain, int 0 - 99 999   --> unsigned long
+        priority:   rain priority, 0,1 or 2         --> unsigned byte
+        gain0:      piezo gain0, ? - ? --> unsigned short
+        gain1:      piezo gain1, ? - ? --> unsigned short
+        gain2:      piezo gain2, ? - ? --> unsigned short
+        gain3:      piezo gain3, ? - ? --> unsigned short
+        gain4:      piezo gain4, ? - ? --> unsigned short
+        gain5:      piezo gain5 (reserved), ? - ? --> unsigned short
+        gain6:      piezo gain6 (reserved), ? - ? --> unsigned short
+        gain7:      piezo gain7 (reserved), ? - ? --> unsigned short
+        gain8:      piezo gain8 (reserved), ? - ? --> unsigned short
+        gain9:      piezo gain9 (reserved), ? - ? --> unsigned short
+        day_reset:  day rain reset time, 0 - 23,    --> unsigned byte
+        week_reset: week reset time, 0 or 1         --> unsigned byte
+        year_reset: year reset time, 0 - 11         --> unsigned byte
 
         Returns a bytestring.
         """
 
-        co2_b = struct.pack('>h', int(offsets['co2']))
-        pm25_b = struct.pack('>h', int(offsets['pm25'] * 10))
-        pm10_b = struct.pack('>h', int(offsets['pm10'] * 10))
-        return b''.join([co2_b, pm25_b, pm10_b])
+        # the rain parameters from the device contain a few quirks we need
+        # to deal with before we can encode the rain data
+        # first, the piezo gain, the namespace has fields gain0, gain1 .. gain9,
+        # but we need  a 10 element list
+        gain_list = []
+        for gain_channel in range(10):
+            gain_list.append(params[''.join(['gain, gain_channel'])])
+        params['ITEM_Piezo_Gain10'] = gain_list
+        # second, the reset times, the namespace has fields day_reset,
+        # week_reset and year_reset, but we need  a 3 element list
+        params['ITEM_RST_RainTime'][0] = params['day_reset']
+        params['ITEM_RST_RainTime'][1] = params['week_reset']
+        params['ITEM_RST_RainTime'][2] = params['year_reset']
+        rate_b = struct.pack('>H', int(params['ITEM_RAINRATE']) * 10)
+        day_b = struct.pack('>L', int(params['ITEM_RAINDAY']) * 10)
+        week_b = struct.pack('>L', int(params['ITEM_RAINWEEK']) * 10)
+        month_b = struct.pack('>L', int(params['ITEM_RAINMONTH']) * 10)
+        year_b = struct.pack('>L', int(params['ITEM_RAINYEAR']) * 10)
+        event_b = struct.pack('>H', int(params['ITEM_RAINEVENT']) * 10)
+        gain_b = struct.pack('>H', int(params['ITEM_RAIN_Gain']) * 100)
+        p_rate_b = struct.pack('>H', int(params['ITEM_Piezo_Rain_Rate']) * 10)
+        p_event_b = struct.pack('>H', int(params['ITEM_Piezo_Event_Rain']) * 10)
+        p_day_b = struct.pack('>L', int(params['ITEM_Piezo_Daily_Rain']) * 10)
+        p_week_b = struct.pack('>L', int(params['ITEM_Piezo_Weekly_Rain']) * 10)
+        p_month_b = struct.pack('>L', int(params['ITEM_Piezo_Monthly_Rain']) * 10)
+        p_year_b = struct.pack('>L', int(params['ITEM_Piezo_yearly_Rain']) * 10)
+        priority_b = struct.pack('B', int(params['ITEM_RAIN_Priority']))
+        p_gain_b_list = []
+        for p_gain in params['ITEM_Piezo_Gain10']:
+            p_gain_b_list.append(struct.pack('B', int(p_gain) * 100))
+        p_gain_b = b''.join(p_gain_b_list)
+        reset_b_list = []
+        for reset_time in params['ITEM_RST_RainTime']:
+            reset_b_list.append(struct.pack('B', int(reset_time)))
+        reset_b = b''.join(reset_b_list)
+        return b''.join([rate_b, day_b, week_b, month_b, year_b, event_b, gain_b,
+                         p_rate_b, p_event_b, p_day_b, p_week_b, p_month_b, p_year_b,
+                         priority_b, p_gain_b, reset_b])
 
     def parse_raindata(self, payload):
         """Parse the data payload from a CMD_READ_RAINDATA API response.
@@ -546,19 +568,19 @@ class GatewayApiParser:
 
         Returns a dict keyed as follows:
 
-        't_rate'    rain rate (0 - 6000 mm/hr)
-        't_day'     rain rate (0 - 9999.9 mm)
-        't_week'    rain rate (0 - 9999.9 mm)
-        't_month'   rain rate (0 - 9999.9 mm)
-        't_year'    rain rate (0 - 9999.9 mm)
+        'ITEM_RAINRATE'    rain rate (0 - 6000 mm/hr)
+        'ITEM_RAINDAY'     rain rate (0 - 9999.9 mm)
+        'ITEM_RAINWEEK'    rain rate (0 - 9999.9 mm)
+        'ITEM_RAINMONTH'   rain rate (0 - 9999.9 mm)
+        'ITEM_RAINYEAR'    rain rate (0 - 9999.9 mm)
         """
 
         # create a dict holding our parsed data
-        data_dict = {'t_rate': self.decode_big_rain(payload[0:4]),
-                     't_day': self.decode_big_rain(payload[4:8]),
-                     't_week': self.decode_big_rain(payload[8:12]),
-                     't_month': self.decode_big_rain(payload[12:16]),
-                     't_year': self.decode_big_rain(payload[16:20])}
+        data_dict = {'ITEM_RAINRATE': self.decode_big_rain(payload[0:4]),
+                     'ITEM_RAINDAY': self.decode_big_rain(payload[4:8]),
+                     'ITEM_RAINWEEK': self.decode_big_rain(payload[8:12]),
+                     'ITEM_RAINMONTH': self.decode_big_rain(payload[12:16]),
+                     'ITEM_RAINYEAR': self.decode_big_rain(payload[16:20])}
         return data_dict
 
     @staticmethod
@@ -1197,7 +1219,7 @@ class GatewayApiParser:
         Parameter Name  Byte(s)  Data  Format  Comments
         interval        0        byte  0-5     upload interval in minutes
 
-        Returns a dict with a single key 'interval''.
+        Returns a dict with a single key 'interval'.
         """
 
         # We have only one parameter, create a dict holding our parsed data.
@@ -1972,7 +1994,7 @@ class GatewayApiParser:
             return results
         return {}
 
-    def decode_rain_gain(self, data, fields=None):
+    def decode_rain_gain(self, data, field=None):
         """Decode piezo rain gain data.
 
         Piezo rain gain data is 20 bytes of data comprising 10 two byte big
@@ -1996,15 +2018,17 @@ class GatewayApiParser:
         reserved for future use.
         """
 
+        results = []
         if len(data) == 20:
-            results = {}
             for gain in range(10):
-                results[f'gain{int(gain):d}'] = self.decode_gain_100(data[gain * 2:gain * 2 + 2])
+                results.append(self.decode_gain_100(data[gain * 2:gain * 2 + 2]))
+        if field is not None:
+            return {field: results}
+        else:
             return results
-        return {}
 
     @staticmethod
-    def decode_rain_reset(data, fields=None):
+    def decode_rain_reset(data, field=None):
         """Decode rain reset data.
 
         Rain reset data is three bytes of data comprising three unsigned
@@ -2020,12 +2044,15 @@ class GatewayApiParser:
                                                    rain, allowed values are 0-11, eg 2 = March
         """
 
+        results = []
         if len(data) == 3:
-            results = {'day_reset': struct.unpack("B", data[0:1])[0],
-                       'week_reset': struct.unpack("B", data[1:2])[0],
-                       'annual_reset': struct.unpack("B", data[2:3])[0]}
+            results = [struct.unpack("B", data[0:1])[0],
+                       struct.unpack("B", data[1:2])[0],
+                       struct.unpack("B", data[2:3])[0]]
+        if field is not None:
+            return {field: results}
+        else:
             return results
-        return {}
 
     @staticmethod
     def decode_batt(data, field=None):
@@ -5417,7 +5444,7 @@ class DirectGateway:
         'ITEM_RAINYEAR':  {'text': 'year rain', 'unit': 'mm'},
         'ITEM_TOTALS':  {'text': 'total rain', 'unit': 'mm'},
         'ITEM_LIGHT':  {'text': 'illuminance', 'unit': 'lux'},
-        'ITEM_UV':  {'text': 'uv radiation', 'unit': 'micro_watt_per_square_meter'},
+        'ITEM_UV':  {'text': 'uv radiation', 'unit': 'micro_watt_per_meter_squared'},
         'ITEM_UVI':  {'text': 'uv index', 'unit': 'index'},
         'ITEM_TIME':  {'text': 'date and time', 'unit': 'degree_C'},
         'ITEM_DAYLWINDMAX':  {'text': 'day max wind speed', 'unit': 'km_per_hour'},
@@ -5437,7 +5464,7 @@ class DirectGateway:
         'ITEM_HUMI6':  {'text': 'humidity 6', 'unit': 'percent'},
         'ITEM_HUMI7':  {'text': 'humidity 7', 'unit': 'percent'},
         'ITEM_HUMI8':  {'text': 'humidity 8', 'unit': 'percent'},
-        'ITEM_PM25_CH1':  {'text': 'pm2.5 channel 1', 'unit': 'micro_gram_per_cub_meter'},
+        'ITEM_PM25_CH1':  {'text': 'pm2.5 channel 1', 'unit': 'micro_gram_per_meter_cubed'},
         'ITEM_SOILTEMP1':  {'text': 'soil temperature 1', 'unit': 'degree_C'},
         'ITEM_SOILMOISTURE1':  {'text': 'soil moisture 1', 'unit': 'percent'},
         'ITEM_SOILTEMP2':  {'text': 'soil temperature 2', 'unit': 'degree_C'},
@@ -5471,13 +5498,13 @@ class DirectGateway:
         'ITEM_SOILTEMP16':  {'text': 'soil temperature 16', 'unit': 'degree_C'},
         'ITEM_SOILMOISTURE16':  {'text': 'soil moisture 16', 'unit': 'percent'},
         'ITEM_LOWBATT':  {'text': 'low battery', 'unit': 'degree_C'},
-        'ITEM_PM25_24HAVG1':  {'text': 'pm2.5 channel 1 24hour average', 'unit': 'micro_gram_per_cub_meter'},
-        'ITEM_PM25_24HAVG2':  {'text': 'pm2.5 channel 2 24hour average', 'unit': 'micro_gram_per_cub_meter'},
-        'ITEM_PM25_24HAVG3':  {'text': 'pm2.5 channel 3 24hour average', 'unit': 'micro_gram_per_cub_meter'},
-        'ITEM_PM25_24HAVG4':  {'text': 'pm2.5 channel 4 24hour average', 'unit': 'micro_gram_per_cub_meter'},
-        'ITEM_PM25_CH2':  {'text': 'pm2.5 channel 2', 'unit': 'micro_gram_per_cub_meter'},
-        'ITEM_PM25_CH3':  {'text': 'pm2.5 channel 3', 'unit': 'micro_gram_per_cub_meter'},
-        'ITEM_PM25_CH4':  {'text': 'pm2.5 channel 4', 'unit': 'micro_gram_per_cub_meter'},
+        'ITEM_PM25_24HAVG1':  {'text': 'pm2.5 channel 1 24hour average', 'unit': 'micro_gram_per_meter_cubed'},
+        'ITEM_PM25_24HAVG2':  {'text': 'pm2.5 channel 2 24hour average', 'unit': 'micro_gram_per_meter_cubed'},
+        'ITEM_PM25_24HAVG3':  {'text': 'pm2.5 channel 3 24hour average', 'unit': 'micro_gram_per_meter_cubed'},
+        'ITEM_PM25_24HAVG4':  {'text': 'pm2.5 channel 4 24hour average', 'unit': 'micro_gram_per_meter_cubed'},
+        'ITEM_PM25_CH2':  {'text': 'pm2.5 channel 2', 'unit': 'micro_gram_per_meter_cubed'},
+        'ITEM_PM25_CH3':  {'text': 'pm2.5 channel 3', 'unit': 'micro_gram_per_meter_cubed'},
+        'ITEM_PM25_CH4':  {'text': 'pm2.5 channel 4', 'unit': 'micro_gram_per_meter_cubed'},
         'ITEM_LEAK_CH1':  {'text': 'leak channel 1', 'unit': 'degree_C'},
         'ITEM_LEAK_CH2':  {'text': 'leak channel 2', 'unit': 'degree_C'},
         'ITEM_LEAK_CH3':  {'text': 'leak channel 3', 'unit': 'degree_C'},
@@ -5500,7 +5527,7 @@ class DirectGateway:
         # to obtain such data from sensor ID data (as with other sensors)
         'ITEM_SENSOR_CO2':  {'text': 'decode_wh45', 'unit': 'ppm'},
         # placeholder for unknown field 0x71
-        'ITEM_PM25_AQI':  {'text': 'pm2.5 AQI', 'unit': 'micro_gram_per_cub_meter'},
+        'ITEM_PM25_AQI':  {'text': 'pm2.5 AQI', 'unit': 'micro_gram_per_meter_cubed'},
         'ITEM_LEAF_WETNESS_CH1':  {'text': 'leaf wetness channel 1', 'unit': 'degree_C'},
         'ITEM_LEAF_WETNESS_CH2':  {'text': 'leaf wetness channel 2', 'unit': 'degree_C'},
         'ITEM_LEAF_WETNESS_CH3':  {'text': 'leaf wetness channel 3', 'unit': 'degree_C'},
@@ -5567,29 +5594,62 @@ class DirectGateway:
     def convert(value, unit):
 
         if unit == 'mm':
-            return f"mm ({value/25.4:.1f}inch)"
+            if value is not None:
+                return f"mm ({value / 25.4:.1f}in)"
+            else:
+                return f"mm (---in)"
         elif unit == 'degree_C':
-            return f"°C ({value * 9 /5 + 32:.1f}°F)"
+            if value is not None:
+                return f"°C ({value * 9 / 5 + 32:.1f}°F)"
+            else:
+                return f"°C (---°F)"
         elif unit == 'percent':
             return f"%"
         elif unit == 'hPa':
-            return f"hPa ({value * 0.75006168:.1f}mmHg | {value * 0.0295299875:.1f}inHg)"
+            if value is not None:
+                return f"hPa ({value * 0.75006168:.1f}mmHg | {value * 0.0295299875:.1f}inHg)"
+            else:
+                return f"hPa (---mmHg | ---inHg)"
         elif unit == 'degree':
             return f"°"
         elif unit == 'km_per_hour':
-            return f"km/hr ({value * 0.621371192:.1f}mph | {value * 5 / 18:.1f}m/s | "\
-                   f"{value * 0.539956803:.1f}knots)"
+            if value is not None:
+                return f"km/hr ({value * 0.621371192:.1f}mph | {value * 5 / 18:.1f}m/s | "\
+                       f"{value * 0.539956803:.1f}knots)"
+            else:
+                return f"km/hr (---mph | ---m/s | ---knots)"
         elif unit == 'km':
-            return f"km ({value * 0.621371192:.1f}miles | {value * 1000:d}m)"
+            if value is not None:
+                return f"km ({value * 0.621371192:.1f}miles | {value * 1000:d}m)"
+            else:
+                return f"km (---miles | ---m)"
+        if unit == 'mm_per_hour':
+            if value is not None:
+                return f"mm/hr ({value / 25.4:.1f}in/hr)"
+            else:
+                return f"mm/hr (---in/hr)"
         elif unit == 'lux':
-            return f"lux ({value/126.7:.1f}W/m² | {value * 0.09290304 / 1000:.2f}kfc)"
+            if value is not None:
+                return f"lux ({value / 126.7:.1f}W/m² | {value * 0.09290304 / 1000:.2f}kfc)"
+            else:
+                return f"lux (---W/m² | ---kfc)"
         elif unit == 'time':
-            _dt = datetime.datetime.fromtimestamp(value)
-            return f" ({_dt.strftime('%-d %B %Y %H:%M:%S')})"
-        elif unit == 'micro_watt_per_square_meter':
+            if value is not None:
+                _dt = datetime.datetime.fromtimestamp(value)
+                return f" ({_dt.strftime('%-d %B %Y %H:%M:%S')})"
+            else:
+                return f" (---)"
+        elif unit == 'micro_watt_per_meter_squared':
             return f"μW/m²"
-        elif unit == 'micro_gram_per_cub_meter':
+        elif unit == 'micro_gram_per_meter_cubed':
             return f"μg/m³"
+        elif unit == 'ppm':
+            return f"ppm"
+        elif unit == 'diff_degree_C':
+            if value is not None:
+                return f"°C ({value * 9 / 5:.1f}°F)"
+            else:
+                return f"°C (---°F)"
         else:
             return ""
 
@@ -5689,14 +5749,31 @@ class DirectGateway:
                                  port=self.port,
                                  debug=self.debug)
         if device:
+            # identify the device being used
+            print()
+            print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the device objects raindata property
             rain_data = device.raindata
-            print()
-            print(f'{"Rain rate":>10}: {rain_data["t_rate"]:.1f} mm/{rain_data["t_rate"] / 25.4:.1f} in')
-            print(f'{"Day rain":>10}: {rain_data["t_day"]:.1f} mm/{rain_data["t_day"] / 25.4:.1f} in')
-            print(f'{"Week rain":>10}: {rain_data["t_week"]:.1f} mm/{rain_data["t_week"] / 25.4:.1f} in')
-            print(f'{"Month rain":>10}: {rain_data["t_month"]:.1f} mm/{rain_data["t_month"] / 25.4:.1f} in')
-            print(f'{"Year rain":>10}: {rain_data["t_year"]:.1f} mm/{rain_data["t_year"] / 25.4:.1f} in')
+            # did we get any raindata
+            if rain_data is not None:
+                print()
+                print("Rainfall Data")
+                # do we have any results to display?
+                if len(rain_data) > 0:
+                    unit_str = self.convert(rain_data["ITEM_RAINRATE"], self.field_to_text["ITEM_RAINRATE"]["unit"])
+                    print(f'{"Rain rate":>12}: {rain_data["ITEM_RAINRATE"]:.1f}{unit_str}')
+                    unit_str = self.convert(rain_data["ITEM_RAINDAY"], self.field_to_text["ITEM_RAINDAY"]["unit"])
+                    print(f'{"Day rain":>12}: {rain_data["ITEM_RAINDAY"]:.1f}{unit_str}')
+                    unit_str = self.convert(rain_data["ITEM_RAINWEEK"], self.field_to_text["ITEM_RAINWEEK"]["unit"])
+                    print(f'{"Week rain":>12}: {rain_data["ITEM_RAINWEEK"]:.1f}{unit_str}')
+                    unit_str = self.convert(rain_data["ITEM_RAINMONTH"], self.field_to_text["ITEM_RAINMONTH"]["unit"])
+                    print(f'{"Month rain":>12}: {rain_data["ITEM_RAINMONTH"]:.1f}{unit_str}')
+                    unit_str = self.convert(rain_data["ITEM_RAINYEAR"], self.field_to_text["ITEM_RAINYEAR"]["unit"])
+                    print(f'{"Year rain":>12}: {rain_data["ITEM_RAINYEAR"]:.1f}{unit_str}')
+                else:
+                    print()
+                    print(f'Device at {self.ip_address} did not respond.')
 
     def display_all_rain_data(self):
         """Display the device rain data including piezo data.
@@ -5717,15 +5794,29 @@ class DirectGateway:
         firmware.
         """
 
-        traditional = ['t_rainrate', 't_rainevent', 't_rainday',
-                       't_rainweek', 't_rainmonth', 't_rainyear']
-        piezo = ['p_rainrate', 'p_event', 'p_day', 'p_week', 'p_month', 'p_year',
-                 'gain1', 'gain2', 'gain3', 'gain4', 'gain5']
-        reset = ['day_reset', 'week_reset', 'annual_reset']
+        def display_rain(field):
+            pass
+
+        def display_gain(field):
+            pass
+
+        def display_reset(field):
+            pass
+
+        traditional = ['ITEM_RAINRATE', 'ITEM_RAINEVENT', 'ITEM_RAINDAY',
+                       'ITEM_RAINWEEK', 'ITEM_RAINMONTH', 'ITEM_RAINYEAR']
+        piezo = ['ITEM_Piezo_Rain_Rate', 'ITEM_Piezo_Event_Rain',
+                 'ITEM_Piezo_Daily_Rain', 'ITEM_Piezo_Weekly_Rain',
+                 'ITEM_Piezo_Monthly_Rain', 'ITEM_Piezo_yearly_Rain',
+                 'ITEM_Piezo_Gain10']
+        reset = ['ITEM_RST_RainTime']
         source_lookup = {0: 'No selection',
                          1: 'Traditional rain gauge',
                          2: 'Piezoelectric rain gauge'
                          }
+        gain_trailer = ['(< 4mm/hr)', '(< 10mm/hr)', '(< 30mm/hr)',
+                        '(< 60mm/hr)', '(> 60mm/hr)']
+
         # get a GatewayDevice object
         device = self.get_device(ip_address=self.ip_address,
                                  port=self.port,
@@ -5745,37 +5836,43 @@ class DirectGateway:
                 # use the rain_data property
                 rain_data = device.raindata
             print()
-            if 'rain_priority' in rain_data:
+            if 'ITEM_RAIN_Priority' in rain_data:
                 print(f'{"Rainfall data priority":>28}: '
-                      f'{source_lookup.get(rain_data["rain_priority"], "unknown selection")}')
+                      f'{source_lookup.get(rain_data["ITEM_RAIN_Priority"], "unknown selection")}')
                 print()
             if any(field in rain_data for field in traditional):
                 print(f'{"Traditional rain data":>28}:')
-                _data = rain_data.get('t_rainrate')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Rain rate":>30}: {_data_str})')
-                _data = rain_data.get('t_rainevent')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Event rain":>30}: {_data_str})')
-                _data = rain_data.get('t_rainday')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Daily rain":>30}: {_data_str})')
-                _data = rain_data.get('t_rainweek')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Weekly rain":>30}: {_data_str})')
-                _data = rain_data.get('t_rainmonth')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Monthly rain":>30}: {_data_str})')
-                _data = rain_data.get('t_rainyear')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Yearly rain":>30}: {_data_str})')
-                _data = rain_data.get('t_raingain')
+                _data = rain_data.get('ITEM_RAINRATE')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_RAINRATE"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Rain rate":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_RAINEVENT')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_RAINRATE"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Event rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_RAINDAY')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_RAINDAY"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Daily rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_RAINWEEK')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_RAINWEEK"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Weekly rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_RAINMONTH')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_RAINMONTH"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Monthly rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_RAINYEAR')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_RAINYEAR"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Yearly rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_RAIN_Gain')
                 _data_str = "%.2f" % _data / 100.0 if _data is not None else "---"
                 print("%30s: %s" % ('Rain gain', _data_str))
             else:
@@ -5783,58 +5880,57 @@ class DirectGateway:
             print()
             if any(field in rain_data for field in piezo):
                 print(f'{"Piezo rain data":>28}:')
-                _data = rain_data.get('p_rainrate')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Rain rate":>30}: {_data_str})')
-                _data = rain_data.get('p_rainevent')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Event rain":>30}: {_data_str})')
-                _data = rain_data.get('p_rainday')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Daily rain":>30}: {_data_str})')
-                _data = rain_data.get('p_rainweek')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Weekly rain":>30}: {_data_str})')
-                _data = rain_data.get('p_rainmonth')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Monthly rain":>30}: {_data_str})')
-                _data = rain_data.get('p_rainyear')
-                _data_str = f'{_data:.1f}mm/hr ({_data / 25.4:.1f}in/hr)' if _data is not None \
-                    else "---mm/hr (---in/hr)"
-                print(f'{"Yearly rain":>30}: {_data_str})')
-                _data = rain_data.get('gain1')
-                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 4mm/h)'
-                print(f'{"Rain1 gain":>30}: {_data_str})')
-                _data = rain_data.get('gain2')
-                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 10mm/h)'
-                print(f'{"Rain1 gain":>30}: {_data_str})')
-                _data = rain_data.get('gain3')
-                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 30mm/h)'
-                print(f'{"Rain1 gain":>30}: {_data_str})')
-                _data = rain_data.get('gain4')
-                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (< 60mm/h)'
-                print(f'{"Rain1 gain":>30}: {_data_str})')
-                _data = rain_data.get('gain5')
-                _data_str = f'{_data:.2f} (< 4mm/h)' if _data is not None else '-- (> 60mm/h)'
-                print(f'{"Rain1 gain":>30}: {_data_str})')
+                _data = rain_data.get('ITEM_Piezo_Rain_Rate')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_Piezo_Rain_Rate"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Rain rate":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_Piezo_Event_Rain')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_Piezo_Event_Rain"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Event rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_Piezo_Daily_Rain')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_Piezo_Daily_Rain"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Daily rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_Piezo_Weekly_Rain')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_Piezo_Weekly_Rain"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Weekly rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_Piezo_Monthly_Rain')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_Piezo_Monthly_Rain"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Monthly rain":>30}: {_data_str}')
+                _data = rain_data.get('ITEM_Piezo_yearly_Rain')
+                unit_str = self.convert(_data,
+                                        self.field_to_text["ITEM_Piezo_yearly_Rain"]["unit"])
+                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                print(f'{"Yearly rain":>30}: {_data_str}')
+                _gain_data = rain_data.get('ITEM_Piezo_Gain10')
+                for gain_channel in range(10):
+                    try:
+                        _data = _gain_data[gain_channel]
+                        _trailer = gain_trailer[gain_channel]
+                    except IndexError:
+                        break
+                    _label_str = f"Rain gain{gain_channel:d}"
+                    _data_str = f'{_data:.2f} {_trailer}' if _data is not None else '--- {_trailer}'
+                    print(f'{_label_str:>30}: {_data_str}')
             else:
                 print(f'{"No piezo rain data available":>32}')
             print()
             if any(field in rain_data for field in reset):
                 print(f'{"Rainfall reset time data:":>28}:')
-                _data = rain_data.get('day_reset')
-                _data_str = f'{_data:02d}:00' if _data is not None else '-----'
+                _reset_data = rain_data.get('ITEM_RST_RainTime')
+                _data_str = f'{_reset_data[0]:02d}:00' if _reset_data[0] is not None else '-----'
                 print(f'{"Daily rainfall reset time":>30}: {_data_str}')
-                _data = rain_data.get('week_reset')
-                _data_str = f'{calendar.day_name[(_data + 6) % 7]}' if _data is not None else '-----'
+                _data_str = f'{calendar.day_name[(_reset_data[1] + 6) % 7]}' if _reset_data[1] is not None else '-----'
                 print(f'{"Weekly rainfall reset time":>30}: {_data_str}')
-                _data = rain_data.get('annual_reset')
-                _data_str = f'{calendar.month_name[_data + 1]}' if _data is not None else '-----'
+                _data_str = f'{calendar.month_name[_reset_data[2] + 1]}' if _reset_data[2] is not None else '-----'
                 print(f'{"Annual rainfall reset time":>30}: {_data_str}')
             else:
                 print(f'{"No rainfall reset time data available":>41}')
@@ -5874,9 +5970,10 @@ class DirectGateway:
                         # channels starting at 0, but the WS View app displays
                         # channels starting at 1, so add 1 to our channel number
                         channel_str = f'{"Channel":>11} {channel + 1:d}'
-                        temp_offset_str = f'{mulch_offset_data[channel]["temp"]:2.1f}'
-                        hum_offset_str = f'{mulch_offset_data[channel]["hum"]:d}'
-                        print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5} '
+                        unit_str = self.convert(mulch_offset_data[channel]["temp"], "diff_degree_C")
+                        temp_offset_str = f'{mulch_offset_data[channel]["temp"]:2.1f}{unit_str}'
+                        hum_offset_str = f'{mulch_offset_data[channel]["hum"]:d}%'
+                        print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5}  '
                               f'Humidity offset: {hum_offset_str:5}')
                 else:
                     # we have no results, so display a suitable message
@@ -5964,8 +6061,9 @@ class DirectGateway:
                     for channel in pm25_offset_data:
                         # print the channel and offset data
                         channel_str = f'{"Channel":>11} {channel:d}'
+                        unit_str = self.convert(pm25_offset_data[channel], "micro_gram_per_meter_cubed")
                         offset_str = f'{pm25_offset_data[channel]:2.1f}'
-                        print(f'{channel_str:>13}: PM2.5 offset: {offset_str:5}')
+                        print(f'{channel_str:>13}: PM2.5 offset: {offset_str:>5}{unit_str}')
                 else:
                     # we have no results, so display a suitable message
                     print(f'{"No PM2.5 sensors found":>28}')
@@ -6000,9 +6098,12 @@ class DirectGateway:
                 # now format and display the data
                 print()
                 print("CO2 Calibration")
-                print(f'{"CO2 offset":>16}: {co2_offset_data["co2"]:2.1f}')
-                print(f'{"PM10 offset":>16}: {co2_offset_data["pm10"]:2.1f}')
-                print(f'{"PM2.5 offset":>16}: {co2_offset_data["pm25"]:2.1f}')
+                unit_str = self.convert(co2_offset_data["co2"], "ppm")
+                print(f'{"CO2 offset":>16}: {co2_offset_data["co2"]:>2.1f}{unit_str}')
+                unit_str = self.convert(co2_offset_data["pm10"], "micro_gram_per_meter_cubed")
+                print(f'{"PM10 offset":>16}: {co2_offset_data["pm10"]:>2.1f}{unit_str}')
+                unit_str = self.convert(co2_offset_data["pm25"], "micro_gram_per_meter_cubed")
+                print(f'{"PM2.5 offset":>16}: {co2_offset_data["pm25"]:>2.1f}{unit_str}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -6036,13 +6137,17 @@ class DirectGateway:
                 print(f'{"Irradiance gain":>28}: {calibration_data["solar"]:5.2f}')
                 print(f'{"UV gain":>28}: {calibration_data["uv"]:4.1f}')
                 print(f'{"Wind gain":>28}: {calibration_data["wind"]:4.1f}')
-                print(f'{"Inside temperature offset":>28}: {calibration_data["intemp"]:4.1f} \xb0C')
-                print(f'{"Inside humidity offset":>28}: {calibration_data["inhum"]:4.1f} %')
-                print(f'{"Outside temperature offset":>28}: {calibration_data["outtemp"]:4.1f} \xb0C')
-                print(f'{"Outside humidity offset":>28}: {calibration_data["outhum"]:4.1f} %')
-                print(f'{"Absolute pressure offset":>28}: {calibration_data["abs"]:4.1f} hPa')
-                print(f'{"Relative pressure offset":>28}: {calibration_data["rel"]:4.1f} hPa')
-                print(f'{"Wind direction offset":>28}: {calibration_data["dir"]:4.1f} \xb0')
+                unit_str = self.convert(calibration_data["intemp"], "diff_degree_C")
+                print(f'{"Inside temperature offset":>28}: {calibration_data["intemp"]:4.1f}{unit_str}')
+                print(f'{"Inside humidity offset":>28}: {calibration_data["inhum"]:4.1f}%')
+                unit_str = self.convert(calibration_data["intemp"], "diff_degree_C")
+                print(f'{"Outside temperature offset":>28}: {calibration_data["outtemp"]:4.1f}{unit_str}')
+                print(f'{"Outside humidity offset":>28}: {calibration_data["outhum"]:4.1f}%')
+                unit_str = self.convert(calibration_data["intemp"], "hPa")
+                print(f'{"Absolute pressure offset":>28}: {calibration_data["abs"]:4.1f}{unit_str}')
+                unit_str = self.convert(calibration_data["intemp"], "hPa")
+                print(f'{"Relative pressure offset":>28}: {calibration_data["rel"]:4.1f}{unit_str}')
+                print(f'{"Wind direction offset":>28}: {calibration_data["dir"]:4.1f}\xb0')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -6835,6 +6940,18 @@ class DirectGateway:
             print()
             # obtain the current rain related parameters from the device
             parameters = device.rain
+            # the rain parameters from the device contain a few quirks we need
+            # to adjust before we can merge in any user supplied settings
+            # first, the piezo gain, the device returns a 10 element list, the namespace
+            # will have fields gain0, gain1..gain9
+            for gain_channel in range(10):
+                parameters[''.join(['gain, gain_channel'])] = parameters['ITEM_Piezo_Gain10'][gain_channel]
+            # second, the reset times, the device returns a three element list,
+            # the namespace will have fields day_reset, week_reset and
+            # year_reset
+            parameters['day_reset'] = parameters['ITEM_RST_RainTime'][0]
+            parameters['week_reset'] = parameters['ITEM_RST_RainTime'][1]
+            parameters['year_reset'] = parameters['ITEM_RST_RainTime'][2]
             # make a copy of the current parameters, this copy will be updated with
             # the subcommand arguments and then used to update the device
             arg_parameters = dict(parameters)
@@ -8363,52 +8480,52 @@ def rain_write_subparser(subparsers):
                         type=ranged_type(float, 0, 6000.0),
                         metavar='RATE',
                         help='piezo rain rate')
-    parser.add_argument('--gain0',
+    parser.add_argument('--p-gain0',
                         dest='gain0',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain0')
-    parser.add_argument('--gain1',
+    parser.add_argument('--p-gain1',
                         dest='gain1',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain1')
-    parser.add_argument('--gain2',
+    parser.add_argument('--p-gain2',
                         dest='gain2',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain2')
-    parser.add_argument('--gain3',
+    parser.add_argument('--p-gain3',
                         dest='gain3',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain3')
-    parser.add_argument('--gain4',
+    parser.add_argument('--p-gain4',
                         dest='gain4',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain4')
-    parser.add_argument('--gain5',
+    parser.add_argument('--p-gain5',
                         dest='gain5',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain5')
-    parser.add_argument('--gain6',
+    parser.add_argument('--p-gain6',
                         dest='gain6',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain6')
-    parser.add_argument('--gain7',
+    parser.add_argument('--p-gain7',
                         dest='gain7',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain7')
-    parser.add_argument('--gain8',
+    parser.add_argument('--p-gain8',
                         dest='gain8',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
                         help='piezo rain gain8')
-    parser.add_argument('--gain9',
+    parser.add_argument('--p-gain9',
                         dest='gain9',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
@@ -8492,7 +8609,7 @@ def rain_data_write_subparser(subparsers):
                                [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
                                [--debug]
 {Bcolors.ENDC}"""
-    description = """Set rain data relted parameters. If a parameter
+    description = """Set rain data related parameters. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
     parser = subparsers.add_parser('rain-data',
