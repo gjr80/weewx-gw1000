@@ -7171,6 +7171,11 @@ class DirectGateway:
 #                             Argparse utility functions
 # ============================================================================
 
+# class LineWrapRawTextHelpFormatter(argparse.RawDescriptionHelpFormatter):
+#     def _split_lines(self, text, width):
+#         text = self._whitespace_matcher.sub(' ', text).strip()
+#         return _textwrap.wrap(text, width)
+
 def maxlen(max_length):
     """Function supporting length limited ArgumentParser arguments.
 
@@ -7470,7 +7475,7 @@ def live_read_subparser(subparsers):
     parser = subparsers.add_parser('live-data',
                                    usage=usage,
                                    description=description,
-                                   help="Read device live data.")
+                                   help="read and display device live data")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7488,7 +7493,7 @@ def sensors_read_subparser(subparsers):
     parser = subparsers.add_parser('sensors',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display device sensor state information.")
+                                   help="read and display device sensor state information")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7506,7 +7511,7 @@ def firmware_read_subparser(subparsers):
     parser = subparsers.add_parser('firmware',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display the device firmware version.")
+                                   help="read and display the device firmware version")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7524,7 +7529,7 @@ def mac_read_subparser(subparsers):
     parser = subparsers.add_parser('mac-address',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display the device MAC address.")
+                                   help="read and display the device MAC address")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7542,7 +7547,7 @@ def system_read_subparser(subparsers):
     parser = subparsers.add_parser('system',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display the device system parameters.")
+                                   help="read and display the device system parameters")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7556,11 +7561,11 @@ def rain_read_subparser(subparsers):
                          [--max-tries=TRIES] [--retry-wait=SECONDS]
                          [--debug]{Bcolors.ENDC}
     """
-    description = """Read and display traditional rain data."""
+    description = """Read and display traditional rain gauge data."""
     parser = subparsers.add_parser('rain',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display traditional rain data.")
+                                   help="read and display traditional rain gauge data")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7574,11 +7579,11 @@ def all_rain_read_subparser(subparsers):
                              [--max-tries=TRIES] [--retry-wait=SECONDS]
                              [--debug]{Bcolors.ENDC}
     """
-    description = """Read and display available traditional and piezo rain data."""
+    description = """Read and display available traditional and piezo rain gauge data."""
     parser = subparsers.add_parser('all-rain',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display the available traditional and piezo rain data.")
+                                   help="read and display available traditional and piezo rain gauge data")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7596,7 +7601,7 @@ def cal_read_subparser(subparsers):
     parser = subparsers.add_parser('calibration',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display device calibration parameters.")
+                                   help="read and display device calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7614,8 +7619,8 @@ def th_read_subparser(subparsers):
     parser = subparsers.add_parser('th-cal',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display multichannel temperature "
-                                        "and humidity calibration parameters.")
+                                   help="read and display multichannel temperature "
+                                        "and humidity calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7633,7 +7638,7 @@ def soil_read_subparser(subparsers):
     parser = subparsers.add_parser('soil-cal',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display multichannel soil moisture calibration parameters.")
+                                   help="read and display multichannel soil moisture calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7651,7 +7656,7 @@ def pm25_read_subparser(subparsers):
     parser = subparsers.add_parser('pm25-cal',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display multichannel PM2.5 calibration parameters.")
+                                   help="read and display multichannel PM2.5 calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7669,7 +7674,7 @@ def co2_read_subparser(subparsers):
     parser = subparsers.add_parser('co2-cal',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display CO2 sensor calibration parameters.")
+                                   help="read and display CO2 sensor calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=dispatch_read)
     return parser
@@ -7687,7 +7692,7 @@ def services_read_subparser(subparsers):
     parser = subparsers.add_parser('services',
                                    usage=usage,
                                    description=description,
-                                   help="Read and display weather services parameters.")
+                                   help="read and display weather services parameters")
     parser.add_argument('--unmask',
                         dest='unmask',
                         action='store_const',
@@ -7716,12 +7721,10 @@ def get_subparser(subparsers):
        ecowitt read co2-cal --help
        ecowitt read services --help
     {Bcolors.ENDC}"""
-    description = """Read various Ecowitt gateway device configuration parameters."""
+    description = """Read and display various Ecowitt gateway device configuration parameters."""
     parser = subparsers.add_parser('read',
                                    usage=usage,
-                                   description=description,
-                                   help="read and display various Ecowitt gateway "
-                                        "device configuration parameters.")
+                                   description=description)
     # add a subparser to handle the various subcommands.
     subparsers = parser.add_subparsers(dest='read_subcommand',
                                        title="Available subcommands")
@@ -7812,7 +7815,7 @@ def ecowitt_write_subparser(subparsers):
     parser = subparsers.add_parser('ecowitt',
                                    usage=usage,
                                    description=description,
-                                   help="Set Ecowitt.net upload parameters.")
+                                   help="set Ecowitt.net upload parameters")
     parser.add_argument('--interval',
                         dest='interval',
                         type=int,
@@ -7837,7 +7840,7 @@ def wu_write_subparser(subparsers):
     parser = subparsers.add_parser('wu',
                                    usage=usage,
                                    description=description,
-                                   help="Set WeatherUnderground upload parameters.")
+                                   help="set WeatherUnderground upload parameters")
     parser.add_argument('--station-id',
                         dest='id',
                         metavar='STATION_ID',
@@ -7862,7 +7865,7 @@ def wow_write_subparser(subparsers):
     parser = subparsers.add_parser('wow',
                                    usage=usage,
                                    description=description,
-                                   help="Set Weather Observations Website upload parameters.")
+                                   help="set Weather Observations Website upload parameters")
     parser.add_argument('--station-id',
                         dest='id',
                         metavar='STATION_ID',
@@ -7887,7 +7890,7 @@ def wcloud_write_subparser(subparsers):
     parser = subparsers.add_parser('wcloud',
                                    usage=usage,
                                    description=description,
-                                   help="Set Weathercloud upload parameters.")
+                                   help="set Weathercloud upload parameters")
     parser.add_argument('--station-id',
                         dest='id',
                         metavar='STATION_ID',
@@ -7918,7 +7921,7 @@ def custom_write_subparser(subparsers):
     parser = subparsers.add_parser('custom',
                                    usage=usage,
                                    description=description,
-                                   help="Set Customized upload parameters.")
+                                   help="set Customized upload parameters")
     parser.add_argument('--enabled',
                         dest='active',
                         action='store_const',
@@ -7991,7 +7994,7 @@ def cal_write_subparser(subparsers):
     parser = subparsers.add_parser('calibration',
                                    usage=usage,
                                    description=description,
-                                   help="Set calibration coefficients.")
+                                   help="set calibration coefficients")
     parser.add_argument('--uv',
                         dest='uv',
                         type=ranged_type(float, 0.1, 5.0),
@@ -8065,7 +8068,7 @@ def sensor_id_write_subparser(subparsers):
     parser = subparsers.add_parser('sensor-id',
                                    usage=usage,
                                    description=description,
-                                   help="Set sensor identification values.")
+                                   help="set sensor identification values")
     parser.add_argument('--wh65',
                         dest='eWH65_SENSOR',
                         type=sensor_id_type(digits=8),
@@ -8324,13 +8327,13 @@ def pm25_offset_write_subparser(subparsers):
                                  [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                                  [--debug]
 {Bcolors.ENDC}"""
-    description = """Set PM2.5 sensor offset values. If a parameter
+    description = """Set WH41/WH43 PM2.5 sensor offset values. If a parameter
     is omitted the corresponding current gateway device parameter is left
     unchanged."""
     parser = subparsers.add_parser('pm25-offset',
                                    usage=usage,
                                    description=description,
-                                   help="Set PM2.5 sensor offset values.")
+                                   help="set WH41/WH43 PM2.5 sensor offset values")
     parser.add_argument('--ch1',
                         dest='ch1',
                         type=ranged_type(float, -20, 20),
@@ -8370,7 +8373,7 @@ def co2_offset_write_subparser(subparsers):
     parser = subparsers.add_parser('co2-offset',
                                    usage=usage,
                                    description=description,
-                                   help="Set CO2 sensor offset values.")
+                                   help="set WH45 sensor offset values")
     parser.add_argument('--co2',
                         dest='co2',
                         type=ranged_type(float, -600, 10000),
@@ -8412,7 +8415,7 @@ def rain_write_subparser(subparsers):
     parser = subparsers.add_parser('rain',
                                    usage=usage,
                                    description=description,
-                                   help="Set rain related parameters.")
+                                   help="set rain related parameters")
     parser.add_argument('--day',
                         dest='day',
                         type=ranged_type(float, 0, 9999.9),
@@ -8575,7 +8578,7 @@ def system_write_subparser(subparsers):
     parser = subparsers.add_parser('system',
                                    usage=usage,
                                    description=description,
-                                   help="Set system parameters.")
+                                   help="set system parameters")
     parser.add_argument('--sensor-type',
                         dest='sensor_type',
                         type=sensor_type(['WH24', 'WH65']),
@@ -8615,7 +8618,7 @@ def rain_data_write_subparser(subparsers):
     parser = subparsers.add_parser('rain-data',
                                    usage=usage,
                                    description=description,
-                                   help="Set rain data related paramters.")
+                                   help="set rain data related parameters")
     parser.add_argument('--day',
                         dest='t_day',
                         type=ranged_type(float, 0, 9999.9),
@@ -8642,6 +8645,7 @@ def rain_data_write_subparser(subparsers):
 
 
 def soil_write_subparser(subparsers):
+    # TODO. name does not match sub-parser actions
     """Define 'ecowitt write pm25-offset' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}ecowitt write pm25-offset --help
@@ -8655,7 +8659,7 @@ def soil_write_subparser(subparsers):
     parser = subparsers.add_parser('pm25-offset',
                                    usage=usage,
                                    description=description,
-                                   help="Set PM2.5 sensor offset values.")
+                                   help="set PM2.5 sensor offset values")
     parser.add_argument('--ch1',
                         dest='ch1',
                         type=ranged_type(float, -20, 20),
@@ -8696,7 +8700,7 @@ def mulch_th_write_subparser(subparsers):
     parser = subparsers.add_parser('pm25-offset',
                                    usage=usage,
                                    description=description,
-                                   help="Set PM2.5 sensor offset values.")
+                                   help="set PM2.5 sensor offset values")
     parser.add_argument('--ch1',
                         dest='ch1',
                         type=ranged_type(float, -20, 20),
@@ -8737,7 +8741,7 @@ def mulch_t_write_subparser(subparsers):
     parser = subparsers.add_parser('mulch-t-offset',
                                    usage=usage,
                                    description=description,
-                                   help="Set Multi-channel temperature sensor offset values.")
+                                   help="set Multi-channel temperature sensor offset values")
     parser.add_argument('--ch1',
                         dest='ITEM_TF_USR1',
                         type=ranged_type(float, -10, 10),
@@ -8807,8 +8811,10 @@ def write_subparser(subparsers):
     parser = subparsers.add_parser('write',
                                    usage=usage,
                                    description=description,
-                                   help="set various Ecowitt gateway device configuration parameters.")
-    # add a subparser to handle the various subcommands.
+                                   help="set various Ecowitt gateway device configuration parameters")
+    # Add a subparser to handle the various subcommands. Use 'metavar' so that
+    # some commands can be hidden, if additional subcommands are added they
+    # need to be added to this metavar or they will be hidden.
     write_subparsers = parser.add_subparsers(dest='write_subcommand',
                                              title="Available subcommands",
                                              metavar='{ecowitt,wu,wow,wcloud,custom,calibration,'
@@ -8839,7 +8845,7 @@ def write_subparser(subparsers):
 #
 #   $ python3 /path/to/ecowitt.py --help
 #
-# The above command will display available command line options.
+# This command will display available command line options.
 
 def main():
 
@@ -8860,7 +8866,7 @@ def main():
                   "TCP Data Exchange Protocol (aka the 'telnet API')(*). This "\
                   "utility allows supported devices to be interrogated and "\
                   "current sensor data and device state information to be "\
-                  "displayed. The utility also supported setting various "\
+                  "displayed. The utility also supports setting various "\
                   "device parameters supported by the TCP Data Exchange "\
                   "Protocol.\n\n *  whilst the TCP Data Exchange Protocol is "\
                   "used for all functions performed by this utility some "\
@@ -8868,8 +8874,7 @@ def main():
                   "the so called 'local HTTP API'."
     # obtain an ArgumentParser object
     parser = argparse.ArgumentParser(usage=usage,
-                                     description=description,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+                                     description=description)
     # add argument definitions
     parser.add_argument('--version',
                         dest='version',
