@@ -1068,22 +1068,22 @@ class GatewayApiParser:
                          struct.pack('>h', int(calibration['winddir']))])
 
     @staticmethod
-    def parse_soil_humiad(payload):
-        """Parse the data from a CMD_GET_SOILHUMIAD API response.
+    def parse_decode_soil_humiad(payload):
+        """Parse and decode the data from a CMD_GET_SOILHUMIAD API response.
 
-        Payload consists of a bytestring of variable length depending on the
-        number of connected sensors (n * 8 bytes where n is the number of
-        connected sensors). Decode as follows:
+        The data payload consists of a bytestring of variable length depending
+        on the number of connected sensors (n * 8 bytes where n is the number
+        of connected sensors). Data payload structufre as follows:
 
-        Parameter         Byte(s)    Data format      Comments
+        Parameter       Byte(s)     Data format     Comments
         ------------------------------------------------------------------------
-        channel number    0           unsigned byte       channel number (0 to 8)
-        current hum       1           unsigned byte       current humidity (0 to 100 %)
-        current ad        2 to 3      unsigned short      current AD (0 to 100 %)
-        custom cal        4           unsigned byte       humidity AD select, 0 = sensor,
-                                                          1 = min/max AD enabled
-        min ad            5           unsigned byte       0% AD setting (70 to 200)
-        max ad            6 to 7      unsigned short      100% AD setting (80 to 1000)
+        channel number  0           unsigned byte   channel number (0 to 8)
+        current hum     1           unsigned byte   current humidity (0 to 100 %)
+        current ad      2 to 3      unsigned short  current AD (0 to 100 %)
+        custom cal      4           unsigned byte   humidity AD select, 0 = sensor,
+                                                      1 = min/max AD enabled
+        min ad          5           unsigned byte   0% AD setting (70 to 200)
+        max ad          6 to 7      unsigned short  100% AD setting (80 to 1000)
         ...
         structure (bytes 0 to 7) repeats for each remaining connected sensor
 
@@ -1108,18 +1108,63 @@ class GatewayApiParser:
             channel = payload[index]
             # construct the dict of decoded channel data
             cal_dict[channel] = {'humidity': payload[index + 1],
-                                 'ad': struct.unpack(">h", payload[index + 2:index + 4])[0],
+                                 'ad': struct.unpack(">H", payload[index + 2:index + 4])[0],
                                  'ad_select': payload[index + 4],
                                  'ad_min': payload[index + 5],
-                                 'ad_max': struct.unpack(">h", payload[index + 6:index + 8])[0]
+                                 'ad_max': struct.unpack(">H", payload[index + 6:index + 8])[0]
                                  }
             # increment the counter
             index += 8
         # return the parsed data
         return cal_dict
 
-    def parse_ssss(self, payload):
-        """Parse the data from a CMD_READ_SSSS API response.
+    @staticmethod
+    def encode_soil_humiad(**params):
+        """Create the data payload used by the CMD_SET_SOILHUMIAD API command.
+
+        Assemble a bytestring to be used as the data payload for the
+        CMD_SET_SOILHUMIAD API command. Required payload parameters are
+        contained in the params dict keyed by zero-based channel number (eg 0,
+        1, 2 .. 7). Each params dict value is a dict of parameters for that
+        channel keyed as follows:
+
+        'humidity'      channel current humidity (0 to 100 %)
+        'ad'            channel current AD (-10.0 - 10.0 °C)
+        'ad_select'     channel AD source, 0=sensor, 1=min/max AD
+        'ad_min'        channel custom 0% AD setting (70 to 200)
+        'ad_max'        channel custom 100% AD setting (80 to 1000)
+
+        The CMD_SET_SOILHUMIAD data payload is structured as follows:
+
+        Field               Format          Comments
+        channel             unsigned byte   0 .. 7
+        humidity AD select  unsigned byte   0=sensor, 1=min/max AD
+        min ad              unsigned byte   0% AD setting (70 to 200)
+        max ad              unsigned short  100% AD setting (80 to 1000)
+
+        with the above structure repeated for each channel with a connected
+        sensor.
+
+        Returns a bytestring of length n * 5 where n is the number of channels.
+        """
+
+        # initialise a list to hold our data payload components
+        comp = []
+        # iterate over each channel
+        for channel, ch_params in params.items():
+            # add the encoded channel number
+            comp.append(struct.pack("B", channel))
+            # add the encoded AD select switch setting
+            comp.append(struct.pack("B", ch_params['ad_select']))
+            # add the encoded minimum AD value
+            comp.append(struct.pack("B", ch_params['ad_min']))
+            # add the encoded maximum AD value
+            comp.append(struct.pack(">H", ch_params['ad_max']))
+        # return a bytestring containing the concatenated components
+        return b''.join(comp)
+
+    def parse_decode_ssss(self, payload):
+        """Parse and decode the data from a CMD_READ_SSSS API response.
 
         Payload consists of a bytestring of length 8. Decode as
         follows:
@@ -1149,33 +1194,31 @@ class GatewayApiParser:
         'auto_timezone':    auto timezone selection
         """
 
-        # create a dict holding our parsed data payload
-        data_dict = {'frequency': payload[0],
-                     'sensor_type': payload[1],
-                     'utc': self.decode_utc(payload[2:6]),
-                     'timezone_index': payload[6],
-                     'dst_status': payload[7] >> 0 & 1,
-                     'auto_timezone': payload[7] >> 1 & 1}
-        # return the parsed data
-        return data_dict
+        # return a dict containing the parsed and decoded data payload
+        return {'frequency': payload[0],
+                'sensor_type': payload[1],
+                'utc': self.decode_utc(payload[2:6]),
+                'timezone_index': payload[6],
+                'dst_status': payload[7] >> 0 & 1,
+                'auto_timezone': payload[7] >> 1 & 1}
 
     @staticmethod
     def encode_system_params(**params):
-        """Encode data parameters used for CMD_WRITE_SSSS.
+        """Create the data payload used by the CMD_WRITE_SSSS API command.
 
         Assemble a bytestring to be used as the data payload for
         CMD_WRITE_SSSS. Required payload parameters are contained in the
         calibration dict keyed as follows:
 
-        frequency:      operating frequency, integer        --> byte (read only)
+        frequency:      operating frequency, integer        --> unsigned byte (read only)
                         0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
+        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> unsigned byte
         utc:            system time, integer                --> unsigned long
                                                                 (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
+        timezone_index: timezone index, integer             --> unsigned byte
+        dst_status:     DST status, integer                 --> unsigned byte (bit 0 only)
                         0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
+        auto_timezone:  auto timezone detection and         --> unsigned byte (bit 1 only)
                         setting, integer 0=auto timezone,       (same byte as DST)
                         1=manual timezone
 
@@ -1192,10 +1235,10 @@ class GatewayApiParser:
         Returns a bytestring.
         """
 
-        freq_b = struct.pack('b', params['frequency'])
-        sensor_type_b = struct.pack('b', params['sensor_type'])
+        freq_b = struct.pack('B', params['frequency'])
+        sensor_type_b = struct.pack('B', params['sensor_type'])
         utc_b = struct.pack('>L', params['utc'])
-        tz_b = struct.pack('b', params['timezone_index'])
+        tz_b = struct.pack('B', params['timezone_index'])
         # The DST param is a combination of DST status (bit 0) and auto
         # timezone (bit 1)
         # start with nothing
@@ -1207,7 +1250,7 @@ class GatewayApiParser:
         if params['auto_timezone'] == 1:
             _dst = _dst | (1 << 1)
         # convert to a byte
-        dst_b = struct.pack('b', _dst)
+        dst_b = struct.pack('B', _dst)
         return b''.join([freq_b, sensor_type_b, utc_b, tz_b, dst_b])
 
     @staticmethod
@@ -2103,46 +2146,6 @@ class GatewayApiParser:
             comp.append(struct.pack('>L', id_and_address['id']))
         # return a bytestring consisting of the concatenated list elements
         return b''.join(comp)
-
-    @staticmethod
-    # TODO. method name does not agree with cited CMD
-    def encode_soil_moist(**params):
-        """Encode data parameters used for CMD_WRITE_RAINDATA.
-
-        Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_SSSS. Required payload parameters are contained in the
-        calibration dict keyed as follows:
-
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
-
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
-
-        Returns a bytestring.
-        """
-
-        day_b = struct.pack('>L', int(params['t_day'] * 10))
-        week_b = struct.pack('>L', int(params['t_week'] * 10))
-        month_b = struct.pack('>L', int(params['t_month'] * 10))
-        year_b = struct.pack('>L', int(params['t_year'] * 10))
-        return b''.join([day_b, week_b, month_b, year_b])
 
 
 class Sensors:
@@ -4484,7 +4487,7 @@ class GatewayDevice:
         # be a bytestring or None
         payload = self.gateway_api.get_ssss()
         # return the parsed system parameters data
-        return self.gateway_api_parser.parse_ssss(payload)
+        return self.gateway_api_parser.parse_decode_ssss(payload)
 
     @property
     def ecowitt_net_params(self):
@@ -4698,7 +4701,7 @@ class GatewayDevice:
 
         payload = self.gateway_api.get_soil_humiad()
         # return the parsed data
-        return self.gateway_api_parser.parse_soil_humiad(payload)
+        return self.gateway_api_parser.parse_decode_soil_humiad(payload)
 
     # TODO. Is this method appropriately named?
     @property
@@ -5178,6 +5181,7 @@ class GatewayDevice:
         """
 
         # obtain encoded data payload for the API command
+        #TODO. Should be encode_soil_humiad or such like
         payload = self.gateway_api_parser.encode_rain_data(**params)
         # update the gateway device
         self.gateway_api.write_rain_data(payload)
@@ -7090,7 +7094,7 @@ class DirectGateway:
                 print("No changes to current device settings")
 
     def process_write_soil_humiad(self):
-        """Process soil humiad write sub-subcommand."""
+        """Process soil-cal write sub-subcommand."""
 
         # get a GatewayDevice object
         device = self.get_device(ip_address=self.ip_address,
@@ -7103,23 +7107,23 @@ class DirectGateway:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current rain data from the device
-            rain_data = device.soil_calibration
+            cal_data = device.soil_calibration
             # make a copy of the current rain data, this copy will be updated with
             # the subcommand arguments and then used to update the device
-            arg_rain_data = dict(rain_data)
+            arg_cal_data = dict(cal_data)
             # iterate over each rain data (param, value) pair
-            for param, value in rain_data.items():
+            for param, value in cal_data.items():
                 # obtain the corresponding argument from the namespace, if the
                 # argument does not exist or is not set it will be None
                 _arg = getattr(self.namespace, param, None)
                 # update our dict copy if the namespace argument is not None,
                 # otherwise keep the current pm25 offsets
-                arg_rain_data[param] = _arg if _arg is not None else value
+                arg_cal_data[param] = _arg if _arg is not None else value
             # do we have any changes from our existing settings
-            if arg_rain_data != rain_data:
+            if arg_cal_data != cal_data:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_rain_data(**arg_rain_data)
+                    device.write_soil_moist(**arg_cal_data)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -7392,9 +7396,9 @@ def dispatch_write(namespace):
         direct_gw.write_calibration()
     if getattr(namespace, 'write_subcommand', False) == 'sensor-id':
         direct_gw.write_sensor_id()
-    if getattr(namespace, 'write_subcommand', False) == 'pm25-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'pm25-cal':
         direct_gw.write_pm25_offset()
-    if getattr(namespace, 'write_subcommand', False) == 'co2-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'co2-cal':
         direct_gw.write_co2_offset()
     if getattr(namespace, 'write_subcommand', False) == 'rain':
         direct_gw.write_rain()
@@ -7402,11 +7406,11 @@ def dispatch_write(namespace):
         direct_gw.write_system()
     if getattr(namespace, 'write_subcommand', False) == 'rain-data':
         direct_gw.write_rain_data()
-    if getattr(namespace, 'write_subcommand', False) == 'mulch-th-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'mulch-th-cal':
         direct_gw.process_write_mulch_offset()
-    if getattr(namespace, 'write_subcommand', False) == 'soil-moist':
+    if getattr(namespace, 'write_subcommand', False) == 'soil-cal':
         direct_gw.process_write_soil_humiad()
-    if getattr(namespace, 'write_subcommand', False) == 'mulch-t-offset':
+    if getattr(namespace, 'write_subcommand', False) == 'mulch-t-cal':
         direct_gw.write_mulch_t()
 
 
