@@ -1130,7 +1130,7 @@ class GatewayApiParser:
 
         'humidity'      channel current humidity (0 to 100 %)
         'ad'            channel current AD (-10.0 - 10.0 °C)
-        'ad_select'     channel AD source, 0=sensor, 1=min/max AD
+        'ad_select'     channel AD source select, 0=sensor, 1=min/max AD
         'ad_min'        channel custom 0% AD setting (70 to 200)
         'ad_max'        channel custom 100% AD setting (80 to 1000)
 
@@ -3751,18 +3751,18 @@ class GatewayApi:
         self.confirm_write_success(result)
 
     def write_soil_moist(self, payload):
-        """Write rain data parameters.
+        """Write soil moisture parameters.
 
-        Sends the API command to write the rain data parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        Sends the API command to write the soil moisture parameters to the
+        device. If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
         write_rain_data(). If the command failed a DeviceWriteFailed exception
         is raised. Any code calling write_rain_data() should be prepared to
         handle these exceptions.
         """
 
         # send the command and obtain the result
-        result = self.send_cmd_with_retries('CMD_WRITE_RAINDATA', payload)
+        result = self.send_cmd_with_retries('CMD_SET_SOILHUMIAD', payload)
         # check the result to confirm the command executed successfully, if
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
@@ -5162,28 +5162,23 @@ class GatewayDevice:
         self.gateway_api.write_mulch_offset(payload)
 
     def write_soil_moist(self, **params):
-        """Write rain data parameters.
+        """Write soil moisture parameters to a device.
 
-        Write system parameters to a gateway device. The system parameters
-        consist of:
+        The writable soil moisture parameters for each channel consist of:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        channel             zero based channel number 0 .. 7
+        humidity AD select  channel AD source select, 0=sensor, 1=min/max AD
+        min AD              channel custom 0% AD setting (70 to 200)
+        max AD              channel custom 100% AD setting (80 to 1000)
 
         The parameters are first encoded to produce the command data payload.
         The payload is then passed to a GatewayApi object for uploading to the
-        gateway device.
+        device.
         """
 
         # obtain encoded data payload for the API command
-        #TODO. Should be encode_soil_humiad or such like
-        payload = self.gateway_api_parser.encode_rain_data(**params)
-        # update the gateway device
+        payload = self.gateway_api_parser.encode_soil_humiad(**params)
+        # update the device
         self.gateway_api.write_rain_data(payload)
 
     def write_mulch_t(self, **params):
@@ -7106,19 +7101,38 @@ class DirectGateway:
             print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            # obtain the current rain data from the device
+            # obtain the current soil calibration data from the device
             cal_data = device.soil_calibration
-            # make a copy of the current rain data, this copy will be updated with
-            # the subcommand arguments and then used to update the device
+            # make a copy of the current calibration data, this copy will be
+            # updated with the subcommand arguments and then used to update the
+            # device
             arg_cal_data = dict(cal_data)
-            # iterate over each rain data (param, value) pair
-            for param, value in cal_data.items():
-                # obtain the corresponding argument from the namespace, if the
-                # argument does not exist or is not set it will be None
-                _arg = getattr(self.namespace, param, None)
-                # update our dict copy if the namespace argument is not None,
-                # otherwise keep the current pm25 offsets
-                arg_cal_data[param] = _arg if _arg is not None else value
+            # The soil calibration data obtained from the device is a nested
+            # dict keyed by zero-based sensor channel number. On the other hand
+            # the user provided command line arguments are a flat structure
+            # with a non-zero based channel number included in the argument
+            # name, eg ch1-min. We need to translate between these structures
+            # when updating a copy of the current device soil moisture
+            # parameters with any user provided arguments.
+
+            # Iterate over each soil moisture data (channel, channel params)
+            # pair in the data obtained from the device. We can only update
+            # those channels that already have a sensor assigned, any user
+            # provided args for any other channel will be ignored.
+            # TODO. Is min/max the only two user specified args we need to support? AD select ?
+            for ch, ch_params in cal_data.items():
+                # obtain the user provided AD min argument, it will be None if
+                # not provided
+                _min = getattr(self.namespace, ''.join(['ch', str(ch), '-min']), None)
+                # update the copy if we have a non-None AD min otherwise leave
+                # it as is
+                arg_cal_data[ch]['ad_min'] = _min if _min is not None else ch_params['ad_min']
+                # obtain the user provided AD max argument, it will be None if
+                # not provided
+                _max = getattr(self.namespace, ''.join(['ch', str(ch), '-max']), None)
+                # update the copy if we have a non-None AD max otherwise leave
+                # it as is
+                arg_cal_data[ch]['ad_max'] = _max if _max is not None else ch_params['ad_max']
             # do we have any changes from our existing settings
             if arg_cal_data != cal_data:
                 # something has changed, so write the updated offsets to the device
