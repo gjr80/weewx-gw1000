@@ -440,7 +440,7 @@ class GatewayApiParser:
                     index += field_size + 1
         return data
 
-    def parse_livedata(self, payload):
+    def parse_decode_livedata(self, payload):
         """Parse the data payload from a CMD_GW1000_LIVEDATA API response.
 
         Payload consists of a bytestring of variable length dependent on the
@@ -548,7 +548,7 @@ class GatewayApiParser:
                          p_rate_b, p_event_b, p_day_b, p_week_b, p_month_b, p_year_b,
                          priority_b, p_gain_b, reset_b])
 
-    def parse_raindata(self, payload):
+    def parse_decode_raindata(self, payload):
         """Parse the data payload from a CMD_READ_RAINDATA API response.
 
         Payload consists of a bytestring of length 20. Decode as
@@ -688,7 +688,7 @@ class GatewayApiParser:
         # initialise a list to hold bytestring components of the result
         components = []
         # iterate over the channel numbers in ascending order
-        for channel in range(GatewayDevice.WH31_CHANNEL_MAX):
+        for channel in range(EcowittDevice.WH31_CHANNEL_MAX):
             # append the channel number to our result list
             components.append(channel + 1)
             # append the humidity offset value to our component list
@@ -3042,9 +3042,9 @@ class GatewayApi:
     def get_livedata(self):
         """Get live data.
 
-        Sends the API command to the device to obtain live data. If the device
-        cannot be contacted or the data is invalid the value None will be
-        returned.
+        Obtains the live data payload from the device via the API. If the
+        live data could not be obtained from the device or the data is invalid
+        the value None will be returned.
 
         Returns the API response data payload as a bytestring or None if a
         valid response was not obtained.
@@ -4343,14 +4343,17 @@ class HttpApi:
             return None
 
 
-class GatewayDevice:
-    """Class to interact with an Ecowitt gateway device.
+class EcowittDevice:
+    """Class to interact with an Ecowitt device via an API.
 
-    An Ecowitt gateway device can be interrogated directly in two ways:
-    1. via the Ecowitt LAN/Wi-Fi Gateway API, aka the 'Gateway API'
-    2. via a HTTP request, aka the 'HTTP API'
+    A number of Ecowitt consoles (display devices, WiFi gateway devices)
+    provide the ability to read attached sensor data and read and write
+    various device parameters via one or more local APIs. These APIs include:
 
-    The Gateway API uses a library of commands for read and/or set various
+    1. the Ecowitt LAN/Wi-Fi Gateway API, aka the 'gateway API' or 'telnet API'
+    2. the local HTTP API
+
+    The gateway API uses a library of commands to read and/or write various
     gateway device parameters. Gateway API communications is socket based and
     involves exchange of data that must be encoded/decoded at the byte/bit
     level.
@@ -4359,15 +4362,23 @@ class GatewayDevice:
     parameters. HTTP API communications is via HTTP GET and involves the
     decoding/encoding of JSON format message data.
 
-    A GatewayDevice object uses the following classes for interacting with the
-    gateway device:
+    The EcowittDevice class supports both the gateway API and the local HTTP
+    API and provides the ability to read live sensor data as well as read and
+    write various device parameters.
 
-    - class GatewayApi.  Communicates directly with the gateway device via the
-                         Gateway API and obtains and validates gateway device
-                         responses.
-    - class HttpApi.     Communicates directly with the gateway device via the
-                         HTTP API to obtain and validate (as far as possible)
-                         gateway device HTTP request responses.
+    A EcowittDevice object uses the following classes for interacting with the
+    device:
+
+    - class GatewayApi.         Communicates directly with the device via the
+                                gateway API and obtains and validates device
+                                responses.
+    - class GatewayApiParser    Parses, decodes and encodes data received from
+                                and sent to a device thatuses the gateway API.
+    - class HttpApi.            Communicates directly with the device via the
+                                HTTP API to obtain and validate (as far as
+                                possible) device HTTP request responses.
+    - class Sensors.            Decode and present sensor metadata in a variety
+                                of formats.
     """
 
     # list of dicts of weather services that I know about
@@ -4428,7 +4439,12 @@ class GatewayDevice:
 
     @property
     def model(self):
-        """Gateway device model."""
+        """The device model.
+
+        Obtained from the device firmware version. If the device firmware
+        version cannot be obtained the model is reported as
+        '<undetermined model>'.
+        """
 
         try:
             model = self.gateway_api.get_model_from_firmware(self.firmware_version)
@@ -4439,30 +4455,31 @@ class GatewayDevice:
 
     @property
     def livedata(self):
-        """Gateway device live data.
+        """Device live sensor data.
 
-        Returns a dict keyed by field name and containing the device live data.
+        Returns a dict keyed by GatewayApiParser.addressed_data_struct field
+        name containing the live data.
         """
 
-        # obtain the device live data via the gateway API, the result will be a
-        # bytestring or None
+        # obtain the device live data payload via the gateway API, the result
+        # will be a bytestring or None
         payload = self.gateway_api.get_livedata()
-        # return the parsed live data
-        return self.gateway_api_parser.parse_livedata(payload)
+        # return the parsed and decoded live data payload
+        return self.gateway_api_parser.parse_decode_livedata(payload)
 
     @property
     def raindata(self):
-        """Gateway device traditional rain gauge data.
+        """Device traditional rain gauge data.
 
-        Returns a dict keyed by field name and containing the device
-        traditional rain gauge data.
+        Returns a dict keyed by GatewayApiParser.addressed_data_struct field
+        name containing the device traditional rain gauge data.
         """
 
-        # obtain the device traditional rain gauge data via the gateway API,
-        # the result will be a bytestring or None
+        # obtain the device traditional rain gauge data payload via the gateway
+        # API, the result will be a bytestring or None
         payload = self.gateway_api.get_raindata()
-        # return the parsed traditional rain gauge data
-        return self.gateway_api_parser.parse_raindata(payload)
+        # return the parsed and decoded traditional rain gauge data
+        return self.gateway_api_parser.parse_decode_raindata(payload)
 
     @property
     def system_params(self):
@@ -5572,7 +5589,7 @@ class DirectGateway:
         # wrap in a try..except in case there is an error
         try:
             # get a GatewayDevice object
-            device = GatewayDevice(ip_address=self.ip_address,
+            device = EcowittDevice(ip_address=self.ip_address,
                                    port=self.port,
                                    debug=self.debug)
         except GWIOError as e:
@@ -6506,7 +6523,7 @@ class DirectGateway:
         print()
         print("Discovering devices on the local network. Please wait...")
         # obtain a GatewayDevice object
-        device = GatewayDevice(debug=self.namespace.debug)
+        device = EcowittDevice(debug=self.namespace.debug)
         # Obtain a list of discovered devices. Would consider wrapping in a
         # try..except so we can catch any socket timeout exceptions, but the
         # GatewayApi.discover() method should catch any such exceptions for us.
@@ -7189,11 +7206,6 @@ class DirectGateway:
 #                             Argparse utility functions
 # ============================================================================
 
-# class LineWrapRawTextHelpFormatter(argparse.RawDescriptionHelpFormatter):
-#     def _split_lines(self, text, width):
-#         text = self._whitespace_matcher.sub(' ', text).strip()
-#         return _textwrap.wrap(text, width)
-
 def maxlen(max_length):
     """Function supporting length limited ArgumentParser arguments.
 
@@ -7352,7 +7364,7 @@ def enable_disable_type(opts=('disable', 'enable')):
     return check
 
 
-def dispatch_read(namespace):
+def process_read(namespace):
     """Process 'read' subcommand."""
 
     # get a DirectGateway object
@@ -7495,7 +7507,7 @@ def live_read_subparser(subparsers):
                                    description=description,
                                    help="read and display device live data")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7513,7 +7525,7 @@ def sensors_read_subparser(subparsers):
                                    description=description,
                                    help="read and display device sensor state information")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7531,7 +7543,7 @@ def firmware_read_subparser(subparsers):
                                    description=description,
                                    help="read and display the device firmware version")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7549,7 +7561,7 @@ def mac_read_subparser(subparsers):
                                    description=description,
                                    help="read and display the device MAC address")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7567,7 +7579,7 @@ def system_read_subparser(subparsers):
                                    description=description,
                                    help="read and display the device system parameters")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7585,7 +7597,7 @@ def rain_read_subparser(subparsers):
                                    description=description,
                                    help="read and display traditional rain gauge data")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7603,7 +7615,7 @@ def all_rain_read_subparser(subparsers):
                                    description=description,
                                    help="read and display available traditional and piezo rain gauge data")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7621,7 +7633,7 @@ def cal_read_subparser(subparsers):
                                    description=description,
                                    help="read and display device calibration parameters")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7640,7 +7652,7 @@ def th_read_subparser(subparsers):
                                    help="read and display multichannel temperature "
                                         "and humidity calibration parameters")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7658,7 +7670,7 @@ def soil_read_subparser(subparsers):
                                    description=description,
                                    help="read and display multichannel soil moisture calibration parameters")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7676,7 +7688,7 @@ def pm25_read_subparser(subparsers):
                                    description=description,
                                    help="read and display multichannel PM2.5 calibration parameters")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7694,7 +7706,7 @@ def co2_read_subparser(subparsers):
                                    description=description,
                                    help="read and display CO2 sensor calibration parameters")
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
@@ -7717,7 +7729,7 @@ def services_read_subparser(subparsers):
                         const=1,
                         help='unmask sensitive parameters')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_read)
+    parser.set_defaults(func=process_read)
     return parser
 
 
