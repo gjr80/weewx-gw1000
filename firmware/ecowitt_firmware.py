@@ -109,7 +109,8 @@ EARLIER_VERSION_DICT = {
     'GW2000A': '3.0.0',
     'GW2000B': '3.0.0',
     'GW2000C': '3.0.0',
-    'GW2000D': '3.0.0'
+    'GW2000D': '3.0.0',
+    'WS3910C': '1.2.6'
 }
 # creat a namedtuple type to hold URL components
 Components = namedtuple('Components',
