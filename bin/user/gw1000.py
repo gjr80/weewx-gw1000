@@ -33,7 +33,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.3a1                                   Date: xx June 2024
+Version: 0.6.3a2                                   Date: xx June 2024
 
 Revision History
     xx June 2024            v0.6.3
@@ -429,7 +429,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.3a1'
+DRIVER_VERSION = '0.6.3a2'
 
 # various defaults used throughout
 # default port used by device
@@ -6237,8 +6237,8 @@ class GatewayDevice(object):
                  'long_name': 'Customized'
                  }
                 ]
-    # sensors that have user updateable firmware
-    sensors_with_fware = {'wh80': 'WS80', 'wh85': 'WS80', 'wh90': 'WS90'}
+    # sensors that have user updatable firmware
+    sensors_with_fware = {'wh80': 'WS80', 'wh85': 'WS85', 'wh90': 'WS90'}
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
@@ -6507,10 +6507,10 @@ class GatewayDevice(object):
             for sensor in sensors:
                 # if we have a sensor with user updatable firmware obtain the
                 # firmware version and save it to our result dict, but only if
-                # the device exists, ie 'idst' == '1'
-                if sensor.get('img') in GatewayDevice.sensors_with_fware and sensor.get('idst') == '1':
-                    fware_dict[GatewayDevice.sensors_with_fware[sensor.get('img')]] = sensor.get('version',
-                                                                                                 'not available')
+                # the device exists, ie 'batt' != '9'
+                if sensor.get('img') in self.sensors_with_fware and sensor.get('batt') != '9':
+                    fware_dict[self.sensors_with_fware[sensor.get('img')]] = sensor.get('version',
+                                                                                        'not available')
         # return the result dict
         return fware_dict
 
