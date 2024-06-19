@@ -33,10 +33,12 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.2                                     Date: 23 February 2024
+Version: 0.6.3a1                                   Date: xx June 2024
 
 Revision History
-    23 February 2024        v0.6.2
+    xx June 2024            v0.6.3
+        -   added support for WS-85 sensor array
+    23 February 2024        v0.6.2 (not released as an extension package)
         -   fixed bug that caused the driver to crash if IP address discovery
             is used
     21 February 2024        v0.6.1
@@ -427,7 +429,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.2'
+DRIVER_VERSION = '0.6.3a1'
 
 # various defaults used throughout
 # default port used by device
@@ -598,6 +600,7 @@ default_groups = {
     'wh57_batt': 'group_count',
     'wh68_batt': 'group_volt',
     'ws80_batt': 'group_volt',
+    'ws85_batt': 'group_volt',
     'ws90_batt': 'group_volt',
     'wh40_sig': 'group_count',
     'wh26_sig': 'group_count',
@@ -657,6 +660,7 @@ default_groups = {
     'wh57_sig': 'group_count',
     'wh68_sig': 'group_count',
     'ws80_sig': 'group_count',
+    'ws85_sig': 'group_count',
     'ws90_sig': 'group_count'
 }
 
@@ -962,6 +966,7 @@ class Gateway(object):
         'wh57_batt': 'wh57_batt',
         'wh68_batt': 'wh68_batt',
         'ws80_batt': 'ws80_batt',
+        'ws85_batt': 'ws85_batt',
         'ws90_batt': 'ws90_batt'
     }
     # sensor signal level default field map, merged into default_field_map to
@@ -1025,6 +1030,7 @@ class Gateway(object):
         'wh57_sig': 'wh57_sig',
         'wh68_sig': 'wh68_sig',
         'ws80_sig': 'ws80_sig',
+        'ws85_sig': 'ws85_sig',
         'ws90_sig': 'ws90_sig'
     }
 
@@ -1339,8 +1345,8 @@ class Gateway(object):
         only need be done once.
 
         This is further complicated by the introduction of 'piezo' rain with
-        the WS90. Do a second round of checks on the piezo rain equivalents and
-        create piezo equivalent properties.
+        the WS85/WS90. Do a second round of checks on the piezo rain
+        equivalents and create piezo equivalent properties.
 
         data: dic of parsed device API data
         """
@@ -1406,7 +1412,7 @@ class Gateway(object):
         field to be used has been selected and the designated field exists.
 
         This is further complicated by the introduction of 'piezo' rain with
-        the WS90. Do a second round of calculations on the piezo rain
+        the WS85/WS90. Do a second round of calculations on the piezo rain
         equivalents and calculate the piezo rain field.
 
         data: dict of parsed device API data
@@ -4480,10 +4486,11 @@ class Sensors(object):
         b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
-        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3},
+        b'\x31': {'name': 'ws85', 'long_name': 'WS85', 'batt_fn': 'batt_volt'}
     }
     # sensors for which there is no low battery state
-    no_low = ['ws80', 'ws90']
+    no_low = ['ws80', 'ws85', 'ws90']
     # Tuple of sensor ID values for sensors that are not registered with
     # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
     # the sensor is registering.
@@ -6229,6 +6236,8 @@ class GatewayDevice(object):
                  'long_name': 'Customized'
                  }
                 ]
+    # sensors that have user updateable firmware
+    sensors_with_fware = {'wh80': 'WS80', 'wh85': 'WS80', 'wh90': 'WS90'}
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
@@ -6468,19 +6477,41 @@ class GatewayDevice(object):
         return parsed_cal_coeff
 
     @property
-    def ws90_firmware_version(self):
-        """Provide the WH90 firmware version.
+    def sensor_firmware_versions(self):
+        """Firmware versions for attached sensors with user updatable formware.
 
-        Return the WS90 installed firmware version. If no WS90 is available the
-        value None is returned.
+        Some sensors have user updatable firmware, at time of release the only
+        sensors/sensor platforms that have user updatable firmware are:
+
+        WS80
+        WS85
+        WS90
+
+        The sensor firmware version can be obtained via the HTTP API. Obtain
+        the sensor information via the HTTP API and extract the firmware
+        version info for known user updatable sensors.
+
+        Returns a dict keyed by sensor/sensor platform model containing the
+        applicable firmware versions. If no sensors/sensor platforms were found
+        with user updatable firmware return and empty dict.
         """
 
+        # obtain the sensor info via the HTTP API
         sensors = self.http.get_sensors_info()
+        # initialise a dict to hold our results
+        fware_dict = dict()
+        # do we have any sensor information
         if sensors is not None:
+            # we have sensor information so iterate over each sensor
             for sensor in sensors:
-                if sensor.get('img') == 'wh90':
-                    return sensor.get('version', 'not available')
-        return None
+                # if we have a sensor with user updatable firmware obtain the
+                # firmware version and save it to our result dict, but only if
+                # the device exists, ie 'idst' == '1'
+                if sensor.get('img') in GatewayDevice.sensors_with_fware and sensor.get('idst') == '1':
+                    fware_dict[GatewayDevice.sensors_with_fware[sensor.get('img')]] = sensor.get('version',
+                                                                                                 'not available')
+        # return the result dict
+        return fware_dict
 
 
 # ============================================================================
@@ -6860,6 +6891,7 @@ class DirectGateway(object):
         'wh57_batt': 'group_count',
         'wh68_batt': 'group_volt',
         'ws80_batt': 'group_volt',
+        'ws85_batt': 'group_volt',
         'ws90_batt': 'group_volt',
         'wh40_sig': 'group_count',
         'wh26_sig': 'group_count',
@@ -6919,6 +6951,7 @@ class DirectGateway(object):
         'wh57_sig': 'group_count',
         'wh68_sig': 'group_count',
         'ws80_sig': 'group_count',
+        'ws85_sig': 'group_count',
         'ws90_sig': 'group_count'
     }
     # list of sensors to be displayed in the sensor ID output
@@ -7890,10 +7923,12 @@ class DirectGateway(object):
                                                  device.port))
             print()
             # get the firmware version via the API
-            print("    installed %s firmware version is %s" % (model, device.firmware_version))
-            ws90_fw = device.ws90_firmware_version
-            if ws90_fw is not None:
-                print("    installed WS90 firmware version is %s" % ws90_fw)
+            print("    installed %s firmware version is %s" % (model,
+                                                               device.firmware_version))
+            fware_dict = device.sensor_firmware_versions
+            for sensor_model, sensor_fware_version in fware_dict.items():
+                print("    installed %s firmware version is %s" % (sensor_model,
+                                                                   sensor_fware_version))
             print()
             fw_update_avail = device.firmware_update_avail
             if fw_update_avail:
