@@ -106,6 +106,10 @@ DEFAULT_BROADCAST_PORT = 46000
 DEFAULT_SOCKET_TIMEOUT = 2
 # default broadcast timeout
 DEFAULT_BROADCAST_TIMEOUT = 5
+# default discovery port
+DEFAULT_DISCOVERY_PORT = 59387
+# default discovery monitor period
+DEFAULT_DISCOVERY_PERIOD = 5
 # default retry/wait time
 DEFAULT_RETRY_WAIT = 10
 # default max tries when polling the API
@@ -843,7 +847,7 @@ class GatewayApiParser:
         while index < len(payload):
             # obtain the channel
             channel = payload[index]
-            # obtian the offset value for the channel and add to the dict
+            # obtain the offset value for the channel and add to the dict
             offset_dict[channel] = struct.unpack(">h", payload[index + 1:index + 3])[0] / 10.0
             # increment the index to the next channel
             index += 3
@@ -1073,7 +1077,7 @@ class GatewayApiParser:
 
         The data payload consists of a bytestring of variable length depending
         on the number of connected sensors (n * 8 bytes where n is the number
-        of connected sensors). Data payload structufre as follows:
+        of connected sensors). Data payload structure as follows:
 
         Parameter       Byte(s)     Data format     Comments
         ------------------------------------------------------------------------
@@ -1536,7 +1540,7 @@ class GatewayApiParser:
         data_dict['type'] = payload[index]
         # move to the first byte of the next field
         index += 1
-        # determine whether the uplaod is active or not amd save to dict
+        # determine whether the upload is active or not amd save to dict
         data_dict['active'] = payload[index]
         # return the parsed data
         return data_dict
@@ -1651,7 +1655,7 @@ class GatewayApiParser:
         CMD_WRITE_USRPATH. Required payload parameters are contained in the
         custom dict keyed as follows:
 
-        ecowit_path:    the Ecowitt.net path
+        ecowitt_path:   the Ecowitt.net path
         wu_path:        the WeatherUnderground path
 
         The encoded bytestring format is:
@@ -2772,6 +2776,7 @@ class GatewayApi:
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
+                 discovery_port=None, discovery_period=None,
                  max_tries=DEFAULT_MAX_TRIES, retry_wait=DEFAULT_RETRY_WAIT,
                  debug=False):
 
@@ -2782,6 +2787,8 @@ class GatewayApi:
         self.broadcast_port = broadcast_port if broadcast_port is not None else DEFAULT_BROADCAST_PORT
         self.socket_timeout = socket_timeout if socket_timeout is not None else DEFAULT_SOCKET_TIMEOUT
         self.broadcast_timeout = broadcast_timeout if broadcast_timeout is not None else DEFAULT_BROADCAST_TIMEOUT
+        self.discovery_port = discovery_port if discovery_port is not None else DEFAULT_DISCOVERY_PORT
+        self.discovery_period = discovery_period if discovery_period is not None else DEFAULT_DISCOVERY_PERIOD
         self.max_tries = max_tries
         self.retry_wait = retry_wait
         self.debug = debug
@@ -2792,38 +2799,38 @@ class GatewayApi:
     def discover(self):
         """Discover any devices on the local network.
 
-        Send a UDP broadcast and check for replies. Decode each reply to obtain
-        details of any devices on the local network. Create a dict of details
-        for each device including a derived model name. Construct a list of
-        dicts with details of each unique (ie each unique MAC address) device
-        that responded. When complete return the list of devices found.
+        According to the telnet API the CMD_BROADCAST can be used to identify
+        Ecowitt devices on the local network segment that support the telnet
+        API. However, in practise this approach has performed poorly with
+        supported device often not being discovered.
+
+        Another approach is to make use of the regular UDP broadcast made by
+        each device on port 59387. The broadcast uses the identical format to
+        the response expected to CMD_BROADCAST. Monitor UDP port 59387 for a
+        set period of time and capture all port 59387 UDP broadcasts received.
+        Decode each reply to obtain details of any devices on the local
+        network. Create a dict of details for each device including a derived
+        model name. Construct a list of dicts with details of each unique
+        (ie each unique MAC address) device that responded. When complete
+        return the list of devices found.
         """
 
-        # create a socket object so we can broadcast to the network via
-        # IPv4 UDP
+        # create a socket object so we can receive IPv4 UDP
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # set socket datagram to broadcast
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         # set timeout
         s.settimeout(self.broadcast_timeout)
-        # set TTL to 1 to so messages do not go past the local network
-        # segment
-        ttl = struct.pack('b', 1)
-        s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
-        # construct the packet to broadcast
-        packet = self.build_cmd_packet('CMD_BROADCAST')
-        # if required display the packet we are sending
-        if self.debug:
-            print()
-            print(f"sending broadcast packet '{pretty_bytes_as_hex(packet)['hex']}' "
-                  f"to {self.broadcast_address}:{self.broadcast_port}")
+        # bind our socket to the port we are using
+        s.bind(("", self.discovery_port))
         # initialise a list for the results as multiple devices may respond
         result_list = []
-        # send the Broadcast command
-        s.sendto(packet, (self.broadcast_address, self.broadcast_port))
-        # obtain any responses
+        # get the current time
+        start_ts = time.time()
+        # start receiving continuously, we will stop once our discovery period
+        # has elapsed
         while True:
+            # wrap in try .. except to capture any errors
             try:
+                # receive a response
                 response = s.recv(1024)
                 # if required display the response packet
                 if self.debug:
@@ -2831,11 +2838,11 @@ class GatewayApi:
                     for row in gen_pretty_bytes_as_hex(response, quote=False):
                         if _first_row:
                             print()
-                            print(f"Received broadcast response: {row['hex']}")
+                            print(f"Received broadcast packet: {row['hex']}")
                             _first_row = False
                         else:
-                            print(f"                             {row['hex']}")
-                        print(f"                             {row['printable']}")
+                            print(f"                           {row['hex']}")
+                        print(f"                           {row['printable']}")
             except socket.timeout:
                 # if we time out then we are done with this attempt
                 break
@@ -2849,7 +2856,7 @@ class GatewayApi:
                 # the response was not valid, log it and attempt again
                 # if we haven't had too many attempts already
                 if self.debug:
-                    print(f"Invalid response to command 'CMD_BROADCAST': {e}")
+                    print(f"Invalid broadcast: {e}")
             except UnknownApiCommand:
                 # most likely we have encountered a device that does
                 # not understand the command, possibly due to an old or
@@ -2874,7 +2881,11 @@ class GatewayApi:
                     device['model'] = self.get_model_from_ssid(device.get('ssid'))
                     # append the device to our list
                     result_list.append(device)
-        # close our socket
+            # has our discovery period elapsed, if it has break out of the
+            # loop
+            if time.time() - start_ts > self.discovery_period:
+                break
+        # we are done, close our socket
         s.close()
         # now return our results
         return result_list
@@ -4373,7 +4384,7 @@ class EcowittDevice:
                                 gateway API and obtains and validates device
                                 responses.
     - class GatewayApiParser    Parses, decodes and encodes data received from
-                                and sent to a device thatuses the gateway API.
+                                and sent to a device that uses the gateway API.
     - class HttpApi.            Communicates directly with the device via the
                                 HTTP API to obtain and validate (as far as
                                 possible) device HTTP request responses.
@@ -4403,6 +4414,7 @@ class EcowittDevice:
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
                  socket_timeout=None, broadcast_timeout=None,
+                 discovery_port=None, discovery_period=None,
                  max_tries=DEFAULT_MAX_TRIES,
                  retry_wait=DEFAULT_RETRY_WAIT,
                  discover=False, mac=None,
@@ -4420,6 +4432,8 @@ class EcowittDevice:
                                       broadcast_port=broadcast_port,
                                       socket_timeout=socket_timeout,
                                       broadcast_timeout=broadcast_timeout,
+                                      discovery_port=discovery_port,
+                                      discovery_period=discovery_period,
                                       max_tries=max_tries,
                                       retry_wait=retry_wait,
                                       debug=debug)
@@ -4759,7 +4773,8 @@ class EcowittDevice:
     def sensor_state(self):
         """Sensor battery state and signal level data."""
 
-        return self.gateway_api.get_current_sensor_state()
+        self.update_sensor_id_data()
+        return self.sensors.battery_and_signal_data
 
     @property
     def discovered_devices(self):
@@ -5573,12 +5588,14 @@ class DirectGateway:
         # save the IP address and port number to use
         self.ip_address = getattr(namespace, 'device_ip_address', None)
         self.port = getattr(namespace, 'device_port', None)
+        self.discovery_port = getattr(namespace, 'discovery_port', None)
+        self.discovery_period = getattr(namespace, 'discovery_period', None)
         # do we filter battery state data
         self.show_battery = getattr(namespace, 'show_battery', None)
         # set our debug level
         self.debug = namespace.debug
 
-    def get_device(self, ip_address, port, debug=False):
+    def get_device(self):
         """Get a GatewayDevice object.
 
         Attempts to obtain a GatewayDevice object. If successful the
@@ -5591,6 +5608,8 @@ class DirectGateway:
             # get a GatewayDevice object
             device = EcowittDevice(ip_address=self.ip_address,
                                    port=self.port,
+                                   discovery_port=self.discovery_port,
+                                   discovery_period=self.discovery_period,
                                    debug=self.debug)
         except GWIOError as e:
             # we encountered an IO error with the device, advise the user and
@@ -5695,9 +5714,7 @@ class DirectGateway:
             1: 'enabled (automatic update)'
         }
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -5761,9 +5778,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -5834,9 +5849,7 @@ class DirectGateway:
                         '(< 60mm/hr)', '(> 60mm/hr)']
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -5963,9 +5976,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6010,9 +6021,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6056,9 +6065,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6099,9 +6106,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6135,9 +6140,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6180,9 +6183,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6326,9 +6327,7 @@ class DirectGateway:
                      'all_custom_params': print_custom}
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6363,9 +6362,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6384,9 +6381,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # obtain the device model
             model = device.model
@@ -6445,9 +6440,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # obtain the device model
             model = device.model
@@ -6497,9 +6490,7 @@ class DirectGateway:
         """
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6523,7 +6514,7 @@ class DirectGateway:
         print()
         print("Discovering devices on the local network. Please wait...")
         # obtain a GatewayDevice object
-        device = EcowittDevice(debug=self.namespace.debug)
+        device = self.get_device()
         # Obtain a list of discovered devices. Would consider wrapping in a
         # try..except so we can catch any socket timeout exceptions, but the
         # GatewayApi.discover() method should catch any such exceptions for us.
@@ -6552,9 +6543,7 @@ class DirectGateway:
         """Reboot to a gateway device."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             print(f'You have asked to reboot {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
@@ -6580,9 +6569,7 @@ class DirectGateway:
         """Factory reset a gateway device."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             print(f'You have asked to factory reset {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
@@ -6608,9 +6595,7 @@ class DirectGateway:
         """Write ssid and password to a gateway device."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6648,9 +6633,7 @@ class DirectGateway:
         """Write Ecowitt.net upload parameters to a gateway device."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6688,9 +6671,7 @@ class DirectGateway:
         """Process wu, wow and wcloud write sub-subcommands."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6727,9 +6708,7 @@ class DirectGateway:
         """Process custom write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6782,16 +6761,14 @@ class DirectGateway:
         """Process calibration write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
             print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            # obtain the current ofsset and gain params from the device
+            # obtain the current offset and gain params from the device
             cal_params = device.offset_and_gain
             # make a copy of the current cal params, this copy will be updated
             # with the subcommand arguments and then used to update the device
@@ -6822,9 +6799,7 @@ class DirectGateway:
         """Process sensor-id write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6869,9 +6844,7 @@ class DirectGateway:
         """Process pm25-offset write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6907,9 +6880,7 @@ class DirectGateway:
         """Process c02-offset write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6945,9 +6916,7 @@ class DirectGateway:
         """Process rain write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -6995,9 +6964,7 @@ class DirectGateway:
         """Process system write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -7033,9 +7000,7 @@ class DirectGateway:
         """Process rain-data write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -7071,9 +7036,7 @@ class DirectGateway:
         """Process multichannel temp/humid offset write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -7109,9 +7072,7 @@ class DirectGateway:
         """Process soil-cal write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -7166,9 +7127,7 @@ class DirectGateway:
         """Process mulch-t-cal write sub-subcommand."""
 
         # get a GatewayDevice object
-        device = self.get_device(ip_address=self.ip_address,
-                                 port=self.port,
-                                 debug=self.debug)
+        device = self.get_device()
         if device:
             # identify the device being used
             print()
@@ -7751,10 +7710,11 @@ def get_subparser(subparsers):
        ecowitt read co2-cal --help
        ecowitt read services --help
     {Bcolors.ENDC}"""
-    description = """Read and display various Ecowitt gateway device configuration parameters."""
+    description = """Read and display various Ecowitt device configuration parameters."""
     parser = subparsers.add_parser('read',
                                    usage=usage,
-                                   description=description)
+                                   description=description,
+                                   help='read and display various Ecowitt device configuration parameters')
     # add a subparser to handle the various subcommands.
     subparsers = parser.add_subparsers(dest='read_subcommand',
                                        title="Available subcommands")
@@ -8971,11 +8931,11 @@ def write_subparser(subparsers):
        ecowitt write mulch-th-cal --help
        ecowitt write mulch-t-cal --help
 {Bcolors.ENDC}"""
-    description = """Set various Ecowitt gateway device configuration parameters."""
+    description = """Set various Ecowitt device configuration parameters."""
     parser = subparsers.add_parser('write',
                                    usage=usage,
                                    description=description,
-                                   help="set various Ecowitt gateway device configuration parameters")
+                                   help="set various Ecowitt device configuration parameters")
     # Add a subparser to handle the various subcommands. Use 'metavar' so that
     # some commands can be hidden, if additional subcommands are added they
     # need to be added to this metavar or they will be hidden.
@@ -9022,12 +8982,12 @@ def main():
     usage = f"""{Bcolors.BOLD}%(prog)s --help
        %(prog)s --version
        %(prog)s --discover
-                  [--debug] [--max-tries]
+                  [--period PERIOD] [--port PORT] [--debug]
        %(prog)s read --help
        %(prog)s write --help{Bcolors.ENDC}
     """
     # top level description
-    description = "Interact with an Ecowitt gateway device using the Ecowitt "\
+    description = "Interact with an Ecowitt device that supports the Ecowitt "\
                   "TCP Data Exchange Protocol (aka the 'telnet API')(*). This "\
                   "utility allows supported devices to be interrogated and "\
                   "current sensor data and device state information to be "\
@@ -9050,6 +9010,18 @@ def main():
                         action='store_true',
                         help='discover devices and display device IP address '
                              'and listening port')
+    parser.add_argument('--period',
+                        dest = 'discovery_period',
+                        type = ranged_type(int, 0, 30),
+                        metavar = 'PERIOD',
+                        help = 'how long to spending discovering devices, default is 5 seconds')
+    parser.add_argument('--port',
+                        dest = 'discovery_port',
+                        type=int,
+                        choices=range(0, 65537),
+                        default=DEFAULT_DISCOVERY_PORT,
+                        metavar='PORT',
+                        help=f'port to use when discovering devices, default is {DEFAULT_DISCOVERY_PORT:d}')
     parser.add_argument('--debug',
                         dest='debug',
                         action='store_true',
