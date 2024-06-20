@@ -5051,6 +5051,7 @@ class EcowittDevice:
 
     def write_pm25_offsets(self, **offsets):
         """Write PM2.5 offsets.
+        # TODO. Need to update this
 
         Write sensor ID parameters to a gateway device. The sensor ID
         parameters consist of:
@@ -5075,6 +5076,7 @@ class EcowittDevice:
 
     def write_co2_offsets(self, **offsets):
         """Write CO2 offsets.
+        # TODO. Need to update this
 
         Write sensor ID parameters to a gateway device. The sensor ID
         parameters consist of:
@@ -5099,9 +5101,9 @@ class EcowittDevice:
 
     def write_rain(self, **params):
         """Write rain parameters.
+        # TODO. Need to update this
 
-        Write rain parameters to a gateway device. The rain parameters consist
-        of:
+        Write rain parameters to a device. The rain parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5123,9 +5125,9 @@ class EcowittDevice:
 
     def write_system_params(self, **params):
         """Write system parameters.
+        # TODO. Need to update this
 
-        Write system parameters to a gateway device. The system parameters
-        consist of:
+        Write system parameters to a device. The system parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5147,8 +5149,9 @@ class EcowittDevice:
 
     def write_rain_data(self, **params):
         """Write rain data parameters.
+        # TODO. Need to update this
 
-        Write system parameters to a gateway device. The system parameters
+        Write system parameters to a device. The system parameters
         consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5171,9 +5174,10 @@ class EcowittDevice:
 
     def write_mulch_offset(self, **params):
         """Write multichannel temp/hum offset parameters.
+        # TODO. Need to update this
 
-        Write multichannel temp/hum offset parameters to a gateway device. The
-        system parameters consist of:
+        Write multichannel temp/hum offset parameters to a device. The
+        multichannel temp/hum offset parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5216,7 +5220,7 @@ class EcowittDevice:
     def write_mulch_t(self, **params):
         """Write mulch-t offset parameters.
 
-        Write mulch-t offset parameters to a gateway device. The mulch-t offset
+        Write mulch-t offset parameters to a device. The mulch-t offset
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
