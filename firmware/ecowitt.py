@@ -2769,6 +2769,7 @@ class GatewayApi:
                              b'\x58')
     # header used in each API command and response packet
     header = b'\xff\xff'
+    cmd_packet_length_format = {'CMD_WRITE_SSID': '>H', 'CMD_WRITE_RAIN': '>H'}
     # known device models
     known_models = ('GW1000', 'GW1100', 'GW1200', 'GW2000',
                     'WH2650', 'WH2680', 'WN1900', 'WS3910')
@@ -3891,11 +3892,16 @@ class GatewayApi:
 
         # calculate size
         try:
-            size = len(self.api_commands[cmd]) + 1 + len(payload) + 1
+            # get the format used for the packet length parameter in the
+            # command bytestring, most as a single byte 'B', but some are two
+            # bytes '>H'
+            packet_length_format = self.cmd_packet_length_format.get(cmd, 'B')
+            # calculate the size of the command packet (less the 0xFFFF preamble)
+            size = len(self.api_commands[cmd]) + struct.calcsize(packet_length_format) + len(payload) + 1
         except KeyError as e:
             raise UnknownApiCommand(f"Unknown API command '{cmd}'") from e
         # construct the portion of the message for which the checksum is calculated
-        body = b''.join([self.api_commands[cmd], struct.pack('B', size), payload])
+        body = b''.join([self.api_commands[cmd], struct.pack(packet_length_format, size), payload])
         # calculate the checksum
         checksum = self.calc_checksum(body)
         # return the constructed message packet
@@ -6538,32 +6544,34 @@ class DirectGateway:
             print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            # obtain the current custom params and usr path settings from the
-            # device
-            params = device.ecowitt_net_params
-            # make a copy of the current ecowitt params, this copy will be updated
-            # with the subcommand arguments and then used to update the device
-            arg_params = dict(params)
-            # iterate over each ecowitt param (param, value) pair
-            for param, value in params.items():
-                # obtain the corresponding argument from the namespace, if the
-                # argument does not exist or is not set it will be None
-                _arg = getattr(self.namespace, param, None)
-                # update our ecowitt param dict copy if the namespace argument is
-                # not None, otherwise keep the current custom param value
-                arg_params[param] = _arg if _arg is not None else value
-            # do we have any changes from our existing settings
-            if arg_params != params:
-                # something has changed, so write the updated params to the device
+            # Normally we would obtain the current param values from the device
+            # and look for any changes before re-writing the params to the
+            # device; however, in this case we cannot obtain the SSID password
+            # from the device and we can only obtain the current SSID from the
+            # device via a broadcast to the network using CMD-BROADCAST. In
+            # case we will do some basic checks of the relevant command line
+            # arguments and if they pass write them to the device.
+            # first obtain the SSID and SSID password arguments
+            _ssid = getattr(self.namespace, 'ssid', None)
+            _password = getattr(self.namespace, 'password', None)
+            # If the ssid and password args were provided, the argument parser
+            # has already checked their length (ie 0 < length <= max length).
+            # We just need to check that both were provided, ie both are non-None.
+            if _ssid is not None and _password is not None:
+                # create our own mapping for device.write_ssid, all we need is
+                # a dict keyed by 'ssid' and 'password' with the applicable
+                # arguments
+                args = {'ssid': _ssid, 'password': _password}
+                # now write the SSID and password to the device
                 try:
-                    device.write_ssid(**arg_params)
+                    device.write_ssid(**args)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
                     print("Device write completed successfully")
             else:
-                print()
-                print("No changes to current device settings")
+                print("Error, both SSID and SSID password must be provided")
+                print("No change to current device settings")
 
     def write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
