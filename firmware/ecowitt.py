@@ -3934,7 +3934,6 @@ class GatewayApi:
                             print(f"               {row['hex']}")
                         print(f"               {row['printable']}")
                     print()
-#                    print(f"sending packet '{pretty_bytes_as_hex(packet)['hex']}' to {self.ip_address}:{self.port}")
                 # send the packet
                 s.sendall(packet)
                 # obtain the response, we assume here the response will be less
@@ -5245,7 +5244,6 @@ class EcowittDevice:
         """Update the Sensors object with current sensor ID data."""
 
         # first get the current sensor ID data
-        # TODO. This should return a value
         sensor_id_data = self.gateway_api.get_sensor_id_new()
         # now use the sensor ID data to re-initialise our sensors object
         self.sensors.set_sensor_id_data(sensor_id_data)
@@ -5254,50 +5252,6 @@ class EcowittDevice:
 # ============================================================================
 #                             Utility functions
 # ============================================================================
-
-def natural_sort_keys(source_dict):
-    """Return a naturally sorted list of keys for a dict."""
-
-    def atoi(text):
-        return int(text) if text.isdigit() else text
-
-    def natural_keys(text):
-        """Natural key sort.
-
-        Allows use of key=natural_keys to sort a list in human order, eg:
-            alist.sort(key=natural_keys)
-
-        https://nedbatchelder.com/blog/200712/human_sorting.html (See
-        Toothy's implementation in the comments)
-        """
-
-        return [atoi(c) for c in re.split(r'(\d+)', text.lower())]
-
-    # create a list of keys in the dict
-    keys_list = list(source_dict.keys())
-    # naturally sort the list of keys where, for example, xxxxx16 appears in the
-    # correct order
-    keys_list.sort(key=natural_keys)
-    # return the sorted list
-    return keys_list
-
-
-def natural_sort_dict(source_dict):
-    """Return a string representation of a dict sorted naturally by key.
-
-    When represented as a string a dict is displayed in the format:
-        {key a:value a, key b: value b ... key z: value z}
-    but the order of the key:value pairs is unlikely to be alphabetical.
-    Displaying dicts of key:value pairs in logs or on the console in
-    alphabetical order by key assists in the analysis of the dict data.
-    Where keys are strings with leading digits a natural sort is useful.
-    """
-
-    # first obtain a list of key:value pairs as string sorted naturally by key
-    sorted_dict_fields = [f"'{k}': '{source_dict[k]}'" for k in natural_sort_keys(source_dict)]
-    # return as a string of comma separated key:value pairs in braces
-    return f'{{{", ".join(sorted_dict_fields)}}}'
-
 
 def bytes_to_hex(iterable, separator=' ', caps=True):
     """Produce a hex string representation of a sequence of bytes."""
@@ -5328,28 +5282,6 @@ def bytes_to_printable(raw_bytes):
         return "  "
 
     return ' '.join(map(byte_to_printable, raw_bytes))
-
-
-def pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3):
-    """Pretty print a byte string.
-
-    Print a sequence of bytes as a sequence of space separated hexadecimal
-    digit pairs with 'column' digit pairs per line. ASCII printable equivalents
-    of each hexadecimal digit pair is printed under each hexadecimal digit
-    pair. If there is no printable ASCII equivalent nothing is printed for that
-    digit pair. Each line is indented with the first character printed in
-    column 'start_column' (ie start_column - 1 spaces are printed at the start
-    of each line). If 'label' is specified 'label' is printed without indent on
-    the line preceding the hexadecimal data.
-    """
-
-    # do we have any bytes to print
-    if len(raw_bytes) > 0:
-        return {'hex': f"{bytes_to_hex(raw_bytes)}",
-                'printable': f"{bytes_to_printable(raw_bytes)}"
-                }
-    else:
-        return {'hex': '', 'printable': ''}
 
 
 def gen_pretty_bytes_as_hex(raw_bytes, columns=20, start_column=3, quote=False):
