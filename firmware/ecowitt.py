@@ -4425,7 +4425,7 @@ class EcowittDevice:
                  discover=False, mac=None,
                  use_wh32=True, ignore_wh40_batt=True,
                  show_battery=False, debug=False):
-        """Initialise a GatewayDevice object."""
+        """Initialise an EcowittDevice object."""
 
         # save our IP address and port
         self.ip_address = ip_address
@@ -5375,21 +5375,18 @@ def y_or_n(msg, noprompt=False, default=None):
 
 
 # ============================================================================
-#                             class DirectGateway
+#                       class EcowittDeviceConfigurator
 # ============================================================================
 
-class DirectGateway:
-    """Class to interact with gateway driver when run directly.
+class EcowittDeviceConfigurator:
+    """Class to configure an Ecowitt device via an Ecowitt API.
 
-    Would normally run a driver directly by calling from main() only, but when
-    run directly the gateway driver has many options so pushing the detail into
-    its own class/object makes sense. Also simplifies some test suite
-    routines/calls.
+    Uses class EcowittDevice() to either read and display or set Ecowitt device
+    parameters. An Argparse based CLI is used to access the various device
+    parameters.
 
-    A DirectGateway object is created with just an optparse options dict and a
-    standard WeeWX station dict. Once created the DirectGateway()
-    process_options() method is called to process the respective command line
-    options.
+    Parameters and displayed information are largely organised as per the
+    WSView Plus app.
     """
 
     # list of sensors to be displayed in the sensor ID output
@@ -5523,35 +5520,37 @@ class DirectGateway:
     }
 
     def __init__(self, namespace):
-        """Initialise a DirectGateway object."""
+        """Initialise an EcowittDeviceConfigurator object."""
 
-        # save the optparse options and station dict
+        # save the argparse namespace
         self.namespace = namespace
         # save the IP address and port number to use
         self.ip_address = getattr(namespace, 'device_ip_address', None)
         self.port = getattr(namespace, 'device_port', None)
-        self.discovery_port = getattr(namespace, 'discovery_port', None)
-        self.discovery_period = getattr(namespace, 'discovery_period', None)
         # do we filter battery state data
         self.show_battery = getattr(namespace, 'show_battery', None)
         # set our debug level
         self.debug = namespace.debug
 
     def get_device(self):
-        """Get a GatewayDevice object.
+        """Get an EcowittDevice object.
 
-        Attempts to obtain a GatewayDevice object. If successful the
+        Attempts to obtain an EcowittDevice object. If successful the
         GatewayDevice instance is returned, otherwise the return the value
         None.
         """
 
         # wrap in a try..except in case there is an error
         try:
-            # get a GatewayDevice object
+            # get an EcowittDevice object
             device = EcowittDevice(ip_address=self.ip_address,
                                    port=self.port,
-                                   discovery_port=self.discovery_port,
-                                   discovery_period=self.discovery_period,
+                                   discovery_port=getattr(self.namespace,
+                                                          'discovery_port',
+                                                          None),
+                                   discovery_period=getattr(self.namespace,
+                                                            'discovery_period',
+                                                            None),
                                    debug=self.debug)
         except GWIOError as e:
             # we encountered an IO error with the device, advise the user and
@@ -5560,73 +5559,135 @@ class DirectGateway:
             print(f"Unable to connect to device at {self.ip_address}: {e}")
             return None
         except socket.timeout:
-            # we encountered an device timeout, advise the user and return None
+            # we encountered a device timeout, advise the user and return None
             print()
             print(f"Timeout. Device at {self.ip_address} did not respond.")
             return None
-        # if we made it here we have a GatewayDevice object, return the object
+        # if we made it here we have an EcowittDevice object, return the object
         return device
 
     @staticmethod
     def convert(value, unit):
+        """Generate a string with formatted, equivalent unit values.
 
+        The Ecowitt telnet API provides data using fixed (usually Metric)
+        units. When such data is presented to the user it is displayed in
+        native units along with converted values using other common units.
+        Formatting is also applied to each value using a number of decimal
+        places appropriate to the value and unit concerned.
+
+        WeeWX unit group names are used for units.
+
+        Generates a string with the original units and formatted and converted
+        values in common units, eg:
+
+        convert(12, 'mm')       returns     'mm (0.5in)'
+        convert(1012, 'hPa')    returns     'hPa (759.1mmHg | 29.88inHg)'
+        """
+
+        # check the incoming unit value, that will determine waht we do
         if unit == 'mm':
+            # we have mm, if not None convert and return in mm and inches
             if value is not None:
-                return f"mm ({value / 25.4:.1f}in)"
+                return f"{value:.1f}mm ({value / 25.4:.1f}in)"
             else:
-                return f"mm (---in)"
+                # we have None, display dashed lines in mm and inches
+                return f"---mm (---in)"
         elif unit == 'degree_C':
+            # we have degree C, if not None convert and return in degree C and
+            # degree F, otherwise display dashed lines in degree C and degree F
             if value is not None:
-                return f"°C ({value * 9 / 5 + 32:.1f}°F)"
+                return f"{value:.1f}°C ({value * 9 / 5 + 32:.1f}°F)"
             else:
-                return f"°C (---°F)"
+                return f"---°C (---°F)"
         elif unit == 'percent':
-            return f"%"
-        elif unit == 'hPa':
+            # we have percent, no conversion, if not None return as is
+            # otherwise return dashed lines
             if value is not None:
-                return f"hPa ({value * 0.75006168:.1f}mmHg | {value * 0.0295299875:.1f}inHg)"
+                return f"{value:d}%"
             else:
-                return f"hPa (---mmHg | ---inHg)"
-        elif unit == 'degree':
-            return f"°"
-        elif unit == 'km_per_hour':
+                return f"---%"
+        elif unit == 'hPa':
+            # we have hPa, if not None convert and return in mmHg and inHg,
+            # otherwise display dashed lines in mmHg and inHg
             if value is not None:
-                return f"km/hr ({value * 0.621371192:.1f}mph | {value * 5 / 18:.1f}m/s | "\
+                return f"{value:.1f}hPa ({value * 0.75006168:.1f}mmHg | {value * 0.0295299875:.2f}inHg)"
+            else:
+                return f"---hPa (---mmHg | ---inHg)"
+        elif unit == 'degree':
+            # we have degree (ie direction), no conversion, if not None return
+            # as is otherwise return dashed lines
+            if value is not None:
+                return f"{value:d}°"
+            else:
+                return f"---°"
+        elif unit == 'km_per_hour':
+            # we have km_per_hour, if not None convert and return in km/hr,
+            # mph, m/s and knots, otherwise display dashed lines in km/hr, mph,
+            # m/s and knots
+            if value is not None:
+                return f"{value:.1f}km/hr ({value * 0.621371192:.1f}mph | {value * 5 / 18:.1f}m/s | "\
                        f"{value * 0.539956803:.1f}knots)"
             else:
-                return f"km/hr (---mph | ---m/s | ---knots)"
+                return f"---km/hr (---mph | ---m/s | ---knots)"
         elif unit == 'km':
+            # we have km, if not None convert and return in km, miles and m,
+            # otherwise display dashed lines in km, miles and m
             if value is not None:
-                return f"km ({value * 0.621371192:.1f}miles | {value * 1000:d}m)"
+                return f"{value:.1f}km ({value * 0.621371192:.1f}miles | {value * 1000:d}m)"
             else:
-                return f"km (---miles | ---m)"
+                return f"---km (---miles | ---m)"
         if unit == 'mm_per_hour':
+            # we have mm_per_hour, if not None convert and return in mm/hr and
+            # in/hr, otherwise display dashed lines in mm/hr and in/hr
             if value is not None:
-                return f"mm/hr ({value / 25.4:.1f}in/hr)"
+                return f"{value:.1f}mm/hr ({value / 25.4:.1f}in/hr)"
             else:
-                return f"mm/hr (---in/hr)"
+                return f"---mm/hr (---in/hr)"
         elif unit == 'lux':
+            # we have lux, if not None convert and return in W/m² and kfc,
+            # otherwise display dashed lines in W/m² and kfc
             if value is not None:
-                return f"lux ({value / 126.7:.1f}W/m² | {value * 0.09290304 / 1000:.2f}kfc)"
+                return f"{value:.1f}lux ({value / 126.7:.1f}W/m² | {value * 0.09290304 / 1000:.2f}kfc)"
             else:
-                return f"lux (---W/m² | ---kfc)"
+                return f"---lux (---W/m² | ---kfc)"
         elif unit == 'time':
+            # we have a timestamp, if not None convert to humanreadable date,
+            # otherwise display dashed lines
             if value is not None:
                 _dt = datetime.datetime.fromtimestamp(value)
                 return f" ({_dt.strftime('%-d %B %Y %H:%M:%S')})"
             else:
                 return f" (---)"
         elif unit == 'micro_watt_per_meter_squared':
-            return f"μW/m²"
-        elif unit == 'micro_gram_per_meter_cubed':
-            return f"μg/m³"
-        elif unit == 'ppm':
-            return f"ppm"
-        elif unit == 'diff_degree_C':
+            # we have micro_watt_per_meter_squared, no conversion, if not None
+            # return as is otherwise return dashed lines
             if value is not None:
-                return f"°C ({value * 9 / 5:.1f}°F)"
+                return f"{value:.1f}μW/m²"
             else:
-                return f"°C (---°F)"
+                return f"---μW/m²"
+        elif unit == 'micro_gram_per_meter_cubed':
+            # we have micro_gram_per_meter_cubed, no conversion, if not None
+            # return as is otherwise return dashed lines
+            if value is not None:
+                return f"μg/m³"
+            else:
+                return f"---μW/m³"
+        elif unit == 'ppm':
+            # we have ppm, no conversion, if not None return as is otherwise
+            # return dashed lines
+            if value is not None:
+                return f"ppm"
+            else:
+                return f"---ppm"
+        elif unit == 'diff_degree_C':
+            # we have diff_degree_C, if not None convert and return in degree C
+            # and degree F, otherwise display dashed lines in degree C and
+            # degree F
+            if value is not None:
+                return f"{value:.1f}°C ({value * 9 / 5:.1f}°F)"
+            else:
+                return f"---°C (---°F)"
         else:
             return ""
 
@@ -5655,7 +5716,7 @@ class DirectGateway:
             0: 'disabled (manual update)',
             1: 'enabled (automatic update)'
         }
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -5719,7 +5780,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -5790,7 +5851,7 @@ class DirectGateway:
         gain_trailer = ['(< 4mm/hr)', '(< 10mm/hr)', '(< 30mm/hr)',
                         '(< 60mm/hr)', '(> 60mm/hr)']
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -5917,7 +5978,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -5962,7 +6023,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6006,7 +6067,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6047,7 +6108,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6081,7 +6142,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6124,7 +6185,7 @@ class DirectGateway:
         3. by discovery
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6268,7 +6329,7 @@ class DirectGateway:
                      'wow_params': print_wow,
                      'all_custom_params': print_custom}
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6303,7 +6364,7 @@ class DirectGateway:
         Obtain and display the hardware MAC address of the selected device.
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6322,7 +6383,7 @@ class DirectGateway:
         or not.
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # obtain the device model
@@ -6381,7 +6442,7 @@ class DirectGateway:
         device.
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # obtain the device model
@@ -6431,7 +6492,7 @@ class DirectGateway:
         Obtain and display live sensor data from the selected device.
         """
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6455,7 +6516,7 @@ class DirectGateway:
         # this could take a few seconds so warn the user
         print()
         print("Discovering devices on the local network. Please wait...")
-        # obtain a GatewayDevice object
+        # obtain an EcowittDevice object
         device = self.get_device()
         # Obtain a list of discovered devices. Would consider wrapping in a
         # try..except so we can catch any socket timeout exceptions, but the
@@ -6484,7 +6545,7 @@ class DirectGateway:
     def write_reboot(self):
         """Reboot to a gateway device."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             print(f'You have asked to reboot {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -6510,7 +6571,7 @@ class DirectGateway:
     def write_reset(self):
         """Factory reset a gateway device."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             print(f'You have asked to factory reset {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
@@ -6536,7 +6597,7 @@ class DirectGateway:
     def write_ssid(self):
         """Write ssid and password to a gateway device."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6576,7 +6637,7 @@ class DirectGateway:
     def write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6614,7 +6675,7 @@ class DirectGateway:
     def write_wu_wow_wcloud(self):
         """Process wu, wow and wcloud write sub-subcommands."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6651,7 +6712,7 @@ class DirectGateway:
     def write_custom(self):
         """Process custom write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6704,7 +6765,7 @@ class DirectGateway:
     def write_calibration(self):
         """Process calibration write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6742,7 +6803,7 @@ class DirectGateway:
     def write_sensor_id(self):
         """Process sensor-id write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6787,7 +6848,7 @@ class DirectGateway:
     def write_pm25_offset(self):
         """Process pm25-offset write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6823,7 +6884,7 @@ class DirectGateway:
     def write_co2_offset(self):
         """Process c02-offset write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6859,7 +6920,7 @@ class DirectGateway:
     def write_rain(self):
         """Process rain write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6907,7 +6968,7 @@ class DirectGateway:
     def write_system(self):
         """Process system write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6943,7 +7004,7 @@ class DirectGateway:
     def write_rain_data(self):
         """Process rain-data write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -6979,7 +7040,7 @@ class DirectGateway:
     def process_write_mulch_offset(self):
         """Process multichannel temp/humid offset write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -7015,7 +7076,7 @@ class DirectGateway:
     def process_write_soil_humiad(self):
         """Process soil-cal write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -7070,7 +7131,7 @@ class DirectGateway:
     def write_mulch_t(self):
         """Process mulch-t-cal write sub-subcommand."""
 
-        # get a GatewayDevice object
+        # get an EcowittDevice object
         device = self.get_device()
         if device:
             # identify the device being used
@@ -7270,8 +7331,8 @@ def enable_disable_type(opts=('disable', 'enable')):
 def process_read(namespace):
     """Process 'read' subcommand."""
 
-    # get a DirectGateway object
-    direct_gw = DirectGateway(namespace)
+    # get a EcowittDeviceConfigurator object
+    direct_gw = EcowittDeviceConfigurator(namespace)
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
     if getattr(namespace, 'read_subcommand', False) == 'live-data':
@@ -7305,8 +7366,8 @@ def process_read(namespace):
 def dispatch_write(namespace):
     """Process 'write' subcommand."""
 
-    # get a DirectGateway object
-    direct_gw = DirectGateway(namespace)
+    # get a EcowittDeviceConfigurator object
+    direct_gw = EcowittDeviceConfigurator(namespace)
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
     if getattr(namespace, 'write_subcommand', False) == 'reboot':
@@ -8991,8 +9052,8 @@ def main():
         sys.exit(0)
     if namespace.discover:
         # discover gateway devices and display the results
-        # get a DirectGateway object
-        direct_gw = DirectGateway(namespace)
+        # get a EcowittDeviceConfigurator object
+        direct_gw = EcowittDeviceConfigurator(namespace)
         # discover any gateway devices and display the results
         direct_gw.display_discovered_devices()
         sys.exit(0)
