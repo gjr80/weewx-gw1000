@@ -80,7 +80,7 @@ import argparse
 import calendar
 import datetime
 import json
-import re
+import os
 import socket
 import struct
 import sys
@@ -6918,7 +6918,7 @@ class EcowittDeviceConfigurator:
                 print("No changes to current device settings")
 
     def write_rain(self):
-        """Process rain write sub-subcommand."""
+        """Process 'write all-rain' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -7002,7 +7002,7 @@ class EcowittDeviceConfigurator:
                 print("No changes to current device settings")
 
     def write_rain_data(self):
-        """Process rain-data write sub-subcommand."""
+        """Process 'write rain' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -7129,7 +7129,7 @@ class EcowittDeviceConfigurator:
                 print("No changes to current device settings")
 
     def write_mulch_t(self):
-        """Process mulch-t-cal write sub-subcommand."""
+        """Process 'write t-cal' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -7390,17 +7390,17 @@ def dispatch_write(namespace):
         direct_gw.write_pm25_offset()
     if getattr(namespace, 'write_subcommand', False) == 'co2-cal':
         direct_gw.write_co2_offset()
-    if getattr(namespace, 'write_subcommand', False) == 'rain':
+    if getattr(namespace, 'write_subcommand', False) == 'all-rain':
         direct_gw.write_rain()
     if getattr(namespace, 'write_subcommand', False) == 'system':
         direct_gw.write_system()
-    if getattr(namespace, 'write_subcommand', False) == 'rain-data':
+    if getattr(namespace, 'write_subcommand', False) == 'rain':
         direct_gw.write_rain_data()
-    if getattr(namespace, 'write_subcommand', False) == 'mulch-th-cal':
+    if getattr(namespace, 'write_subcommand', False) == 'th-cal':
         direct_gw.process_write_mulch_offset()
     if getattr(namespace, 'write_subcommand', False) == 'soil-cal':
         direct_gw.process_write_soil_humiad()
-    if getattr(namespace, 'write_subcommand', False) == 'mulch-t-cal':
+    if getattr(namespace, 'write_subcommand', False) == 't-cal':
         direct_gw.write_mulch_t()
 
 
@@ -7435,8 +7435,8 @@ def get_action_exists(ns):
     """Does a given namespace contain at least one get action."""
     
     get_actions = ['live-data', 'sensors firmware', 'mac-address',
-                   'system-params', 'rain-data', 'all-rain-data calibration',
-                   'mulch-th-cal', 'mulch-soil-cal', 'pm25-cal', 'co2-cal',
+                   'system-params', 'rain', 'all-rain', 'calibration',
+                   'th-cal', 't-cal', 'mulch-soil-cal', 'pm25-cal', 'co2-cal',
                    'services']
 
     for action in get_actions:
@@ -7458,16 +7458,17 @@ def write_action_exists(ns):
 
 
 def live_read_subparser(subparsers):
-    """Define 'ecowitt read live-data' sub-subparser."""
+    """Define 'read live-data' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read live-data --help
-       ecowitt read live-data --ip-address=IP_ADDRESS [--port=PORT]
-                              [--max-tries=TRIES] [--retry-wait=SECONDS]
-                              [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read live-data --help
+       %(prog)s read live-data --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                 [--debug]{Bcolors.ENDC}
     """
     description = """Read device live data."""
     parser = subparsers.add_parser('live-data',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display device live data")
     add_common_args(parser)
@@ -7476,16 +7477,17 @@ def live_read_subparser(subparsers):
 
 
 def sensors_read_subparser(subparsers):
-    """Define 'ecowitt read sensors' sub-subparser."""
+    """Define 'read sensors' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read sensors --help
-       ecowitt read sensors --ip-address=IP_ADDRESS [--port=PORT]
-                            [--max-tries=TRIES] [--retry-wait=SECONDS]
-                            [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read sensors --help
+       %(prog)s read sensors --ip-address=IP_ADDRESS [--port=PORT]
+                               [--max-tries=TRIES] [--retry-wait=SECONDS]
+                               [--debug]{Bcolors.ENDC}
     """
     description = """Read and display sensor state information."""
     parser = subparsers.add_parser('sensors',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display device sensor state information")
     add_common_args(parser)
@@ -7494,16 +7496,17 @@ def sensors_read_subparser(subparsers):
 
 
 def firmware_read_subparser(subparsers):
-    """Define 'ecowitt read firmware' sub-subparser."""
+    """Define 'read firmware' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read firmware --help
-       ecowitt read firmware --ip-address=IP_ADDRESS [--port=PORT]
-                            [--max-tries=TRIES] [--retry-wait=SECONDS]
-                            [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read firmware --help
+       %(prog)s read firmware --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device firmware version."""
     parser = subparsers.add_parser('firmware',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display the device firmware version")
     add_common_args(parser)
@@ -7512,16 +7515,17 @@ def firmware_read_subparser(subparsers):
 
 
 def mac_read_subparser(subparsers):
-    """Define 'ecowitt read mac-address' sub-subparser."""
+    """Define 'read mac-address' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read mac-address --help
-       ecowitt read mac-address --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
-                                [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read mac-address --help
+       %(prog)s read mac-address --ip-address=IP_ADDRESS [--port=PORT]
+                                   [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                   [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device MAC address."""
     parser = subparsers.add_parser('mac-address',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display the device MAC address")
     add_common_args(parser)
@@ -7530,16 +7534,17 @@ def mac_read_subparser(subparsers):
 
 
 def system_read_subparser(subparsers):
-    """Define 'ecowitt read system' sub-subparser."""
+    """Define 'read system' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read system --help
-       ecowitt read system --ip-address=IP_ADDRESS [--port=PORT]
-                           [--max-tries=TRIES] [--retry-wait=SECONDS]
-                           [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read system --help
+       %(prog)s read system --ip-address=IP_ADDRESS [--port=PORT]
+                              [--max-tries=TRIES] [--retry-wait=SECONDS]
+                              [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device system parameters."""
     parser = subparsers.add_parser('system',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display the device system parameters")
     add_common_args(parser)
@@ -7548,16 +7553,17 @@ def system_read_subparser(subparsers):
 
 
 def rain_read_subparser(subparsers):
-    """Define 'ecowitt read rain' sub-subparser."""
+    """Define 'read rain' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read rain --help
-       ecowitt read rain --ip-address=IP_ADDRESS [--port=PORT]
-                         [--max-tries=TRIES] [--retry-wait=SECONDS]
-                         [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read rain --help
+       %(prog)s read rain --ip-address=IP_ADDRESS [--port=PORT]
+                            [--max-tries=TRIES] [--retry-wait=SECONDS]
+                            [--debug]{Bcolors.ENDC}
     """
     description = """Read and display traditional rain gauge data."""
     parser = subparsers.add_parser('rain',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display traditional rain gauge data")
     add_common_args(parser)
@@ -7566,16 +7572,17 @@ def rain_read_subparser(subparsers):
 
 
 def all_rain_read_subparser(subparsers):
-    """Define 'ecowitt read all-rain' sub-subparser."""
+    """Define 'read all-rain' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read all-rain --help
-       ecowitt read all-rain --ip-address=IP_ADDRESS [--port=PORT]
-                             [--max-tries=TRIES] [--retry-wait=SECONDS]
-                             [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read all-rain --help
+       %(prog)s read all-rain --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--debug]{Bcolors.ENDC}
     """
     description = """Read and display available traditional and piezo rain gauge data."""
     parser = subparsers.add_parser('all-rain',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display available traditional and piezo rain gauge data")
     add_common_args(parser)
@@ -7584,16 +7591,17 @@ def all_rain_read_subparser(subparsers):
 
 
 def cal_read_subparser(subparsers):
-    """Define 'ecowitt read calibration' sub-subparser."""
+    """Define 'read calibration' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read calibration --help
-       ecowitt read calibration --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
-                                [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read calibration --help
+       %(prog)s read calibration --ip-address=IP_ADDRESS [--port=PORT]
+                                   [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                   [--debug]{Bcolors.ENDC}
     """
     description = """Read and display device calibration parameters."""
     parser = subparsers.add_parser('calibration',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display device calibration parameters")
     add_common_args(parser)
@@ -7602,16 +7610,17 @@ def cal_read_subparser(subparsers):
 
 
 def th_read_subparser(subparsers):
-    """Define 'ecowitt read th-cal' sub-subparser."""
+    """Define 'read th-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read th-cal --help
-       ecowitt read th-cal --ip-address=IP_ADDRESS [--port=PORT]
-                           [--max-tries=TRIES] [--retry-wait=SECONDS]
-                           [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read th-cal --help
+       %(prog)s read th-cal --ip-address=IP_ADDRESS [--port=PORT]
+                              [--max-tries=TRIES] [--retry-wait=SECONDS]
+                              [--debug]{Bcolors.ENDC}
     """
     description = """Read and display multichannel temperature and humidity calibration parameters."""
     parser = subparsers.add_parser('th-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display multichannel temperature "
                                         "and humidity calibration parameters")
@@ -7621,16 +7630,17 @@ def th_read_subparser(subparsers):
 
 
 def soil_read_subparser(subparsers):
-    """Define 'ecowitt read soil-cal' sub-subparser."""
+    """Define 'read soil-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read soil-cal --help
-       ecowitt read soil-cal --ip-address=IP_ADDRESS [--port=PORT]
-                             [--max-tries=TRIES] [--retry-wait=SECONDS]
-                             [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read soil-cal --help
+       %(prog)s read soil-cal --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--debug]{Bcolors.ENDC}
     """
     description = """Read and display multichannel soil moisture calibration parameters."""
     parser = subparsers.add_parser('soil-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display multichannel soil moisture calibration parameters")
     add_common_args(parser)
@@ -7639,16 +7649,17 @@ def soil_read_subparser(subparsers):
 
 
 def pm25_read_subparser(subparsers):
-    """Define 'ecowitt read pm25-cal' sub-subparser."""
+    """Define 'read pm25-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read pm25-cal --help
-       ecowitt read pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
-                             [--max-tries=TRIES] [--retry-wait=SECONDS]
-                             [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read pm25-cal --help
+       %(prog)s read pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--debug]{Bcolors.ENDC}
     """
     description = """Read and display multichannel PM2.5 calibration parameters."""
     parser = subparsers.add_parser('pm25-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display multichannel PM2.5 calibration parameters")
     add_common_args(parser)
@@ -7657,16 +7668,17 @@ def pm25_read_subparser(subparsers):
 
 
 def co2_read_subparser(subparsers):
-    """Define 'ecowitt read co2-cal' sub-subparser."""
+    """Define 'read co2-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read co2-cal --help
-       ecowitt read co2-cal --ip-address=IP_ADDRESS [--port=PORT]
-                            [--max-tries=TRIES] [--retry-wait=SECONDS]
-                            [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read co2-cal --help
+       %(prog)s read co2-cal --ip-address=IP_ADDRESS [--port=PORT]
+                               [--max-tries=TRIES] [--retry-wait=SECONDS]
+                               [--debug]{Bcolors.ENDC}
     """
     description = """Read and display CO2 sensor calibration parameters."""
     parser = subparsers.add_parser('co2-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display CO2 sensor calibration parameters")
     add_common_args(parser)
@@ -7675,16 +7687,17 @@ def co2_read_subparser(subparsers):
 
 
 def services_read_subparser(subparsers):
-    """Define 'ecowitt read services' sub-subparser."""
+    """Define 'read services' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read services --help
-       ecowitt read services --ip-address=IP_ADDRESS [--port=PORT]
-                             [--max-tries=TRIES] [--retry-wait=SECONDS]
-                             [--unmask] [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read services --help
+       %(prog)s read services --ip-address=IP_ADDRESS [--port=PORT]
+                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+                                [--unmask] [--debug]{Bcolors.ENDC}
     """
     description = """Read and display weather services parameters."""
     parser = subparsers.add_parser('services',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="read and display weather services parameters")
     parser.add_argument('--unmask',
@@ -7700,24 +7713,25 @@ def services_read_subparser(subparsers):
 def get_subparser(subparsers):
     """Add 'read' subcommand."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt read --help
-       ecowitt read live-data --help
-       ecowitt read sensors --help
-       ecowitt read firmware --help
-       ecowitt read mac-address --help
-       ecowitt read system --help
-       ecowitt read rain --help
-       ecowitt read all-rain --help
-       ecowitt read calibration --help
-       ecowitt read th-cal --help
-       ecowitt read soil-cal --help
-       ecowitt read pm25-cal --help
-       ecowitt read co2-cal --help
-       ecowitt read services --help
+    usage = f"""{Bcolors.BOLD}%(prog)s read --help
+       %(prog)s read live-data --help
+       %(prog)s read sensors --help
+       %(prog)s read firmware --help
+       %(prog)s read mac-address --help
+       %(prog)s read system --help
+       %(prog)s read rain --help
+       %(prog)s read all-rain --help
+       %(prog)s read calibration --help
+       %(prog)s read th-cal --help
+       %(prog)s read soil-cal --help
+       %(prog)s read pm25-cal --help
+       %(prog)s read co2-cal --help
+       %(prog)s read services --help
     {Bcolors.ENDC}"""
     description = """Read and display various Ecowitt device configuration parameters."""
     parser = subparsers.add_parser('read',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help='read and display various Ecowitt device configuration parameters')
     # add a subparser to handle the various subcommands.
@@ -7742,13 +7756,14 @@ def get_subparser(subparsers):
 def reboot_write_subparser(subparsers):
     """Define 'write reboot' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write reboot --help
-       ecowitt write reboot --ip-address=IP_ADDRESS [--port=PORT]
-                            [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write reboot --help
+       %(prog)s write reboot --ip-address=IP_ADDRESS [--port=PORT]
+                               [--debug]{Bcolors.ENDC}
     """
     description = """Reboot an Ecowitt device."""
     parser = subparsers.add_parser('reboot',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description)
     add_common_args(parser)
     parser.set_defaults(func=dispatch_write)
@@ -7758,13 +7773,14 @@ def reboot_write_subparser(subparsers):
 def reset_write_subparser(subparsers):
     """Define 'write reset' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write reset --help
-       ecowitt write reset --ip-address=IP_ADDRESS [--port=PORT]
-                           [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write reset --help
+       %(prog)s write reset --ip-address=IP_ADDRESS [--port=PORT]
+                              [--debug]{Bcolors.ENDC}
     """
     description = """Perform a factory reset on an Ecowitt device."""
     parser = subparsers.add_parser('reset',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description)
     add_common_args(parser)
     parser.set_defaults(func=dispatch_write)
@@ -7774,14 +7790,15 @@ def reset_write_subparser(subparsers):
 def ssid_write_subparser(subparsers):
     """Define 'write ssid' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write ssid --help
-       ecowitt write ssid --ssid=SSID --password=PASSWORD
-                          --ip-address=IP_ADDRESS [--port=PORT]
-                          [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write ssid --help
+       %(prog)s write ssid --ssid=SSID --password=PASSWORD
+                             --ip-address=IP_ADDRESS [--port=PORT]
+                             [--debug]{Bcolors.ENDC}
     """
     description = """Set the SSID and SSID password used by the device."""
     parser = subparsers.add_parser('ssid',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description)
     parser.add_argument('--ssid',
                         dest='ssid',
@@ -7798,17 +7815,128 @@ def ssid_write_subparser(subparsers):
     return parser
 
 
+def services_write_subparser(subparsers):
+    """Define 'write services' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}%(prog)s write services --help
+       %(prog)s write services [--interval INTERVAL
+                                 [--wu-id STATION_ID] [--wu-key STATION_KEY]
+                                 [--wow-id STATION_ID] [--wow-key STATION_KEY]
+                                 [--wcloud-id STATION_ID] [--wcloud-key STATION_KEY]
+                                 [--enabled | --disabled] [--protocol EC | WU] [--custom-server IP_ADDRESS | NAME] 
+                                 [--custom-port UPLOAD_PORT] [--custom-interval INTERVAL] 
+                                 [--ec-path EC_PATH] [--wu-path WU_PATH] 
+                                 [--custom-id STATION_ID] [--custom-key STATION_KEY]
+                                 --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--debug]{Bcolors.ENDC}
+    """
+    description = """Set weather services upload parameters."""
+    parser = subparsers.add_parser('services',
+                                   usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
+                                   description=description,
+                                   help="set weather services upload parameters")
+    parser.add_argument('--interval',
+                        dest='interval',
+                        type=int,
+                        choices=range(0, 6),
+                        default=0,
+                        metavar='INTERVAL',
+                        help='Ecowitt.net upload interval (0-5) in minutes. '
+                             '0 indicates upload is disabled. Default is 0.')
+    parser.add_argument('--wu-id',
+                        dest='wu_id',
+                        metavar='STATION_ID',
+                        help='WeatherUnderground station ID')
+    parser.add_argument('--wu-key',
+                        dest='wu_key',
+                        metavar='STATION_KEY',
+                        help='WeatherUnderground station key')
+    parser.add_argument('--wow-id',
+                        dest='wow_id',
+                        metavar='STATION_ID',
+                        help='Weather Observations Website station ID')
+    parser.add_argument('--wow-key',
+                        dest='wow_key',
+                        metavar='STATION_KEY',
+                        help='Weather Observations Website station key')
+    parser.add_argument('--wcloud-id',
+                        dest='wcloud_id',
+                        metavar='STATION_ID',
+                        help='Weathercloud station ID')
+    parser.add_argument('--wcloud-key',
+                        dest='wcloud_key',
+                        metavar='STATION_KEY',
+                        help='Weathercloud station key')
+    parser.add_argument('--enabled',
+                        dest='active',
+                        action='store_const',
+                        const=1,
+                        help='enable customized uploads')
+    parser.add_argument('--disabled',
+                        dest='active',
+                        action='store_const',
+                        const=0,
+                        help='disable customized uploads')
+    parser.add_argument('--protocol',
+                        dest='type',
+                        choices=('EC', 'WU'),
+                        type=lambda p: 0 if p.upper() == 'EC' else 1,
+                        metavar='PROTOCOL',
+                        help='upload protocol, EC = Ecowitt WU = WeatherUnderground '
+                             '(WU requires --station-id and --station-key be populated)')
+    parser.add_argument('--custom-server',
+                        dest='server',
+                        type=maxlen(64),
+                        metavar='IP_ADDRESS | NAME',
+                        help='destination server IP address or host name, max length 64 characters')
+    parser.add_argument('--custom-port',
+                        dest='port',
+                        type=ranged_type(int, 0, 65536),
+                        metavar='UPLOAD_PORT',
+                        help='destination server port number')
+    parser.add_argument('--ec-path',
+                        dest='ecowitt_path',
+                        type=maxlen(64),
+                        metavar='EC_PATH',
+                        help='Ecowitt protocol upload path')
+    parser.add_argument('--wu-path',
+                        dest='wu_path',
+                        type=maxlen(64),
+                        metavar='WU_PATH',
+                        help='WeatherUnderground protocol upload path')
+    parser.add_argument('--custom-id',
+                        dest='id',
+                        type=maxlen(40),
+                        metavar='STATION_ID',
+                        help='WeatherUnderground protocol station ID')
+    parser.add_argument('--custom-key',
+                        dest='password',
+                        type=maxlen(40),
+                        metavar='STATION_KEY',
+                        help='WeatherUnderground protocol station key')
+    parser.add_argument('--custom-interval',
+                        dest='interval',
+                        type=ranged_type(int, 16, 600),
+                        metavar='UPLOAD_PORT',
+                        help='destination server port number')
+    add_common_args(parser)
+    parser.set_defaults(func=dispatch_write)
+    return parser
+
+
 def ecowitt_write_subparser(subparsers):
     """Define 'write ecowitt' sub-subparser."""
     
-    usage = f"""{Bcolors.BOLD}ecowitt write ecowitt --help
-       ecowitt write ecowitt --interval INTERVAL
-            --ip-address=IP_ADDRESS [--port=PORT]
-            [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write ecowitt --help
+       %(prog)s write ecowitt --interval INTERVAL
+                                --ip-address=IP_ADDRESS [--port=PORT]
+                                [--debug]{Bcolors.ENDC}
     """
     description = """Set Ecowitt.net upload parameters."""
     parser = subparsers.add_parser('ecowitt',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set Ecowitt.net upload parameters")
     parser.add_argument('--interval',
@@ -7827,13 +7955,14 @@ def ecowitt_write_subparser(subparsers):
 def wu_write_subparser(subparsers):
     """Define 'write wu' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write wu --help
-       ecowitt write wu --station-id STATION_ID --station-key STATION_KEY
-                        --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write wu --help
+       %(prog)s write wu --station-id STATION_ID --station-key STATION_KEY
+                           --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
     """
     description = """Set WeatherUnderground upload parameters."""
     parser = subparsers.add_parser('wu',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set WeatherUnderground upload parameters")
     parser.add_argument('--station-id',
@@ -7852,13 +7981,14 @@ def wu_write_subparser(subparsers):
 def wow_write_subparser(subparsers):
     """Define 'write wow' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write wow --help
-       ecowitt write wow --station-id STATION_ID --station-key STATION_KEY
-                         --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write wow --help
+       %(prog)s write wow --station-id STATION_ID --station-key STATION_KEY
+                            --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
     """
     description = """Set Weather Observations Website upload parameters."""
     parser = subparsers.add_parser('wow',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set Weather Observations Website upload parameters")
     parser.add_argument('--station-id',
@@ -7877,13 +8007,14 @@ def wow_write_subparser(subparsers):
 def wcloud_write_subparser(subparsers):
     """Define 'write wcloud' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write wcloud --help
-       ecowitt write wcloud --station-id STATION_ID --station-key STATION_KEY
-                            --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s write wcloud --help
+       %(prog)s write wcloud --station-id STATION_ID --station-key STATION_KEY
+                               --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
     """
     description = """Set Weathercloud upload parameters."""
     parser = subparsers.add_parser('wcloud',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set Weathercloud upload parameters")
     parser.add_argument('--station-id',
@@ -7902,19 +8033,20 @@ def wcloud_write_subparser(subparsers):
 def custom_write_subparser(subparsers):
     """Define 'write custom' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write custom --help
-       ecowitt write custom --ip-address=IP_ADDRESS [--port=PORT]
-                            [--enabled | --disabled] [--protocol EC | WU] [--server IP_ADDRESS | NAME] 
-                            [--upload-port UPLOAD_PORT] [--interval INTERVAL] 
-                            [--ec-path EC_PATH] [--wu-path WU_PATH] 
-                            [--station-id STATION_ID] [--station-key STATION_KEY]
-                            [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write custom --help
+       %(prog)s write custom --ip-address=IP_ADDRESS [--port=PORT]
+                               [--enabled | --disabled] [--protocol EC | WU] [--server IP_ADDRESS | NAME] 
+                               [--upload-port UPLOAD_PORT] [--interval INTERVAL] 
+                               [--ec-path EC_PATH] [--wu-path WU_PATH] 
+                               [--station-id STATION_ID] [--station-key STATION_KEY]
+                               [--debug]
 {Bcolors.ENDC}"""
     description = "Set Customized upload parameters. If a parameter is omitted "\
                   "the corresponding current gateway device parameter is left "\
                   "unchanged."
     parser = subparsers.add_parser('custom',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set customized upload parameters")
     parser.add_argument('--enabled',
@@ -7977,17 +8109,18 @@ def custom_write_subparser(subparsers):
 def cal_write_subparser(subparsers):
     """Define 'write calibration' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write calibration --help
-       ecowitt write calibration --ip-address=IP_ADDRESS [--port=PORT]
-                                 [--uv UV_GAIN] [--solar SOLAR_GAIN]
-                                 [---wind-speed WIND_GAIN] [--rain RAIN_GAIN]
-                                 [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write calibration --help
+       %(prog)s write calibration --ip-address=IP_ADDRESS [--port=PORT]
+                                    [--uv UV_GAIN] [--solar SOLAR_GAIN]
+                                    [---wind-speed WIND_GAIN] [--rain RAIN_GAIN]
+                                    [--debug]
 {Bcolors.ENDC}"""
     description = "Set calibration coefficients. If a parameter is omitted "\
                   "the corresponding current gateway device parameter is left "\
                   "unchanged."
     parser = subparsers.add_parser('calibration',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set calibration coefficients")
     parser.add_argument('--uv',
@@ -8038,30 +8171,31 @@ def cal_write_subparser(subparsers):
 def sensor_id_write_subparser(subparsers):
     """Define 'write sensor-id' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write sensor-id --help
-       ecowitt write sensor-id --ip-address=IP_ADDRESS [--port=PORT]
-                               [--wh65 ID] [--wh68 ID] [--wh80 ID] [--wh40 ID]
-                               [--wh25 ID] [--wh26 ID]
-                               [--wh31-1 ID] [--wh31-2 ID] [--wh31-3 ID] [--wh31-4 ID]
-                               [--wh31-5 ID] [--wh31-6 ID] [--wh31-7 ID] [--wh31-8 ID]
-                               [--wh51-1 ID] [--wh51-2 ID] [--wh51-3 ID] [--wh51-4 ID]
-                               [--wh51-5 ID] [--wh51-6 ID] [--wh51-7 ID] [--wh51-8 ID]
-                               [--wh41-1 ID] [--wh41-2 ID] [--wh41-3 ID] [--wh41-4 ID]
-                               [--wh57 ID]
-                               [--wh55-1 ID] [--wh55-2 ID] [--wh55-3 ID] [--wh55-4 ID]
-                               [--wh34-1 ID] [--wh34-2 ID] [--wh34-3 ID] [--wh34-4 ID]
-                               [--wh34-5 ID] [--wh34-6 ID] [--wh34-7 ID] [--wh34-8 ID]
-                               [--wh45 ID]
-                               [--wh35-1 ID] [--wh35-2 ID] [--wh35-3 ID] [--wh35-4 ID]
-                               [--wh35-5 ID] [--wh35-6 ID] [--wh35-7 ID] [--wh35-8 ID]
-                               [--wh90 ID]
-                               [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write sensor-id --help
+       %(prog)s write sensor-id --ip-address=IP_ADDRESS [--port=PORT]
+                                  [--wh65 ID] [--wh68 ID] [--wh80 ID] [--wh40 ID]
+                                  [--wh25 ID] [--wh26 ID]
+                                  [--wh31-1 ID] [--wh31-2 ID] [--wh31-3 ID] [--wh31-4 ID]
+                                  [--wh31-5 ID] [--wh31-6 ID] [--wh31-7 ID] [--wh31-8 ID]
+                                  [--wh51-1 ID] [--wh51-2 ID] [--wh51-3 ID] [--wh51-4 ID]
+                                  [--wh51-5 ID] [--wh51-6 ID] [--wh51-7 ID] [--wh51-8 ID]
+                                  [--wh41-1 ID] [--wh41-2 ID] [--wh41-3 ID] [--wh41-4 ID]
+                                  [--wh57 ID]
+                                  [--wh55-1 ID] [--wh55-2 ID] [--wh55-3 ID] [--wh55-4 ID]
+                                  [--wh34-1 ID] [--wh34-2 ID] [--wh34-3 ID] [--wh34-4 ID]
+                                  [--wh34-5 ID] [--wh34-6 ID] [--wh34-7 ID] [--wh34-8 ID]
+                                  [--wh45 ID]
+                                  [--wh35-1 ID] [--wh35-2 ID] [--wh35-3 ID] [--wh35-4 ID]
+                                  [--wh35-5 ID] [--wh35-6 ID] [--wh35-7 ID] [--wh35-8 ID]
+                                  [--wh90 ID]
+                                  [--debug]
 {Bcolors.ENDC}"""
     description = "Set sensor identification values. If a parameter is omitted "\
                   "the corresponding current gateway device parameter is left "\
                   "unchanged."
     parser = subparsers.add_parser('sensor-id',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set sensor identification values")
     parser.add_argument('--wh65',
@@ -8317,18 +8451,19 @@ def sensor_id_write_subparser(subparsers):
 def pm25_cal_write_subparser(subparsers):
     """Define 'write pm25-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write pm25-cal --help
-       ecowitt write pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
-                              [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
-                              [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write pm25-cal --help
+       %(prog)s write pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
+                                 [--debug]
 {Bcolors.ENDC}"""
-    description = "Set WH41/WH43 PM2.5 sensor offset calibration values. If a "\
+    description = "Set PM2.5 (WH41/WH43) sensor offset calibration values. If a "\
                   "parameter is omitted the corresponding current gateway device "\
                   "parameter is left unchanged."
     parser = subparsers.add_parser('pm25-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
-                                   help="set WH41/WH43 PM2.5 sensor offset values")
+                                   help="set PM2.5 (WH41/WH43) sensor offset calibration values")
     parser.add_argument('--ch1',
                         dest='ch1',
                         type=ranged_type(float, -20, 20),
@@ -8357,18 +8492,19 @@ def pm25_cal_write_subparser(subparsers):
 def co2_cal_write_subparser(subparsers):
     """Define 'write co2-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write co2-cal --help
-       ecowitt write co2-cal --ip-address=IP_ADDRESS [--port=PORT]
-                             [--co2 OFFSET] [--pm25 OFFSET] [--pm10 OFFSET]
-                             [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write co2-cal --help
+       %(prog)s write co2-cal --ip-address=IP_ADDRESS [--port=PORT]
+                                [--co2 OFFSET] [--pm25 OFFSET] [--pm10 OFFSET]
+                                [--debug]
 {Bcolors.ENDC}"""
-    description = "Set WH45 sensor offset calibration values. If a parameter "\
+    description = "Set CO2 (WH45) sensor offset calibration values. If a parameter "\
                   "is omitted the corresponding current gateway device parameter "\
                   "is left unchanged."
     parser = subparsers.add_parser('co2-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
-                                   help="set WH45 sensor offset calibration values")
+                                   help="set CO2 (WH45) sensor offset calibration values")
     parser.add_argument('--co2',
                         dest='co2',
                         type=ranged_type(float, -600, 10000),
@@ -8390,83 +8526,84 @@ def co2_cal_write_subparser(subparsers):
 
 
 def rain_write_subparser(subparsers):
-    """Define 'write rain' sub-subparser."""
+    """Define 'write all-rain' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write rain --help
-       ecowitt write rain --ip-address IP_ADDRESS [--port PORT]
-                          [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
-                          [--event TOTAL] [--rate RATE] [--gain GAIN]
-                          [--p-day TOTAL] [--p-week TOTAL] [--p-month TOTAL] [--p-year TOTAL]
-                          [--p-event TOTAL] [--p-rate RATE] [--p-gain0 GAIN] [--p-gain1 GAIN]
-                          [--p-gain2 GAIN] [--p-gain3 GAIN] [--p-gain4 GAIN] [--p-gain5 GAIN]
-                          [--p-gain6 GAIN] [--p-gain7 GAIN] [--p-gain8 GAIN] [--p-gain9 GAIN]
-                          [--priority traditional | piezo] 
-                          [--day-reset HOUR] [--week-reset DAY] [--year-reset MONTH]
-                          [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write all-rain --help
+       %(prog)s write all-rain --ip-address IP_ADDRESS [--port PORT]
+                                 [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
+                                 [--event TOTAL] [--rate RATE] [--gain GAIN]
+                                 [--p-day TOTAL] [--p-week TOTAL] [--p-month TOTAL] [--p-year TOTAL]
+                                 [--p-event TOTAL] [--p-rate RATE] [--p-gain0 GAIN] [--p-gain1 GAIN]
+                                 [--p-gain2 GAIN] [--p-gain3 GAIN] [--p-gain4 GAIN] [--p-gain5 GAIN]
+                                 [--p-gain6 GAIN] [--p-gain7 GAIN] [--p-gain8 GAIN] [--p-gain9 GAIN]
+                                 [--priority traditional | piezo] 
+                                 [--day-reset HOUR] [--week-reset DAY] [--year-reset MONTH]
+                                 [--debug]
 {Bcolors.ENDC}"""
-    description = "Set rain related parameters. If a parameter is omitted the "\
-                  "corresponding current gateway device parameter is left "\
-                  "unchanged."
+    description = "Set traditional and/or piezo rain related parameters. If "\
+                  "a parameter is omitted the corresponding current gateway "\
+                  "device parameter is left unchanged."
     parser = subparsers.add_parser('rain',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
-                                   help="set rain related parameters")
+                                   help="set traditional and/or piezo rain related parameters")
     parser.add_argument('--day',
                         dest='day',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='day rain total')
+                        help='traditional day rain total')
     parser.add_argument('--week',
                         dest='week',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='week rain total')
+                        help='traditional week rain total')
     parser.add_argument('--month',
                         dest='month',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='month rain total')
+                        help='traditional month rain total')
     parser.add_argument('--year',
                         dest='year',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='year rain total')
+                        help='traditional year rain total')
     parser.add_argument('--event',
                         dest='event',
                         # TODO. Event is 2 bytes only so not 9999.9
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='rain event total')
+                        help='traditional rain event total')
     parser.add_argument('--rate',
                         dest='rate',
                         type=ranged_type(float, 0, 6000.0),
                         metavar='RATE',
-                        help='rain rate')
+                        help='traditional rain rate')
     parser.add_argument('--gain',
                         dest='gain',
                         type=ranged_type(float, 0.1, 5.0),
                         metavar='GAIN',
-                        help='rain gain')
+                        help='traditional rain gain')
     parser.add_argument('--p-day',
                         dest='p_day',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='day piezo rain total')
+                        help='piezo day rain total')
     parser.add_argument('--p-week',
                         dest='p_week',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='week piezo rain total')
+                        help='piezo week rain total')
     parser.add_argument('--p-month',
                         dest='p_month',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='month piezo rain total')
+                        help='piezo month rain total')
     parser.add_argument('--p-year',
                         dest='p_year',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='year rain total')
+                        help='piezo year rain total')
     parser.add_argument('--p-event',
                         dest='p_event',
                         # TODO. Event is 2 bytes only so not 9999.9
@@ -8562,16 +8699,17 @@ def system_write_subparser(subparsers):
     conv_table = {'WH24': 0,
                   'WH65': 1}
 
-    usage = f"""{Bcolors.BOLD}ecowitt write system --help
-       ecowitt write system --ip-address=IP_ADDRESS [--port=PORT]
-                            [--sensor-type OFFSET] [--tz INDEX] [--dst enable | disable]
-                            [--auto-tz enable | disable] [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write system --help
+       %(prog)s write system --ip-address=IP_ADDRESS [--port=PORT]
+                               [--sensor-type OFFSET] [--tz INDEX] [--dst enable | disable]
+                               [--auto-tz enable | disable] [--debug]
 {Bcolors.ENDC}"""
     description = "Set system parameters. If a parameter is omitted the "\
                   "corresponding current gateway device parameter is left "\
                   "unchanged."
     parser = subparsers.add_parser('system',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set system parameters")
     parser.add_argument('--sensor-type',
@@ -8600,40 +8738,41 @@ def system_write_subparser(subparsers):
 
 
 def rain_data_write_subparser(subparsers):
-    """Define 'write pm25-offset' sub-subparser."""
+    """Define 'write rain' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write rain-data --help
-       ecowitt write rain-data --ip-address=IP_ADDRESS [--port=PORT]
-                               [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
-                               [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write rain --help
+       %(prog)s write rain --ip-address=IP_ADDRESS [--port=PORT]
+                             [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
+                             [--debug]
 {Bcolors.ENDC}"""
-    description = "Set rain data related parameters. If a parameter is omitted "\
-                  "the corresponding current gateway device parameter is left "\
-                  "unchanged."
-    parser = subparsers.add_parser('rain-data',
+    description = "Set traditional rain related parameters. If a parameter is "\
+                  "omitted the corresponding current gateway device parameter "\
+                  "is left unchanged."
+    parser = subparsers.add_parser('rain',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
-                                   help="set rain data related parameters")
+                                   help="set traditional rain related parameters")
     parser.add_argument('--day',
                         dest='t_day',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='day rain total')
+                        help='traditional day rain total')
     parser.add_argument('--week',
                         dest='t_week',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='week rain total')
+                        help='traditional week rain total')
     parser.add_argument('--month',
                         dest='t_month',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='month rain total')
+                        help='traditional month rain total')
     parser.add_argument('--year',
                         dest='t_year',
                         type=ranged_type(float, 0, 9999.9),
                         metavar='TOTAL',
-                        help='year rain total')
+                        help='traditional year rain total')
     add_common_args(parser)
     parser.set_defaults(func=dispatch_write)
     return parser
@@ -8642,23 +8781,24 @@ def rain_data_write_subparser(subparsers):
 def soil_write_subparser(subparsers):
     """Define 'write soil-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write soil-cal --help
-       ecowitt write soil-cal --ip-address=IP_ADDRESS [--port=PORT]
-                              [--ch1-min VALUE] [--ch1-max VALUE]
-                              [--ch2-min VALUE] [--ch2-max VALUE]
-                              [--ch3-min VALUE] [--ch3-max VALUE]
-                              [--ch4-min VALUE] [--ch4-max VALUE]
-                              [--ch5-min VALUE] [--ch5-max VALUE]
-                              [--ch6-min VALUE] [--ch6-max VALUE]
-                              [--ch7-min VALUE] [--ch7-max VALUE]
-                              [--ch8-min VALUE] [--ch8-max VALUE]
-                              [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write soil-cal --help
+       %(prog)s write soil-cal --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--ch1-min VALUE] [--ch1-max VALUE]
+                                 [--ch2-min VALUE] [--ch2-max VALUE]
+                                 [--ch3-min VALUE] [--ch3-max VALUE]
+                                 [--ch4-min VALUE] [--ch4-max VALUE]
+                                 [--ch5-min VALUE] [--ch5-max VALUE]
+                                 [--ch6-min VALUE] [--ch6-max VALUE]
+                                 [--ch7-min VALUE] [--ch7-max VALUE]
+                                 [--ch8-min VALUE] [--ch8-max VALUE]
+                                 [--debug]
 {Bcolors.ENDC}"""
     description = "Set soil moisture sensor calibration values. If a "\
                   "parameter is omitted the corresponding current gateway "\
                   "device parameter is left unchanged."
     parser = subparsers.add_parser('soil-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set soil moisture sensor calibration values")
     # TODO. Define correct args
@@ -8748,26 +8888,27 @@ def soil_write_subparser(subparsers):
 
 
 def mulch_th_write_subparser(subparsers):
-    """Define 'write mulch-th-cal' sub-subparser."""
+    """Define 'write th-cal' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write mulch-th-cal --help
-       ecowitt write mulch-th-cal --ip-address=IP_ADDRESS [--port=PORT]
-                                  [--ch1-temp OFFSET] [--ch1-hum OFFSET]
-                                  [--ch2-temp OFFSET] [--ch2-hum OFFSET] 
-                                  [--ch3-temp OFFSET] [--ch3-hum OFFSET]
-                                  [--ch4-temp OFFSET] [--ch4-hum OFFSET]
-                                  [--ch5-temp OFFSET] [--ch5-hum OFFSET]
-                                  [--ch6-temp OFFSET] [--ch6-hum OFFSET]
-                                  [--ch7-temp OFFSET] [--ch7-hum OFFSET]
-                                  [--ch8-temp OFFSET] [--ch8-hum OFFSET]
-                                  [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write th-cal --help
+       %(prog)s write th-cal --ip-address=IP_ADDRESS [--port=PORT]
+                               [--ch1-temp OFFSET] [--ch1-hum OFFSET]
+                               [--ch2-temp OFFSET] [--ch2-hum OFFSET] 
+                               [--ch3-temp OFFSET] [--ch3-hum OFFSET]
+                               [--ch4-temp OFFSET] [--ch4-hum OFFSET]
+                               [--ch5-temp OFFSET] [--ch5-hum OFFSET]
+                               [--ch6-temp OFFSET] [--ch6-hum OFFSET]
+                               [--ch7-temp OFFSET] [--ch7-hum OFFSET]
+                               [--ch8-temp OFFSET] [--ch8-hum OFFSET]
+                               [--debug]
 {Bcolors.ENDC}"""
     description = "Set multichannel temperature-humidity sensor offset "\
                   "calibration values. If a parameter is omitted the "\
                   "corresponding current gateway device parameter is left "\
                   "unchanged."
-    parser = subparsers.add_parser('mulch-th-cal',
+    parser = subparsers.add_parser('th-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set multichannel temperature-humidity sensor offset calibration values")
     parser.add_argument('--ch1-temp',
@@ -8858,59 +8999,60 @@ def mulch_th_write_subparser(subparsers):
 def mulch_t_write_subparser(subparsers):
     """Define 'ecowitt write mulch-t' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write mulch-t-offset --help
-       ecowitt write pm25-offset --ip-address=IP_ADDRESS [--port=PORT]
-                                 [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
-                                 [--ch5 OFFSET] [--ch6 OFFSET] [--ch7 OFFSET] [--ch8 OFFSET]
-                                 [--debug]
+    usage = f"""{Bcolors.BOLD}%(prog)s write t-cal --help
+       %(prog)s write t-cal --ip-address=IP_ADDRESS [--port=PORT]
+                              [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
+                              [--ch5 OFFSET] [--ch6 OFFSET] [--ch7 OFFSET] [--ch8 OFFSET]
+                              [--debug]
 {Bcolors.ENDC}"""
-    description = """Set multi-channel temperature sensor offset 
-    values. If a parameter is omitted the corresponding current gateway device 
-    parameter is left unchanged."""
-    parser = subparsers.add_parser('mulch-t-offset',
+    description = "Set multichannel temperature sensor offset calibration "\
+                  "values. If a parameter is omitted the corresponding current "\
+                  "gateway device parameter is left unchanged."
+    parser = subparsers.add_parser('t-cal',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
-                                   help="set Multi-channel temperature sensor offset values")
+                                   help="set multichannel temperature sensor offset calibration values")
     parser.add_argument('--ch1',
                         dest='ITEM_TF_USR1',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 1 offset')
+                        help='channel 1 temperature offset')
     parser.add_argument('--ch2',
                         dest='ITEM_TF_USR2',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 2 offset')
+                        help='channel 2 temperature offset')
     parser.add_argument('--ch3',
                         dest='ITEM_TF_USR3',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 3 offset')
+                        help='channel 3 temperature offset')
     parser.add_argument('--ch4',
                         dest='ITEM_TF_USR4',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 4 offset')
+                        help='channel 4 temperature offset')
     parser.add_argument('--ch5',
                         dest='ITEM_TF_USR5',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 5 offset')
+                        help='channel 5 temperature offset')
     parser.add_argument('--ch6',
                         dest='ITEM_TF_USR6',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 6 offset')
+                        help='channel 6 temperature offset')
     parser.add_argument('--ch7',
                         dest='ITEM_TF_USR7',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 7 offset')
+                        help='channel 7 temperature offset')
     parser.add_argument('--ch8',
                         dest='ITEM_TF_USR8',
                         type=ranged_type(float, -10, 10),
                         metavar='OFFSET',
-                        help='Multi-channel temperature channel 8 offset')
+                        help='channel 8 temperature offset')
     add_common_args(parser)
     parser.set_defaults(func=dispatch_write)
     return parser
@@ -8919,26 +9061,23 @@ def mulch_t_write_subparser(subparsers):
 def write_subparser(subparsers):
     """Define the 'ecowitt write' subcommand."""
 
-    usage = f"""{Bcolors.BOLD}ecowitt write --help
-       ecowitt write ecowitt --help
-       ecowitt write wu --help
-       ecowitt write wow --help
-       ecowitt write wcloud --help
-       ecowitt write custom --help
-       ecowitt write calibration --help
-       ecowitt write sensor-id --help
-       ecowitt write pm25-cal --help
-       ecowitt write co2-cal --help
-       ecowitt write rain --help
-       ecowitt write system --help
-       ecowitt write rain-data --help
-       ecowitt write soil-cal --help
-       ecowitt write mulch-th-cal --help
-       ecowitt write mulch-t-cal --help
+    usage = f"""{Bcolors.BOLD}%(prog)s write --help
+       %(prog)s write system --help
+       %(prog)s write services --help
+       %(prog)s write sensor-id --help
+       %(prog)s write rain --help
+       %(prog)s write all-rain --help
+       %(prog)s write calibration --help
+       %(prog)s write pm25-cal --help
+       %(prog)s write co2-cal --help
+       %(prog)s write soil-cal --help
+       %(prog)s write th-cal --help
+       %(prog)s write t-cal --help
 {Bcolors.ENDC}"""
     description = """Set various Ecowitt device configuration parameters."""
     parser = subparsers.add_parser('write',
                                    usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set various Ecowitt device configuration parameters")
     # Add a subparser to handle the various subcommands. Use 'metavar' so that
@@ -8946,25 +9085,20 @@ def write_subparser(subparsers):
     # need to be added to this metavar or they will be hidden.
     write_subparsers = parser.add_subparsers(dest='write_subcommand',
                                              title="Available subcommands",
-                                             metavar='{ecowitt, wu, wow, wcloud, custom, '
-                                                     'calibration, sensor-id, pm25-cal, '
-                                                     'co2-cal, rain, system, rain-data, '
-                                                     'soil-cal, mulch-th-cal, mulch-t-cal}')
+                                             metavar='{system, services, sensor-id, rain, '
+                                                     'all-rain, calibration, pm25-cal, '
+                                                     'co2-cal, soil-cal, th-cal, t-cal}')
     reboot_write_subparser(write_subparsers)
     reset_write_subparser(write_subparsers)
     ssid_write_subparser(write_subparsers)
-    ecowitt_write_subparser(write_subparsers)
-    wu_write_subparser(write_subparsers)
-    wow_write_subparser(write_subparsers)
-    wcloud_write_subparser(write_subparsers)
-    custom_write_subparser(write_subparsers)
-    cal_write_subparser(write_subparsers)
+    system_write_subparser(write_subparsers)
+    services_write_subparser(write_subparsers)
     sensor_id_write_subparser(write_subparsers)
+    rain_write_subparser(write_subparsers)
+    rain_data_write_subparser(write_subparsers)
+    cal_write_subparser(write_subparsers)
     pm25_cal_write_subparser(write_subparsers)
     co2_cal_write_subparser(write_subparsers)
-    rain_write_subparser(write_subparsers)
-    system_write_subparser(write_subparsers)
-    rain_data_write_subparser(write_subparsers)
     soil_write_subparser(write_subparsers)
     mulch_th_write_subparser(write_subparsers)
     mulch_t_write_subparser(write_subparsers)
@@ -9004,6 +9138,7 @@ def main():
                   "the so called 'local HTTP API'."
     # obtain an ArgumentParser object
     parser = argparse.ArgumentParser(usage=usage,
+                                     prog=os.path.basename(sys.argv[0]),
                                      description=description)
     # add argument definitions
     parser.add_argument('--version',
@@ -9016,12 +9151,12 @@ def main():
                         help='discover devices and display device IP address '
                              'and listening port')
     parser.add_argument('--period',
-                        dest = 'discovery_period',
-                        type = ranged_type(int, 0, 30),
-                        metavar = 'PERIOD',
-                        help = 'how long to spending discovering devices, default is 5 seconds')
+                        dest='discovery_period',
+                        type=ranged_type(int, 0, 30),
+                        metavar='PERIOD',
+                        help='how long to spending discovering devices, default is 5 seconds')
     parser.add_argument('--port',
-                        dest = 'discovery_port',
+                        dest='discovery_port',
                         type=int,
                         choices=range(0, 65537),
                         default=DEFAULT_DISCOVERY_PORT,
