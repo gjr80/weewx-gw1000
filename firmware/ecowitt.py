@@ -6450,7 +6450,7 @@ class EcowittDeviceConfigurator:
     def display_live_data(self):
         """Display the device live sensor data.
 
-        Obtain and display live sensor data from the selected device.
+        Obtain and display live sensor data from the device.
         """
 
         # get an EcowittDevice object
@@ -6472,7 +6472,7 @@ class EcowittDeviceConfigurator:
                         print(f"{field_info['text']:>30}: {live_sensor_data_dict[field]}{unit_str}")
 
     def display_discovered_devices(self):
-        """Display details of gateway devices on the local network."""
+        """Display details of devices discovered on the local network."""
 
         # this could take a few seconds so warn the user
         print()
@@ -6481,7 +6481,8 @@ class EcowittDeviceConfigurator:
         device = self.get_device()
         # Obtain a list of discovered devices. Would consider wrapping in a
         # try..except so we can catch any socket timeout exceptions, but the
-        # GatewayApi.discover() method should catch any such exceptions for us.
+        # GatewayApi.discover() method should catch and handle any such
+        # exceptions for us.
         device_list = device.discovered_devices
         print()
         if len(device_list) > 0:
@@ -6504,7 +6505,7 @@ class EcowittDeviceConfigurator:
             print("No devices were discovered.")
 
     def write_reboot(self):
-        """Reboot to a gateway device."""
+        """Reboot a device."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6530,7 +6531,7 @@ class EcowittDeviceConfigurator:
                 print("Device is rebooting...")
 
     def write_reset(self):
-        """Factory reset a gateway device."""
+        """Factory reset a device."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6556,7 +6557,7 @@ class EcowittDeviceConfigurator:
                 print("Device was factory reset.")
 
     def write_ssid(self):
-        """Write ssid and password to a gateway device."""
+        """Write the SSID and SSID password to a device."""
 
         # get an EcowittDevice object
         device = self.get_device()
