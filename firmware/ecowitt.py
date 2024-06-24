@@ -5652,7 +5652,7 @@ class EcowittDeviceConfigurator:
             else:
                 return f"---lux (---W/m² | ---kfc)"
         elif unit == 'time':
-            # we have a timestamp, if not None convert to humanreadable date,
+            # we have a timestamp, if not None convert to human-readable date,
             # otherwise display dashed lines
             if value is not None:
                 _dt = datetime.datetime.fromtimestamp(value)
@@ -5694,7 +5694,7 @@ class EcowittDeviceConfigurator:
     def display_system_params(self):
         """Display system parameters.
 
-        Obtain and display the gateway device system parameters.
+        Obtain and display the device system parameters.
         """
 
         # dict for decoding system parameters frequency byte
@@ -5723,20 +5723,20 @@ class EcowittDeviceConfigurator:
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            # get the device display_system_params property
+            # get the device system params property
             sys_params_dict = device.system_params
             # we need the radiation compensation setting which, according to
             # the v1.6.9 API documentation, resides in field 7B. But bizarrely
             # this is only available via the CMD_READ_RAIN API command.
             # CMD_READ_RAIN is a relatively new command so wrap in a
-            # try..except just in case.
+            # try..except just in case we have a device that has old firmware.
             try:
                 _rain_data = device.rain
             except GWIOError:
                 temperature_comp = None
             else:
                 temperature_comp = _rain_data.get('ITEM_radcompensation')
-            # create a meaningful string for frequency representation
+            # create a human-readable string for frequency representation
             freq_str = freq_decode.get(sys_params_dict['frequency'], 'Unknown')
             # if sensor_type is 0 there is a WH24 connected, if it's a 1 there
             # is a WH65
@@ -5771,13 +5771,10 @@ class EcowittDeviceConfigurator:
                   f'{dst_decode.get(sys_params_dict["dst_status"], "unknown")}')
 
     def display_rain_data(self):
+        # TODO. Need clarifying comments regards what type of rain data is displayed.
         """Display the device rain data.
 
-        Obtain and display the device rain data. The device IP address and port
-        are derived (in order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        Obtain and display the device rain data.
         """
 
         # get an EcowittDevice object
@@ -5812,22 +5809,11 @@ class EcowittDeviceConfigurator:
     def display_all_rain_data(self):
         """Display the device rain data including piezo data.
 
-        Obtain and display the device rain data including piezo data. The
-        CMD_READ_RAIN API command is used to obtain the device data, this
-        command returns rain data from the device for both traditional and
-        piezo rain gauges.
-
-        The device address and port are derived (in order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
-
-        Note. Early testing showed the CMD_READ_RAIN command returned data for
-        the piezo gauge only. This may be due to the system under test (it only
-        had a piezo rain gauge) or it may be an issue with the v2.1.3 device
-        firmware.
+        Obtain and display the device rain data from both traditional (if
+        paired) and piezo (if paired) rain gauges.
         """
 
+        # TODO. Not sure about these three, maybe just de-cluttering the main code
         def display_rain(field):
             pass
 
@@ -5968,14 +5954,10 @@ class EcowittDeviceConfigurator:
                 print(f'{"No rainfall reset time data available":>41}')
 
     def display_mulch_offset(self):
-        """Display device multichannel temperature and humidity offset data.
+        """Display device multichannel temperature and humidity offset calibration data.
 
         Obtain and display the multichannel temperature and humidity offset
-        data from the selected device. The device IP address and port are
-        derived (in order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        calibration data from the selected device.
         """
 
         # get an EcowittDevice object
@@ -5991,7 +5973,7 @@ class EcowittDeviceConfigurator:
             if mulch_offset_data is not None:
                 # now format and display the data
                 print()
-                print("Multi-channel Temperature and Humidity Calibration")
+                print("Multichannel Temperature and Humidity Calibration")
                 # do we have any results to display?
                 if len(mulch_offset_data) > 0:
                     # iterate over each channel for which we have data
@@ -6007,20 +5989,16 @@ class EcowittDeviceConfigurator:
                               f'Humidity offset: {hum_offset_str:5}')
                 else:
                     # we have no results, so display a suitable message
-                    print(f'{"No Multi-channel temperature and humidity sensors found":>59}')
+                    print(f'{"No Multichannel temperature and humidity sensors found":>59}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
     def display_mulch_t_offset(self):
-        """Display device multichannel temperature (WN34) offset data.
+        """Display device multichannel temperature (WN34) offset calibration data.
 
-        Obtain and display the multichannel temperature (WN34) offset data from
-        the selected device. The device IP address and port are derived (in
-        order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        Obtain and display the multichannel temperature (WN34) offset
+        calibration data from the selected device.
         """
 
         # get an EcowittDevice object
@@ -6035,12 +6013,13 @@ class EcowittDeviceConfigurator:
             # did we get any mulch temp offset data
             if mulch_t_offset_data is not None:
                 print()
-                print("Multi-channel Temperature Calibration")
+                print("Multichannel Temperature Calibration")
                 # do we have any results to display?
                 if len(mulch_t_offset_data) > 0:
                     # we have results, now format and display the data
                     # iterate over each channel for which we have data
                     for channel in mulch_t_offset_data:
+                        # TODO. Is this still required or not
                         # Print the channel and offset data. The API returns
                         # channels starting at 0x63, but the WSView Plus app
                         # displays channels starting at 1, so subtract 0x62
@@ -6052,19 +6031,16 @@ class EcowittDeviceConfigurator:
 
                 else:
                     # we have no results, so display a suitable message
-                    print(f'{"No Multi-channel temperature sensors found":>46}')
+                    print(f'{"No Multichannel temperature sensors found":>46}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
     def display_pm25_offset(self):
-        """Display the device PM2.5 offset data.
+        """Display the device PM2.5 offset calibration data.
 
-        Obtain and display the PM2.5 offset data from the selected device.The
-        device IP address and port are derived (in order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        Obtain and display the PM2.5 offset calibration data from the selected
+        device.
         """
 
         # get an EcowittDevice object
@@ -6098,14 +6074,10 @@ class EcowittDeviceConfigurator:
                 print(f'Device at {self.ip_address} did not respond.')
 
     def display_co2_offset(self):
-        """Display the device WH45 CO2, PM10 and PM2.5 offset data.
+        """Display the device WH45 CO2, PM10 and PM2.5 offset calibration data.
 
-        Obtain and display the WH45 CO2, PM10 and PM2.5 offset data from the
-        selected device. The device IP address and port are derived (in order)
-        as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        Obtain and display the WH45 CO2, PM10 and PM2.5 offset calibration data
+        from the selected device.
         """
 
         # get an EcowittDevice object
@@ -6135,11 +6107,7 @@ class EcowittDeviceConfigurator:
     def display_calibration(self):
         """Display the device calibration data.
 
-        Obtain and display the calibration data from the selected device. The
-        device IP address and port are derived (in order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        Obtain and display the calibration data from the selected device.
         """
 
         # get an EcowittDevice object
@@ -6178,11 +6146,7 @@ class EcowittDeviceConfigurator:
         """Display the device soil moisture sensor calibration data.
 
         Obtain and display the soil moisture sensor calibration data from the
-        selected device. The device IP address and port are derived (in order)
-        as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        device.
         """
 
         # get an EcowittDevice object
@@ -6217,14 +6181,10 @@ class EcowittDeviceConfigurator:
                 print(f'Device at {self.ip_address} did not respond.')
 
     def display_services(self):
-        """Display the device Weather Services settings.
+        """Display the device weather services settings.
 
         Obtain and display the settings for the various weather services
-        supported by the device. the device IP address and port are
-        derived (in order) as follows:
-        1. command line --ip-address and --port parameters
-        2. [GW1000] stanza in the specified config file
-        3. by discovery
+        supported by the device.
         """
 
         # each weather service uses different parameters so define individual
@@ -6361,7 +6321,7 @@ class EcowittDeviceConfigurator:
     def display_station_mac(self):
         """Display the device hardware MAC address.
 
-        Obtain and display the hardware MAC address of the selected device.
+        Obtain and display the hardware MAC address of the device.
         """
 
         # get an EcowittDevice object
@@ -6378,9 +6338,10 @@ class EcowittDeviceConfigurator:
     def display_firmware(self):
         """Display device firmware details.
 
-        Obtain and display the firmware version string from the selected
-        gateway device. User is advised whether a firmware update is available
-        or not.
+        Obtain and display the firmware version string from the device. The
+        user is advised whether a firmware update is available or not. Also
+        displays firmware version for any paired sensors that have user
+        updatable firmware.
         """
 
         # get an EcowittDevice object
