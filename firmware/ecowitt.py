@@ -3492,14 +3492,14 @@ class GatewayApi:
         # return the data payload
         return _response[5:5 + packet_length - 4]
 
-    def set_ssid(self, payload):
+    def write_ssid(self, payload):
         """Set the SSID parameters.
 
         Sends the API command to write the SSID parameters to the gateway
         device. If the device cannot be contacted a GWIOError will be raised
-        by send_cmd_with_retries() which will be passed through by set_ssid().
+        by send_cmd_with_retries() which will be passed through by write_ssid().
         If the command failed a DeviceWriteFailed exception is raised. Any code
-        calling set_ssid() should be prepared to handle these exceptions.
+        calling write_ssid() should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3508,8 +3508,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_ecowitt(self, payload):
-        """Set the Ecowitt.net upload parameters.
+    def write_ecowitt(self, payload):
+        """Write the Ecowitt.net upload parameters to a device.
 
         Sends the API command to write the Ecowitt.net upload parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
@@ -3525,14 +3525,14 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_wu(self, payload):
-        """Set the WeatherUnderground upload parameters.
+    def write_wu(self, payload):
+        """Write the WeatherUnderground upload parameters to a device.
 
         Sends the API command to write the WeatherUnderground upload parameters
         to the gateway device. If the device cannot be contacted a GWIOError
         will be raised by send_cmd_with_retries() which will be passed through
-        by set_wu(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_wu() should be prepared to handle these
+        by write_wu(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling write_wu() should be prepared to handle these
         exceptions.
         """
 
@@ -3542,8 +3542,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_wcloud(self, payload):
-        """Set the Weathercloud upload parameters.
+    def write_wcloud(self, payload):
+        """Write the Weathercloud upload parameters to a device.
 
         Sends the API command to write the Weathercloud upload parameters to
         the gateway device. If the device cannot be contacted a GWIOError will
@@ -3559,8 +3559,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_wow(self, payload):
-        """Set the Weather Observations Website upload parameters.
+    def write_wow(self, payload):
+        """Write the Weather Observations Website upload parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
         parameters to the gateway device. If the device cannot be contacted a
@@ -3576,8 +3576,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_custom(self, payload):
-        """Set the Weather Observations Website upload parameters.
+    def write_customized(self, payload):
+        """Write the Weather Observations Website upload parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
         parameters to the gateway device. If the device cannot be contacted a
@@ -3593,8 +3593,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_custom_paths(self, payload):
-        """Set the 'Custom' upload path parameters.
+    def write_user_path(self, payload):
+        """Write the 'User' upload path parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
         parameters to the gateway device. If the device cannot be contacted a
@@ -3610,8 +3610,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_gain(self, payload):
-        """Set the gain parameters.
+    def write_gain(self, payload):
+        """Write the gain parameters to a device.
 
         Sends the API command to write the gain parameters to the gateway
         device. If the device cannot be contacted a GWIOError will be raised
@@ -3626,15 +3626,15 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_calibration(self, payload):
-        """Set the calibration parameters.
+    def write_calibration(self, payload):
+        """Write the calibration parameters to a device.
 
         Sends the API command to write the calibration parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
         raised by send_cmd_with_retries() which will be passed through by
-        set_calibration(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling set_calibration() should be prepared to
-        handle these exceptions.
+        write_calibration(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_calibration() should be
+        prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3643,8 +3643,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_sensor_id(self, payload):
-        """Set the sensor ID parameters.
+    def write_sensor_id(self, payload):
+        """Write the sensor ID parameters to a device.
 
         Sends the API command to write the sensor ID parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
@@ -3660,8 +3660,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_pm25_offsets(self, payload):
-        """Set the PM2.5 offsets.
+    def write_pm25_offsets(self, payload):
+        """Write the PM2.5 offsets to a device.
 
         Sends the API command to write the sensor ID parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
@@ -3677,8 +3677,8 @@ class GatewayApi:
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
 
-    def set_co2_offsets(self, payload):
-        """Set the CO2 offsets.
+    def write_co2_offsets(self, payload):
+        """Write the CO2 offsets to a device.
 
         Sends the API command to write the sensor ID parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
@@ -3695,7 +3695,7 @@ class GatewayApi:
         self.confirm_write_success(result)
 
     def write_rain_params(self, payload):
-        """Write the rain related parameters.
+        """Write traditional and piezo rain related parameters to a device.
 
         Sends the API command to write the rain related parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
@@ -3729,7 +3729,7 @@ class GatewayApi:
         self.confirm_write_success(result)
 
     def write_rain_data(self, payload):
-        """Write rain data parameters.
+        """Write traditional rain data parameters to a device.
 
         Sends the API command to write the rain data parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
@@ -3768,8 +3768,8 @@ class GatewayApi:
         Sends the API command to write the soil moisture parameters to the
         device. If the device cannot be contacted a GWIOError will be raised by
         send_cmd_with_retries() which will be passed through by
-        write_rain_data(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling write_rain_data() should be prepared to
+        write_soil_moist(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling write_soil_moist() should be prepared to
         handle these exceptions.
         """
 
@@ -4865,22 +4865,22 @@ class EcowittDevice:
                     return sensor.get('version', 'not available')
         return None
 
-    def write_reboot(self):
+    def reboot(self):
         """Reboot a gateway device."""
 
         # send the reboot command to the gateway device
         self.gateway_api.reboot_device()
 
-    def write_reset(self):
+    def reset(self):
         """Factory reset a device."""
 
         # send the reset command to the gateway device
         self.gateway_api.reset_device()
 
-    def write_ssid(self, **ssid):
-        """Write SSID parameters.
+    def set_ssid(self, **ssid):
+        """Set SSID parameters.
 
-        Write SSID and SSID password to a gateway device. The parameters are
+        Set SSID and SSID password on a gateway device. The parameters are
         first encoded to produce the command data payload. The payload is then
         passed to a GatewayApi object for uploading to the gateway device.
         """
@@ -4888,12 +4888,12 @@ class EcowittDevice:
         # encode the payload parameters to produce the data payload
         payload = self.gateway_api_parser.encode_ssid(**ssid)
         # update the gateway device
-        self.gateway_api.set_ssid(payload)
+        self.gateway_api.write_ssid(payload)
 
-    def write_ecowitt(self, **ecowitt):
-        """Write Ecowitt.net upload parameters.
+    def set_ecowitt(self, **ecowitt):
+        """Set Ecowitt.net upload parameters.
 
-        Write Ecowitt.net upload parameters to a gateway device. The only
+        Set Ecowitt.net upload parameters for a gateway device. The only
         Ecowitt.net parameter is the upload interval. The upload parameter is
         first encoded to produce the command data payload. The payload is then
         passed to a GatewayApi object for uploading to the gateway device.
@@ -4902,12 +4902,12 @@ class EcowittDevice:
         # encode the payload parameters to produce the data payload
         payload = self.gateway_api_parser.encode_ecowitt(**ecowitt)
         # update the gateway device
-        self.gateway_api.set_ecowitt(payload)
+        self.gateway_api.write_ecowitt(payload)
 
-    def write_wu(self, **wu):
-        """Write WeatherUnderground upload parameters.
+    def set_wu(self, **wu):
+        """Set WeatherUnderground upload parameters.
 
-        Write WeatherUnderground upload parameters to a gateway device. The
+        Set WeatherUnderground upload parameters for a gateway device. The
         WeatherUnderground parameters consist of station ID and station key.
         The upload parameters are first encoded to produce the command data
         payload. The payload is then passed to a GatewayApi object for
@@ -4917,10 +4917,10 @@ class EcowittDevice:
         # encode the payload parameters to produce the data payload
         payload = self.gateway_api_parser.encode_wu(**wu)
         # update the gateway device
-        self.gateway_api.set_wu(payload)
+        self.gateway_api.write_wu(payload)
 
-    def write_wcloud(self, **wcloud):
-        """Write Weathercloud upload parameters.
+    def set_wcloud(self, **wcloud):
+        """Set Weathercloud upload parameters.
 
         Write Weathercloud upload parameters to a gateway device. The
         Weathercloud parameters consist of station ID and station key. The
@@ -4932,10 +4932,10 @@ class EcowittDevice:
         # encode the payload parameters to produce the data payload
         payload = self.gateway_api_parser.encode_wcloud(**wcloud)
         # update the gateway device
-        self.gateway_api.set_wcloud(payload)
+        self.gateway_api.write_wcloud(payload)
 
-    def write_wow(self, **wow):
-        """Write Weather Observations Website upload parameters.
+    def set_wow(self, **wow):
+        """Set Weather Observations Website upload parameters.
 
         Write Weather Observations Website upload parameters to a gateway
         device. The Weather Observations Website parameters consist of station
@@ -4947,13 +4947,13 @@ class EcowittDevice:
         # encode the payload parameters to produce the data payload
         payload = self.gateway_api_parser.encode_wow(**wow)
         # update the gateway device
-        self.gateway_api.set_wow(payload)
+        self.gateway_api.write_wow(payload)
 
-    def write_custom(self, **custom):
+    def set_custom(self, **custom):
         # TODO. Need comments here to expand on dual-update
-        """Write 'Custom' upload parameters.
+        """Set 'Custom' upload parameters.
 
-        Write 'Custom' upload parameters to a gateway device. The 'Custom'
+        Set 'Custom' upload parameters for a gateway device. The 'Custom'
         parameters consist of:
 
         active:     whether the custom upload is active, 0 = inactive,
@@ -4975,12 +4975,12 @@ class EcowittDevice:
         payload_custom = self.gateway_api_parser.encode_customized(**custom)
         payload_paths = self.gateway_api_parser.encode_usr_path(**custom)
         # update the gateway device
-        self.gateway_api.set_custom(payload_custom)
-        self.gateway_api.set_custom_paths(payload_paths)
+        self.gateway_api.write_customized(payload_custom)
+        self.gateway_api.write_user_path(payload_paths)
 
-    def write_gain(self, **gain):
+    def set_gain(self, **gain):
         # TODO. Need to update these comments
-        """Write gain parameters.
+        """Set gain parameters.
 
         Write gain parameters to a gateway device. The gain parameters consist
         of:
@@ -5003,11 +5003,11 @@ class EcowittDevice:
         # obtain encoded data payloads for the API command
         payload = self.gateway_api_parser.encode_gain(**gain)
         # update the gateway device
-        self.gateway_api.set_gain(payload)
+        self.gateway_api.write_gain(payload)
 
-    def write_calibration(self, **calibration):
+    def set_calibration(self, **calibration):
         # TODO. Need to update these comments
-        """Write calibration parameters.
+        """Set calibration parameters.
 
         Write calibration parameters to a gateway device. The calibration
         parameters consist of:
@@ -5028,12 +5028,12 @@ class EcowittDevice:
         # obtain encoded data payloads for the API command
         payload = self.gateway_api_parser.encode_calibration(**calibration)
         # update the gateway device
-        self.gateway_api.set_calibration(payload)
+        self.gateway_api.write_calibration(payload)
 
-    def write_sensor_id(self, **id):
-        """Write sensor ID parameters.
+    def set_sensor_id(self, **id):
+        """Set sensor ID parameters.
 
-        Write sensor ID parameters to a gateway device. The sensor ID
+        Set sensor ID parameters to a gateway device. The sensor ID
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5052,13 +5052,13 @@ class EcowittDevice:
         # obtain encoded data payloads for the API command
         payload = self.gateway_api_parser.encode_sensor_id(**id)
         # update the gateway device
-        self.gateway_api.set_sensor_id(payload)
+        self.gateway_api.write_sensor_id(payload)
 
-    def write_pm25_offsets(self, **offsets):
-        """Write PM2.5 offsets.
+    def set_pm25_offsets(self, **offsets):
+        """Set PM2.5 offsets.
         # TODO. Need to update this
 
-        Write sensor ID parameters to a gateway device. The sensor ID
+        Set sensor ID parameters to a gateway device. The sensor ID
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5077,13 +5077,13 @@ class EcowittDevice:
         # obtain encoded data payloads for the API command
         payload = self.gateway_api_parser.encode_pm25_offsets(**offsets)
         # update the gateway device
-        self.gateway_api.set_pm25_offsets(payload)
+        self.gateway_api.write_pm25_offsets(payload)
 
-    def write_co2_offsets(self, **offsets):
-        """Write CO2 offsets.
+    def set_co2_offsets(self, **offsets):
+        """Set CO2 offsets.
         # TODO. Need to update this
 
-        Write sensor ID parameters to a gateway device. The sensor ID
+        Set sensor ID parameters to a gateway device. The sensor ID
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5102,10 +5102,10 @@ class EcowittDevice:
         # obtain encoded data payloads for the API command
         payload = self.gateway_api_parser.encode_co2_offsets(**offsets)
         # update the gateway device
-        self.gateway_api.set_co2_offsets(payload)
+        self.gateway_api.write_co2_offsets(payload)
 
-    def write_rain(self, **params):
-        """Write rain parameters.
+    def set_rain_params(self, **params):
+        """Set traditional and piezo rain parameters.
         # TODO. Need to update this
 
         Write rain parameters to a device. The rain parameters consist of:
@@ -5128,11 +5128,11 @@ class EcowittDevice:
         # update the gateway device
         self.gateway_api.write_rain_params(payload)
 
-    def write_system_params(self, **params):
-        """Write system parameters.
+    def set_system_params(self, **params):
+        """Set system parameters.
         # TODO. Need to update this
 
-        Write system parameters to a device. The system parameters consist of:
+        Set system parameters for a device. The system parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5152,12 +5152,12 @@ class EcowittDevice:
         # update the gateway device
         self.gateway_api.write_system_params(payload)
 
-    def write_rain_data(self, **params):
-        """Write rain data parameters.
+    def set_rain_data(self, **params):
+        """Set traditional rain data parameters.
         # TODO. Need to update this
 
-        Write system parameters to a device. The system parameters
-        consist of:
+        Set traditional rain data parameters for a device. The system
+        parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5177,11 +5177,11 @@ class EcowittDevice:
         # update the gateway device
         self.gateway_api.write_rain_data(payload)
 
-    def write_mulch_offset(self, **params):
-        """Write multichannel temp/hum offset parameters.
+    def set_mulch_offset(self, **params):
+        """Set multichannel temp/hum offset parameters.
         # TODO. Need to update this
 
-        Write multichannel temp/hum offset parameters to a device. The
+        Set multichannel temp/hum offset parameters for a device. The
         multichannel temp/hum offset parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5202,8 +5202,8 @@ class EcowittDevice:
         # update the gateway device
         self.gateway_api.write_mulch_offset(payload)
 
-    def write_soil_moist(self, **params):
-        """Write soil moisture parameters to a device.
+    def set_soil_moist(self, **params):
+        """Set soil moisture parameters for a device.
 
         The writable soil moisture parameters for each channel consist of:
 
@@ -5220,12 +5220,12 @@ class EcowittDevice:
         # obtain encoded data payload for the API command
         payload = self.gateway_api_parser.encode_soil_humiad(**params)
         # update the device
-        self.gateway_api.write_rain_data(payload)
+        self.gateway_api.write_soil_moist(payload)
 
-    def write_mulch_t(self, **params):
-        """Write mulch-t offset parameters.
+    def set_mulch_t(self, **params):
+        """Set mulch-t offset parameters.
 
-        Write mulch-t offset parameters to a device. The mulch-t offset
+        Set mulch-t offset parameters for a device. The mulch-t offset
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -6504,7 +6504,7 @@ class EcowittDeviceConfigurator:
             # we have no results
             print("No devices were discovered.")
 
-    def write_reboot(self):
+    def process_write_reboot(self):
         """Reboot a device."""
 
         # get an EcowittDevice object
@@ -6523,14 +6523,14 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
             print()
             try:
-                device.write_reboot()
+                device.reboot()
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 print("Unable to reboot device.")
             else:
                 print("Device is rebooting...")
 
-    def write_reset(self):
+    def process_write_reset(self):
         """Factory reset a device."""
 
         # get an EcowittDevice object
@@ -6549,14 +6549,14 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}{Bcolors.ENDC}')
             print()
             try:
-                device.write_reset()
+                device.reset()
             except DeviceWriteFailed as e:
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 print("Unable to factory reset device.")
             else:
                 print("Device was factory reset.")
 
-    def write_ssid(self):
+    def process_write_ssid(self):
         """Write the SSID and SSID password to a device."""
 
         # get an EcowittDevice object
@@ -6581,13 +6581,13 @@ class EcowittDeviceConfigurator:
             # has already checked their length (ie 0 < length <= max length).
             # We just need to check that both were provided, ie both are non-None.
             if _ssid is not None and _password is not None:
-                # create our own mapping for device.write_ssid, all we need is
-                # a dict keyed by 'ssid' and 'password' with the applicable
+                # create our own mapping for device.set_ssid, all we need is a
+                # dict keyed by 'ssid' and 'password' with the applicable
                 # arguments
                 args = {'ssid': _ssid, 'password': _password}
                 # now write the SSID and password to the device
                 try:
-                    device.write_ssid(**args)
+                    device.set_ssid(**args)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6596,7 +6596,7 @@ class EcowittDeviceConfigurator:
                 print("Error, both SSID and SSID password must be provided")
                 print("No change to current device settings")
 
-    def write_ecowitt(self):
+    def process_write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
 
         # get an EcowittDevice object
@@ -6625,7 +6625,7 @@ class EcowittDeviceConfigurator:
             if arg_ecowitt_params != ecowitt_params:
                 # something has changed, so write the updated params to the device
                 try:
-                    device.write_custom(**arg_ecowitt_params)
+                    device.set_ecowitt(**arg_ecowitt_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6634,8 +6634,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print("No changes to current device settings")
 
-    def write_wu_wow_wcloud(self):
-        """Process wu, wow and wcloud write sub-subcommands."""
+    def process_write_wu_wow_wcloud(self):
+        """Process writ wu, wow and wcloud sub-subcommands."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6662,7 +6662,7 @@ class EcowittDeviceConfigurator:
             if arg_service_params != current_params:
                 # something has changed, so write the updated params to the device
                 try:
-                    getattr(device, '_'.join(['write', self.namespace.write_subcommand]))(**arg_service_params)
+                    getattr(device, '_'.join(['set', self.namespace.write_subcommand]))(**arg_service_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6671,7 +6671,7 @@ class EcowittDeviceConfigurator:
                 print()
                 print("No changes to current device settings")
 
-    def write_custom(self):
+    def process_write_custom(self):
         """Process custom write sub-subcommand."""
 
         # get an EcowittDevice object
@@ -6715,7 +6715,7 @@ class EcowittDeviceConfigurator:
                 arg_custom_params.update(arg_usr_path)
                 # write the updated settings to the device
                 try:
-                    device.write_custom(**arg_custom_params)
+                    device.set_custom(**arg_custom_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6724,8 +6724,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print("No changes to current device settings")
 
-    def write_calibration(self):
-        """Process calibration write sub-subcommand."""
+    def process_write_calibration(self):
+        """Process 'write calibration' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6752,8 +6752,8 @@ class EcowittDeviceConfigurator:
             if arg_cal_params != cal_params:
                 # something has changed, so write the updated params to the device
                 try:
-                    device.write_gain(**arg_cal_params)
-                    device.write_calibration(**arg_cal_params)
+                    device.set_gain(**arg_cal_params)
+                    device.set_calibration(**arg_cal_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6762,8 +6762,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print("No changes to current device settings")
 
-    def write_sensor_id(self):
-        """Process sensor-id write sub-subcommand."""
+    def process_write_sensor_id(self):
+        """Process 'write sensor-id' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6799,7 +6799,7 @@ class EcowittDeviceConfigurator:
                                             }
                 # write the updated params to the device
                 try:
-                    device.write_sensor_id(**id_and_address)
+                    device.set_sensor_id(**id_and_address)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6807,8 +6807,8 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def write_pm25_offset(self):
-        """Process pm25-offset write sub-subcommand."""
+    def process_write_pm25_cal(self):
+        """Process 'write pm25-cal' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6835,7 +6835,7 @@ class EcowittDeviceConfigurator:
             if arg_offsets != offsets:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_pm25_offsets(**arg_offsets)
+                    device.set_pm25_offsets(**arg_offsets)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6843,8 +6843,8 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def write_co2_offset(self):
-        """Process c02-offset write sub-subcommand."""
+    def process_write_co2_cal(self):
+        """Process 'write co2-cal' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6871,7 +6871,7 @@ class EcowittDeviceConfigurator:
             if arg_offsets != offsets:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_co2_offsets(**arg_offsets)
+                    device.set_co2_offsets(**arg_offsets)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6879,7 +6879,7 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def write_rain(self):
+    def process_write_all_rain(self):
         """Process 'write all-rain' sub-subcommand."""
 
         # get an EcowittDevice object
@@ -6919,7 +6919,7 @@ class EcowittDeviceConfigurator:
             if arg_parameters != parameters:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_rain(**arg_parameters)
+                    device.set_rain_params(**arg_parameters)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6927,8 +6927,8 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def write_system(self):
-        """Process system write sub-subcommand."""
+    def process_write_system(self):
+        """Process 'write system' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -6955,7 +6955,7 @@ class EcowittDeviceConfigurator:
             if arg_params != _params:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_system_params(**arg_params)
+                    device.set_system_params(**arg_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6963,7 +6963,7 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def write_rain_data(self):
+    def process_write_rain(self):
         """Process 'write rain' sub-subcommand."""
 
         # get an EcowittDevice object
@@ -6991,7 +6991,7 @@ class EcowittDeviceConfigurator:
             if arg_rain_data != rain_data:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_rain_data(**arg_rain_data)
+                    device.set_rain_data(**arg_rain_data)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -6999,8 +6999,8 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def process_write_mulch_offset(self):
-        """Process multichannel temp/humid offset write sub-subcommand."""
+    def process_write_th_cal(self):
+        """Process 'write th-cal' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -7027,7 +7027,7 @@ class EcowittDeviceConfigurator:
             if arg_params != params:
                 # something has changed, so save the updated offsets to the device
                 try:
-                    device.write_mulch_offset(**arg_params)
+                    device.set_mulch_offset(**arg_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -7035,8 +7035,8 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def process_write_soil_humiad(self):
-        """Process soil-cal write sub-subcommand."""
+    def process_write_soil_cal(self):
+        """Process 'write soil-cal' sub-subcommand."""
 
         # get an EcowittDevice object
         device = self.get_device()
@@ -7082,7 +7082,7 @@ class EcowittDeviceConfigurator:
             if arg_cal_data != cal_data:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_soil_moist(**arg_cal_data)
+                    device.set_soil_moist(**arg_cal_data)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -7090,7 +7090,7 @@ class EcowittDeviceConfigurator:
             else:
                 print("No changes to current device settings")
 
-    def write_mulch_t(self):
+    def process_write_t_cal(self):
         """Process 'write t-cal' sub-subcommand."""
 
         # get an EcowittDevice object
@@ -7119,7 +7119,7 @@ class EcowittDeviceConfigurator:
             if arg_offset_data != offset_data:
                 # something has changed, so write the updated offsets to the device
                 try:
-                    device.write_mulch_t(**arg_offset_data)
+                    device.set_mulch_t(**arg_offset_data)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
@@ -7333,37 +7333,37 @@ def dispatch_write(namespace):
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
     if getattr(namespace, 'write_subcommand', False) == 'reboot':
-        direct_gw.write_reboot()
+        direct_gw.process_write_reboot()
     if getattr(namespace, 'write_subcommand', False) == 'reset':
-        direct_gw.write_reset()
+        direct_gw.process_write_reset()
     if getattr(namespace, 'write_subcommand', False) == 'ssid':
-        direct_gw.write_ssid()
+        direct_gw.process_write_ssid()
     if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
-        direct_gw.write_ecowitt()
+        direct_gw.process_write_ecowitt()
     if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
-        direct_gw.write_wu_wow_wcloud()
+        direct_gw.process_write_wu_wow_wcloud()
     if getattr(namespace, 'write_subcommand', False) == 'custom':
-        direct_gw.write_custom()
+        direct_gw.process_write_custom()
     if getattr(namespace, 'write_subcommand', False) == 'calibration':
-        direct_gw.write_calibration()
+        direct_gw.process_write_calibration()
     if getattr(namespace, 'write_subcommand', False) == 'sensor-id':
-        direct_gw.write_sensor_id()
+        direct_gw.process_write_sensor_id()
     if getattr(namespace, 'write_subcommand', False) == 'pm25-cal':
-        direct_gw.write_pm25_offset()
+        direct_gw.process_write_pm25_cal()
     if getattr(namespace, 'write_subcommand', False) == 'co2-cal':
-        direct_gw.write_co2_offset()
+        direct_gw.process_write_co2_cal()
     if getattr(namespace, 'write_subcommand', False) == 'all-rain':
-        direct_gw.write_rain()
+        direct_gw.process_write_all_rain()
     if getattr(namespace, 'write_subcommand', False) == 'system':
-        direct_gw.write_system()
+        direct_gw.process_write_system()
     if getattr(namespace, 'write_subcommand', False) == 'rain':
-        direct_gw.write_rain_data()
+        direct_gw.process_write_rain()
     if getattr(namespace, 'write_subcommand', False) == 'th-cal':
-        direct_gw.process_write_mulch_offset()
+        direct_gw.process_write_th_cal()
     if getattr(namespace, 'write_subcommand', False) == 'soil-cal':
-        direct_gw.process_write_soil_humiad()
+        direct_gw.process_write_soil_cal()
     if getattr(namespace, 'write_subcommand', False) == 't-cal':
-        direct_gw.write_mulch_t()
+        direct_gw.process_write_t_cal()
 
 
 def add_common_args(parser):
