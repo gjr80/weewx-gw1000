@@ -5691,8 +5691,8 @@ class EcowittDeviceConfigurator:
         else:
             return ""
 
-    def display_system_params(self):
-        """Display system parameters.
+    def process_read_system(self):
+        """Read and display system parameters.
 
         Obtain and display the device system parameters.
         """
@@ -5770,11 +5770,11 @@ class EcowittDeviceConfigurator:
             print(f'{"Automatically adjust for DST":>28}: '
                   f'{dst_decode.get(sys_params_dict["dst_status"], "unknown")}')
 
-    def display_rain_data(self):
+    def process_read_rain(self):
         # TODO. Need clarifying comments regards what type of rain data is displayed.
-        """Display the device rain data.
+        """Read and display the device traditional rain data.
 
-        Obtain and display the device rain data.
+        Obtain and display the device traditional rain data.
         """
 
         # get an EcowittDevice object
@@ -5806,8 +5806,8 @@ class EcowittDeviceConfigurator:
                     print()
                     print(f'Device at {self.ip_address} did not respond.')
 
-    def display_all_rain_data(self):
-        """Display the device rain data including piezo data.
+    def process_read_all_rain(self):
+        """Read and display the device traditional and piezo rain data.
 
         Obtain and display the device rain data from both traditional (if
         paired) and piezo (if paired) rain gauges.
@@ -5953,8 +5953,8 @@ class EcowittDeviceConfigurator:
             else:
                 print(f'{"No rainfall reset time data available":>41}')
 
-    def display_mulch_offset(self):
-        """Display device multichannel temperature and humidity offset calibration data.
+    def process_read_th_cal(self):
+        """Read and display multichannel temperature and humidity calibration data.
 
         Obtain and display the multichannel temperature and humidity offset
         calibration data from the selected device.
@@ -6036,8 +6036,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
-    def display_pm25_offset(self):
-        """Display the device PM2.5 offset calibration data.
+    def process_read_pm25_cal(self):
+        """Read and display the device PM2.5 offset calibration data.
 
         Obtain and display the PM2.5 offset calibration data from the selected
         device.
@@ -6073,8 +6073,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
-    def display_co2_offset(self):
-        """Display the device WH45 CO2, PM10 and PM2.5 offset calibration data.
+    def process_read_co2_cal(self):
+        """Read and display the device WH45 CO2, PM10 and PM2.5 offset calibration data.
 
         Obtain and display the WH45 CO2, PM10 and PM2.5 offset calibration data
         from the selected device.
@@ -6104,8 +6104,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
-    def display_calibration(self):
-        """Display the device calibration data.
+    def process_read_calibration(self):
+        """Read and display the device calibration data.
 
         Obtain and display the calibration data from the selected device.
         """
@@ -6142,8 +6142,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
-    def display_soil_calibration(self):
-        """Display the device soil moisture sensor calibration data.
+    def process_read_soil_cal(self):
+        """Read and display the device soil moisture sensor calibration data.
 
         Obtain and display the soil moisture sensor calibration data from the
         device.
@@ -6180,8 +6180,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
-    def display_services(self):
-        """Display the device weather services settings.
+    def process_read_services(self):
+        """Read and display the device weather services settings.
 
         Obtain and display the settings for the various weather services
         supported by the device.
@@ -6318,8 +6318,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def display_station_mac(self):
-        """Display the device hardware MAC address.
+    def process_read_mac_address(self):
+        """Read and display the device hardware MAC address.
 
         Obtain and display the hardware MAC address of the device.
         """
@@ -6335,8 +6335,8 @@ class EcowittDeviceConfigurator:
             # get the device MAC address
             print("    MAC address: %s" % device.mac_address)
 
-    def display_firmware(self):
-        """Display device firmware details.
+    def process_read_firmware(self):
+        """Read and display device firmware details.
 
         Obtain and display the firmware version string from the device. The
         user is advised whether a firmware update is available or not. Also
@@ -6396,8 +6396,8 @@ class EcowittDeviceConfigurator:
                 # there must be no available firmware update
                 print("    the firmware is up to date for this %s" % model)
 
-    def display_sensors(self):
-        """Display the device sensor ID information.
+    def process_read_sensors(self):
+        """Read and display the device sensor ID information.
 
         Obtain and display the sensor ID information from the selected gateway
         device.
@@ -6412,9 +6412,9 @@ class EcowittDeviceConfigurator:
             print()
             print(f'Interrogating {Bcolors.BOLD}{model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            # first update the GatewayDevice object sensor ID data
+            # first update the EcowittDevice object sensor ID data
             device.update_sensor_id_data()
-            # now get the sensors property from the GatewayDevice object
+            # now get the sensors property from the EcowittDevice object
             sensors = device.sensors
             # the sensor ID data is in the sensors data property, did
             # we get any sensor ID data
@@ -6447,8 +6447,8 @@ class EcowittDeviceConfigurator:
                 print()
                 print("Device at {self.ip_address} did not respond.")
 
-    def display_live_data(self):
-        """Display the device live sensor data.
+    def process_read_live_data(self):
+        """Read and display the device live sensor data.
 
         Obtain and display live sensor data from the device.
         """
@@ -7298,34 +7298,34 @@ def process_read(namespace):
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
     if getattr(namespace, 'read_subcommand', False) == 'live-data':
-        direct_gw.display_live_data()
+        direct_gw.process_read_live_data()
     if getattr(namespace, 'read_subcommand', False) == 'sensors':
-        direct_gw.display_sensors()
+        direct_gw.process_read_sensors()
     if getattr(namespace, 'read_subcommand', False) == 'firmware':
-        direct_gw.display_firmware()
+        direct_gw.process_read_firmware()
     if getattr(namespace, 'read_subcommand', False) == 'mac-address':
-        direct_gw.display_station_mac()
+        direct_gw.process_read_mac_address()
     if getattr(namespace, 'read_subcommand', False) == 'system':
-        direct_gw.display_system_params()
+        direct_gw.process_read_system()
     if getattr(namespace, 'read_subcommand', False) == 'rain':
-        direct_gw.display_rain_data()
+        direct_gw.process_read_rain()
     if getattr(namespace, 'read_subcommand', False) == 'all-rain':
-        direct_gw.display_all_rain_data()
+        direct_gw.process_read_all_rain()
     if getattr(namespace, 'read_subcommand', False) == 'calibration':
-        direct_gw.display_calibration()
+        direct_gw.process_read_calibration()
     if getattr(namespace, 'read_subcommand', False) == 'th-cal':
-        direct_gw.display_mulch_offset()
+        direct_gw.process_read_th_cal()
     if getattr(namespace, 'read_subcommand', False) == 'soil-cal':
-        direct_gw.display_soil_calibration()
+        direct_gw.process_read_soil_cal()
     if getattr(namespace, 'read_subcommand', False) == 'pm25-cal':
-        direct_gw.display_pm25_offset()
+        direct_gw.process_read_pm25_cal()
     if getattr(namespace, 'read_subcommand', False) == 'co2-cal':
-        direct_gw.display_co2_offset()
+        direct_gw.process_read_co2_cal()
     if getattr(namespace, 'read_subcommand', False) == 'services':
-        direct_gw.display_services()
+        direct_gw.process_read_services()
 
 
-def dispatch_write(namespace):
+def process_write(namespace):
     """Process 'write' subcommand."""
 
     # get a EcowittDeviceConfigurator object
@@ -7391,20 +7391,6 @@ def add_common_args(parser):
                         dest='debug',
                         action='store_true',
                         help='display additional debug information')
-
-
-def get_action_exists(ns):
-    """Does a given namespace contain at least one get action."""
-    
-    get_actions = ['live-data', 'sensors firmware', 'mac-address',
-                   'system-params', 'rain', 'all-rain', 'calibration',
-                   'th-cal', 't-cal', 'mulch-soil-cal', 'pm25-cal', 'co2-cal',
-                   'services']
-
-    for action in get_actions:
-        if getattr(ns, action, None) is not None:
-            return True
-    return False
 
 
 def read_action_exists(ns):
@@ -7728,7 +7714,7 @@ def reboot_write_subparser(subparsers):
                                    prog=os.path.basename(sys.argv[0]),
                                    description=description)
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7745,7 +7731,7 @@ def reset_write_subparser(subparsers):
                                    prog=os.path.basename(sys.argv[0]),
                                    description=description)
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7773,7 +7759,7 @@ def ssid_write_subparser(subparsers):
                         metavar='PASSWORD',
                         help='SSID password')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7883,7 +7869,7 @@ def services_write_subparser(subparsers):
                         metavar='UPLOAD_PORT',
                         help='destination server port number')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7910,7 +7896,7 @@ def ecowitt_write_subparser(subparsers):
                         help='Ecowitt.net upload interval (0-5) in minutes. '
                              '0 indicates upload is disabled. Default is 0.')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7936,7 +7922,7 @@ def wu_write_subparser(subparsers):
                         metavar='STATION_KEY',
                         help='WeatherUnderground station key')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7962,7 +7948,7 @@ def wow_write_subparser(subparsers):
                         metavar='STATION_KEY',
                         help='Weather Observations Website station key')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -7988,7 +7974,7 @@ def wcloud_write_subparser(subparsers):
                         metavar='STATION_KEY',
                         help='Weathercloud station key')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8064,7 +8050,7 @@ def custom_write_subparser(subparsers):
                         metavar='UPLOAD_PORT',
                         help='destination server port number')
     add_common_args(parser)
-    parser.set_defaults(active=0, func=dispatch_write)
+    parser.set_defaults(active=0, func=process_write)
     return parser
 
 
@@ -8126,7 +8112,7 @@ def cal_write_subparser(subparsers):
                         type=ranged_type(float, -180, 180),
                         help='wind direction offset')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8406,7 +8392,7 @@ def sensor_id_write_subparser(subparsers):
                         metavar='ID',
                         help='WH90 sensor identification value')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8447,7 +8433,7 @@ def pm25_cal_write_subparser(subparsers):
                         metavar='OFFSET',
                         help='PM2.5 channel 4 offset')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8483,7 +8469,7 @@ def co2_cal_write_subparser(subparsers):
                         metavar='OFFSET',
                         help='PM10 offset')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8651,7 +8637,7 @@ def rain_write_subparser(subparsers):
                         metavar='MONTH',
                         help='yearly rain reset time (month)')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8695,7 +8681,7 @@ def system_write_subparser(subparsers):
                         metavar='disable | enable',
                         help='automatically detect and set timezone')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8736,7 +8722,7 @@ def rain_data_write_subparser(subparsers):
                         metavar='TOTAL',
                         help='traditional year rain total')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8845,7 +8831,7 @@ def soil_write_subparser(subparsers):
                         metavar='VALUE',
                         help='channel 8 100%% calibration value')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -8954,7 +8940,7 @@ def mulch_th_write_subparser(subparsers):
                         metavar='OFFSET',
                         help='channel 8 humidity offset')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
@@ -9016,7 +9002,7 @@ def mulch_t_write_subparser(subparsers):
                         metavar='OFFSET',
                         help='channel 8 temperature offset')
     add_common_args(parser)
-    parser.set_defaults(func=dispatch_write)
+    parser.set_defaults(func=process_write)
     return parser
 
 
