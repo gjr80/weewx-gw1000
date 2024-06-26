@@ -773,8 +773,8 @@ class GatewayApiParser:
 
         Field       Description                                 Encoded as
         ------------------------------------------------------------------------
-        channel     zero based channel number                   byte
-        offset      temperature offset, -100 to 100             byte
+        channel     zero based channel number                   unsigned byte
+        offset      temperature offset, -100 to 100             signed byte
 
         Returns a bytestring.
         """
@@ -829,15 +829,19 @@ class GatewayApiParser:
         return offset_dict
 
     @staticmethod
-    def encode_pm25_offsets(**offsets):
+    def encode_pm25_offset(**offset):
         """Encode data parameters used for CMD_SET_PM25_OFFSET.
 
         Assemble a bytestring to be used as the data payload for
-        CMD_SET_PM25_OFFSET. The ids dict consists of sensor ID data keyed by
-        sensor address. Payload consists of a sequence of sensor address
-        followed by sensor ID for each sensor. The sensor address is
-        represented as a single byte and sensor ID is represented as a long
-        integer.
+        CMD_SET_PM25_OFFSET. The offset dict is keyed by zero based channel
+        number and dict entry contains the offset value for the channel
+        concerned. Payload data is encoded as follows:
+
+        Field       Description                         Encoded as
+        ------------------------------------------------------------------------
+        channel     zero based channel number           unsigned byte
+        offset      PM2.5 offset, -200 to +200          signed short
+                    (-20.0μg/m³ to +20.0μg/m³)
 
         Returns a bytestring.
         """
@@ -845,7 +849,7 @@ class GatewayApiParser:
         # initialise a list to hold bytestring components of the result
         comp = []
         # iterate over the list of sensor addresses in address order
-        for channel, offset in offsets.items():
+        for channel, offset in offset.items():
             # append the channel number to our result list
             comp.append(struct.pack('b', int(channel[-1])))
             # append the offset value to our result list
@@ -5049,7 +5053,7 @@ class EcowittDevice:
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.gateway_api_parser.encode_pm25_offsets(**offsets)
+        payload = self.gateway_api_parser.encode_pm25_offset(**offsets)
         # update the gateway device
         self.gateway_api.write_pm25_offsets(payload)
 
@@ -7357,6 +7361,7 @@ def add_common_args(parser):
 
     parser.add_argument('--ip-address',
                         dest='device_ip_address',
+                        metavar='IP_ADDRESS',
                         help='device IP address to use')
     parser.add_argument('--port',
                         dest='device_port',
@@ -7368,10 +7373,12 @@ def add_common_args(parser):
     parser.add_argument('--max-tries',
                         dest='max_tries',
                         type=int,
+                        metavar='TRIES',
                         help='max number of attempts to contact the device')
     parser.add_argument('--retry-wait',
                         dest='retry_wait',
                         type=int,
+                        metavar='SECONDS',
                         help='how long to wait between attempts to contact the device')
     parser.add_argument('--debug',
                         dest='debug',
@@ -7383,8 +7390,8 @@ def read_live_data_subparser(subparsers):
     """Define 'read live-data' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read live-data --help
-       %(prog)s read live-data --ip-address=IP_ADDRESS [--port=PORT]
-                                 [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read live-data --ip-address IP_ADDRESS [--port PORT]
+                                 [--max-tries TRIES] [--retry-wait SECONDS]
                                  [--debug]{Bcolors.ENDC}
     """
     description = """Read device live data."""
@@ -7395,7 +7402,8 @@ def read_live_data_subparser(subparsers):
                                    help="read and display device live data")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_live-data': parser}
 
 
 def read_sensors_subparser(subparsers):
@@ -7414,7 +7422,8 @@ def read_sensors_subparser(subparsers):
                                    help="read and display device sensor state information")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_sensors': parser}
 
 
 def read_firmware_subparser(subparsers):
@@ -7433,7 +7442,8 @@ def read_firmware_subparser(subparsers):
                                    help="read and display the device firmware version")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_firmware': parser}
 
 
 def read_mac_address_subparser(subparsers):
@@ -7452,7 +7462,8 @@ def read_mac_address_subparser(subparsers):
                                    help="read and display the device MAC address")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_mac-address': parser}
 
 
 def read_system_subparser(subparsers):
@@ -7471,7 +7482,8 @@ def read_system_subparser(subparsers):
                                    help="read and display the device system parameters")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_system': parser}
 
 
 def read_rain_subparser(subparsers):
@@ -7490,7 +7502,8 @@ def read_rain_subparser(subparsers):
                                    help="read and display traditional rain gauge data")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_rain': parser}
 
 
 def read_all_rain_subparser(subparsers):
@@ -7509,7 +7522,8 @@ def read_all_rain_subparser(subparsers):
                                    help="read and display available traditional and piezo rain gauge data")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_all-rain': parser}
 
 
 def read_calibration_subparser(subparsers):
@@ -7528,7 +7542,8 @@ def read_calibration_subparser(subparsers):
                                    help="read and display device calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_calibration': parser}
 
 
 def read_th_cal_subparser(subparsers):
@@ -7548,7 +7563,8 @@ def read_th_cal_subparser(subparsers):
                                         "and humidity calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_th-cal': parser}
 
 
 def read_soil_cal_subparser(subparsers):
@@ -7567,7 +7583,8 @@ def read_soil_cal_subparser(subparsers):
                                    help="read and display multichannel soil moisture calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_soil-cal': parser}
 
 
 def read_pm25_cal_subparser(subparsers):
@@ -7586,7 +7603,8 @@ def read_pm25_cal_subparser(subparsers):
                                    help="read and display multichannel PM2.5 calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_pm25-cal': parser}
 
 
 def read_co2_cal_subparser(subparsers):
@@ -7605,7 +7623,8 @@ def read_co2_cal_subparser(subparsers):
                                    help="read and display CO2 sensor calibration parameters")
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_co2-cal': parser}
 
 
 def read_services_subparser(subparsers):
@@ -7629,7 +7648,8 @@ def read_services_subparser(subparsers):
                         help='unmask sensitive parameters')
     add_common_args(parser)
     parser.set_defaults(func=process_read)
-    return parser
+    # return a dict containing our parser
+    return {'read_services': parser}
 
 
 def read_subparser(subparsers):
@@ -7659,20 +7679,26 @@ def read_subparser(subparsers):
     # add a subparser to handle the various subcommands.
     subparsers = parser.add_subparsers(dest='read_subcommand',
                                        title="Available subcommands")
-    read_live_data_subparser(subparsers)
-    read_sensors_subparser(subparsers)
-    read_firmware_subparser(subparsers)
-    read_mac_address_subparser(subparsers)
-    read_system_subparser(subparsers)
-    read_rain_subparser(subparsers)
-    read_all_rain_subparser(subparsers)
-    read_calibration_subparser(subparsers)
-    read_th_cal_subparser(subparsers)
-    read_soil_cal_subparser(subparsers)
-    read_pm25_cal_subparser(subparsers)
-    read_co2_cal_subparser(subparsers)
-    read_services_subparser(subparsers)
-    return parser
+    # create a dict to hold our parser and subcommand parsers, this makes it
+    # easier to provide subcommand specific help output if required later
+    read_parsers = {'read': parser}
+    # call each 'read' subparser constructor function and update our parser
+    # dict with the results
+    read_parsers.update(read_live_data_subparser(subparsers))
+    read_parsers.update(read_sensors_subparser(subparsers))
+    read_parsers.update(read_firmware_subparser(subparsers))
+    read_parsers.update(read_mac_address_subparser(subparsers))
+    read_parsers.update(read_system_subparser(subparsers))
+    read_parsers.update(read_rain_subparser(subparsers))
+    read_parsers.update(read_all_rain_subparser(subparsers))
+    read_parsers.update(read_calibration_subparser(subparsers))
+    read_parsers.update(read_th_cal_subparser(subparsers))
+    read_parsers.update(read_soil_cal_subparser(subparsers))
+    read_parsers.update(read_pm25_cal_subparser(subparsers))
+    read_parsers.update(read_co2_cal_subparser(subparsers))
+    read_parsers.update(read_services_subparser(subparsers))
+    # return the dict containing our parser and subparsers
+    return read_parsers
 
 
 def write_reboot_subparser(subparsers):
@@ -7689,7 +7715,8 @@ def write_reboot_subparser(subparsers):
                                    description=description)
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_reboot': parser}
 
 
 def write_reset_subparser(subparsers):
@@ -7706,7 +7733,8 @@ def write_reset_subparser(subparsers):
                                    description=description)
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_reset': parser}
 
 
 def write_ssid_subparser(subparsers):
@@ -7734,7 +7762,8 @@ def write_ssid_subparser(subparsers):
                         help='SSID password')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_ssid': parser}
 
 
 def write_services_subparser(subparsers):
@@ -7844,7 +7873,8 @@ def write_services_subparser(subparsers):
                         help='destination server port number')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_services': parser}
 
 
 # def ecowitt_write_subparser(subparsers):
@@ -8087,7 +8117,8 @@ def write_calibration_subparser(subparsers):
                         help='wind direction offset')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_calibration': parser}
 
 
 def write_sensor_id_subparser(subparsers):
@@ -8367,7 +8398,8 @@ def write_sensor_id_subparser(subparsers):
                         help='WH90 sensor identification value')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_sensor-id': parser}
 
 
 def write_pm25_cal_subparser(subparsers):
@@ -8408,7 +8440,8 @@ def write_pm25_cal_subparser(subparsers):
                         help='PM2.5 channel 4 offset')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_pm25-cal': parser}
 
 
 def write_co2_cal_subparser(subparsers):
@@ -8444,7 +8477,8 @@ def write_co2_cal_subparser(subparsers):
                         help='PM10 offset')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_co2-cal': parser}
 
 
 def write_all_rain_subparser(subparsers):
@@ -8612,7 +8646,8 @@ def write_all_rain_subparser(subparsers):
                         help='yearly rain reset time (month)')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_all-rain': parser}
 
 
 def write_system_subparser(subparsers):
@@ -8656,7 +8691,8 @@ def write_system_subparser(subparsers):
                         help='automatically detect and set timezone')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_system': parser}
 
 
 def write_rain_subparser(subparsers):
@@ -8697,7 +8733,8 @@ def write_rain_subparser(subparsers):
                         help='traditional year rain total')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_rain': parser}
 
 
 def write_soil_cal_subparser(subparsers):
@@ -8806,7 +8843,8 @@ def write_soil_cal_subparser(subparsers):
                         help='channel 8 100%% calibration value')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_soil-cal': parser}
 
 
 def write_th_cal_subparser(subparsers):
@@ -8915,7 +8953,8 @@ def write_th_cal_subparser(subparsers):
                         help='channel 8 humidity offset')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_th-cal': parser}
 
 
 def write_t_cal_subparser(subparsers):
@@ -8977,7 +9016,8 @@ def write_t_cal_subparser(subparsers):
                         help='channel 8 temperature offset')
     add_common_args(parser)
     parser.set_defaults(func=process_write)
-    return parser
+    # return a dict containing our parser
+    return {'write_t-cal': parser}
 
 
 def write_subparser(subparsers):
@@ -9010,21 +9050,27 @@ def write_subparser(subparsers):
                                              metavar='{system, services, sensor-id, rain, '
                                                      'all-rain, calibration, pm25-cal, '
                                                      'co2-cal, soil-cal, th-cal, t-cal}')
-    write_reboot_subparser(write_subparsers)
-    write_reset_subparser(write_subparsers)
-    write_ssid_subparser(write_subparsers)
-    write_system_subparser(write_subparsers)
-    write_services_subparser(write_subparsers)
-    write_sensor_id_subparser(write_subparsers)
-    write_all_rain_subparser(write_subparsers)
-    write_rain_subparser(write_subparsers)
-    write_calibration_subparser(write_subparsers)
-    write_pm25_cal_subparser(write_subparsers)
-    write_co2_cal_subparser(write_subparsers)
-    write_soil_cal_subparser(write_subparsers)
-    write_th_cal_subparser(write_subparsers)
-    write_t_cal_subparser(write_subparsers)
-    return parser
+    # create a dict to hold our parser and subcommand parsers, this makes it
+    # easier to provide subcommand specific help output if required later
+    write_parsers = {'write': parser}
+    # call each 'write' subparser constructor function and update our parser
+    # dict with the results
+    write_parsers.update(write_reboot_subparser(write_subparsers))
+    write_parsers.update(write_reset_subparser(write_subparsers))
+    write_parsers.update(write_ssid_subparser(write_subparsers))
+    write_parsers.update(write_system_subparser(write_subparsers))
+    write_parsers.update(write_services_subparser(write_subparsers))
+    write_parsers.update(write_sensor_id_subparser(write_subparsers))
+    write_parsers.update(write_all_rain_subparser(write_subparsers))
+    write_parsers.update(write_rain_subparser(write_subparsers))
+    write_parsers.update(write_calibration_subparser(write_subparsers))
+    write_parsers.update(write_pm25_cal_subparser(write_subparsers))
+    write_parsers.update(write_co2_cal_subparser(write_subparsers))
+    write_parsers.update(write_soil_cal_subparser(write_subparsers))
+    write_parsers.update(write_th_cal_subparser(write_subparsers))
+    write_parsers.update(write_t_cal_subparser(write_subparsers))
+    # return the dict containing our parser and subparsers
+    return write_parsers
 
 
 # To use this utility use the following command under python v3.7.x or later:
@@ -9095,44 +9141,47 @@ def main():
     # help/usage
     parsers = dict()
     # create each subparser and add to our parser dict
-    parsers['read'] = read_subparser(subparsers)
-    parsers['write'] = write_subparser(subparsers)
+    parsers.update(read_subparser(subparsers))
+    parsers.update(write_subparser(subparsers))
     # parse the arguments
-    namespace = parser.parse_args()
+    ns = parser.parse_args()
     # inform the user if debug is set
-    if int(namespace.debug):
+    if int(ns.debug):
         print(f"debug is set")
     # process any top level non-subcommand options
-    if namespace.version:
+    if ns.version:
         # display the utility version and exit
         print(f"{NAME} version {VERSION}")
         sys.exit(0)
-    if namespace.discover:
+    if ns.discover:
         # discover gateway devices and display the results
         # get a EcowittDeviceConfigurator object
-        direct_gw = EcowittDeviceConfigurator(namespace)
+        direct_gw = EcowittDeviceConfigurator(ns)
         # discover any gateway devices and display the results
         direct_gw.display_discovered_devices()
         sys.exit(0)
     # if we made it here we must have a subcommand
     # do we have a subcommand function we can call
-    if hasattr(namespace, 'subcommand'):
+    if hasattr(ns, 'subcommand'):
         # we have a subcommand, subcommands require either an action or a
         # sub-subcommand
-        if exists_fns[namespace.subcommand](namespace):
+        if exists_fns[ns.subcommand](ns):
             # the current subcommand has at least one action or sub-subcommand,
             # actions and sub-subcommands require a device IP address, so make
             # sure we have one
-            if namespace.device_ip_address is not None:
+            if ns.device_ip_address is not None:
                 # now act on the subcommand
-                namespace.func(namespace)
+                ns.func(ns)
             else:
                 # we do not have an IP address, advise the user, display our
                 # help and exit
                 print()
                 print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: device IP address not specified")
                 print()
-                parsers[namespace.subcommand].print_help()
+                # construct the name of our subcommand field in the namespace
+                _subcommand = '_'.join([ns.subcommand, 'subcommand'])
+                # now get the correct subparser and display its help
+                parsers['_'.join([ns.subcommand, getattr(ns, _subcommand)])].print_help()
                 sys.exit(1)
         else:
             # we do not have an action or sub-subcommand, advise the user,
@@ -9140,7 +9189,7 @@ def main():
             print()
             print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no action or subcommand specified")
             print()
-            parsers[namespace.subcommand].print_help()
+            parsers[ns.subcommand].print_help()
             sys.exit(1)
 
     else:
