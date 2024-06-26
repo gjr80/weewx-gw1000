@@ -7417,8 +7417,8 @@ def read_sensors_subparser(subparsers):
     """Define 'read sensors' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read sensors --help
-       %(prog)s read sensors --ip-address=IP_ADDRESS [--port=PORT]
-                               [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read sensors --ip-address IP_ADDRESS [--port PORT]
+                               [--max-tries TRIES] [--retry-wait SECONDS]
                                [--debug]{Bcolors.ENDC}
     """
     description = """Read and display sensor state information."""
@@ -7437,8 +7437,8 @@ def read_firmware_subparser(subparsers):
     """Define 'read firmware' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read firmware --help
-       %(prog)s read firmware --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read firmware --ip-address IP_ADDRESS [--port PORT]
+                                [--max-tries TRIES] [--retry-wait SECONDS]
                                 [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device firmware version."""
@@ -7457,8 +7457,8 @@ def read_mac_address_subparser(subparsers):
     """Define 'read mac-address' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read mac-address --help
-       %(prog)s read mac-address --ip-address=IP_ADDRESS [--port=PORT]
-                                   [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read mac-address --ip-address IP_ADDRESS [--port PORT]
+                                   [--max-tries TRIES] [--retry-wait SECONDS]
                                    [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device MAC address."""
@@ -7477,8 +7477,8 @@ def read_system_subparser(subparsers):
     """Define 'read system' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read system --help
-       %(prog)s read system --ip-address=IP_ADDRESS [--port=PORT]
-                              [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read system --ip-address IP_ADDRESS [--port PORT]
+                              [--max-tries TRIES] [--retry-wait SECONDS]
                               [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device system parameters."""
@@ -7497,8 +7497,8 @@ def read_rain_subparser(subparsers):
     """Define 'read rain' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read rain --help
-       %(prog)s read rain --ip-address=IP_ADDRESS [--port=PORT]
-                            [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read rain --ip-address IP_ADDRESS [--port PORT]
+                            [--max-tries TRIES] [--retry-wait SECONDS]
                             [--debug]{Bcolors.ENDC}
     """
     description = """Read and display traditional rain gauge data."""
@@ -7517,8 +7517,8 @@ def read_all_rain_subparser(subparsers):
     """Define 'read all-rain' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read all-rain --help
-       %(prog)s read all-rain --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read all-rain --ip-address IP_ADDRESS [--port PORT]
+                                [--max-tries TRIES] [--retry-wait SECONDS]
                                 [--debug]{Bcolors.ENDC}
     """
     description = """Read and display available traditional and piezo rain gauge data."""
@@ -7537,8 +7537,8 @@ def read_calibration_subparser(subparsers):
     """Define 'read calibration' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read calibration --help
-       %(prog)s read calibration --ip-address=IP_ADDRESS [--port=PORT]
-                                   [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read calibration --ip-address IP_ADDRESS [--port PORT]
+                                   [--max-tries TRIES] [--retry-wait SECONDS]
                                    [--debug]{Bcolors.ENDC}
     """
     description = """Read and display device calibration parameters."""
@@ -7557,8 +7557,8 @@ def read_th_cal_subparser(subparsers):
     """Define 'read th-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read th-cal --help
-       %(prog)s read th-cal --ip-address=IP_ADDRESS [--port=PORT]
-                              [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read th-cal --ip-address IP_ADDRESS [--port PORT]
+                              [--max-tries TRIES] [--retry-wait SECONDS]
                               [--debug]{Bcolors.ENDC}
     """
     description = """Read and display multichannel temperature and humidity calibration parameters."""
@@ -7578,8 +7578,8 @@ def read_soil_cal_subparser(subparsers):
     """Define 'read soil-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read soil-cal --help
-       %(prog)s read soil-cal --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read soil-cal --ip-address IP_ADDRESS [--port PORT]
+                                [--max-tries TRIES] [--retry-wait SECONDS]
                                 [--debug]{Bcolors.ENDC}
     """
     description = """Read and display multichannel soil moisture calibration parameters."""
@@ -7598,8 +7598,8 @@ def read_pm25_cal_subparser(subparsers):
     """Define 'read pm25-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read pm25-cal --help
-       %(prog)s read pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read pm25-cal --ip-address IP_ADDRESS [--port PORT]
+                                [--max-tries TRIES] [--retry-wait SECONDS]
                                 [--debug]{Bcolors.ENDC}
     """
     description = """Read and display multichannel PM2.5 calibration parameters."""
@@ -7618,8 +7618,8 @@ def read_co2_cal_subparser(subparsers):
     """Define 'read co2-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read co2-cal --help
-       %(prog)s read co2-cal --ip-address=IP_ADDRESS [--port=PORT]
-                               [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read co2-cal --ip-address IP_ADDRESS [--port PORT]
+                               [--max-tries TRIES] [--retry-wait SECONDS]
                                [--debug]{Bcolors.ENDC}
     """
     description = """Read and display CO2 sensor calibration parameters."""
@@ -7638,8 +7638,8 @@ def read_services_subparser(subparsers):
     """Define 'read services' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s read services --help
-       %(prog)s read services --ip-address=IP_ADDRESS [--port=PORT]
-                                [--max-tries=TRIES] [--retry-wait=SECONDS]
+       %(prog)s read services --ip-address IP_ADDRESS [--port PORT]
+                                [--max-tries TRIES] [--retry-wait SECONDS]
                                 [--unmask] [--debug]{Bcolors.ENDC}
     """
     description = """Read and display weather services parameters."""
@@ -7712,7 +7712,7 @@ def write_reboot_subparser(subparsers):
     """Define 'write reboot' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write reboot --help
-       %(prog)s write reboot --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write reboot --ip-address IP_ADDRESS [--port PORT]
                                [--debug]{Bcolors.ENDC}
     """
     description = """Reboot an Ecowitt device."""
@@ -7730,7 +7730,7 @@ def write_reset_subparser(subparsers):
     """Define 'write reset' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write reset --help
-       %(prog)s write reset --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write reset --ip-address IP_ADDRESS [--port PORT]
                               [--debug]{Bcolors.ENDC}
     """
     description = """Perform a factory reset on an Ecowitt device."""
@@ -7749,7 +7749,7 @@ def write_ssid_subparser(subparsers):
 
     usage = f"""{Bcolors.BOLD}%(prog)s write ssid --help
        %(prog)s write ssid --ssid=SSID --password=PASSWORD
-                             --ip-address=IP_ADDRESS [--port=PORT]
+                             --ip-address IP_ADDRESS [--port PORT]
                              [--debug]{Bcolors.ENDC}
     """
     description = """Set the SSID and SSID password used by the device."""
@@ -7785,7 +7785,7 @@ def write_services_subparser(subparsers):
                                  [--custom-port UPLOAD_PORT] [--custom-interval INTERVAL] 
                                  [--ec-path EC_PATH] [--wu-path WU_PATH] 
                                  [--custom-id STATION_ID] [--custom-key STATION_KEY]
-                                 --ip-address=IP_ADDRESS [--port=PORT]
+                                 --ip-address IP_ADDRESS [--port PORT]
                                  [--debug]{Bcolors.ENDC}
     """
     description = """Set weather services upload parameters."""
@@ -7889,7 +7889,7 @@ def write_services_subparser(subparsers):
 #
 #     usage = f"""{Bcolors.BOLD}%(prog)s write ecowitt --help
 #        %(prog)s write ecowitt --interval INTERVAL
-#                                 --ip-address=IP_ADDRESS [--port=PORT]
+#                                 --ip-address IP_ADDRESS [--port PORT]
 #                                 [--debug]{Bcolors.ENDC}
 #     """
 #     description = """Set Ecowitt.net upload parameters."""
@@ -7916,7 +7916,7 @@ def write_services_subparser(subparsers):
 #
 #     usage = f"""{Bcolors.BOLD}%(prog)s write wu --help
 #        %(prog)s write wu --station-id STATION_ID --station-key STATION_KEY
-#                            --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+#                            --ip-address IP_ADDRESS [--port PORT] [--debug]{Bcolors.ENDC}
 #     """
 #     description = """Set WeatherUnderground upload parameters."""
 #     parser = subparsers.add_parser('wu',
@@ -7942,7 +7942,7 @@ def write_services_subparser(subparsers):
 #
 #     usage = f"""{Bcolors.BOLD}%(prog)s write wow --help
 #        %(prog)s write wow --station-id STATION_ID --station-key STATION_KEY
-#                             --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+#                             --ip-address IP_ADDRESS [--port PORT] [--debug]{Bcolors.ENDC}
 #     """
 #     description = """Set Weather Observations Website upload parameters."""
 #     parser = subparsers.add_parser('wow',
@@ -7968,7 +7968,7 @@ def write_services_subparser(subparsers):
 #
 #     usage = f"""{Bcolors.BOLD}%(prog)s write wcloud --help
 #        %(prog)s write wcloud --station-id STATION_ID --station-key STATION_KEY
-#                                --ip-address=IP_ADDRESS [--port=PORT] [--debug]{Bcolors.ENDC}
+#                                --ip-address IP_ADDRESS [--port PORT] [--debug]{Bcolors.ENDC}
 #     """
 #     description = """Set Weathercloud upload parameters."""
 #     parser = subparsers.add_parser('wcloud',
@@ -7993,7 +7993,7 @@ def write_services_subparser(subparsers):
 #     """Define 'write custom' sub-subparser."""
 #
 #     usage = f"""{Bcolors.BOLD}%(prog)s write custom --help
-#        %(prog)s write custom --ip-address=IP_ADDRESS [--port=PORT]
+#        %(prog)s write custom --ip-address IP_ADDRESS [--port PORT]
 #                                [--enabled | --disabled] [--protocol EC | WU] [--server IP_ADDRESS | NAME]
 #                                [--upload-port UPLOAD_PORT] [--interval INTERVAL]
 #                                [--ec-path EC_PATH] [--wu-path WU_PATH]
@@ -8069,7 +8069,7 @@ def write_calibration_subparser(subparsers):
     """Define 'write calibration' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write calibration --help
-       %(prog)s write calibration --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write calibration --ip-address IP_ADDRESS [--port PORT]
                                     [--uv UV_GAIN] [--solar SOLAR_GAIN]
                                     [---wind-speed WIND_GAIN] [--rain RAIN_GAIN]
                                     [--debug]
@@ -8132,7 +8132,7 @@ def write_sensor_id_subparser(subparsers):
     """Define 'write sensor-id' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write sensor-id --help
-       %(prog)s write sensor-id --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write sensor-id --ip-address IP_ADDRESS [--port PORT]
                                   [--wh65 ID] [--wh68 ID] [--wh80 ID] [--wh40 ID]
                                   [--wh25 ID] [--wh26 ID]
                                   [--wh31-1 ID] [--wh31-2 ID] [--wh31-3 ID] [--wh31-4 ID]
@@ -8413,7 +8413,7 @@ def write_pm25_cal_subparser(subparsers):
     """Define 'write pm25-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write pm25-cal --help
-       %(prog)s write pm25-cal --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write pm25-cal --ip-address IP_ADDRESS [--port PORT]
                                  [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                                  [--debug]
 {Bcolors.ENDC}"""
@@ -8455,7 +8455,7 @@ def write_co2_cal_subparser(subparsers):
     """Define 'write co2-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write co2-cal --help
-       %(prog)s write co2-cal --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write co2-cal --ip-address IP_ADDRESS [--port PORT]
                                 [--co2 OFFSET] [--pm25 OFFSET] [--pm10 OFFSET]
                                 [--debug]
 {Bcolors.ENDC}"""
@@ -8664,7 +8664,7 @@ def write_system_subparser(subparsers):
                   'WH65': 1}
 
     usage = f"""{Bcolors.BOLD}%(prog)s write system --help
-       %(prog)s write system --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write system --ip-address IP_ADDRESS [--port PORT]
                                [--sensor-type OFFSET] [--tz INDEX] [--dst enable | disable]
                                [--auto-tz enable | disable] [--debug]
 {Bcolors.ENDC}"""
@@ -8706,7 +8706,7 @@ def write_rain_subparser(subparsers):
     """Define 'write rain' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write rain --help
-       %(prog)s write rain --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write rain --ip-address IP_ADDRESS [--port PORT]
                              [--day TOTAL] [--week TOTAL] [--month TOTAL] [--year TOTAL]
                              [--debug]
 {Bcolors.ENDC}"""
@@ -8748,7 +8748,7 @@ def write_soil_cal_subparser(subparsers):
     """Define 'write soil-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write soil-cal --help
-       %(prog)s write soil-cal --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write soil-cal --ip-address IP_ADDRESS [--port PORT]
                                  [--ch1-min VALUE] [--ch1-max VALUE]
                                  [--ch2-min VALUE] [--ch2-max VALUE]
                                  [--ch3-min VALUE] [--ch3-max VALUE]
@@ -8858,7 +8858,7 @@ def write_th_cal_subparser(subparsers):
     """Define 'write th-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write th-cal --help
-       %(prog)s write th-cal --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write th-cal --ip-address IP_ADDRESS [--port PORT]
                                [--ch1-temp OFFSET] [--ch1-hum OFFSET]
                                [--ch2-temp OFFSET] [--ch2-hum OFFSET] 
                                [--ch3-temp OFFSET] [--ch3-hum OFFSET]
@@ -8968,7 +8968,7 @@ def write_t_cal_subparser(subparsers):
     """Define 'write t-cal' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write t-cal --help
-       %(prog)s write t-cal --ip-address=IP_ADDRESS [--port=PORT]
+       %(prog)s write t-cal --ip-address IP_ADDRESS [--port PORT]
                               [--ch1 OFFSET] [--ch2 OFFSET] [--ch3 OFFSET] [--ch4 OFFSET]
                               [--ch5 OFFSET] [--ch6 OFFSET] [--ch7 OFFSET] [--ch8 OFFSET]
                               [--debug]
