@@ -5634,7 +5634,7 @@ class EcowittDeviceConfigurator:
             # otherwise display dashed lines
             if value is not None:
                 _dt = datetime.datetime.fromtimestamp(value)
-                return f" ({_dt.strftime('%-d %B %Y %H:%M:%S')})"
+                return f"{value:d} ({_dt.strftime('%-d %B %Y %H:%M:%S')})"
             else:
                 return f" (---)"
         elif unit == 'micro_watt_per_meter_squared':
@@ -5648,14 +5648,14 @@ class EcowittDeviceConfigurator:
             # we have micro_gram_per_meter_cubed, no conversion, if not None
             # return as is otherwise return dashed lines
             if value is not None:
-                return f"μg/m³"
+                return f"{value:.1f}μg/m³"
             else:
                 return f"---μW/m³"
         elif unit == 'ppm':
             # we have ppm, no conversion, if not None return as is otherwise
             # return dashed lines
             if value is not None:
-                return f"ppm"
+                return f"{value:.1f}ppm"
             else:
                 return f"---ppm"
         elif unit == 'diff_degree_C':
@@ -5666,6 +5666,13 @@ class EcowittDeviceConfigurator:
                 return f"{value:.1f}°C ({value * 9 / 5:.1f}°F)"
             else:
                 return f"---°C (---°F)"
+        elif unit == 'index':
+            # we have an index, no conversion, if not None return as is otherwise
+            # return dashed lines
+            if value is not None:
+                return f"{value:d}"
+            else:
+                return f"---"
         else:
             return ""
 
@@ -6446,8 +6453,8 @@ class EcowittDeviceConfigurator:
                 print("Live sensor data:")
                 for field, field_info in self.field_to_text.items():
                     if field in live_sensor_data_dict:
-                        unit_str = self.convert(live_sensor_data_dict[field], field_info['unit'])
-                        print(f"{field_info['text']:>30}: {live_sensor_data_dict[field]}{unit_str}")
+                        field_str = self.convert(live_sensor_data_dict[field], field_info['unit'])
+                        print(f"{field_info['text']:>30}: {field_str}")
 
     def display_discovered_devices(self):
         """Display details of devices discovered on the local network."""
