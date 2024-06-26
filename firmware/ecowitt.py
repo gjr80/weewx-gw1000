@@ -474,7 +474,7 @@ class GatewayApiParser:
         return self.parse_addressed_data(payload, self.addressed_data_struct)
 
     @staticmethod
-    def encode_rain_params(**params):
+    def encode_rain(**params):
         # TODO. Need comments to be completed
         """Encode data parameters used for CMD_WRITE_RAIN.
 
@@ -482,33 +482,37 @@ class GatewayApiParser:
         CMD_WRITE_RAIN. Required payload parameters are contained in the
         calibration dict keyed as follows:
 
-        rate:       rain rate, int 0 - 60 000   --> unsigned short
-        day:        day rain, int 0 - 99 999    --> unsigned long
-        week:       week rain, int 0 - 99 999   --> unsigned long
-        month:      month rain, int 0 - 99 999   --> unsigned long
-        year:       year rain, int 0 - 99 999   --> unsigned long
-        event:      event rain, int 0 - ?   --> unsigned short
-        gain:
-        p_rate:     piezo rain rate, int 0 - 60 000   --> unsigned short
-        p_event:    piezo event rain, int 0 - 99 999    --> unsigned short
-        p_day:      piezo day rain, int 0 - 99 999   --> unsigned long
-        p_week:     piezo week rain, int 0 - 99 999   --> unsigned long
-        p_month:    piezo month rain, int 0 - 99 999   --> unsigned long
-        p_year:     piezo year rain, int 0 - 99 999   --> unsigned long
-        priority:   rain priority, 0,1 or 2         --> unsigned byte
-        gain0:      piezo gain0, ? - ? --> unsigned short
-        gain1:      piezo gain1, ? - ? --> unsigned short
-        gain2:      piezo gain2, ? - ? --> unsigned short
-        gain3:      piezo gain3, ? - ? --> unsigned short
-        gain4:      piezo gain4, ? - ? --> unsigned short
-        gain5:      piezo gain5 (reserved), ? - ? --> unsigned short
-        gain6:      piezo gain6 (reserved), ? - ? --> unsigned short
-        gain7:      piezo gain7 (reserved), ? - ? --> unsigned short
-        gain8:      piezo gain8 (reserved), ? - ? --> unsigned short
-        gain9:      piezo gain9 (reserved), ? - ? --> unsigned short
-        day_reset:  day rain reset time, 0 - 23,    --> unsigned byte
-        week_reset: week reset time, 0 or 1         --> unsigned byte
-        year_reset: year reset time, 0 - 11         --> unsigned byte
+        Field       Description                                 Encoded as
+        ------------------------------------------------------------------------
+        rate        traditional rain rate, int 0 - 60 000       unsigned short
+        day         traditional day rain, int 0 - 99 999        unsigned long
+        week        traditional week rain, int 0 - 99 999       unsigned long
+        month       traditional month rain, int 0 - 99 999      unsigned long
+        year        traditional year rain, int 0 - 99 999       unsigned long
+        event       traditional event rain, int 0 - ?           unsigned short
+        gain
+        p_rate      piezo rain rate, int 0 - 60 000             unsigned short
+        p_event     piezo event rain, int 0 - 99 999            unsigned short
+        p_day       piezo day rain, int 0 - 99 999              unsigned long
+        p_week      piezo week rain, int 0 - 99 999             unsigned long
+        p_month     piezo month rain, int 0 - 99 999            unsigned long
+        p_year      piezo year rain, int 0 - 99 999             unsigned long
+        priority    rain priority, 0,1 or 2                     unsigned byte
+        gain0       piezo gain0, ? - ?                          unsigned short
+        gain1       piezo gain1, ? - ?                          unsigned short
+        gain2       piezo gain2, ? - ?                          unsigned short
+        gain3       piezo gain3, ? - ?                          unsigned short
+        gain4       piezo gain4, ? - ?                          unsigned short
+        gain5       piezo gain5 (reserved), ? - ?               unsigned short
+        gain6       piezo gain6 (reserved), ? - ?               unsigned short
+        gain7       piezo gain7 (reserved), ? - ?               unsigned short
+        gain8       piezo gain8 (reserved), ? - ?               unsigned short
+        gain9       piezo gain9 (reserved), ? - ?               unsigned short
+        day_reset   day rain reset time, 0 - 23,                unsigned byte
+        week_reset  week reset time, 0 or 1                     unsigned byte
+        year_reset  year reset time, 0 - 11                     unsigned byte
+
+        Where applicable big endian byte order is used.
 
         Returns a bytestring.
         """
@@ -592,30 +596,17 @@ class GatewayApiParser:
         """Encode data parameters used for CMD_WRITE_RAINDATA.
 
         Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_SSSS. Required payload parameters are contained in the
-        calibration dict keyed as follows:
+        CMD_WRITE_RAINDATA. Required payload parameters are contained in the
+        params dict keyed as follows:
 
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
+        Field       Description                                 Encoded as
+        ------------------------------------------------------------------------
+        t_day       traditional day rain, int 0 - 99 999        unsigned long
+        t_week      traditional week rain, int 0 - 99 999       unsigned long
+        t_month     traditional month rain, int 0 - 99 999      unsigned long
+        t_year      traditional year rain, int 0 - 99 999       unsigned long
 
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
+        Where applicable big endian byte order is used.
 
         Returns a bytestring.
         """
@@ -674,27 +665,28 @@ class GatewayApiParser:
 
     @staticmethod
     def encode_mulch_offset(**params):
-        """Encode data parameters used for CMD_GET_MulCH_OFFSET.
+        """Encode data parameters used for CMD_SET_MulCH_OFFSET.
 
         Assemble a bytestring to be used as the data payload for
-        CMD_GET_MulCH_OFFSET. Required payload parameters are contained in the
-        params dict keyed as follows:
+        CMD_SET_MulCH_OFFSET. Required payload parameters are contained in the
+        params dict keyed by a zero based channel number with each channel dict
+        field itself consisting of a dict keyed as follows:
 
-        channel:      channel number, (1 to WH31_CHANNEL_MAX)   --> byte
-        hum offset:   humidity offset, (-10 to +10)             --> byte
-        temp offset:  temperature offset * 10, (-100 to +100)   --> byte
-        ...
-        repeat for remaining channels
+        Field       Description                                 Encoded as
+        ------------------------------------------------------------------------
+        hum         humidity offset, (-10 to +10)               byte
+        temp        temperature offset * 10, (-100 to +100)     byte
 
         Returns a bytestring.
         """
 
+        # TODO. Confirm correct operation before release (esp channel number)
         # initialise a list to hold bytestring components of the result
         components = []
         # iterate over the channel numbers in ascending order
         for channel in range(EcowittDevice.WH31_CHANNEL_MAX):
             # append the channel number to our result list
-            components.append(channel + 1)
+            components.append(channel)
             # append the humidity offset value to our component list
             components.append(struct.pack('b', int(params[channel]['hum'])))
             # append the temperature offset value to our component list
@@ -775,30 +767,14 @@ class GatewayApiParser:
         """Encode data parameters used for CMD_SET_MulCH_T_OFFSET.
 
         Assemble a bytestring to be used as the data payload for
-        CMD_SET_MulCH_T_OFFSET. Required payload parameters are contained in
-        the calibration dict keyed as follows:
+        CMD_SET_MulCH_T_OFFSET. Offset dict is keyed by zero based channel
+        number with each dict entry containing the offset value for the channel
+        concerned. Payload data is encoded as follows:
 
-        frequency:      operating frequency, integer        --> byte (read only)
-                        0=433MHz, 1=868MHz, 2=915MHz, 3=920MHz
-        sensor_type:    sensor type, integer 0=WH24, 1=WH65 --> byte
-        utc:            system time, integer                --> unsigned long
-                                                                (read only)
-        timezone_index: timezone index, integer             --> byte
-        dst_status:     DST status, integer                 --> byte (bit 0 only)
-                        0=disabled, 1=enabled
-        auto_timezone:  auto timezone detection and         --> byte (bit 1 only)
-                        setting, integer 0=auto timezone,       (same byte as DST)
-                        1=manual timezone
-
-        Byte 0 (frequency) and bytes 2 to 5 (utc) are read only and cannot be
-        set via CMD_WRITE_SSS; however, the CMD_WRITE_SSS data payload format
-        includes both frequency and utc.
-
-        Byte 7 (dst) is a combination of dst_status and auto_timezone as follows:
-            bit 0 = 0 if DST disabled
-            bit 0 = 1 if DST enabled
-            bit 1 = 0 if auto timezone is enabled
-            bit 1 = 1 if auto timezone is disabled
+        Field       Description                                 Encoded as
+        ------------------------------------------------------------------------
+        channel     zero based channel number                   byte
+        offset      temperature offset, -100 to 100             byte
 
         Returns a bytestring.
         """
@@ -812,8 +788,6 @@ class GatewayApiParser:
             # append the offset value to our result list
             comp.append(struct.pack('b', int(offset * 10)))
         # return a bytestring consisting of the concatenated list elements
-        # TODO. Remove before release
-        print("comp=%s" % (comp,))
         return b''.join(comp)
 
     @staticmethod
@@ -5124,7 +5098,7 @@ class EcowittDevice:
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_rain_params(**params)
+        payload = self.gateway_api_parser.encode_rain(**params)
         # update the gateway device
         self.gateway_api.write_rain_params(payload)
 
