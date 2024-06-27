@@ -143,7 +143,33 @@ class InvertibleSetError(Exception):
 
 
 class InvertibleMap(dict):
-    """Class implementing a basic invertible map."""
+    """Class implementing a basic invertible map.
+
+    An invertible map operates as per a normal python dictionary. However,
+    unlike a dictionary an InvertibleMap object can look up a dictionary key
+    given the value for that key. This 'reverse lookup' is achieved by using
+    the InvertibleMap objects 'inverse' property and the value concerned.
+
+    For example, if inv_map is created from the dictionary my_dict as follows:
+
+    my_dict = {'a': 1, 'b': 2, 'c': 3}
+    inv_map = InvertibleMap(my_dict)
+
+    then the following expressions return the values indicated:
+
+    inv_map['a']
+    1
+    inv_map['b']
+    2
+    inv_map.inverse[2]
+    b
+    inv_map.inverse[3]
+    c
+
+    This means that an invertibleDict object must have not only unique keys but
+    unique values as well. An InvertibleMap object supports all standard
+    dictionary methods and properties.
+    """
 
     def __init__(self, *args, inverse=None, **kwargs):
         super(InvertibleMap, self).__init__(*args, **kwargs)
@@ -236,132 +262,135 @@ class GatewayApiParser:
     #   decode fn:   the name of the function used to decode the field data
     #   field size:  the size of field data in bytes
     addressed_data_struct = {
-        b'\x01': ('ITEM_INTEMP', 'decode_temp', 2),
-        b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2),
-        b'\x03': ('ITEM_DEWPOINT', 'decode_temp', 2),
-        b'\x04': ('ITEM_WINDCHILL', 'decode_temp', 2),
-        b'\x05': ('ITEM_HEATINDEX', 'decode_temp', 2),
-        b'\x06': ('ITEM_INHUMI', 'decode_humid', 1),
-        b'\x07': ('ITEM_OUTHUMI', 'decode_humid', 1),
-        b'\x08': ('ITEM_ABSBARO', 'decode_press', 2),
-        b'\x09': ('ITEM_RELBARO', 'decode_press', 2),
-        b'\x0A': ('ITEM_WINDDIRECTION', 'decode_dir', 2),
-        b'\x0B': ('ITEM_WINDSPEED', 'decode_speed', 2),
-        b'\x0C': ('ITEM_GUSTSPEED', 'decode_speed', 2),
-        b'\x0D': ('ITEM_RAINEVENT', 'decode_rain', 2),
-        b'\x0E': ('ITEM_RAINRATE', 'decode_rainrate', 2),
-        b'\x0F': ('ITEM_RAIN_Gain', 'decode_gain_100', 2),
-        b'\x10': ('ITEM_RAINDAY', 'decode_rain', 2),
-        b'\x11': ('ITEM_RAINWEEK', 'decode_rain', 2),
-        b'\x12': ('ITEM_RAINMONTH', 'decode_big_rain', 4),
-        b'\x13': ('ITEM_RAINYEAR', 'decode_big_rain', 4),
-        b'\x14': ('ITEM_TOTALS', 'decode_big_rain', 4),
-        b'\x15': ('ITEM_LIGHT', 'decode_light', 4),
-        b'\x16': ('ITEM_UV', 'decode_uv', 2),
-        b'\x17': ('ITEM_UVI', 'decode_uvi', 1),
-        b'\x18': ('ITEM_TIME', 'decode_datetime', 6),
-        b'\x19': ('ITEM_DAYLWINDMAX', 'decode_speed', 2),
-        b'\x1A': ('ITEM_TEMP1', 'decode_temp', 2),
-        b'\x1B': ('ITEM_TEMP2', 'decode_temp', 2),
-        b'\x1C': ('ITEM_TEMP3', 'decode_temp', 2),
-        b'\x1D': ('ITEM_TEMP4', 'decode_temp', 2),
-        b'\x1E': ('ITEM_TEMP5', 'decode_temp', 2),
-        b'\x1F': ('ITEM_TEMP6', 'decode_temp', 2),
-        b'\x20': ('ITEM_TEMP7', 'decode_temp', 2),
-        b'\x21': ('ITEM_TEMP8', 'decode_temp', 2),
-        b'\x22': ('ITEM_HUMI1', 'decode_humid', 1),
-        b'\x23': ('ITEM_HUMI2', 'decode_humid', 1),
-        b'\x24': ('ITEM_HUMI3', 'decode_humid', 1),
-        b'\x25': ('ITEM_HUMI4', 'decode_humid', 1),
-        b'\x26': ('ITEM_HUMI5', 'decode_humid', 1),
-        b'\x27': ('ITEM_HUMI6', 'decode_humid', 1),
-        b'\x28': ('ITEM_HUMI7', 'decode_humid', 1),
-        b'\x29': ('ITEM_HUMI8', 'decode_humid', 1),
-        b'\x2A': ('ITEM_PM25_CH1', 'decode_pm25', 2),
-        b'\x2B': ('ITEM_SOILTEMP1', 'decode_temp', 2),
-        b'\x2C': ('ITEM_SOILMOISTURE1', 'decode_moist', 1),
-        b'\x2D': ('ITEM_SOILTEMP2', 'decode_temp', 2),
-        b'\x2E': ('ITEM_SOILMOISTURE2', 'decode_moist', 1),
-        b'\x2F': ('ITEM_SOILTEMP3', 'decode_temp', 2),
-        b'\x30': ('ITEM_SOILMOISTURE3', 'decode_moist', 1),
-        b'\x31': ('ITEM_SOILTEMP4', 'decode_temp', 2),
-        b'\x32': ('ITEM_SOILMOISTURE4', 'decode_moist', 1),
-        b'\x33': ('ITEM_SOILTEMP5', 'decode_temp', 2),
-        b'\x34': ('ITEM_SOILMOISTURE5', 'decode_moist', 1),
-        b'\x35': ('ITEM_SOILTEMP6', 'decode_temp', 2),
-        b'\x36': ('ITEM_SOILMOISTURE6', 'decode_moist', 1),
-        b'\x37': ('ITEM_SOILTEMP7', 'decode_temp', 2),
-        b'\x38': ('ITEM_SOILMOISTURE7', 'decode_moist', 1),
-        b'\x39': ('ITEM_SOILTEMP8', 'decode_temp', 2),
-        b'\x3A': ('ITEM_SOILMOISTURE8', 'decode_moist', 1),
-        b'\x3B': ('ITEM_SOILTEMP9', 'decode_temp', 2),
-        b'\x3C': ('ITEM_SOILMOISTURE9', 'decode_moist', 1),
-        b'\x3D': ('ITEM_SOILTEMP10', 'decode_temp', 2),
-        b'\x3E': ('ITEM_SOILMOISTURE10', 'decode_moist', 1),
-        b'\x3F': ('ITEM_SOILTEMP11', 'decode_temp', 2),
-        b'\x40': ('ITEM_SOILMOISTURE11', 'decode_moist', 1),
-        b'\x41': ('ITEM_SOILTEMP12', 'decode_temp', 2),
-        b'\x42': ('ITEM_SOILMOISTURE12', 'decode_moist', 1),
-        b'\x43': ('ITEM_SOILTEMP13', 'decode_temp', 2),
-        b'\x44': ('ITEM_SOILMOISTURE13', 'decode_moist', 1),
-        b'\x45': ('ITEM_SOILTEMP14', 'decode_temp', 2),
-        b'\x46': ('ITEM_SOILMOISTURE14', 'decode_moist', 1),
-        b'\x47': ('ITEM_SOILTEMP15', 'decode_temp', 2),
-        b'\x48': ('ITEM_SOILMOISTURE15', 'decode_moist', 1),
-        b'\x49': ('ITEM_SOILTEMP16', 'decode_temp', 2),
-        b'\x4A': ('ITEM_SOILMOISTURE16', 'decode_moist', 1),
-        b'\x4C': ('ITEM_LOWBATT', 'decode_batt', 16),
-        b'\x4D': ('ITEM_PM25_24HAVG1', 'decode_pm25', 2),
-        b'\x4E': ('ITEM_PM25_24HAVG2', 'decode_pm25', 2),
-        b'\x4F': ('ITEM_PM25_24HAVG3', 'decode_pm25', 2),
-        b'\x50': ('ITEM_PM25_24HAVG4', 'decode_pm25', 2),
-        b'\x51': ('ITEM_PM25_CH2', 'decode_pm25', 2),
-        b'\x52': ('ITEM_PM25_CH3', 'decode_pm25', 2),
-        b'\x53': ('ITEM_PM25_CH4', 'decode_pm25', 2),
-        b'\x58': ('ITEM_LEAK_CH1', 'decode_leak', 1),
-        b'\x59': ('ITEM_LEAK_CH2', 'decode_leak', 1),
-        b'\x5A': ('ITEM_LEAK_CH3', 'decode_leak', 1),
-        b'\x5B': ('ITEM_LEAK_CH4', 'decode_leak', 1),
-        b'\x60': ('ITEM_LIGHTNING', 'decode_distance', 1),
-        b'\x61': ('ITEM_LIGHTNING_TIME', 'decode_utc', 4),
-        b'\x62': ('ITEM_LIGHTNING_POWER', 'decode_count', 4),
+        b'\x01': ('ITEM_INTEMP', 'decode_temp', 2, None),
+        b'\x02': ('ITEM_OUTTEMP', 'decode_temp', 2, None),
+        b'\x03': ('ITEM_DEWPOINT', 'decode_temp', 2, None),
+        b'\x04': ('ITEM_WINDCHILL', 'decode_temp', 2, None),
+        b'\x05': ('ITEM_HEATINDEX', 'decode_temp', 2, None),
+        b'\x06': ('ITEM_INHUMI', 'decode_humid', 1, None),
+        b'\x07': ('ITEM_OUTHUMI', 'decode_humid', 1, None),
+        b'\x08': ('ITEM_ABSBARO', 'decode_press', 2, None),
+        b'\x09': ('ITEM_RELBARO', 'decode_press', 2, None),
+        b'\x0A': ('ITEM_WINDDIRECTION', 'decode_dir', 2, None),
+        b'\x0B': ('ITEM_WINDSPEED', 'decode_speed', 2, None),
+        b'\x0C': ('ITEM_GUSTSPEED', 'decode_speed', 2, None),
+        b'\x0D': ('ITEM_RAINEVENT', 'decode_rain', 2, None),
+        b'\x0E': ('ITEM_RAINRATE', 'decode_rainrate', 2, None),
+        b'\x0F': ('ITEM_RAIN_Gain', 'decode_gain_100', 2, None),
+        b'\x10': ('ITEM_RAINDAY', 'decode_rain', 2, None),
+        b'\x11': ('ITEM_RAINWEEK', 'decode_rain', 2, None),
+        b'\x12': ('ITEM_RAINMONTH', 'decode_big_rain', 4, None),
+        b'\x13': ('ITEM_RAINYEAR', 'decode_big_rain', 4, None),
+        b'\x14': ('ITEM_TOTALS', 'decode_big_rain', 4, None),
+        b'\x15': ('ITEM_LIGHT', 'decode_light', 4, None),
+        b'\x16': ('ITEM_UV', 'decode_uv', 2, None),
+        b'\x17': ('ITEM_UVI', 'decode_uvi', 1, None),
+        b'\x18': ('ITEM_TIME', 'decode_datetime', 6, None),
+        b'\x19': ('ITEM_DAYLWINDMAX', 'decode_speed', 2, None),
+        b'\x1A': ('ITEM_TEMP1', 'decode_temp', 2, None),
+        b'\x1B': ('ITEM_TEMP2', 'decode_temp', 2, None),
+        b'\x1C': ('ITEM_TEMP3', 'decode_temp', 2, None),
+        b'\x1D': ('ITEM_TEMP4', 'decode_temp', 2, None),
+        b'\x1E': ('ITEM_TEMP5', 'decode_temp', 2, None),
+        b'\x1F': ('ITEM_TEMP6', 'decode_temp', 2, None),
+        b'\x20': ('ITEM_TEMP7', 'decode_temp', 2, None),
+        b'\x21': ('ITEM_TEMP8', 'decode_temp', 2, None),
+        b'\x22': ('ITEM_HUMI1', 'decode_humid', 1, None),
+        b'\x23': ('ITEM_HUMI2', 'decode_humid', 1, None),
+        b'\x24': ('ITEM_HUMI3', 'decode_humid', 1, None),
+        b'\x25': ('ITEM_HUMI4', 'decode_humid', 1, None),
+        b'\x26': ('ITEM_HUMI5', 'decode_humid', 1, None),
+        b'\x27': ('ITEM_HUMI6', 'decode_humid', 1, None),
+        b'\x28': ('ITEM_HUMI7', 'decode_humid', 1, None),
+        b'\x29': ('ITEM_HUMI8', 'decode_humid', 1, None),
+        b'\x2A': ('ITEM_PM25_CH1', 'decode_pm25', 2, None),
+        b'\x2B': ('ITEM_SOILTEMP1', 'decode_temp', 2, None),
+        b'\x2C': ('ITEM_SOILMOISTURE1', 'decode_moist', 1, None),
+        b'\x2D': ('ITEM_SOILTEMP2', 'decode_temp', 2, None),
+        b'\x2E': ('ITEM_SOILMOISTURE2', 'decode_moist', 1, None),
+        b'\x2F': ('ITEM_SOILTEMP3', 'decode_temp', 2, None),
+        b'\x30': ('ITEM_SOILMOISTURE3', 'decode_moist', 1, None),
+        b'\x31': ('ITEM_SOILTEMP4', 'decode_temp', 2, None),
+        b'\x32': ('ITEM_SOILMOISTURE4', 'decode_moist', 1, None),
+        b'\x33': ('ITEM_SOILTEMP5', 'decode_temp', 2, None),
+        b'\x34': ('ITEM_SOILMOISTURE5', 'decode_moist', 1, None),
+        b'\x35': ('ITEM_SOILTEMP6', 'decode_temp', 2, None),
+        b'\x36': ('ITEM_SOILMOISTURE6', 'decode_moist', 1, None),
+        b'\x37': ('ITEM_SOILTEMP7', 'decode_temp', 2, None),
+        b'\x38': ('ITEM_SOILMOISTURE7', 'decode_moist', 1, None),
+        b'\x39': ('ITEM_SOILTEMP8', 'decode_temp', 2, None),
+        b'\x3A': ('ITEM_SOILMOISTURE8', 'decode_moist', 1, None),
+        b'\x3B': ('ITEM_SOILTEMP9', 'decode_temp', 2, None),
+        b'\x3C': ('ITEM_SOILMOISTURE9', 'decode_moist', 1, None),
+        b'\x3D': ('ITEM_SOILTEMP10', 'decode_temp', 2, None),
+        b'\x3E': ('ITEM_SOILMOISTURE10', 'decode_moist', 1, None),
+        b'\x3F': ('ITEM_SOILTEMP11', 'decode_temp', 2, None),
+        b'\x40': ('ITEM_SOILMOISTURE11', 'decode_moist', 1, None),
+        b'\x41': ('ITEM_SOILTEMP12', 'decode_temp', 2, None),
+        b'\x42': ('ITEM_SOILMOISTURE12', 'decode_moist', 1, None),
+        b'\x43': ('ITEM_SOILTEMP13', 'decode_temp', 2, None),
+        b'\x44': ('ITEM_SOILMOISTURE13', 'decode_moist', 1, None),
+        b'\x45': ('ITEM_SOILTEMP14', 'decode_temp', 2, None),
+        b'\x46': ('ITEM_SOILMOISTURE14', 'decode_moist', 1, None),
+        b'\x47': ('ITEM_SOILTEMP15', 'decode_temp', 2, None),
+        b'\x48': ('ITEM_SOILMOISTURE15', 'decode_moist', 1, None),
+        b'\x49': ('ITEM_SOILTEMP16', 'decode_temp', 2, None),
+        b'\x4A': ('ITEM_SOILMOISTURE16', 'decode_moist', 1, None),
+        b'\x4C': ('ITEM_LOWBATT', 'decode_multi_batt', 16, None),
+        b'\x4D': ('ITEM_PM25_24HAVG1', 'decode_pm25', 2, None),
+        b'\x4E': ('ITEM_PM25_24HAVG2', 'decode_pm25', 2, None),
+        b'\x4F': ('ITEM_PM25_24HAVG3', 'decode_pm25', 2, None),
+        b'\x50': ('ITEM_PM25_24HAVG4', 'decode_pm25', 2, None),
+        b'\x51': ('ITEM_PM25_CH2', 'decode_pm25', 2, None),
+        b'\x52': ('ITEM_PM25_CH3', 'decode_pm25', 2, None),
+        b'\x53': ('ITEM_PM25_CH4', 'decode_pm25', 2, None),
+        b'\x58': ('ITEM_LEAK_CH1', 'decode_leak', 1, None),
+        b'\x59': ('ITEM_LEAK_CH2', 'decode_leak', 1, None),
+        b'\x5A': ('ITEM_LEAK_CH3', 'decode_leak', 1, None),
+        b'\x5B': ('ITEM_LEAK_CH4', 'decode_leak', 1, None),
+        b'\x60': ('ITEM_LIGHTNING', 'decode_distance', 1, None),
+        b'\x61': ('ITEM_LIGHTNING_TIME', 'decode_utc', 4, None),
+        b'\x62': ('ITEM_LIGHTNING_POWER', 'decode_count', 4, None),
         # whilst WN34 battery data is available via live data the preference is
         # to obtain such data from sensor ID data (as with other sensors)
-        b'\x63': ('ITEM_TF_USR1', 'decode_wn34', 3),
-        b'\x64': ('ITEM_TF_USR2', 'decode_wn34', 3),
-        b'\x65': ('ITEM_TF_USR3', 'decode_wn34', 3),
-        b'\x66': ('ITEM_TF_USR4', 'decode_wn34', 3),
-        b'\x67': ('ITEM_TF_USR5', 'decode_wn34', 3),
-        b'\x68': ('ITEM_TF_USR6', 'decode_wn34', 3),
-        b'\x69': ('ITEM_TF_USR7', 'decode_wn34', 3),
-        b'\x6A': ('ITEM_TF_USR8', 'decode_wn34', 3),
-        b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4),
+        b'\x63': ('ITEM_TF_USR1', 'decode_wn34', 3, None),
+        b'\x64': ('ITEM_TF_USR2', 'decode_wn34', 3, None),
+        b'\x65': ('ITEM_TF_USR3', 'decode_wn34', 3, None),
+        b'\x66': ('ITEM_TF_USR4', 'decode_wn34', 3, None),
+        b'\x67': ('ITEM_TF_USR5', 'decode_wn34', 3, None),
+        b'\x68': ('ITEM_TF_USR6', 'decode_wn34', 3, None),
+        b'\x69': ('ITEM_TF_USR7', 'decode_wn34', 3, None),
+        b'\x6A': ('ITEM_TF_USR8', 'decode_wn34', 3, None),
+        b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4, None),
         # whilst WH45 battery data is available via live data the preference is
         # to obtain such data from sensor ID data (as with other sensors)
-        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16),
+        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16, ['tf_co2', 'humi_co2', 
+                                                         'pm10_co2', 'pm10_24h_co2', 
+                                                         'pm25_co2', 'pm25_24h_co2', 
+                                                         'co2', 'co2_24h', 'co2_batt']),
         # placeholder for unknown field 0x71
-        b'\x71': ('ITEM_PM25_AQI', None, None),
-        b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1),
-        b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1),
-        b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1),
-        b'\x75': ('ITEM_LEAF_WETNESS_CH4', 'decode_wet', 1),
-        b'\x76': ('ITEM_LEAF_WETNESS_CH5', 'decode_wet', 1),
-        b'\x77': ('ITEM_LEAF_WETNESS_CH6', 'decode_wet', 1),
-        b'\x78': ('ITEM_LEAF_WETNESS_CH7', 'decode_wet', 1),
-        b'\x79': ('ITEM_LEAF_WETNESS_CH8', 'decode_wet', 1),
-        b'\x7A': ('ITEM_RAIN_Priority', 'decode_int', 1),
-        b'\x7B': ('ITEM_radcompensation', 'decode_int', 1),
-        b'\x80': ('ITEM_Piezo_Rain_Rate', 'decode_rainrate', 2),
-        b'\x81': ('ITEM_Piezo_Event_Rain', 'decode_rain', 2),
-        b'\x82': ('ITEM_Piezo_Hourly_Rain', 'decode_reserved', 2),
-        b'\x83': ('ITEM_Piezo_Daily_Rain', 'decode_big_rain', 4),
-        b'\x84': ('ITEM_Piezo_Weekly_Rain', 'decode_big_rain', 4),
-        b'\x85': ('ITEM_Piezo_Monthly_Rain', 'decode_big_rain', 4),
-        b'\x86': ('ITEM_Piezo_yearly_Rain', 'decode_big_rain', 4),
+        b'\x71': ('ITEM_PM25_AQI', None, None, None),
+        b'\x72': ('ITEM_LEAF_WETNESS_CH1', 'decode_wet', 1, None),
+        b'\x73': ('ITEM_LEAF_WETNESS_CH2', 'decode_wet', 1, None),
+        b'\x74': ('ITEM_LEAF_WETNESS_CH3', 'decode_wet', 1, None),
+        b'\x75': ('ITEM_LEAF_WETNESS_CH4', 'decode_wet', 1, None),
+        b'\x76': ('ITEM_LEAF_WETNESS_CH5', 'decode_wet', 1, None),
+        b'\x77': ('ITEM_LEAF_WETNESS_CH6', 'decode_wet', 1, None),
+        b'\x78': ('ITEM_LEAF_WETNESS_CH7', 'decode_wet', 1, None),
+        b'\x79': ('ITEM_LEAF_WETNESS_CH8', 'decode_wet', 1, None),
+        b'\x7A': ('ITEM_RAIN_Priority', 'decode_int', 1, None),
+        b'\x7B': ('ITEM_radcompensation', 'decode_int', 1, None),
+        b'\x80': ('ITEM_Piezo_Rain_Rate', 'decode_rainrate', 2, None),
+        b'\x81': ('ITEM_Piezo_Event_Rain', 'decode_rain', 2, None),
+        b'\x82': ('ITEM_Piezo_Hourly_Rain', 'decode_reserved', 2, None),
+        b'\x83': ('ITEM_Piezo_Daily_Rain', 'decode_big_rain', 4, None),
+        b'\x84': ('ITEM_Piezo_Weekly_Rain', 'decode_big_rain', 4, None),
+        b'\x85': ('ITEM_Piezo_Monthly_Rain', 'decode_big_rain', 4, None),
+        b'\x86': ('ITEM_Piezo_yearly_Rain', 'decode_big_rain', 4, None),
         # field 0x87 and 0x88 hold device parameter data that is not
         # included in the loop packets, hence the device field is not
         # used (None).
-        b'\x87': ('ITEM_Piezo_Gain10', 'decode_rain_gain', 20),
+        b'\x87': ('ITEM_Piezo_Gain10', 'decode_rain_gain', 20, None),
         b'\x88': ('ITEM_RST_RainTime', 'decode_rain_reset', 3)
     }
 
@@ -415,7 +444,7 @@ class GatewayApiParser:
                 # the current field, wrap in a try..except in case we
                 # encounter a field address we do not know about
                 try:
-                    field_name, decode_fn_str, field_size = structure[payload[index:index + 1]]
+                    field_name, decode_fn_str, field_size, field = structure[payload[index:index + 1]]
                 except KeyError:
                     # We struck a field 'address' we do not know how to
                     # process. We can't skip to the next field so all we
@@ -429,7 +458,8 @@ class GatewayApiParser:
                     break
                 else:
                     _field_data = getattr(self, decode_fn_str)(payload[index + 1:index + 1 + field_size],
-                                                               field_name)
+                                                               field_name,
+                                                               field=field)
                     # do we have any decoded data?
                     if _field_data is not None:
                         # we have decoded data so add the decoded data to
@@ -1951,6 +1981,7 @@ class GatewayApiParser:
     decode_wet = decode_humid
     decode_int = decode_humid
     decode_memory = decode_count
+    decode_batt = decode_humid
 
     def decode_wn34(self, data, field=None):
         """Decode WN34 sensor data.
@@ -1980,7 +2011,7 @@ class GatewayApiParser:
             return results
         return {}
 
-    def decode_wh45(self, data, fields=None):
+    def decode_wh45(self, data, field=None):
         """Decode WH45 sensor data.
 
         WH45 sensor data includes TH sensor values, CO2/PM2.5/PM10 sensor
@@ -1999,23 +2030,21 @@ class GatewayApiParser:
                 16     battery state      unsigned byte   0-5 <=1 is low
 
         WH45 battery state data is included in the WH45 sensor data (along
-        with temperature) as well as in the complete sensor ID data. In
-        keeping with other sensors we do not use the sensor data battery
-        state, rather we obtain it from the sensor ID data.
+        with temperature) as well as in the complete sensor ID data. For
+        completeness, we decode battery state here even though it may not be
+        used.
         """
 
-        if len(data) == 16 and fields is not None:
-            results = {fields[0]: self.decode_temp(data[0:2]),
-                       fields[1]: self.decode_humid(data[2:3]),
-                       fields[2]: self.decode_pm10(data[3:5]),
-                       fields[3]: self.decode_pm10(data[5:7]),
-                       fields[4]: self.decode_pm25(data[7:9]),
-                       fields[5]: self.decode_pm25(data[9:11]),
-                       fields[6]: self.decode_co2(data[11:13]),
-                       fields[7]: self.decode_co2(data[13:15])}
-            # we could decode the battery state, but we will be obtaining
-            # battery state data from the sensor IDs in a later step, so
-            # we can skip it here
+        if len(data) == 16 and is_iterable(field):
+            results = {field[0]: self.decode_temp(data[0:2]),
+                       field[1]: self.decode_humid(data[2:3]),
+                       field[2]: self.decode_pm10(data[3:5]),
+                       field[3]: self.decode_pm10(data[5:7]),
+                       field[4]: self.decode_pm25(data[7:9]),
+                       field[5]: self.decode_pm25(data[9:11]),
+                       field[6]: self.decode_co2(data[11:13]),
+                       field[7]: self.decode_co2(data[13:15]),
+                       field[8]: self.decode_batt(data[15:16])}
             return results
         return {}
 
@@ -2080,8 +2109,8 @@ class GatewayApiParser:
             return results
 
     @staticmethod
-    def decode_batt(data, field=None):
-        """Decode battery status data.
+    def decode_multi_batt(data, field=None):
+        """Decode combined battery status data.
 
         GW1000 firmware version 1.6.4 and earlier supported 16 bytes of
         battery state data at response field x4C for the following sensors:
@@ -2092,14 +2121,14 @@ class GatewayApiParser:
         data is no longer returned at all (GW1100, GW2000 and later devices
         never provided this battery state data in this format).
         CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID must be used to obtain
-        battery state information for connected sensors. The decode_batt()
-        method has been retained to support devices using firmware
-        version 1.6.4 and earlier.
+        battery state information for connected sensors. The
+        decode_multi_batt() method has been retained to support devices using
+        firmware version 1.6.4 and earlier.
 
         Since the gateway driver now obtains battery state information via
-        CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
-        method now returns None so that firmware versions before 1.6.5
-        continue to be supported.
+        CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the
+        decode_multi_batt() method now returns None so that firmware versions
+        before 1.6.5 continue to be supported.
         """
 
         return None
@@ -5350,6 +5379,12 @@ def y_or_n(msg, noprompt=False, default=None):
             return default
         elif ans in ('y', 'n'):
             return ans
+
+
+def is_iterable(x):
+    """Test if something is iterable, but not a string."""
+
+    return hasattr(x, '__iter__') and not isinstance(x, (bytes, str))
 
 
 # ============================================================================
