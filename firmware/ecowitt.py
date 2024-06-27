@@ -364,9 +364,9 @@ class GatewayApiParser:
         b'\x6C': ('ITEM_HEAP_FREE', 'decode_memory', 4, None),
         # whilst WH45 battery data is available via live data the preference is
         # to obtain such data from sensor ID data (as with other sensors)
-        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16, ['tf_co2', 'humi_co2', 
-                                                         'pm10_co2', 'pm10_24h_co2', 
-                                                         'pm25_co2', 'pm25_24h_co2', 
+        b'\x70': ('ITEM_SENSOR_CO2', 'decode_wh45', 16, ['tf_co2', 'humi_co2',
+                                                         'pm10_co2', 'pm10_24h_co2',
+                                                         'pm25_co2', 'pm25_24h_co2',
                                                          'co2', 'co2_24h', 'co2_batt']),
         # placeholder for unknown field 0x71
         b'\x71': ('ITEM_PM25_AQI', None, None, None),
@@ -6616,6 +6616,10 @@ class EcowittDeviceConfigurator:
                 print("Error, both SSID and SSID password must be provided")
                 print("No change to current device settings")
 
+    def write_services(self):
+        """Write weather services upload parameters to a device."""
+        pass
+
     def process_write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
 
@@ -7376,6 +7380,14 @@ def process_write(namespace):
         direct_gw.process_write_wu_wow_wcloud()
     if getattr(namespace, 'write_subcommand', False) == 'custom':
         direct_gw.process_write_custom()
+    if getattr(namespace, 'write_subcommand', False) == 'services':
+        direct_gw.write_services()
+    # if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
+    #     direct_gw.write_ecowitt()
+    # if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
+    #     direct_gw.write_wu_wow_wcloud()
+    # if getattr(namespace, 'write_subcommand', False) == 'custom':
+    #     direct_gw.write_custom()
     if getattr(namespace, 'write_subcommand', False) == 'calibration':
         direct_gw.process_write_calibration()
     if getattr(namespace, 'write_subcommand', False) == 'sensor-id':
@@ -7812,7 +7824,8 @@ def write_services_subparser(subparsers):
     """Define 'write services' sub-subparser."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write services --help
-       %(prog)s write services [--interval INTERVAL
+       %(prog)s write services --ip-address=IP_ADDRESS [--port=PORT]
+                                 [--ec-interval INTERVAL]
                                  [--wu-id STATION_ID] [--wu-key STATION_KEY]
                                  [--wow-id STATION_ID] [--wow-key STATION_KEY]
                                  [--wcloud-id STATION_ID] [--wcloud-key STATION_KEY]
@@ -7820,7 +7833,6 @@ def write_services_subparser(subparsers):
                                  [--custom-port UPLOAD_PORT] [--custom-interval INTERVAL] 
                                  [--ec-path EC_PATH] [--wu-path WU_PATH] 
                                  [--custom-id STATION_ID] [--custom-key STATION_KEY]
-                                 --ip-address IP_ADDRESS [--port PORT]
                                  [--debug]{Bcolors.ENDC}
     """
     description = """Set weather services upload parameters."""
@@ -7829,8 +7841,8 @@ def write_services_subparser(subparsers):
                                    prog=os.path.basename(sys.argv[0]),
                                    description=description,
                                    help="set weather services upload parameters")
-    parser.add_argument('--interval',
-                        dest='interval',
+    parser.add_argument('--ec-interval',
+                        dest='ec_interval',
                         type=int,
                         choices=range(0, 6),
                         default=0,
