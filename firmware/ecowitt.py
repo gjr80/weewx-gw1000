@@ -256,7 +256,7 @@ class GatewayApiParser:
     # commands. The dictionary is keyed by the device data field 'address' and
     # contains various parameters for each 'address'. Dictionary tuple format
     # is:
-    #   (field name, decode fn, field size, common name)
+    #   (field name, decode fn, field size)
     # where:
     #   field name:  the name of the device field as per the gateway API
     #                documentation.eg ITEM_INTEMP
