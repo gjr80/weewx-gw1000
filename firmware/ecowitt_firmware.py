@@ -5,7 +5,7 @@ ecowitt_firmware.py
 
 Obtain firmware update metadata and files for Ecowitt gateway devices.
 
-Based on scripts published on WXforum.net by user jbroome -
+Based on scripts published on WXForum.net by user jbroome -
 https://www.wxforum.net/index.php?topic=46414.msg469692#msg469692
 
 Copyright (C) 2024 Gary Roderick                        gjroderick<at>gmail.com
@@ -22,9 +22,15 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.1.0                                     Date: 29 April 2024
+Version: 0.2.0                                     Date: 29 June 2024
 
 Revision History
+    29 June 2024            v0.2.0
+        - added support for WS3900/3910 consoles
+        - --model is a now mandatory option
+        - models other than those in the earlier version dict are now supported
+          provided the --earlier-version option is populated
+        - improved formatting of longer print() statement output
     29 April 2024           v0.1.0
         - initial release
 
@@ -42,10 +48,10 @@ The ecowitt_firmware.py utility requires:
 Compatibility
 
 The ecowitt_firmware.py utility has been developed and tested under both Linux
-and MacOS and shoudl should work in both environments. It has not been tested
-with any version of Windows; however, the ecowitt_firmware.py utility uses
-standard Python libraries only so should work under any Windows version
-supporting Python 3.8 or later.
+and macOS and should work in both environments. It has not been tested with any
+version of Windows; however, the ecowitt_firmware.py utility uses standard
+Python libraries only so should work under any Windows version supporting
+Python 3.8 or later.
 
 
 To use the ecowitt_firmware utility:
@@ -72,6 +78,18 @@ would check for and download any new GW2000C firmware updates every 6 hours and
 email download notifications to you@email.com from someone@email.com.
 Downloaded firmware files will be saved to model/firmware version named
 directories under /var/tmp.
+
+
+Issues/Peculiarities
+
+For some reason requests for firmware metadata for the WS3910C console using
+'WS3910C' as the model number fail with an 'invalid model' error. However,
+transposing the last two digits of the model number, ie 'WS3901C' return valid
+metadata. Analysis of the communications between the WS3910C console and the
+Ecowitt firmware endpoint confirm the metadata using 'WS3901C' is correct.
+Accordingly, throughout this program 'WS3901' is used to refer to WS3910
+consoles. It is unknown if similar behaviour is exhibited for other consoles.
+
 """
 import argparse
 import datetime
@@ -81,9 +99,11 @@ import json
 import pathlib
 import pprint
 import random
+import shutil
 import smtplib
 import socket
 import sys
+import textwrap
 import time
 import urllib.error
 import urllib.parse
@@ -92,7 +112,7 @@ import uuid
 from collections import namedtuple
 
 # code version number
-VERSION_NUMBER = 'v0.1.0'
+VERSION_NUMBER = 'v0.2.0'
 # default model
 DEFAULT_MODEL = 'GW1100C'
 # dict for lookup of earlier firmware version values for different device
@@ -110,7 +130,14 @@ EARLIER_VERSION_DICT = {
     'GW2000B': '3.0.0',
     'GW2000C': '3.0.0',
     'GW2000D': '3.0.0',
-    'WS3910C': '1.2.6'
+    'WS3900A': '1.2.6',
+    'WS3900B': '1.2.6',
+    'WS3900C': '1.2.6',
+    'WS3900D': '1.2.6',
+    'WS3901A': '1.2.6',
+    'WS3901B': '1.2.6',
+    'WS3901C': '1.2.6',
+    'WS3901D': '1.2.6'
 }
 # creat a namedtuple type to hold URL components
 Components = namedtuple('Components',
@@ -159,16 +186,36 @@ class EcowittFirmware(object):
     Attempt to circumvent this by generating a random MAC on each run.
     """
 
-    def __init__(self, **namespace_dict):
+    def __init__(self, **kwargs):
         """Initialise an EcowittFirmware object."""
 
-        # Obtain the model to use, need to convert to upper case. Default
-        # is DEFAULT_MODEL.
-        _model = namespace_dict.get('model').upper() if namespace_dict.get('model') is not None else DEFAULT_MODEL
-        self.model = _model if _model in EARLIER_VERSION_DICT.keys() or 'GW1000' in _model else DEFAULT_MODEL
-        # Obtain the device MAC, need to convert to upper case. Default
-        # is a random generated MAC.
-        self.mac = namespace_dict.get('mac').upper() if namespace_dict.get('mac') is not None else self.random_mac
+        # Obtain the device model of interest, need to convert to upper case.
+        # --model is a mandatory option, fail hard if not provided.
+        try:
+            _model = kwargs.get('model').upper()
+        except AttributeError:
+            print()
+            print_to_console_width("Device model not specified, please specify "
+                                   "a model using the '--model' option")
+            exit(1)
+        # We have a model, but is it one we know of (ie we have an earlier
+        # version for that model) or if it is not known, has a valid earlier
+        # version be specified
+        # first get the --earlier_version if specified
+        try:
+            _e_version = kwargs.get('earlier_version').upper()
+        except AttributeError:
+            # no --earlier-version was specified
+            _e_version = None
+        # now we can finish dealing with the model
+        if _model not in EARLIER_VERSION_DICT.keys() and _e_version is None:
+            print()
+            print_to_console_width(f"Unknown model specified - '{_model}'. Please "
+                                   "specify a known model using the '--model' "
+                                   "option or include a valid earlier firmware "
+                                   "version using the '--earlier-version' option")
+            exit(1)
+        self.model = _model
         # Queries for non-GW1000 firmware metadata require a version number.
         # There is no guidance from Ecowitt on what this parameter should be,
         # or how it should be formatted but anecdotal evidence suggests it
@@ -176,29 +223,31 @@ class EcowittFirmware(object):
         # character 'V' and x.y.z are numbers representing a previous firmware
         # release version for the device model concerned. If not specified a
         # default is obtained from a lookup dict based on model.
-        _earlier_version = namespace_dict.get('earlier_version').upper() \
-            if namespace_dict.get('earlier_version') is not None else EARLIER_VERSION_DICT.get(self.model)
+        _e_version = _e_version if _e_version is not None else EARLIER_VERSION_DICT.get(self.model)
         # make sure the version starts with 'V'
-        if _earlier_version is not None and len(_earlier_version) > 0 and _earlier_version[0] != 'V':
-            _earlier_version = ''.join(['V', _earlier_version])
-        self.earlier_version = _earlier_version
+        if _e_version is not None and len(_e_version) > 0 and _e_version[0] != 'V':
+            _e_version = ''.join(['V', _e_version])
+        self.earlier_version = _e_version
+        # Obtain the device MAC, need to convert to upper case. Default
+        # is a random generated MAC.
+        self.mac = kwargs.get('mac').upper() if kwargs.get('mac') is not None else self.random_mac
         # Obtain the destination directory for any firmware update file downloads. Default to DEFAULT_LOCATION.
-        _destination = namespace_dict.get('destination')
+        _destination = kwargs.get('destination')
         self.destination = _destination if _destination is not None else DEFAULT_LOCATION
-        # obtain the timeout value in seconds to be used for any URL queries/rerievals
+        # obtain the timeout value in seconds to be used for any URL queries/retrievals
         try:
-            self.timeout = int(namespace_dict.get('timeout'))
+            self.timeout = int(kwargs.get('timeout'))
         except TypeError:
             self.timeout = DEFAULT_TIMEOUT
         # obtain from and to email addresses
-        self.from_address = namespace_dict.get('from')
-        self.to_address = namespace_dict.get('to')
+        self.from_address = kwargs.get('from')
+        self.to_address = kwargs.get('to')
         # Whether to silence console output or not, default is to not silence
         # console output. Useful for when using as a CRON entry.
-        self.silent = namespace_dict.get('silent', False)
+        self.silent = kwargs.get('silent', False)
         # whether to display debug information or not, default is to not
         # display debug information
-        self.debug = namespace_dict.get('debug', False)
+        self.debug = kwargs.get('debug', False)
         # # initialise the local version dict
         # self.version_file = pathlib.Path(VERSION_FILE)
         # self.initialise_version_dict()
@@ -832,7 +881,8 @@ class EcowittFirmware(object):
             if not self.silent:
                 print(f'No files were downloaded for {self.model} firmware version {metadata["version"]}')
 
-    def gen_notes_string(self, notes):
+    @staticmethod
+    def gen_notes_string(notes):
         """Generate a multi-line formatted firmware notes string."""
 
         if len(notes) > 0:
@@ -879,20 +929,22 @@ class EcowittFirmware(object):
 
         return ':'.join(f'{random.randint(0,255):02X}' for x in range(6))
 
+
 def write_release_notes(file, notes):
     """Write the firmware release notes to a file."""
 
     with open(file, 'w') as f:
         f.write(notes)
 
-def write_dict(file, dict):
+
+def write_dict(file, data):
     """Write a dict to file as a json string.
 
     This function is used to write a python dict to file as a JSON string.
     """
 
     with open(file, 'w') as f:
-        f.write(json.dumps(dict))
+        f.write(json.dumps(data))
 
 
 def read_dict(file):
@@ -914,6 +966,20 @@ def read_dict(file):
         return dict()
 
 
+def get_console_width():
+    """Get the current console width."""
+
+    return shutil.get_terminal_size().columns
+
+
+def print_to_console_width(*args, sep=' '):
+    """Print text to neatly fit the current console width."""
+
+    width = get_console_width()
+    for line in sep.join(map(str, args)).splitlines(True):
+        print(*textwrap.wrap(line, width), sep="\n")
+
+
 class bcolors:
     """Class defining colours used for terminals."""
 
@@ -933,17 +999,17 @@ def main():
     usage = f"""{bcolors.BOLD}%(prog)s --help
                  --version 
                  --get-metadata
-                    [--model=MODEL] [--mac=MAC]
-                    [--earlier-version=VERSION] [--timeout=TIMEOUT]
-                    [--silent] [--debug]
+                    --model=MODEL 
+                    [--mac=MAC] [--earlier-version=VERSION]
+                    [--timeout=TIMEOUT] [--silent] [--debug]
                  --download-firmware
-                    [--model=MODEL] [--mac=MAC]
+                    --model=MODEL 
                     [--mac=MAC] [--earlier-version=VERSION]
                     [--destination=DESTINATION] [--timeout=TIMEOUT]
                     [--to] [--from]
                     [--silent] [--debug]{bcolors.ENDC}
     """
-    description = """Obtain current firmware updates for Ecowitt gateway devices."""
+    description = """Obtain current firmware updates for Ecowitt selected devices."""
 
     parser = argparse.ArgumentParser(usage=usage,
                                      description=description,
@@ -963,7 +1029,6 @@ def main():
     parser.add_argument('--model',
                         type=str,
                         dest='model',
-                        default='GW2000C',
                         metavar="MODEL",
                         help='obtain metadata for device model MODEL')
     parser.add_argument('--mac',
