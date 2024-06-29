@@ -207,8 +207,12 @@ class EcowittFirmware(object):
         except AttributeError:
             # no --earlier-version was specified
             _e_version = None
-        # now we can finish dealing with the model
-        if _model not in EARLIER_VERSION_DICT.keys() and _e_version is None:
+        # Now we can finish dealing with the model. If we have a GW1000 device
+        # we don't need an earlier firmware version, but if we have any other
+        # device (ie those in EARLIER_VERSION_DICT) we need a version number.
+        # If we don't have a version number when we should, advise the user and
+        # exit.
+        if 'GW1000' not in _model and _model not in EARLIER_VERSION_DICT.keys() and _e_version is None:
             print()
             print_to_console_width(f"Unknown model specified - '{_model}'. Please "
                                    "specify a known model using the '--model' "
