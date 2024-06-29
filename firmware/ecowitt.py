@@ -1779,7 +1779,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack(">h", data)[0] / 10.0 if len(data) == 2 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_humid(data, field=None):
@@ -1792,7 +1792,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack("B", data)[0] if len(data) == 1 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_press(data, field=None):
@@ -1813,7 +1813,7 @@ class GatewayApiParser:
             value = struct.unpack(">H", data[-2:])[0] / 10.0
         else:
             value = None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_dir(data, field=None):
@@ -1826,7 +1826,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack(">H", data)[0] if len(data) == 2 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_big_rain(data, field=None):
@@ -1839,7 +1839,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack(">L", data)[0] / 10.0 if len(data) == 4 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_datetime(data, field=None):
@@ -1856,7 +1856,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack("BBBBBB", data) if len(data) == 6 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_distance(data, field=None):
@@ -1873,7 +1873,7 @@ class GatewayApiParser:
             value = value if value <= 40 else None
         else:
             value = None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_utc(data, field=None):
@@ -1906,7 +1906,7 @@ class GatewayApiParser:
             value = value if value != 0xFFFFFFFF else None
         else:
             value = None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_count(data, field=None):
@@ -1918,7 +1918,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack(">L", data)[0] if len(data) == 4 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_gain_100(data, field=None):
@@ -1929,7 +1929,7 @@ class GatewayApiParser:
         """
 
         value = struct.unpack(">H", data)[0] / 100.0 if len(data) == 2 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     @staticmethod
     def decode_noop(data, field=None):
@@ -1992,7 +1992,7 @@ class GatewayApiParser:
         """
 
         value = self.decode_temp(data[0:2]) if len(data) == 3 else None
-        return value if field is not None else {field: value}
+        return value if field is None else {field: value}
 
     def decode_wh45(self, data, field=None):
         """Decode WH45 sensor data.
