@@ -22,9 +22,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.2.0                                     Date: 29 June 2024
+Version: 0.2.1                                     Date: 30 June 2024
 
 Revision History
+    30 JUNE 2024            V0.2.1
+        - updated earlier version dict
     29 June 2024            v0.2.0
         - added support for WS3900/3910 consoles
         - --model is a now mandatory option
@@ -130,14 +132,47 @@ EARLIER_VERSION_DICT = {
     'GW2000B': '3.0.0',
     'GW2000C': '3.0.0',
     'GW2000D': '3.0.0',
-    'WS3900A': '1.2.6',
-    'WS3900B': '1.2.6',
-    'WS3900C': '1.2.6',
-    'WS3900D': '1.2.6',
-    'WS3901A': '1.2.6',
-    'WS3901B': '1.2.6',
-    'WS3901C': '1.2.6',
-    'WS3901D': '1.2.6'
+    'WN1820A': '1.2.7',
+    'WN1820B': '1.2.7',
+    'WN1820C': '1.2.7',
+    'WN1820D': '1.2.7',
+    'WN1821A': '1.2.7',
+    'WN1821B': '1.2.7',
+    'WN1821C': '1.2.7',
+    'WN1821D': '1.2.7',
+    'WN1920A': '1.2.7',
+    'WN1920B': '1.2.7',
+    'WN1920C': '1.2.7',
+    'WN1920D': '1.2.7',
+    'WN1980A': '1.2.7',
+    'WN1980B': '1.2.7',
+    'WN1980C': '1.2.7',
+    'WN1980D': '1.2.7',
+    'WS3800A': '1.2.4',
+    'WS3800B': '1.2.4',
+    'WS3800C': '1.2.4',
+    'WS3800D': '1.2.4',
+    'WS3820A': '1.2.7',
+    'WS3820B': '1.2.7',
+    'WS3820C': '1.2.7',
+    'WS3820D': '1.2.7',
+    'WS3900A': '1.2.4',
+    'WS3900B': '1.2.4',
+    'WS3900C': '1.2.4',
+    'WS3900D': '1.2.4',
+    'WS3901A': '1.2.4',
+    'WS3901B': '1.2.4',
+    'WS3901C': '1.2.4',
+    'WS3901D': '1.2.4',
+    'WS3920A': '1.2.7',
+    'WS3920B': '1.2.7',
+    'WS3920C': '1.2.7',
+    'WS3920D': '1.2.7',
+    'WS3921A': '1.2.0',
+    'WS3921B': '1.2.0',
+    'WS3921C': '1.2.0',
+    'WS3921D': '1.2.0',
+    'HP2550': '1.9.5'
 }
 # creat a namedtuple type to hold URL components
 Components = namedtuple('Components',
