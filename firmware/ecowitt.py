@@ -1304,7 +1304,7 @@ class GatewayApiParser:
         Returns a bytestring of length 1.
         """
 
-        return struct.pack('B', ecowitt['interval'])
+        return struct.pack('B', ecowitt['ec_interval'])
 
     @staticmethod
     def parse_wunderground(payload):
@@ -1366,23 +1366,78 @@ class GatewayApiParser:
         """
 
         # convert the station ID to a bytestring
-        station_id_b = wu['id'].encode()
+        station_id_b = wu['wu_id'].encode()
         # convert the password to a bytestring
-        station_key_b = wu['password'].encode()
+        station_key_b = wu['wu_key'].encode()
         # assemble and return the bytestring data payload
         return b''.join([struct.pack('B', len(station_id_b)),
                          station_id_b,
                          struct.pack('B', len(station_key_b)),
                          station_key_b])
 
-    # Weathercloud and Weather Observations Website both use a station ID and
-    # password/key in a similar manner to WeatherUnderground. The
-    # CMD_WRITE_WCLOUD and CMD_WRITE_WOW API commands use the same data payload
-    # format as CMD_WRITE_WUNDERGROUND. Consequently, we can use the
-    # WeatherUnderground encode function to encode the CMD_WRITE_WCLOUD and
-    # CMD_WRITE_WOW data payloads.
-    encode_wcloud = encode_wu
-    encode_wow = encode_wu
+    @staticmethod
+    def encode_wcloud(**wcloud):
+        """Encode data parameters used for CMD_WRITE_WUNDERGROUND.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_WUNDERGROUND. Required payload parameters are contained in
+        the wu dict keyed as follows:
+
+        id:         WeatherUnderground station ID
+        password:   WeatherUnderground password/key
+
+        The encoded bytestring format is:
+
+        Byte(s)       Format    Comments
+        0             byte      length of station ID (i)
+        1 to i        i bytes   station ID (i characters)
+        1+i           byte      length of station password/key (p)
+        2+i to 1+i+p  p bytes   station password (p characters)
+
+        Returns a bytestring of length 2+i+p.
+        """
+
+        # convert the station ID to a bytestring
+        station_id_b = wcloud['wcloud_id'].encode()
+        # convert the password to a bytestring
+        station_key_b = wcloud['wcloud_key'].encode()
+        # assemble and return the bytestring data payload
+        return b''.join([struct.pack('B', len(station_id_b)),
+                         station_id_b,
+                         struct.pack('B', len(station_key_b)),
+                         station_key_b])
+
+    @staticmethod
+    def encode_wow(**wow):
+        """Encode data parameters used for CMD_WRITE_WUNDERGROUND.
+
+        Assemble a bytestring to be used as the data payload for
+        CMD_WRITE_WUNDERGROUND. Required payload parameters are contained in
+        the wu dict keyed as follows:
+
+        id:         WeatherUnderground station ID
+        password:   WeatherUnderground password/key
+
+        The encoded bytestring format is:
+
+        Byte(s)       Format    Comments
+        0             byte      length of station ID (i)
+        1 to i        i bytes   station ID (i characters)
+        1+i           byte      length of station password/key (p)
+        2+i to 1+i+p  p bytes   station password (p characters)
+
+        Returns a bytestring of length 2+i+p.
+        """
+
+        # convert the station ID to a bytestring
+        station_id_b = wow['wow_id'].encode()
+        # convert the password to a bytestring
+        station_key_b = wow['wow_key'].encode()
+        # assemble and return the bytestring data payload
+        return b''.join([struct.pack('B', len(station_id_b)),
+                         station_id_b,
+                         struct.pack('B', len(station_key_b)),
+                         station_key_b])
 
     @staticmethod
     def parse_wow(payload):
@@ -3483,8 +3538,8 @@ class GatewayApi:
         Sends the API command to write the Ecowitt.net upload parameters to the
         gateway device. If the device cannot be contacted a GWIOError will be
         raised by send_cmd_with_retries() which will be passed through by
-        set_ecowitt(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_ecowitt() should be prepared to handle
+        set_ecowitt_net(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_ecowitt_net() should be prepared to handle
         these exceptions.
         """
 
@@ -4859,7 +4914,7 @@ class EcowittDevice:
         # update the gateway device
         self.gateway_api.write_ssid(payload)
 
-    def set_ecowitt(self, **ecowitt):
+    def set_ecowitt_net(self, **ecowitt):
         """Set Ecowitt.net upload parameters.
 
         Set Ecowitt.net upload parameters for a gateway device. The only
@@ -4942,9 +4997,34 @@ class EcowittDevice:
 
         # obtain encoded data payloads for each API command
         payload_custom = self.gateway_api_parser.encode_customized(**custom)
-        payload_paths = self.gateway_api_parser.encode_usr_path(**custom)
         # update the gateway device
         self.gateway_api.write_customized(payload_custom)
+
+    def set_user_path(self, **paths):
+        # TODO. Need comments here to expand on dual-update
+        """Set 'Custom' upload parameters.
+
+        Set 'Custom' upload parameters for a gateway device. The 'Custom'
+        parameters consist of:
+
+        active:     whether the custom upload is active, 0 = inactive,
+                    1 = active
+        type:       what protocol (Ecowitt or WeatherUnderground) to use for
+                    upload, 0 = Ecowitt, 1 = WeatherUnderground
+        server:     server IP address or host name, string
+        port:       server port number, integer 0 to 65536
+        interval:   upload interval in seconds
+        id:         WeatherUnderground station ID
+        password:   WeatherUnderground key
+
+        The upload parameters are first encoded to produce the command data
+        payload. The payload is then passed to a GatewayApi object for
+        uploading to the gateway device.
+        """
+
+        # obtain encoded data payloads for each API command
+        payload_paths = self.gateway_api_parser.encode_usr_path(**paths)
+        # update the gateway device
         self.gateway_api.write_user_path(payload_paths)
 
     def set_gain(self, **gain):
@@ -6580,7 +6660,72 @@ class EcowittDeviceConfigurator:
 
     def write_services(self):
         """Write weather services upload parameters to a device."""
-        pass
+
+        # get an EcowittDevice object
+        device = self.get_device()
+        if device:
+            # identify the device being used
+            print()
+            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
+                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
+            print()
+            # set a flag if we write any changes
+            any_changes = False
+            # iterate over the groups of weather services params processing
+            # each in turn
+            for params_str in ['ecowitt_net', 'wu', 'wcloud', 'wow', 'custom']:
+                # obtain the current device params of interest
+                params = getattr(device, '_'.join([params_str, 'params']))
+                # make a copy of the current params, this copy will be updated
+                # with the subcommand arguments and then used to update the
+                # device
+                arg_params = dict(params)
+                # iterate over each param (param, value) pair
+                for param, value in params.items():
+                    # obtain the corresponding argument from the namespace, if
+                    # the argument does not exist or is not set it will be None
+                    _arg = getattr(self.namespace, param, None)
+                    # update our param dict copy if the namespace argument is
+                    # not None, otherwise keep the current custom param value
+                    arg_params[param] = _arg if _arg is not None else value
+                # do we have any changes from our existing settings
+                if arg_params != params:
+                    # something has changed, so write the updated params to the
+                    # device
+                    try:
+                        getattr(device, '_'.join(['set', params_str]))(**arg_params)
+                    except DeviceWriteFailed as e:
+                        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                    else:
+                        any_changes = True
+            # now do the user paths they are an outlier but really part of the
+            # custom parameters
+            # first get the current user path params
+            params = device.usr_path
+            # make a copy of the current params, this copy will be updated with
+            # the subcommand arguments and then used to update the device
+            arg_params = dict(params)
+            # iterate over each param (param, value) pair
+            for param, value in params.items():
+                # obtain the corresponding argument from the namespace, if the
+                # argument does not exist or is not set it will be None
+                _arg = getattr(self.namespace, param, None)
+                # update our param dict copy if the namespace argument is not
+                # None, otherwise keep the current custom param value
+                arg_params[param] = _arg if _arg is not None else value
+            # do we have any changes from our existing settings
+            if arg_params != params:
+                # something has changed, so write the updated params to the device
+                try:
+                    device.set_user_path(**arg_params)
+                except DeviceWriteFailed as e:
+                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
+                else:
+                    any_changes = True
+            if any_changes:
+                print("Device write completed successfully")
+            else:
+                print("No changes to current device settings")
 
     def process_write_ecowitt(self):
         """Write Ecowitt.net upload parameters to a gateway device."""
@@ -6611,7 +6756,7 @@ class EcowittDeviceConfigurator:
             if arg_ecowitt_params != ecowitt_params:
                 # something has changed, so write the updated params to the device
                 try:
-                    device.set_ecowitt(**arg_ecowitt_params)
+                    device.set_ecowitt_net(**arg_ecowitt_params)
                 except DeviceWriteFailed as e:
                     print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
                 else:
