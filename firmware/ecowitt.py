@@ -1286,7 +1286,7 @@ class GatewayApiParser:
         # We have only one parameter, create a dict holding our parsed data.
         # Use [x] form rather than [x:x+1] so the result is an integer rather
         # than a bytestring
-        data_dict = {'interval': payload[0]}
+        data_dict = {'ec_interval': payload[0]}
         # return the parsed data
         return data_dict
 
@@ -1334,12 +1334,12 @@ class GatewayApiParser:
         # obtain ID size in bytes
         id_size = payload[0]
         # obtain the WU ID as a bytestring, convert to ASCII and save to dict
-        data_dict['id'] = payload[1:1 + id_size].decode()
+        data_dict['wu_id'] = payload[1:1 + id_size].decode()
         # obtain the password/key size in bytes
         password_size = payload[1 + id_size]
         # obtain the WU password/key as a bytestring, convert to ASCII and save to
         # dict
-        data_dict['password'] = payload[2 + id_size:2 + id_size + password_size].decode()
+        data_dict['wu_key'] = payload[2 + id_size:2 + id_size + password_size].decode()
         # return the parsed data
         return data_dict
 
@@ -1421,12 +1421,12 @@ class GatewayApiParser:
         id_size = payload[0]
         # obtain the WOW station ID as a bytestring, convert to ASCII and save
         # to dict
-        data_dict['id'] = payload[1:1 + id_size].decode()
+        data_dict['wow_id'] = payload[1:1 + id_size].decode()
         # obtain password size in bytes
         pw_size = payload[1 + id_size]
         # obtain the WOW password as a bytestring, convert to ASCII and save to
         # dict
-        data_dict['password'] = payload[2 + id_size:2 + id_size + pw_size].decode()
+        data_dict['wow_key'] = payload[2 + id_size:2 + id_size + pw_size].decode()
         # obtain station number size in bytes
         stn_num_size = payload[1 + id_size]
         # obtain the WOW station number as a bytestring, convert to ASCII and
@@ -1462,12 +1462,12 @@ class GatewayApiParser:
         id_size = payload[0]
         # obtain the Weathercloud station ID as a bytestring, convert to ASCII
         # and save to dict
-        data_dict['id'] = payload[1:1 + id_size].decode()
+        data_dict['wcloud_id'] = payload[1:1 + id_size].decode()
         # obtain key/password size in bytes
         key_size = payload[1 + id_size]
         # obtain the Weathercloud key/password as a bytestring, convert to
         # ASCII and save to dict
-        data_dict['password'] = payload[2 + id_size:2 + id_size + key_size].decode()
+        data_dict['wcloud_key'] = payload[2 + id_size:2 + id_size + key_size].decode()
         # return the parsed data
         return data_dict
 
@@ -2242,7 +2242,7 @@ class Sensors:
         b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
-        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt'}
     }
     # sensors for which there is no low battery state
     no_low = ['ws80', 'ws90']
@@ -6178,15 +6178,15 @@ class EcowittDeviceConfigurator:
             # do we have any settings?
             if data_dict is not None:
                 # upload interval, 0 means disabled
-                if data_dict['interval'] == 0:
+                if data_dict['ec_interval'] == 0:
                     print("%22s: %s" % ("Upload Interval",
                                         "Upload to Ecowitt.net is disabled"))
-                elif data_dict['interval'] > 1:
+                elif data_dict['ec_interval'] > 1:
                     print("%22s: %d minutes" % ("Upload Interval",
-                                                data_dict['interval']))
+                                                data_dict['ec_interval']))
                 else:
                     print("%22s: %d minute" % ("Upload Interval",
-                                               data_dict['interval']))
+                                               data_dict['ec_interval']))
                 # device MAC
                 print("%22s: %s" % ("MAC", data_dict['mac']))
 
@@ -6196,10 +6196,10 @@ class EcowittDeviceConfigurator:
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                wu_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
+                wu_id = data_dict['wu_id'] if self.namespace.unmask else obfuscate(data_dict['wu_id'])
                 print("%22s: %s" % ("Station ID", wu_id))
                 # Station key
-                key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
+                key = data_dict['wu_key'] if self.namespace.unmask else obfuscate(data_dict['wu_key'])
                 print("%22s: %s" % ("Station Key", key))
 
         def print_weathercloud(data_dict=None):
@@ -6208,10 +6208,10 @@ class EcowittDeviceConfigurator:
             # do we have any settings?
             if data_dict is not None:
                 # Weathercloud ID
-                wc_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
+                wc_id = data_dict['wcloud_id'] if self.namespace.unmask else obfuscate(data_dict['wcloud_id'])
                 print("%22s: %s" % ("Weathercloud ID", wc_id))
                 # Weathercloud key
-                key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
+                key = data_dict['wcloud_key'] if self.namespace.unmask else obfuscate(data_dict['wcloud_key'])
                 print("%22s: %s" % ("Weathercloud Key", key))
 
         def print_wow(data_dict=None):
@@ -6220,10 +6220,10 @@ class EcowittDeviceConfigurator:
             # do we have any settings?
             if data_dict is not None:
                 # Station ID
-                wow_id = data_dict['id'] if self.namespace.unmask else obfuscate(data_dict['id'])
+                wow_id = data_dict['wow_id'] if self.namespace.unmask else obfuscate(data_dict['wow_id'])
                 print("%22s: %s" % ("Station ID", wow_id))
                 # Station key
-                key = data_dict['password'] if self.namespace.unmask else obfuscate(data_dict['password'])
+                key = data_dict['wow_key'] if self.namespace.unmask else obfuscate(data_dict['wow_key'])
                 print("%22s: %s" % ("Station Key", key))
 
         def print_custom(data_dict=None):
@@ -6283,7 +6283,7 @@ class EcowittDeviceConfigurator:
             # in a dict keyed by the service name
             services_data = {}
             for service in device.services:
-                services_data[service['name']] = getattr(device, service['name'])
+                services_data.update(getattr(device, service['name']))
             # did we get any service data
             if len(services_data) > 0:
                 # now format and display the data
@@ -6293,7 +6293,7 @@ class EcowittDeviceConfigurator:
                 # relevant function to print the services settings
                 for service in device.services:
                     print("  %s" % (service['long_name'],))
-                    print_fns[service['name']](services_data[service['name']])
+                    print_fns[service['name']](services_data)
                     print()
 
             else:
