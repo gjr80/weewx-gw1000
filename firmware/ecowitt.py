@@ -497,7 +497,6 @@ class GatewayApiParser:
     def parse_rain(self, payload):
         """Parse the data payload from a CMD_READ_RAIN API response.
 
-
         Payload consists of a bytestring of variable length dependent on the
         number of connected sensors.
 
@@ -2148,7 +2147,7 @@ class GatewayApiParser:
             results = [struct.unpack("B", data[0:1])[0],
                        struct.unpack("B", data[1:2])[0],
                        struct.unpack("B", data[2:3])[0]]
-        return results if field is not None else {field: results}
+        return results if field is None else {field: results}
 
     @staticmethod
     def encode_sensor_id(**ids):
@@ -5659,7 +5658,7 @@ class EcowittDeviceConfigurator:
             # we have percent, no conversion, if not None return as is
             # otherwise return dashed lines
             if value is not None:
-                return f"{value:d}%"
+                return f"{value:.0f}%"
             else:
                 return f"---%"
         elif unit == 'hPa':
@@ -5673,7 +5672,7 @@ class EcowittDeviceConfigurator:
             # we have degree (ie direction), no conversion, if not None return
             # as is otherwise return dashed lines
             if value is not None:
-                return f"{value:d}°"
+                return f"{value:.0f}°"
             else:
                 return f"---°"
         elif unit == 'km_per_hour':
@@ -5855,15 +5854,15 @@ class EcowittDeviceConfigurator:
                 # do we have any results to display?
                 if len(rain_data) > 0:
                     unit_str = self.convert(rain_data["ITEM_RAINRATE"], self.field_to_text["ITEM_RAINRATE"]["unit"])
-                    print(f'{"Rain rate":>12}: {rain_data["ITEM_RAINRATE"]:.1f}{unit_str}')
+                    print(f'{"Rain rate":>12}: {unit_str}')
                     unit_str = self.convert(rain_data["ITEM_RAINDAY"], self.field_to_text["ITEM_RAINDAY"]["unit"])
-                    print(f'{"Day rain":>12}: {rain_data["ITEM_RAINDAY"]:.1f}{unit_str}')
+                    print(f'{"Day rain":>12}: {unit_str}')
                     unit_str = self.convert(rain_data["ITEM_RAINWEEK"], self.field_to_text["ITEM_RAINWEEK"]["unit"])
-                    print(f'{"Week rain":>12}: {rain_data["ITEM_RAINWEEK"]:.1f}{unit_str}')
+                    print(f'{"Week rain":>12}: {unit_str}')
                     unit_str = self.convert(rain_data["ITEM_RAINMONTH"], self.field_to_text["ITEM_RAINMONTH"]["unit"])
-                    print(f'{"Month rain":>12}: {rain_data["ITEM_RAINMONTH"]:.1f}{unit_str}')
+                    print(f'{"Month rain":>12}: {unit_str}')
                     unit_str = self.convert(rain_data["ITEM_RAINYEAR"], self.field_to_text["ITEM_RAINYEAR"]["unit"])
-                    print(f'{"Year rain":>12}: {rain_data["ITEM_RAINYEAR"]:.1f}{unit_str}')
+                    print(f'{"Year rain":>12}: {unit_str}')
                 else:
                     print()
                     print(f'Device at {self.ip_address} did not respond.')
@@ -5925,32 +5924,32 @@ class EcowittDeviceConfigurator:
                 _data = rain_data.get('ITEM_RAINRATE')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_RAINRATE"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Rain rate":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_RAINEVENT')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_RAINRATE"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Event rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_RAINDAY')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_RAINDAY"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Daily rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_RAINWEEK')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_RAINWEEK"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Weekly rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_RAINMONTH')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_RAINMONTH"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Monthly rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_RAINYEAR')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_RAINYEAR"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Yearly rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_RAIN_Gain')
                 _data_str = "%.2f" % _data / 100.0 if _data is not None else "---"
@@ -5963,32 +5962,32 @@ class EcowittDeviceConfigurator:
                 _data = rain_data.get('ITEM_Piezo_Rain_Rate')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_Piezo_Rain_Rate"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Rain rate":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_Piezo_Event_Rain')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_Piezo_Event_Rain"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Event rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_Piezo_Daily_Rain')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_Piezo_Daily_Rain"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Daily rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_Piezo_Weekly_Rain')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_Piezo_Weekly_Rain"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Weekly rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_Piezo_Monthly_Rain')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_Piezo_Monthly_Rain"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Monthly rain":>30}: {_data_str}')
                 _data = rain_data.get('ITEM_Piezo_yearly_Rain')
                 unit_str = self.convert(_data,
                                         self.field_to_text["ITEM_Piezo_yearly_Rain"]["unit"])
-                _data_str = f'{_data:.1f}{unit_str}' if _data is not None else f'---{unit_str}'
+                _data_str = f'{unit_str}' if _data is not None else f'---{unit_str}'
                 print(f'{"Yearly rain":>30}: {_data_str}')
                 _gain_data = rain_data.get('ITEM_Piezo_Gain10')
                 for gain_channel in range(10):
@@ -6045,7 +6044,7 @@ class EcowittDeviceConfigurator:
                         # channels starting at 1, so add 1 to our channel number
                         channel_str = f'{"Channel":>11} {channel + 1:d}'
                         unit_str = self.convert(mulch_offset_data[channel]["temp"], "diff_degree_C")
-                        temp_offset_str = f'{mulch_offset_data[channel]["temp"]:2.1f}{unit_str}'
+                        temp_offset_str = f'{unit_str}'
                         hum_offset_str = f'{mulch_offset_data[channel]["hum"]:d}%'
                         print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5}  '
                               f'Humidity offset: {hum_offset_str:5}')
@@ -6127,7 +6126,7 @@ class EcowittDeviceConfigurator:
                         channel_str = f'{"Channel":>11} {channel:d}'
                         unit_str = self.convert(pm25_offset_data[channel], "micro_gram_per_meter_cubed")
                         offset_str = f'{pm25_offset_data[channel]:2.1f}'
-                        print(f'{channel_str:>13}: PM2.5 offset: {offset_str:>5}{unit_str}')
+                        print(f'{channel_str:>13} PM2.5 offset: {unit_str}')
                 else:
                     # we have no results, so display a suitable message
                     print(f'{"No PM2.5 sensors found":>28}')
@@ -6157,11 +6156,11 @@ class EcowittDeviceConfigurator:
                 print()
                 print("CO2 Calibration")
                 unit_str = self.convert(co2_offset_data["co2"], "ppm")
-                print(f'{"CO2 offset":>16}: {co2_offset_data["co2"]:>2.1f}{unit_str}')
+                print(f'{"CO2 offset":>16}: {unit_str}')
                 unit_str = self.convert(co2_offset_data["pm10"], "micro_gram_per_meter_cubed")
-                print(f'{"PM10 offset":>16}: {co2_offset_data["pm10"]:>2.1f}{unit_str}')
+                print(f'{"PM10 offset":>16}: {unit_str}')
                 unit_str = self.convert(co2_offset_data["pm25"], "micro_gram_per_meter_cubed")
-                print(f'{"PM2.5 offset":>16}: {co2_offset_data["pm25"]:>2.1f}{unit_str}')
+                print(f'{"PM2.5 offset":>16}: {unit_str}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -6186,20 +6185,23 @@ class EcowittDeviceConfigurator:
                 # now format and display the data
                 print()
                 print("Calibration")
-                print(f'{"Irradiance gain":>28}: {calibration_data["solar"]:5.2f}')
-                print(f'{"UV gain":>28}: {calibration_data["uv"]:4.1f}')
-                print(f'{"Wind gain":>28}: {calibration_data["wind"]:4.1f}')
+                print(f'{"Irradiance gain":>28}: {calibration_data["solar"]:.2f}')
+                print(f'{"UV gain":>28}: {calibration_data["uv"]:.1f}')
+                print(f'{"Wind gain":>28}: {calibration_data["wind"]:.1f}')
                 unit_str = self.convert(calibration_data["intemp"], "diff_degree_C")
-                print(f'{"Inside temperature offset":>28}: {calibration_data["intemp"]:4.1f}{unit_str}')
-                print(f'{"Inside humidity offset":>28}: {calibration_data["inhum"]:4.1f}%')
-                unit_str = self.convert(calibration_data["intemp"], "diff_degree_C")
-                print(f'{"Outside temperature offset":>28}: {calibration_data["outtemp"]:4.1f}{unit_str}')
-                print(f'{"Outside humidity offset":>28}: {calibration_data["outhum"]:4.1f}%')
-                unit_str = self.convert(calibration_data["intemp"], "hPa")
-                print(f'{"Absolute pressure offset":>28}: {calibration_data["abs"]:4.1f}{unit_str}')
-                unit_str = self.convert(calibration_data["intemp"], "hPa")
-                print(f'{"Relative pressure offset":>28}: {calibration_data["rel"]:4.1f}{unit_str}')
-                print(f'{"Wind direction offset":>28}: {calibration_data["dir"]:4.1f}\xb0')
+                print(f'{"Inside temperature offset":>28}: {unit_str}')
+                unit_str = self.convert(calibration_data["inhum"], "percent")
+                print(f'{"Inside humidity offset":>28}: {unit_str}')
+                unit_str = self.convert(calibration_data["outtemp"], "diff_degree_C")
+                print(f'{"Outside temperature offset":>28}: {unit_str}')
+                unit_str = self.convert(calibration_data["outhum"], "percent")
+                print(f'{"Outside humidity offset":>28}: {unit_str}')
+                unit_str = self.convert(calibration_data["abs"], "hPa")
+                print(f'{"Absolute pressure offset":>28}: {unit_str}')
+                unit_str = self.convert(calibration_data["rel"], "hPa")
+                print(f'{"Relative pressure offset":>28}: {unit_str}')
+                unit_str = self.convert(calibration_data["dir"], "degree")
+                print(f'{"Wind direction offset":>28}: {unit_str}')
             else:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
@@ -6725,134 +6727,6 @@ class EcowittDeviceConfigurator:
             if any_changes:
                 print("Device write completed successfully")
             else:
-                print("No changes to current device settings")
-
-    def process_write_ecowitt(self):
-        """Write Ecowitt.net upload parameters to a gateway device."""
-
-        # get an EcowittDevice object
-        device = self.get_device()
-        if device:
-            # identify the device being used
-            print()
-            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            print()
-            # obtain the current custom params and usr path settings from the
-            # device
-            ecowitt_params = device.ecowitt_net_params
-            # make a copy of the current ecowitt params, this copy will be updated
-            # with the subcommand arguments and then used to update the device
-            arg_ecowitt_params = dict(ecowitt_params)
-            # iterate over each ecowitt param (param, value) pair
-            for param, value in ecowitt_params.items():
-                # obtain the corresponding argument from the namespace, if the
-                # argument does not exist or is not set it will be None
-                _arg = getattr(self.namespace, param, None)
-                # update our ecowitt param dict copy if the namespace argument is
-                # not None, otherwise keep the current custom param value
-                arg_ecowitt_params[param] = _arg if _arg is not None else value
-            # do we have any changes from our existing settings
-            if arg_ecowitt_params != ecowitt_params:
-                # something has changed, so write the updated params to the device
-                try:
-                    device.set_ecowitt_net(**arg_ecowitt_params)
-                except DeviceWriteFailed as e:
-                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-                else:
-                    print("Device write completed successfully")
-            else:
-                print()
-                print("No changes to current device settings")
-
-    def process_write_wu_wow_wcloud(self):
-        """Process writ wu, wow and wcloud sub-subcommands."""
-
-        # get an EcowittDevice object
-        device = self.get_device()
-        if device:
-            # identify the device being used
-            print()
-            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            print()
-            # obtain the current WU/WOW/Weathercloud upload params from the device
-            current_params = getattr(device, '_'.join([self.namespace.write_subcommand, 'params']))
-            # make a copy of the current params, this copy will be updated with
-            # the subcommand arguments and then used to update the device
-            arg_service_params = dict(current_params)
-            # iterate over each current param (param, value) pair
-            for param, value in current_params.items():
-                # obtain the corresponding argument from the namespace, if the
-                # argument does not exist or is not set it will be None
-                _arg = getattr(self.namespace, param, None)
-                # update our param dict copy if the namespace argument is not None,
-                # otherwise keep the current param value
-                arg_service_params[param] = _arg if _arg is not None else value
-            # do we have any changes from our existing settings
-            if arg_service_params != current_params:
-                # something has changed, so write the updated params to the device
-                try:
-                    getattr(device, '_'.join(['set', self.namespace.write_subcommand]))(**arg_service_params)
-                except DeviceWriteFailed as e:
-                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-                else:
-                    print("Device write completed successfully")
-            else:
-                print()
-                print("No changes to current device settings")
-
-    def process_write_custom(self):
-        """Process custom write sub-subcommand."""
-
-        # get an EcowittDevice object
-        device = self.get_device()
-        if device:
-            # identify the device being used
-            print()
-            print(f'Updating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
-                  f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            print()
-            # obtain the current custom params and usr path settings from the
-            # device
-            custom_params = device.custom_params
-            usr_path = device.usr_path
-            # make a copy of the current custom params, this copy will be updated
-            # with the subcommand arguments and then used to update the device
-            arg_custom_params = dict(custom_params)
-            # iterate over each custom param (param, value) pair
-            for param, value in custom_params.items():
-                # obtain the corresponding argument from the namespace, if the
-                # argument does not exist or is not set it will be None
-                _arg = getattr(self.namespace, param, None)
-                # update our custom param dict copy if the namespace argument is
-                # not None, otherwise keep the current custom param value
-                arg_custom_params[param] = _arg if _arg is not None else value
-            # make a copy of the current usr path params, this copy will be updated
-            # with the subcommand arguments and then used to update the device
-            arg_usr_path = dict(usr_path)
-            # iterate over each usr path param (param, value) pair
-            for param, value in usr_path.items():
-                # obtain the corresponding argument from the namespace, if the
-                # argument does not exist or is not set it will be None
-                _arg = getattr(self.namespace, param, None)
-                # update our usr path param dict copy if the namespace argument is
-                # not None, otherwise keep the current usr path param value
-                arg_usr_path[param] = _arg if _arg is not None else value
-            # do we have any changes from our existing settings
-            if arg_custom_params != custom_params or arg_usr_path != usr_path:
-                # something has changed, so combine our updated dicts and write the
-                # updated params to the device
-                arg_custom_params.update(arg_usr_path)
-                # write the updated settings to the device
-                try:
-                    device.set_custom(**arg_custom_params)
-                except DeviceWriteFailed as e:
-                    print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: {e}")
-                else:
-                    print("Device write completed successfully")
-            else:
-                print()
                 print("No changes to current device settings")
 
     def process_write_calibration(self):
@@ -7481,20 +7355,8 @@ def process_write(namespace):
         direct_gw.process_write_reset()
     if getattr(namespace, 'write_subcommand', False) == 'ssid':
         direct_gw.process_write_ssid()
-    if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
-        direct_gw.process_write_ecowitt()
-    if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
-        direct_gw.process_write_wu_wow_wcloud()
-    if getattr(namespace, 'write_subcommand', False) == 'custom':
-        direct_gw.process_write_custom()
     if getattr(namespace, 'write_subcommand', False) == 'services':
         direct_gw.write_services()
-    # if getattr(namespace, 'write_subcommand', False) == 'ecowitt':
-    #     direct_gw.write_ecowitt()
-    # if getattr(namespace, 'write_subcommand', False) in ('wu', 'wow', 'wcloud'):
-    #     direct_gw.write_wu_wow_wcloud()
-    # if getattr(namespace, 'write_subcommand', False) == 'custom':
-    #     direct_gw.write_custom()
     if getattr(namespace, 'write_subcommand', False) == 'calibration':
         direct_gw.process_write_calibration()
     if getattr(namespace, 'write_subcommand', False) == 'sensor-id':
@@ -8036,187 +7898,6 @@ def write_services_subparser(subparsers):
     parser.set_defaults(func=process_write)
     # return a dict containing our parser
     return {'write_services': parser}
-
-
-# def ecowitt_write_subparser(subparsers):
-#     """Define 'write ecowitt' sub-subparser."""
-#
-#     usage = f"""{Bcolors.BOLD}%(prog)s write ecowitt --help
-#        %(prog)s write ecowitt --interval INTERVAL
-#                                 --ip-address IP_ADDRESS [--port PORT]
-#                                 [--debug]{Bcolors.ENDC}
-#     """
-#     description = """Set Ecowitt.net upload parameters."""
-#     parser = subparsers.add_parser('ecowitt',
-#                                    usage=usage,
-#                                    prog=os.path.basename(sys.argv[0]),
-#                                    description=description,
-#                                    help="set Ecowitt.net upload parameters")
-#     parser.add_argument('--interval',
-#                         dest='interval',
-#                         type=int,
-#                         choices=range(0, 6),
-#                         default=0,
-#                         metavar='INTERVAL',
-#                         help='Ecowitt.net upload interval (0-5) in minutes. '
-#                              '0 indicates upload is disabled. Default is 0.')
-#     add_common_args(parser)
-#     parser.set_defaults(func=process_write)
-#     return parser
-#
-#
-# def wu_write_subparser(subparsers):
-#     """Define 'write wu' sub-subparser."""
-#
-#     usage = f"""{Bcolors.BOLD}%(prog)s write wu --help
-#        %(prog)s write wu --station-id STATION_ID --station-key STATION_KEY
-#                            --ip-address IP_ADDRESS [--port PORT] [--debug]{Bcolors.ENDC}
-#     """
-#     description = """Set WeatherUnderground upload parameters."""
-#     parser = subparsers.add_parser('wu',
-#                                    usage=usage,
-#                                    prog=os.path.basename(sys.argv[0]),
-#                                    description=description,
-#                                    help="set WeatherUnderground upload parameters")
-#     parser.add_argument('--station-id',
-#                         dest='id',
-#                         metavar='STATION_ID',
-#                         help='WeatherUnderground station ID')
-#     parser.add_argument('--station-key',
-#                         dest='key',
-#                         metavar='STATION_KEY',
-#                         help='WeatherUnderground station key')
-#     add_common_args(parser)
-#     parser.set_defaults(func=process_write)
-#     return parser
-#
-#
-# def wow_write_subparser(subparsers):
-#     """Define 'write wow' sub-subparser."""
-#
-#     usage = f"""{Bcolors.BOLD}%(prog)s write wow --help
-#        %(prog)s write wow --station-id STATION_ID --station-key STATION_KEY
-#                             --ip-address IP_ADDRESS [--port PORT] [--debug]{Bcolors.ENDC}
-#     """
-#     description = """Set Weather Observations Website upload parameters."""
-#     parser = subparsers.add_parser('wow',
-#                                    usage=usage,
-#                                    prog=os.path.basename(sys.argv[0]),
-#                                    description=description,
-#                                    help="set Weather Observations Website upload parameters")
-#     parser.add_argument('--station-id',
-#                         dest='id',
-#                         metavar='STATION_ID',
-#                         help='Weather Observations Website station ID')
-#     parser.add_argument('--station-key',
-#                         dest='key',
-#                         metavar='STATION_KEY',
-#                         help='Weather Observations Website station key')
-#     add_common_args(parser)
-#     parser.set_defaults(func=process_write)
-#     return parser
-#
-#
-# def wcloud_write_subparser(subparsers):
-#     """Define 'write wcloud' sub-subparser."""
-#
-#     usage = f"""{Bcolors.BOLD}%(prog)s write wcloud --help
-#        %(prog)s write wcloud --station-id STATION_ID --station-key STATION_KEY
-#                                --ip-address IP_ADDRESS [--port PORT] [--debug]{Bcolors.ENDC}
-#     """
-#     description = """Set Weathercloud upload parameters."""
-#     parser = subparsers.add_parser('wcloud',
-#                                    usage=usage,
-#                                    prog=os.path.basename(sys.argv[0]),
-#                                    description=description,
-#                                    help="set Weathercloud upload parameters")
-#     parser.add_argument('--station-id',
-#                         dest='id',
-#                         metavar='STATION_ID',
-#                         help='Weathercloud station ID')
-#     parser.add_argument('--station-key',
-#                         dest='key',
-#                         metavar='STATION_KEY',
-#                         help='Weathercloud station key')
-#     add_common_args(parser)
-#     parser.set_defaults(func=process_write)
-#     return parser
-#
-#
-# def custom_write_subparser(subparsers):
-#     """Define 'write custom' sub-subparser."""
-#
-#     usage = f"""{Bcolors.BOLD}%(prog)s write custom --help
-#        %(prog)s write custom --ip-address IP_ADDRESS [--port PORT]
-#                                [--enabled | --disabled] [--protocol EC | WU] [--server IP_ADDRESS | NAME]
-#                                [--upload-port UPLOAD_PORT] [--interval INTERVAL]
-#                                [--ec-path EC_PATH] [--wu-path WU_PATH]
-#                                [--station-id STATION_ID] [--station-key STATION_KEY]
-#                                [--debug]
-# {Bcolors.ENDC}"""
-#     description = "Set Customized upload parameters. If a parameter is omitted "\
-#                   "the corresponding current gateway device parameter is left "\
-#                   "unchanged."
-#     parser = subparsers.add_parser('custom',
-#                                    usage=usage,
-#                                    prog=os.path.basename(sys.argv[0]),
-#                                    description=description,
-#                                    help="set customized upload parameters")
-#     parser.add_argument('--enabled',
-#                         dest='active',
-#                         action='store_const',
-#                         const=1,
-#                         help='enable customized uploads')
-#     parser.add_argument('--disabled',
-#                         dest='active',
-#                         action='store_const',
-#                         const=0,
-#                         help='disable customized uploads')
-#     parser.add_argument('--protocol',
-#                         dest='type',
-#                         choices=('EC', 'WU'),
-#                         type=lambda p: 0 if p.upper() == 'EC' else 1,
-#                         metavar='PROTOCOL',
-#                         help='upload protocol, EC = Ecowitt WU = WeatherUnderground '
-#                              '(WU requires --station-id and --station-key be populated)')
-#     parser.add_argument('--server',
-#                         dest='server',
-#                         type=maxlen(64),
-#                         metavar='IP_ADDRESS | NAME',
-#                         help='destination server IP address or host name, max length 64 characters')
-#     parser.add_argument('--upload-port',
-#                         dest='port',
-#                         type=ranged_type(int, 0, 65536),
-#                         metavar='UPLOAD_PORT',
-#                         help='destination server port number')
-#     parser.add_argument('--ec-path',
-#                         dest='ecowitt_path',
-#                         type=maxlen(64),
-#                         metavar='EC_PATH',
-#                         help='Ecowitt protocol upload path')
-#     parser.add_argument('--wu-path',
-#                         dest='wu_path',
-#                         type=maxlen(64),
-#                         metavar='WU_PATH',
-#                         help='WeatherUnderground protocol upload path')
-#     parser.add_argument('--station-id',
-#                         dest='id',
-#                         type=maxlen(40),
-#                         metavar='STATION_ID',
-#                         help='WeatherUnderground protocol station ID')
-#     parser.add_argument('--station-key',
-#                         dest='password',
-#                         type=maxlen(40),
-#                         metavar='STATION_KEY',
-#                         help='WeatherUnderground protocol station key')
-#     parser.add_argument('--interval',
-#                         dest='interval',
-#                         type=ranged_type(int, 16, 600),
-#                         metavar='UPLOAD_PORT',
-#                         help='destination server port number')
-#     add_common_args(parser)
-#     parser.set_defaults(active=0, func=process_write)
-#     return parser
 
 
 def write_calibration_subparser(subparsers):
