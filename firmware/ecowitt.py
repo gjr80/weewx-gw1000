@@ -4,7 +4,7 @@
 ecowitt.py
 
 A utility for reading, displaying and updating devices using the Ecowitt
-LAN/Wi-Fi Gateway API.
+LAN/Wi-Fi Gateway API (aka the telnet API).
 
 Based on the WeeWX Ecowitt gateway driver and inspiration from wxforum.net user
 jbroome.
@@ -204,7 +204,7 @@ class InvertibleMap(dict):
 
 
 # ============================================================================
-#                         Gateway API error classes
+#                          Telnet API error classes
 # ============================================================================
 
 class UnknownApiCommand(Exception):
@@ -231,7 +231,7 @@ class InvalidSetting(Exception):
 
 
 class DeviceWriteFailed(Exception):
-    """Exception raised when a gateway device write failed."""
+    """Exception raised when a device write failed."""
 
 
 class DataUnobtainable(Exception):
@@ -239,26 +239,25 @@ class DataUnobtainable(Exception):
 
 
 # ============================================================================
-#                           class GatewayApiParser
+#                            class TelnetApiParser
 # ============================================================================
 
-class GatewayApiParser:
-    """Class to parse, decode and encode data to/from the gateway device API.
+class TelnetApiParser:
+    """Class to parse, decode and encode telnet API data to/from the device.
 
-    The GatewayApiParser class is used to parse, decode and encode payload data
-    received and sent via the Ecowitt LAN/Wi-Fi Gateway API (the 'gateway
-    API'). The GatewayApiParser class understands the structure of the data
-    payload in each gateway API command, but does not know how to communicate
-    with the device in any way.
+    The TelnetApiParser class is used to parse, decode and encode payload data
+    received and sent via the Ecowitt telnet API. A TelnetApiParser object 
+    understands the structure of the data payload in each telnet API command, 
+    but does not know how to communicate with the device in any way.
     """
 
-    # Dictionary of address based data received using various gateway API
+    # Dictionary of address based data received using various telnet API
     # commands. The dictionary is keyed by the device data field 'address' and
     # contains various parameters for each 'address'. Dictionary tuple format
     # is:
     #   (field name, decode fn, field size)
     # where:
-    #   field name:  the name of the device field as per the gateway API
+    #   field name:  the name of the device field as per the telnet API
     #                documentation.eg ITEM_INTEMP
     #   decode fn:   the name of the function used to decode the field data
     #   field size:  the size of field data in bytes
@@ -402,7 +401,7 @@ class GatewayApiParser:
                                    'co2_batt': ('decode_batt', 1)})
 
     def __init__(self):
-        """Initialise a GatewayApiParser object."""
+        """Initialise a TelnetApiParser object."""
 
         # Create an invertible API field name to field address dict. We could
         # define this statically but then any future changes to address based
@@ -411,7 +410,7 @@ class GatewayApiParser:
         # changes are limited to one location only.
         _field_idt = InvertibleMap()
         # iterate over the address based data structure
-        for key, value in GatewayApiParser.addressed_data_struct.items():
+        for key, value in TelnetApiParser.addressed_data_struct.items():
             # for each address based data structure entry create an equivalent
             # API field name to field address in our invertible dict
             _field_idt[value[0]] = key
@@ -486,7 +485,7 @@ class GatewayApiParser:
         Payload consists of a bytestring of variable length dependent on the
         number of connected sensors.
 
-        Returns a dict of live sensor data keyed by gateway API field name
+        Returns a dict of live sensor data keyed by telnet API field name
         (eg ITEM_INTEMP etc).
         """
 
@@ -500,7 +499,7 @@ class GatewayApiParser:
         Payload consists of a bytestring of variable length dependent on the
         number of connected sensors.
 
-        Returns a dict of live rain data keyed by gateway API field name
+        Returns a dict of live rain data keyed by telnet API field name
         (eg ITEM_RAINRATE etc).
         """
 
@@ -732,7 +731,7 @@ class GatewayApiParser:
     def parse_mulch_t_offset(self, payload):
         """Parse the data payload from a CMD_GET_MulCH_T_OFFSET API response.
 
-        Note: As of gateway API documentation v1.6.9 the CMD_GET_MulCH_T_OFFSET
+        Note: As of telnet API documentation v1.6.9 the CMD_GET_MulCH_T_OFFSET
         command is still not documented. The command code 0x59 has been
         supported in firmware for various devices for some time. The
         CMD_GET_MulCH_T_OFFSET command and response format has been deduced and
@@ -2019,7 +2018,7 @@ class GatewayApiParser:
     # for connected sensors. The decode_multi_batt() method has been retained
     # to support devices using firmware version 1.6.4 and earlier.
     #
-    # Since the gateway driver now obtains battery state information via
+    # Since the utility obtains battery state information via
     # CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_multi_batt()
     # method now returns None so that firmware versions before 1.6.5 continue
     # to be supported.
@@ -2451,12 +2450,11 @@ class Sensors:
         """Obtain a list of sensor addresses for connected sensors only.
 
         Sometimes we only want a list of addresses for sensors that are
-        actually connected to the gateway device. We can filter out those
-        addresses that do not have connected sensors by looking at the
-        sensor ID. If the sensor ID is 'fffffffe' either the sensor is
-        connecting to the device or the device is searching for a sensor
-        for that address. If the sensor ID is 'ffffffff' the device sensor
-        address is disabled.
+        actually connected to the device. We can filter out those addresses 
+        that do not have connected sensors by looking at the sensor ID. If the 
+        sensor ID is 'fffffffe' either the sensor is connecting to the device 
+        or the device is searching for a sensor for that address. If the sensor 
+        ID is 'ffffffff' the device sensor address is disabled.
 
         Tested by SensorsTestCase.test_properties
         """
@@ -2723,21 +2721,20 @@ class Sensors:
         return round(0.1 * batt, 1)
 
 
-class GatewayApi:
-    """Class to interact with a gateway device via the Ecowitt LAN/Wi-Fi
-    Gateway API.
+class TelnetApi:
+    """Class to interact with a device via the Ecowitt telnet API.
 
-    A GatewayApi object knows how to:
+    A TelnetApi object knows how to:
     1.  discover a device via UDP broadcast
-    2.  send a command to the 'Gateway API'
-    3.  receive a response from the 'Gateway API'
-    4.  verify a 'Gateway API' response as valid
+    2.  send a command using the telnet API
+    3.  receive a telnet API response
+    4.  verify a telnet API response as valid
 
-    A GatewayApi object may use a supplied IP address and port or the
-    GatewayApi object may discover a device via UDP broadcast.
+    A TelnetApi object may use a supplied IP address and port or the TelnetApi
+    object may discover a device via UDP broadcast.
     """
 
-    # Ecowitt LAN/Wi-Fi Gateway API commands
+    # Ecowitt telnet API commands
     api_commands = InvertibleMap({
         'CMD_WRITE_SSID': b'\x11',
         'CMD_BROADCAST': b'\x12',
@@ -3518,9 +3515,9 @@ class GatewayApi:
     def write_ssid(self, payload):
         """Set the SSID parameters.
 
-        Sends the API command to write the SSID parameters to the gateway
-        device. If the device cannot be contacted a GWIOError will be raised
-        by send_cmd_with_retries() which will be passed through by write_ssid().
+        Sends the API command to write the SSID parameters to the device. If
+        the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by write_ssid().
         If the command failed a DeviceWriteFailed exception is raised. Any code
         calling write_ssid() should be prepared to handle these exceptions.
         """
@@ -3535,8 +3532,8 @@ class GatewayApi:
         """Write the Ecowitt.net upload parameters to a device.
 
         Sends the API command to write the Ecowitt.net upload parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
         set_ecowitt_net(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling set_ecowitt_net() should be prepared to handle
         these exceptions.
@@ -3552,9 +3549,9 @@ class GatewayApi:
         """Write the WeatherUnderground upload parameters to a device.
 
         Sends the API command to write the WeatherUnderground upload parameters
-        to the gateway device. If the device cannot be contacted a GWIOError
-        will be raised by send_cmd_with_retries() which will be passed through
-        by write_wu(). If the command failed a DeviceWriteFailed exception is
+        to the device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_wu(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling write_wu() should be prepared to handle these
         exceptions.
         """
@@ -3569,8 +3566,8 @@ class GatewayApi:
         """Write the Weathercloud upload parameters to a device.
 
         Sends the API command to write the Weathercloud upload parameters to
-        the gateway device. If the device cannot be contacted a GWIOError will
-        be raised by send_cmd_with_retries() which will be passed through by
+        the device. If the device cannot be contacted a GWIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
         set_wcloud(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling set_wcloud() should be prepared to handle these
         exceptions.
@@ -3586,11 +3583,11 @@ class GatewayApi:
         """Write the Weather Observations Website upload parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
-        parameters to the gateway device. If the device cannot be contacted a
-        GWIOError will be raised by send_cmd_with_retries() which will be
-        passed through by set_wow(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling set_wow() should be prepared to
-        handle these exceptions.
+        parameters to the device. If the device cannot be contacted a GWIOError
+        will be raised by send_cmd_with_retries() which will be passed through
+        by set_wow(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_wow() should be prepared to handle these
+        exceptions.
         """
 
         # send the command and obtain the result
@@ -3603,11 +3600,11 @@ class GatewayApi:
         """Write the Weather Observations Website upload parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
-        parameters to the gateway device. If the device cannot be contacted a
-        GWIOError will be raised by send_cmd_with_retries() which will be
-        passed through by set_wow(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling set_wow() should be prepared to
-        handle these exceptions.
+        parameters to the device. If the device cannot be contacted a GWIOError
+        will be raised by send_cmd_with_retries() which will be passed through
+        by set_wow(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_wow() should be prepared to handle these
+        exceptions.
         """
 
         # send the command and obtain the result
@@ -3620,11 +3617,11 @@ class GatewayApi:
         """Write the 'User' upload path parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
-        parameters to the gateway device. If the device cannot be contacted a
-        GWIOError will be raised by send_cmd_with_retries() which will be
-        passed through by set_wow(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling set_wow() should be prepared to
-        handle these exceptions.
+        parameters to the device. If the device cannot be contacted a GWIOError
+        will be raised by send_cmd_with_retries() which will be passed through
+        by set_wow(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_wow() should be prepared to handle these
+        exceptions.
         """
 
         # send the command and obtain the result
@@ -3636,11 +3633,11 @@ class GatewayApi:
     def write_gain(self, payload):
         """Write the gain parameters to a device.
 
-        Sends the API command to write the gain parameters to the gateway
-        device. If the device cannot be contacted a GWIOError will be raised
-        by send_cmd_with_retries() which will be passed through by set_gain().
-        If the command failed a DeviceWriteFailed exception is raised. Any
-        code calling set_gain() should be prepared to handle these exceptions.
+        Sends the API command to write the gain parameters to the device. If
+        the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by set_gain(). If
+        the command failed a DeviceWriteFailed exception is raised. Any code
+        calling set_gain() should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3653,8 +3650,8 @@ class GatewayApi:
         """Write the calibration parameters to a device.
 
         Sends the API command to write the calibration parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
         write_calibration(). If the command failed a DeviceWriteFailed
         exception is raised. Any code calling write_calibration() should be
         prepared to handle these exceptions.
@@ -3669,12 +3666,12 @@ class GatewayApi:
     def write_sensor_id(self, payload):
         """Write the sensor ID parameters to a device.
 
-        Sends the API command to write the sensor ID parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
-        set_sensor_id(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling set_sensor_id() should be prepared to
-        handle these exceptions.
+        Sends the API command to write the sensor ID parameters to the device.
+        If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
+        set_sensor_id(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_sensor_id() should be prepared to handle
+        these exceptions.
         """
 
         # send the command and obtain the result
@@ -3686,12 +3683,12 @@ class GatewayApi:
     def write_pm25_offsets(self, payload):
         """Write the PM2.5 offsets to a device.
 
-        Sends the API command to write the sensor ID parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
-        set_sensor_id(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling set_sensor_id() should be prepared to
-        handle these exceptions.
+        Sends the API command to write the sensor ID parameters to the device.
+        If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
+        set_sensor_id(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_sensor_id() should be prepared to handle
+        these exceptions.
         """
 
         # send the command and obtain the result
@@ -3703,12 +3700,12 @@ class GatewayApi:
     def write_co2_offsets(self, payload):
         """Write the CO2 offsets to a device.
 
-        Sends the API command to write the sensor ID parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
-        set_sensor_id(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling set_sensor_id() should be prepared to
-        handle these exceptions.
+        Sends the API command to write the sensor ID parameters to the device.
+        If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
+        set_sensor_id(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling set_sensor_id() should be prepared to handle
+        these exceptions.
         """
 
         # send the command and obtain the result
@@ -3721,8 +3718,8 @@ class GatewayApi:
         """Write traditional and piezo rain related parameters to a device.
 
         Sends the API command to write the rain related parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
         write_rain_params(). If the command failed a DeviceWriteFailed
         exception is raised. Any code calling write_rain_params() should be
         prepared to handle these exceptions.
@@ -3738,8 +3735,8 @@ class GatewayApi:
         """Write the system related parameters.
 
         Sends the API command to write the system related parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
         write_system_params(). If the command failed a DeviceWriteFailed
         exception is raised. Any code calling write_system_params() should be
         prepared to handle these exceptions.
@@ -3754,9 +3751,9 @@ class GatewayApi:
     def write_rain_data(self, payload):
         """Write traditional rain data parameters to a device.
 
-        Sends the API command to write the rain data parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        Sends the API command to write the rain data parameters to the device.
+        If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
         write_rain_data(). If the command failed a DeviceWriteFailed exception
         is raised. Any code calling write_rain_data() should be prepared to
         handle these exceptions.
@@ -3772,11 +3769,11 @@ class GatewayApi:
         """Write multichannel temp/humid offset parameters.
 
         Sends the API command to write the multichannel temp/humid offset
-        parameters to the gateway device. If the device cannot be contacted a
-        GWIOError will be raised by send_cmd_with_retries() which will be
-        passed through by write_mulch_offset(). If the command failed a
-        DeviceWriteFailed exception is raised. Any code calling
-        write_mulch_offset() should be prepared to handle these exceptions.
+        parameters to the device. If the device cannot be contacted a GWIOError
+        will be raised by send_cmd_with_retries() which will be passed through
+        by write_mulch_offset(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_mulch_offset() should be
+        prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3806,11 +3803,11 @@ class GatewayApi:
         """Write mulch-t parameters.
 
         Sends the API command to write the mulch-t offset parameters to the
-        gateway device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
-        write_mulch_t(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling write_mulch_t() should be prepared to
-        handle these exceptions.
+        device. If the device cannot be contacted a GWIOError will be raised by
+        send_cmd_with_retries() which will be passed through by
+        write_mulch_t(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling write_mulch_t() should be prepared to handle
+        these exceptions.
         """
 
         # send the command and obtain the result
@@ -4087,18 +4084,17 @@ class GatewayApi:
             # the command failed, raise a DeviceWriteFailed exception with a
             # suitable message
             _msg = f"Command '{self.api_commands.inverse[result[2:3]]}' " \
-                   f"({result[2:3]}) failed to write to gateway device"
+                   f"({result[2:3]}) failed to write to device"
             raise DeviceWriteFailed(_msg)
 
     def reboot_device(self):
-        """Reboot a gateway device.
+        """Reboot a device.
 
-        Sends the API command to reboot the gateway device. If the device
-        cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
-        reboot_device(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling reboot_device() should be prepared to handle
-        these exceptions.
+        Sends the API command to reboot the device. If the device cannot be
+        contacted a GWIOError will be raised by send_cmd_with_retries() which
+        will be passed through by reboot_device(). If the command failed a
+        DeviceWriteFailed exception is raised. Any code calling reboot_device()
+        should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -4108,13 +4104,13 @@ class GatewayApi:
         self.confirm_write_success(result)
 
     def reset_device(self):
-        """Factory reset a gateway device.
+        """Factory reset a device.
 
-        Sends the API command to factory reset the gateway device. If the
-        device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by reset_device().
-        If the command failed a DeviceWriteFailed exception is raised. Any code
-        calling reset_device() should be prepared to handle these exceptions.
+        Sends the API command to factory reset the device. If the device cannot
+        be contacted a GWIOError will be raised by send_cmd_with_retries()
+        which will be passed through by reset_device(). If the command failed a
+        DeviceWriteFailed exception is raised. Any code calling reset_device()
+        should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -4125,11 +4121,11 @@ class GatewayApi:
 
 
 # ============================================================================
-#                             GatewayHttp class
+#                               HttpApi class
 # ============================================================================
 
 class HttpApi:
-    """Class to interact with a gateway device via HTTP requests."""
+    """Class to interact with a device via HTTP requests."""
 
     # HTTP request commands
     commands = ['get_version', 'get_livedata_info', 'get_ws_settings',
@@ -4385,34 +4381,33 @@ class HttpApi:
 class EcowittDevice:
     """Class to interact with an Ecowitt device via an API.
 
-    A number of Ecowitt consoles (display devices, WiFi gateway devices)
+    A number of Ecowitt consoles (eg display devices, WiFi gateway devices etc)
     provide the ability to read attached sensor data and read and write
     various device parameters via one or more local APIs. These APIs include:
 
     1. the Ecowitt LAN/Wi-Fi Gateway API, aka the 'gateway API' or 'telnet API'
     2. the local HTTP API
 
-    The gateway API uses a library of commands to read and/or write various
-    gateway device parameters. Gateway API communications is socket based and
-    involves exchange of data that must be encoded/decoded at the byte/bit
-    level.
+    The telnet API uses a library of commands to read and/or write various
+    device parameters. Telnet API communications is socket based and involves
+    exchange of data that must be encoded/decoded at the byte/bit level.
 
-    The HTTP API provides the ability to read and/or set various gateway device
+    The HTTP API provides the ability to read and/or set various device
     parameters. HTTP API communications is via HTTP GET and involves the
     decoding/encoding of JSON format message data.
 
-    The EcowittDevice class supports both the gateway API and the local HTTP
-    API and provides the ability to read live sensor data as well as read and
-    write various device parameters.
+    The EcowittDevice class supports both the telnet API and the local HTTP API
+    and provides the ability to read live sensor data as well as read and write
+    various device parameters.
 
     A EcowittDevice object uses the following classes for interacting with the
     device:
 
-    - class GatewayApi.         Communicates directly with the device via the
-                                gateway API and obtains and validates device
+    - class TelnetApi.          Communicates directly with the device via the
+                                telnet API and obtains and validates device
                                 responses.
-    - class GatewayApiParser    Parses, decodes and encodes data received from
-                                and sent to a device that uses the gateway API.
+    - class TelnetApiParser     Parses, decodes and encodes data received from
+                                and sent to a device that uses the telnet API.
     - class HttpApi.            Communicates directly with the device via the
                                 HTTP API to obtain and validate (as far as
                                 possible) device HTTP request responses.
@@ -4453,23 +4448,23 @@ class EcowittDevice:
         # save our IP address and port
         self.ip_address = ip_address
         self.port = port
-        # get a GatewayApi object to handle the interaction with the Gateway API
-        self.gateway_api = GatewayApi(ip_address=ip_address,
-                                      port=port,
-                                      broadcast_address=broadcast_address,
-                                      broadcast_port=broadcast_port,
-                                      socket_timeout=socket_timeout,
-                                      broadcast_timeout=broadcast_timeout,
-                                      discovery_port=discovery_port,
-                                      discovery_period=discovery_period,
-                                      max_tries=max_tries,
-                                      retry_wait=retry_wait,
-                                      debug=debug)
+        # get a TelnetApi object to handle the interaction with the telnet API
+        self.telnet_api = TelnetApi(ip_address=ip_address,
+                                    port=port,
+                                    broadcast_address=broadcast_address,
+                                    broadcast_port=broadcast_port,
+                                    socket_timeout=socket_timeout,
+                                    broadcast_timeout=broadcast_timeout,
+                                    discovery_port=discovery_port,
+                                    discovery_period=discovery_period,
+                                    max_tries=max_tries,
+                                    retry_wait=retry_wait,
+                                    debug=debug)
 
-        # get a Gateway API parser
-        self.gateway_api_parser = GatewayApiParser()
+        # get a telnet API parser
+        self.telnet_api_parser = TelnetApiParser()
 
-        # get a GatewayHttp object to handle any HTTP requests, a GatewayHttp
+        # get a HttpApi object to handle any HTTP requests, a HttpApi
         # object requires an IP address
         self.http_api = HttpApi(ip_address=ip_address, debug=debug)
 
@@ -4489,7 +4484,7 @@ class EcowittDevice:
         """
 
         try:
-            model = self.gateway_api.get_model_from_firmware(self.firmware_version)
+            model = self.telnet_api.get_model_from_firmware(self.firmware_version)
         except DataUnobtainable as e:
             return "<undetermined model>"
         else:
@@ -4499,33 +4494,33 @@ class EcowittDevice:
     def livedata(self):
         """Device live sensor data.
 
-        Returns a dict keyed by GatewayApiParser.addressed_data_struct field
+        Returns a dict keyed by TelnetApiParser.addressed_data_struct field
         name containing the live data.
         """
 
-        # obtain the device live data payload via the gateway API, the result
+        # obtain the device live data payload via the telnet API, the result
         # will be a bytestring or None
-        payload = self.gateway_api.get_livedata()
+        payload = self.telnet_api.get_livedata()
         # return the parsed and decoded live data payload
-        return self.gateway_api_parser.parse_decode_livedata(payload)
+        return self.telnet_api_parser.parse_decode_livedata(payload)
 
     @property
     def raindata(self):
         """Device traditional rain gauge data.
 
-        Returns a dict keyed by GatewayApiParser.addressed_data_struct field
+        Returns a dict keyed by TelnetApiParser.addressed_data_struct field
         name containing the device traditional rain gauge data.
         """
 
-        # obtain the device traditional rain gauge data payload via the gateway
+        # obtain the device traditional rain gauge data payload via the telnet
         # API, the result will be a bytestring or None
-        payload = self.gateway_api.get_raindata()
+        payload = self.telnet_api.get_raindata()
         # return the parsed and decoded traditional rain gauge data
-        return self.gateway_api_parser.parse_decode_raindata(payload)
+        return self.telnet_api_parser.parse_decode_raindata(payload)
 
     @property
     def system_params(self):
-        """Gateway device system parameters.
+        """Device system parameters.
 
         Supports the following system parameters:
 
@@ -4542,15 +4537,15 @@ class EcowittDevice:
         Returns a dict of system parameters.
         """
 
-        # obtain the system parameters via the gateway API, the result will
+        # obtain the system parameters via the telnet API, the result will
         # be a bytestring or None
-        payload = self.gateway_api.get_ssss()
+        payload = self.telnet_api.get_ssss()
         # return the parsed system parameters data
-        return self.gateway_api_parser.parse_decode_ssss(payload)
+        return self.telnet_api_parser.parse_decode_ssss(payload)
 
     @property
     def ecowitt_net_params(self):
-        """Gateway device Ecowitt.net parameters.
+        """Device Ecowitt.net parameters.
 
         There is only one Ecowitt.net upload parameter:
 
@@ -4560,11 +4555,11 @@ class EcowittDevice:
         Returns a dict of Ecowitt.net upload parameters.
         """
 
-        # obtain the Ecowitt.net upload parameters via the gateway API, the
+        # obtain the Ecowitt.net upload parameters via the telnet API, the
         # result will be a bytestring or None
-        payload = self.gateway_api.get_ecowitt()
+        payload = self.telnet_api.get_ecowitt()
         # parse the Ecowitt service parameter data
-        _parsed_data = self.gateway_api_parser.parse_ecowitt(payload)
+        _parsed_data = self.telnet_api_parser.parse_ecowitt(payload)
         # now obtain the device MAC address and add it to the Ecowitt service
         # parameter dict
         _parsed_data['mac'] = self.mac_address
@@ -4573,7 +4568,7 @@ class EcowittDevice:
 
     @property
     def wu_params(self):
-        """Gateway device WeatherUnderground parameters.
+        """Device WeatherUnderground parameters.
 
         Supports the following WeatherUnderground upload parameters:
 
@@ -4584,15 +4579,15 @@ class EcowittDevice:
         Returns a dict of WeatherUnderground upload parameters.
         """
 
-        # obtain the WU upload parameters via the gateway API, the result will
+        # obtain the WU upload parameters via the telnet API, the result will
         # be a bytestring or None
-        payload = self.gateway_api.get_wunderground()
+        payload = self.telnet_api.get_wunderground()
         # return the parsed WU upload data
-        return self.gateway_api_parser.parse_wunderground(payload)
+        return self.telnet_api_parser.parse_wunderground(payload)
 
     @property
     def wcloud_params(self):
-        """Gateway device Weathercloud parameters.
+        """Device Weathercloud parameters.
 
         Supports the following Weathercloud upload parameters:
 
@@ -4603,15 +4598,15 @@ class EcowittDevice:
         Returns a dict of Weathercloud upload parameters.
         """
 
-        # obtain the Weathercloud upload parameters via the gateway API, the
+        # obtain the Weathercloud upload parameters via the telnet API, the
         # result will be a bytestring or None
-        payload = self.gateway_api.get_weathercloud()
+        payload = self.telnet_api.get_weathercloud()
         # return the parsed Weathercloud upload data
-        return self.gateway_api_parser.parse_weathercloud(payload)
+        return self.telnet_api_parser.parse_weathercloud(payload)
 
     @property
     def wow_params(self):
-        """Gateway device Weather Observations Website parameters.
+        """Device Weather Observations Website parameters.
 
         Supports the following Weathercloud upload parameters:
 
@@ -4623,14 +4618,14 @@ class EcowittDevice:
         """
 
         # obtain the Weather Observations Website upload parameters via the
-        # gateway API, the result will be a bytestring or None
-        payload = self.gateway_api.get_wow()
+        # telnet API, the result will be a bytestring or None
+        payload = self.telnet_api.get_wow()
         # return the parsed Weather Observations Website upload data
-        return self.gateway_api_parser.parse_wow(payload)
+        return self.telnet_api_parser.parse_wow(payload)
 
     @property
     def custom_params(self):
-        """Gateway device custom server parameters.
+        """Device custom server parameters.
 
         Returns a dict containing the following custom server upload
         parameters:
@@ -4646,15 +4641,15 @@ class EcowittDevice:
                         1=enabled
         """
 
-        # obtain the customized upload parameters via the gateway API, the
+        # obtain the customized upload parameters via the telnet API, the
         # result will be a bytestring or None
-        payload = self.gateway_api.get_customized()
+        payload = self.telnet_api.get_customized()
         # return the parsed customized upload data
-        return self.gateway_api_parser.parse_customized(payload)
+        return self.telnet_api_parser.parse_customized(payload)
 
     @property
     def usr_path(self):
-        """Gateway device user defined custom path parameters.
+        """Device user defined custom path parameters.
 
         Supports the following usr path parameters:
 
@@ -4665,24 +4660,24 @@ class EcowittDevice:
         Returns a dict of usr path parameters.
         """
 
-        # obtain the usr path parameters via the gateway API, the result will
+        # obtain the usr path parameters via the telnet API, the result will
         # be a bytestring or None
-        payload = self.gateway_api.get_usr_path()
+        payload = self.telnet_api.get_usr_path()
         # return the parsed usr path data
-        return self.gateway_api_parser.parse_usr_path(payload)
+        return self.telnet_api_parser.parse_usr_path(payload)
 
     @property
     def all_custom_params(self):
-        """Gateway device custom server parameters.
+        """Device custom server parameters.
 
-        The gateway API provides access to custom server upload properties via
+        The telnet API provides access to custom server upload properties via
         two API commands; CMD_READ_CUSTOMIZED and CMD_READ_USR_PATH. The
-        GatewayDevice.all_custom_params property provides the combined parsed
+        EcowittDevice.all_custom_params property provides the combined parsed
         data from these two API commands. This is useful when displaying the
         entire customs server upload parameters.
 
         The individual customized and user path parameters are available via
-        the GatewayDevice.custom_params and GatewayDevice.usr_path properties
+        the EcowittDevice.custom_params and EcowittDevice.usr_path properties
         respectively.
         """
 
@@ -4695,107 +4690,107 @@ class EcowittDevice:
 
     @property
     def mac_address(self):
-        """Gateway device MAC address."""
+        """Device MAC address."""
 
         # obtain the API response data payload
-        payload = self.gateway_api.get_station_mac()
+        payload = self.telnet_api.get_station_mac()
         # return the parsed data
-        return self.gateway_api_parser.parse_station_mac(payload)
+        return self.telnet_api_parser.parse_station_mac(payload)
 
     @property
     def firmware_version(self):
-        """Gateway device firmware version."""
+        """Device firmware version."""
 
         try:
-            payload = self.gateway_api.get_firmware_version()
+            payload = self.telnet_api.get_firmware_version()
         except (GWIOError, InvalidChecksum) as e:
             raise DataUnobtainable("Could not obtain firmware version from device") from e
         else:
             # return the parsed data
-            return self.gateway_api_parser.parse_firmware_version(payload)
+            return self.telnet_api_parser.parse_firmware_version(payload)
 
     @property
     def sensor_id(self):
-        """Gateway device sensor ID data."""
+        """Device sensor ID data."""
 
         # TODO. What should we do here?
-        _data = self.gateway_api.get_sensor_id_new()
+        _data = self.telnet_api.get_sensor_id_new()
         return _data
 
     @property
     def mulch_offset(self):
-        """Gateway device multichannel temperature and humidity offset data."""
+        """Device multichannel temperature and humidity offset data."""
 
-        payload = self.gateway_api.get_mulch_offset()
+        payload = self.telnet_api.get_mulch_offset()
         # return the parsed data
-        return self.gateway_api_parser.parse_mulch_offset(payload)
+        return self.telnet_api_parser.parse_mulch_offset(payload)
 
     @property
     def mulch_t_offset(self):
-        """Gateway device multichannel temperature (WN34) offset data."""
+        """Device multichannel temperature (WN34) offset data."""
 
-        payload = self.gateway_api.get_mulch_t_offset()
+        payload = self.telnet_api.get_mulch_t_offset()
         # return the parsed data
-        return self.gateway_api_parser.parse_mulch_t_offset(payload)
+        return self.telnet_api_parser.parse_mulch_t_offset(payload)
 
     @property
     def pm25_offset(self):
-        """Gateway device PM2.5 offset data."""
+        """Device PM2.5 offset data."""
 
-        payload = self.gateway_api.get_pm25_offset()
+        payload = self.telnet_api.get_pm25_offset()
         # return the parsed data
-        return self.gateway_api_parser.parse_pm25_offset(payload)
+        return self.telnet_api_parser.parse_pm25_offset(payload)
 
     @property
     def calibration_coefficient(self):
-        """Gateway device calibration coefficient data."""
+        """Device calibration coefficient data."""
 
-        payload = self.gateway_api.get_gain()
+        payload = self.telnet_api.get_gain()
         # return the parsed data
-        return self.gateway_api_parser.parse_calibration(payload)
+        return self.telnet_api_parser.parse_calibration(payload)
 
     @property
     def soil_calibration(self):
-        """Gateway device soil calibration data."""
+        """Device soil calibration data."""
 
-        payload = self.gateway_api.get_soil_humiad()
+        payload = self.telnet_api.get_soil_humiad()
         # return the parsed data
-        return self.gateway_api_parser.parse_decode_soil_humiad(payload)
+        return self.telnet_api_parser.parse_decode_soil_humiad(payload)
 
     # TODO. Is this method appropriately named?
     @property
     def calibration(self):
-        """Gateway device calibration data.
+        """Device calibration data.
 
         This is the offset calibration data from the main WSView+ calibration
         tab. It contains offset data for the major sensors. The
-        GatewayDevice.gain property provides the gain calibration data for the
+        EcowittDevice.gain property provides the gain calibration data for the
         major sensors on the WSView+ calibration tab. The
-        GatewayDevice.offset_and_gain property provides combine offset and gain
+        EcowittDevice.offset_and_gain property provides combine offset and gain
         calibration data for the major sensors on the WSView+ calibration tab.
         """
 
-        payload = self.gateway_api.get_calibration()
+        payload = self.telnet_api.get_calibration()
         # return the parsed data
-        return self.gateway_api_parser.parse_calibration(payload)
+        return self.telnet_api_parser.parse_calibration(payload)
 
     @property
     def co2_offset(self):
-        """Gateway device CO2 offset data."""
+        """Device CO2 offset data."""
 
-        payload = self.gateway_api.get_co2_offset()
+        payload = self.telnet_api.get_co2_offset()
         # return the parsed data
-        return self.gateway_api_parser.parse_co2_offset(payload)
+        return self.telnet_api_parser.parse_co2_offset(payload)
 
     @property
     def rain(self):
-        """Gateway device traditional gauge and piezo gauge rain data."""
+        """Device traditional gauge and piezo gauge rain data."""
 
         # obtain the traditional gauge and piezo gauge rain data via the
-        # gateway API, the result will be a bytestring or None
-        payload = self.gateway_api.get_rain()
+        # telnet API, the result will be a bytestring or None
+        payload = self.telnet_api.get_rain()
         # return the parsed data
-        return self.gateway_api_parser.parse_rain(payload)
+        return self.telnet_api_parser.parse_rain(payload)
 
     @property
     def sensor_state(self):
@@ -4806,12 +4801,12 @@ class EcowittDevice:
 
     @property
     def discovered_devices(self):
-        """List of discovered gateway devices.
+        """List of discovered  devices.
 
         Each list element is a dict keyed by 'ip_address', 'port', 'model',
         'mac' and 'ssid'."""
 
-        return self.gateway_api.discover()
+        return self.telnet_api.discover()
 
     @property
     def firmware_update_avail(self):
@@ -4863,13 +4858,13 @@ class EcowittDevice:
         """
 
         # obtain the calibration data via the API
-        gain_data = self.gateway_api.get_gain()
+        gain_data = self.telnet_api.get_gain()
         # parse the calibration data
-        parsed_gain = self.gateway_api_parser.parse_gain(gain_data)
+        parsed_gain = self.telnet_api_parser.parse_gain(gain_data)
         # obtain the offset calibration data via the API
-        calibration_data = self.gateway_api.get_calibration()
+        calibration_data = self.telnet_api.get_calibration()
         # update our parsed gain data with the parsed calibration data
-        parsed_gain.update(self.gateway_api_parser.parse_calibration(calibration_data))
+        parsed_gain.update(self.telnet_api_parser.parse_calibration(calibration_data))
         # return the combined parsed data
         return parsed_gain
 
@@ -4889,95 +4884,94 @@ class EcowittDevice:
         return None
 
     def reboot(self):
-        """Reboot a gateway device."""
+        """Reboot a device."""
 
-        # send the reboot command to the gateway device
-        self.gateway_api.reboot_device()
+        # send the reboot command to the device
+        self.telnet_api.reboot_device()
 
     def reset(self):
         """Factory reset a device."""
 
-        # send the reset command to the gateway device
-        self.gateway_api.reset_device()
+        # send the reset command to the device
+        self.telnet_api.reset_device()
 
     def set_ssid(self, **ssid):
         """Set SSID parameters.
 
-        Set SSID and SSID password on a gateway device. The parameters are
-        first encoded to produce the command data payload. The payload is then
-        passed to a GatewayApi object for uploading to the gateway device.
+        Set SSID and SSID password on a device. The parameters are first
+        encoded to produce the command data payload. The payload is then passed
+        to a TelnetApi object for uploading to the device.
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_ssid(**ssid)
-        # update the gateway device
-        self.gateway_api.write_ssid(payload)
+        payload = self.telnet_api_parser.encode_ssid(**ssid)
+        # update the device
+        self.telnet_api.write_ssid(payload)
 
     def set_ecowitt_net(self, **ecowitt):
         """Set Ecowitt.net upload parameters.
 
-        Set Ecowitt.net upload parameters for a gateway device. The only
-        Ecowitt.net parameter is the upload interval. The upload parameter is
-        first encoded to produce the command data payload. The payload is then
-        passed to a GatewayApi object for uploading to the gateway device.
+        Set Ecowitt.net upload parameters for a device. The only Ecowitt.net
+        parameter is the upload interval. The upload parameter is first encoded
+        to produce the command data payload. The payload is then passed to a
+        TelnetApi object for uploading to the device.
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_ecowitt(**ecowitt)
-        # update the gateway device
-        self.gateway_api.write_ecowitt(payload)
+        payload = self.telnet_api_parser.encode_ecowitt(**ecowitt)
+        # update the device
+        self.telnet_api.write_ecowitt(payload)
 
     def set_wu(self, **wu):
         """Set WeatherUnderground upload parameters.
 
-        Set WeatherUnderground upload parameters for a gateway device. The
+        Set WeatherUnderground upload parameters for a device. The
         WeatherUnderground parameters consist of station ID and station key.
         The upload parameters are first encoded to produce the command data
-        payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        payload. The payload is then passed to a TelnetApi object for uploading
+        to the device.
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_wu(**wu)
-        # update the gateway device
-        self.gateway_api.write_wu(payload)
+        payload = self.telnet_api_parser.encode_wu(**wu)
+        # update the device
+        self.telnet_api.write_wu(payload)
 
     def set_wcloud(self, **wcloud):
         """Set Weathercloud upload parameters.
 
-        Write Weathercloud upload parameters to a gateway device. The
-        Weathercloud parameters consist of station ID and station key. The
-        upload parameters are first encoded to produce the command data
-        payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        Write Weathercloud upload parameters to a device. The Weathercloud
+        parameters consist of station ID and station key. The upload parameters
+        are first encoded to produce the command data payload. The payload is
+        then passed to a TelnetApi object for uploading to the device.
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_wcloud(**wcloud)
-        # update the gateway device
-        self.gateway_api.write_wcloud(payload)
+        payload = self.telnet_api_parser.encode_wcloud(**wcloud)
+        # update the device
+        self.telnet_api.write_wcloud(payload)
 
     def set_wow(self, **wow):
         """Set Weather Observations Website upload parameters.
 
-        Write Weather Observations Website upload parameters to a gateway
-        device. The Weather Observations Website parameters consist of station
-        ID and station key. The upload parameters are first encoded to produce
-        the command data payload. The payload is then passed to a GatewayApi
-        object for uploading to the gateway device.
+        Write Weather Observations Website upload parameters to a device. The
+        Weather Observations Website parameters consist of station ID and
+        station key. The upload parameters are first encoded to produce the
+        command data payload. The payload is then passed to a TelnetApi object
+        for uploading to the device.
         """
 
         # encode the payload parameters to produce the data payload
-        payload = self.gateway_api_parser.encode_wow(**wow)
-        # update the gateway device
-        self.gateway_api.write_wow(payload)
+        payload = self.telnet_api_parser.encode_wow(**wow)
+        # update the device
+        self.telnet_api.write_wow(payload)
 
     def set_custom(self, **custom):
         # TODO. Need comments here to expand on dual-update
         """Set 'Custom' upload parameters.
 
-        Set 'Custom' upload parameters for a gateway device. The 'Custom'
-        parameters consist of:
+        Set 'Custom' upload parameters for a device. The 'Custom' parameters
+        consist of:
 
         active:     whether the custom upload is active, 0 = inactive,
                     1 = active
@@ -4990,21 +4984,21 @@ class EcowittDevice:
         password:   WeatherUnderground key
 
         The upload parameters are first encoded to produce the command data
-        payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for each API command
-        payload_custom = self.gateway_api_parser.encode_customized(**custom)
-        # update the gateway device
-        self.gateway_api.write_customized(payload_custom)
+        payload_custom = self.telnet_api_parser.encode_customized(**custom)
+        # update the device
+        self.telnet_api.write_customized(payload_custom)
 
     def set_user_path(self, **paths):
         # TODO. Need comments here to expand on dual-update
         """Set 'Custom' upload parameters.
 
-        Set 'Custom' upload parameters for a gateway device. The 'Custom'
-        parameters consist of:
+        Set 'Custom' upload parameters for a device. The 'Custom' parameters
+        consist of:
 
         active:     whether the custom upload is active, 0 = inactive,
                     1 = active
@@ -5017,21 +5011,20 @@ class EcowittDevice:
         password:   WeatherUnderground key
 
         The upload parameters are first encoded to produce the command data
-        payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for each API command
-        payload_paths = self.gateway_api_parser.encode_usr_path(**paths)
-        # update the gateway device
-        self.gateway_api.write_user_path(payload_paths)
+        payload_paths = self.telnet_api_parser.encode_usr_path(**paths)
+        # update the device
+        self.telnet_api.write_user_path(payload_paths)
 
     def set_gain(self, **gain):
         # TODO. Need to update these comments
         """Set gain parameters.
 
-        Write gain parameters to a gateway device. The gain parameters consist
-        of:
+        Write gain parameters to a device. The gain parameters consist of:
 
         active:     whether the custom upload is active, 0 = inactive,
                     1 = active
@@ -5044,21 +5037,21 @@ class EcowittDevice:
         password:   WeatherUnderground key
 
         The gain parameters are first encoded to produce the command data
-        payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.gateway_api_parser.encode_gain(**gain)
-        # update the gateway device
-        self.gateway_api.write_gain(payload)
+        payload = self.telnet_api_parser.encode_gain(**gain)
+        # update the device
+        self.telnet_api.write_gain(payload)
 
     def set_calibration(self, **calibration):
         # TODO. Need to update these comments
         """Set calibration parameters.
 
-        Write calibration parameters to a gateway device. The calibration
-        parameters consist of:
+        Write calibration parameters to a device. The calibration parameters
+        consist of:
 
         intemp: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5069,20 +5062,20 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The calibration parameters are first encoded to produce the command
-        data payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        data payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.gateway_api_parser.encode_calibration(**calibration)
-        # update the gateway device
-        self.gateway_api.write_calibration(payload)
+        payload = self.telnet_api_parser.encode_calibration(**calibration)
+        # update the device
+        self.telnet_api.write_calibration(payload)
 
     def set_sensor_id(self, **id):
         """Set sensor ID parameters.
 
-        Set sensor ID parameters to a gateway device. The sensor ID
-        parameters consist of:
+        Set sensor ID parameters to a device. The sensor ID parameters consist
+        of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
         inhum:  inside humidity offset, integer -10 - +10 %
@@ -5093,20 +5086,20 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The sensor ID parameters are first encoded to produce the command
-        data payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        data payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.gateway_api_parser.encode_sensor_id(**id)
-        # update the gateway device
-        self.gateway_api.write_sensor_id(payload)
+        payload = self.telnet_api_parser.encode_sensor_id(**id)
+        # update the device
+        self.telnet_api.write_sensor_id(payload)
 
     def set_pm25_offsets(self, **offsets):
         """Set PM2.5 offsets.
         # TODO. Need to update this
 
-        Set sensor ID parameters to a gateway device. The sensor ID
+        Set sensor ID parameters to a device. The sensor ID
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5118,20 +5111,20 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The sensor ID parameters are first encoded to produce the command
-        data payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        data payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.gateway_api_parser.encode_pm25_offset(**offsets)
-        # update the gateway device
-        self.gateway_api.write_pm25_offsets(payload)
+        payload = self.telnet_api_parser.encode_pm25_offset(**offsets)
+        # update the device
+        self.telnet_api.write_pm25_offsets(payload)
 
     def set_co2_offsets(self, **offsets):
         """Set CO2 offsets.
         # TODO. Need to update this
 
-        Set sensor ID parameters to a gateway device. The sensor ID
+        Set sensor ID parameters to a device. The sensor ID
         parameters consist of:
 
         wh65: inside temperature offset, float -10.0 - +10.0 °C
@@ -5143,14 +5136,14 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The sensor ID parameters are first encoded to produce the command
-        data payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        data payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.gateway_api_parser.encode_co2_offsets(**offsets)
-        # update the gateway device
-        self.gateway_api.write_co2_offsets(payload)
+        payload = self.telnet_api_parser.encode_co2_offsets(**offsets)
+        # update the device
+        self.telnet_api.write_co2_offsets(payload)
 
     def set_rain_params(self, **params):
         """Set traditional and piezo rain parameters.
@@ -5167,14 +5160,14 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The rain parameters are first encoded to produce the command data
-        payload. The payload is then passed to a GatewayApi object for
-        uploading to the gateway device.
+        payload. The payload is then passed to a TelnetApi object for
+        uploading to the device.
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_rain(**params)
-        # update the gateway device
-        self.gateway_api.write_rain_params(payload)
+        payload = self.telnet_api_parser.encode_rain(**params)
+        # update the device
+        self.telnet_api.write_rain_params(payload)
 
     def set_system_params(self, **params):
         """Set system parameters.
@@ -5191,14 +5184,14 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The parameters are first encoded to produce the command data payload.
-        The payload is then passed to a GatewayApi object for uploading to the
-        gateway device.
+        The payload is then passed to a TelnetApi object for uploading to the
+        device.
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_system_params(**params)
-        # update the gateway device
-        self.gateway_api.write_system_params(payload)
+        payload = self.telnet_api_parser.encode_system_params(**params)
+        # update the device
+        self.telnet_api.write_system_params(payload)
 
     def set_rain_data(self, **params):
         """Set traditional rain data parameters.
@@ -5216,14 +5209,14 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The parameters are first encoded to produce the command data payload.
-        The payload is then passed to a GatewayApi object for uploading to the
-        gateway device.
+        The payload is then passed to a TelnetApi object for uploading to the
+        device.
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_rain_data(**params)
-        # update the gateway device
-        self.gateway_api.write_rain_data(payload)
+        payload = self.telnet_api_parser.encode_rain_data(**params)
+        # update the device
+        self.telnet_api.write_rain_data(payload)
 
     def set_mulch_offset(self, **params):
         """Set multichannel temp/hum offset parameters.
@@ -5241,14 +5234,14 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The parameters are first encoded to produce the command data payload.
-        The payload is then passed to a GatewayApi object for uploading to the
-        gateway device.
+        The payload is then passed to a TelnetApi object for uploading to the
+        device.
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_mulch_offset(**params)
-        # update the gateway device
-        self.gateway_api.write_mulch_offset(payload)
+        payload = self.telnet_api_parser.encode_mulch_offset(**params)
+        # update the device
+        self.telnet_api.write_mulch_offset(payload)
 
     def set_soil_moist(self, **params):
         """Set soil moisture parameters for a device.
@@ -5261,14 +5254,14 @@ class EcowittDevice:
         max AD              channel custom 100% AD setting (80 to 1000)
 
         The parameters are first encoded to produce the command data payload.
-        The payload is then passed to a GatewayApi object for uploading to the
+        The payload is then passed to a TelnetApi object for uploading to the
         device.
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_soil_humiad(**params)
+        payload = self.telnet_api_parser.encode_soil_humiad(**params)
         # update the device
-        self.gateway_api.write_soil_moist(payload)
+        self.telnet_api.write_soil_moist(payload)
 
     def set_mulch_t(self, **params):
         """Set mulch-t offset parameters.
@@ -5285,20 +5278,20 @@ class EcowittDevice:
         winddir: wind direction offset, integer -180 - +180 °
 
         The parameters are first encoded to produce the command data payload.
-        The payload is then passed to a GatewayApi object for uploading to the
-        gateway device.
+        The payload is then passed to a TelnetApi object for uploading to the
+        device.
         """
 
         # obtain encoded data payload for the API command
-        payload = self.gateway_api_parser.encode_mulch_t(**params)
-        # update the gateway device
-        self.gateway_api.write_mulch_t(payload)
+        payload = self.telnet_api_parser.encode_mulch_t(**params)
+        # update the device
+        self.telnet_api.write_mulch_t(payload)
 
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
 
         # first get the current sensor ID data
-        sensor_id_data = self.gateway_api.get_sensor_id_new()
+        sensor_id_data = self.telnet_api.get_sensor_id_new()
         # now use the sensor ID data to re-initialise our sensors object
         self.sensors.set_sensor_id_data(sensor_id_data)
 
@@ -5589,9 +5582,9 @@ class EcowittDeviceConfigurator:
     def get_device(self):
         """Get an EcowittDevice object.
 
-        Attempts to obtain an EcowittDevice object. If successful the
-        GatewayDevice instance is returned, otherwise the return the value
-        None.
+        Attempts to obtain an EcowittDevice object. If successful an
+        EcowittDevice instance is returned, otherwise the value None is
+        returned.
         """
 
         # wrap in a try..except in case there is an error
@@ -5815,7 +5808,7 @@ class EcowittDeviceConfigurator:
                 print(f'{"Temperature Compensation":>28}: unavailable')
             print(f'{"Auto Timezone":>28}: {auto_tz_decode[sys_params_dict["auto_timezone"]]}')
             print(f'{"timezone index":>28}: {sys_params_dict["timezone_index"]}')
-            # The gateway API returns what is labelled "UTC" but is in fact the
+            # The telnet API returns what is labelled "UTC" but is in fact the
             # current epoch timestamp adjusted by the station timezone offset.
             # So when the timestamp is converted to a human-readable GMT
             # date-time string it in fact shows the local date-time. We can
@@ -6463,8 +6456,7 @@ class EcowittDeviceConfigurator:
     def process_read_sensors(self):
         """Read and display the device sensor ID information.
 
-        Obtain and display the sensor ID information from the selected gateway
-        device.
+        Obtain and display the sensor ID information from the selected device.
         """
 
         # get an EcowittDevice object
@@ -6545,7 +6537,7 @@ class EcowittDeviceConfigurator:
         device = self.get_device()
         # Obtain a list of discovered devices. Would consider wrapping in a
         # try..except so we can catch any socket timeout exceptions, but the
-        # GatewayApi.discover() method should catch and handle any such
+        # TelnetApi.discover() method should catch and handle any such
         # exceptions for us.
         device_list = device.discovered_devices
         print()
@@ -6779,7 +6771,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current sensor ID params from the device
-            # first update the GatewayDevice object sensor ID data
+            # first update the EcowittDevice object sensor ID data
             device.update_sensor_id_data()
             # now obtain a dict of current sensors IDs in numeric format
             id_params = device.sensors.ids_by_name(numeric_id=True)
@@ -7910,8 +7902,7 @@ def write_calibration_subparser(subparsers):
                                     [--debug]
 {Bcolors.ENDC}"""
     description = "Set calibration coefficients. If a parameter is omitted "\
-                  "the corresponding current gateway device parameter is left "\
-                  "unchanged."
+                  "the corresponding current device parameter is left unchanged."
     parser = subparsers.add_parser('calibration',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -7986,8 +7977,7 @@ def write_sensor_id_subparser(subparsers):
                                   [--debug]
 {Bcolors.ENDC}"""
     description = "Set sensor identification values. If a parameter is omitted "\
-                  "the corresponding current gateway device parameter is left "\
-                  "unchanged."
+                  "the corresponding current device parameter is left unchanged."
     parser = subparsers.add_parser('sensor-id',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8253,8 +8243,8 @@ def write_pm25_cal_subparser(subparsers):
                                  [--debug]
 {Bcolors.ENDC}"""
     description = "Set PM2.5 (WH41/WH43) sensor offset calibration values. If a "\
-                  "parameter is omitted the corresponding current gateway device "\
-                  "parameter is left unchanged."
+                  "parameter is omitted the corresponding current device parameter "\
+                  "is left unchanged."
     parser = subparsers.add_parser('pm25-cal',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8295,8 +8285,8 @@ def write_co2_cal_subparser(subparsers):
                                 [--debug]
 {Bcolors.ENDC}"""
     description = "Set CO2 (WH45) sensor offset calibration values. If a parameter "\
-                  "is omitted the corresponding current gateway device parameter "\
-                  "is left unchanged."
+                  "is omitted the corresponding current device parameter is left "\
+                  "unchanged."
     parser = subparsers.add_parser('co2-cal',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8339,8 +8329,8 @@ def write_all_rain_subparser(subparsers):
                                  [--debug]
 {Bcolors.ENDC}"""
     description = "Set traditional and/or piezo rain related parameters. If "\
-                  "a parameter is omitted the corresponding current gateway "\
-                  "device parameter is left unchanged."
+                  "a parameter is omitted the corresponding current device "\
+                  "parameter is left unchanged."
     parser = subparsers.add_parser('rain',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8504,8 +8494,7 @@ def write_system_subparser(subparsers):
                                [--auto-tz enable | disable] [--debug]
 {Bcolors.ENDC}"""
     description = "Set system parameters. If a parameter is omitted the "\
-                  "corresponding current gateway device parameter is left "\
-                  "unchanged."
+                  "corresponding current device parameter is left unchanged."
     parser = subparsers.add_parser('system',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8546,8 +8535,8 @@ def write_rain_subparser(subparsers):
                              [--debug]
 {Bcolors.ENDC}"""
     description = "Set traditional rain related parameters. If a parameter is "\
-                  "omitted the corresponding current gateway device parameter "\
-                  "is left unchanged."
+                  "omitted the corresponding current device parameter is left "\
+                  "unchanged."
     parser = subparsers.add_parser('rain',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8595,8 +8584,8 @@ def write_soil_cal_subparser(subparsers):
                                  [--debug]
 {Bcolors.ENDC}"""
     description = "Set soil moisture sensor calibration values. If a "\
-                  "parameter is omitted the corresponding current gateway "\
-                  "device parameter is left unchanged."
+                  "parameter is omitted the corresponding current device "\
+                  "parameter is left unchanged."
     parser = subparsers.add_parser('soil-cal',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8706,8 +8695,7 @@ def write_th_cal_subparser(subparsers):
 {Bcolors.ENDC}"""
     description = "Set multichannel temperature-humidity sensor offset "\
                   "calibration values. If a parameter is omitted the "\
-                  "corresponding current gateway device parameter is left "\
-                  "unchanged."
+                  "corresponding current device parameter is left unchanged."
     parser = subparsers.add_parser('th-cal',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8810,7 +8798,7 @@ def write_t_cal_subparser(subparsers):
 {Bcolors.ENDC}"""
     description = "Set multichannel temperature sensor offset calibration "\
                   "values. If a parameter is omitted the corresponding current "\
-                  "gateway device parameter is left unchanged."
+                  "device parameter is left unchanged."
     parser = subparsers.add_parser('t-cal',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
@@ -8996,10 +8984,10 @@ def main():
         print(f"{NAME} version {VERSION}")
         sys.exit(0)
     if ns.discover:
-        # discover gateway devices and display the results
-        # get a EcowittDeviceConfigurator object
+        # discover supported devices and display the results, first get an
+        # EcowittDeviceConfigurator object
         direct_gw = EcowittDeviceConfigurator(ns)
-        # discover any gateway devices and display the results
+        # then discover any devices and display the results
         direct_gw.display_discovered_devices()
         sys.exit(0)
     # if we made it here we must have a subcommand
