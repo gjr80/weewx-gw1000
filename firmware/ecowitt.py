@@ -509,12 +509,12 @@ class TelnetApiParser:
 
     @staticmethod
     def encode_rain(**params):
-        # TODO. Need comments to be completed
+        # TODO. Need comments to be completed (question marks replaced)
         """Encode data parameters used for CMD_WRITE_RAIN.
 
         Assemble a bytestring to be used as the data payload for
-        CMD_WRITE_RAIN. Required payload parameters are contained in the
-        calibration dict keyed as follows:
+        CMD_WRITE_RAIN. Required payload parameters are contained in the params
+        dict keyed as follows:
 
         Field       Description                                 Encoded as
         ------------------------------------------------------------------------
@@ -2796,10 +2796,11 @@ class TelnetApi:
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
-                 socket_timeout=None, broadcast_timeout=None,
+                 broadcast_timeout=None, socket_timeout=None,
                  discovery_port=None, discovery_period=None,
                  max_tries=DEFAULT_MAX_TRIES, retry_wait=DEFAULT_RETRY_WAIT,
                  debug=False):
+        """Initialise a TelnetApi object."""
 
         # save those parameters we will need later
         self.ip_address = ip_address
@@ -4434,15 +4435,11 @@ class EcowittDevice:
                 ]
     WH31_CHANNEL_MAX = 8
 
-    def __init__(self, ip_address=None, port=None,
-                 broadcast_address=None, broadcast_port=None,
-                 socket_timeout=None, broadcast_timeout=None,
-                 discovery_port=None, discovery_period=None,
-                 max_tries=DEFAULT_MAX_TRIES,
-                 retry_wait=DEFAULT_RETRY_WAIT,
-                 discover=False, mac=None,
-                 use_wh32=True, ignore_wh40_batt=True,
-                 show_battery=False, debug=False):
+    def __init__(self, ip_address=None, port=None, broadcast_address=None,
+                 broadcast_port=None, broadcast_timeout=None,
+                 socket_timeout=None, discovery_port=None, discovery_period=None,
+                 max_tries=DEFAULT_MAX_TRIES, retry_wait=DEFAULT_RETRY_WAIT,
+                 debug=False):
         """Initialise an EcowittDevice object."""
 
         # save our IP address and port
@@ -4453,8 +4450,8 @@ class EcowittDevice:
                                     port=port,
                                     broadcast_address=broadcast_address,
                                     broadcast_port=broadcast_port,
-                                    socket_timeout=socket_timeout,
                                     broadcast_timeout=broadcast_timeout,
+                                    socket_timeout=socket_timeout,
                                     discovery_port=discovery_port,
                                     discovery_period=discovery_period,
                                     max_tries=max_tries,
@@ -4709,13 +4706,15 @@ class EcowittDevice:
             # return the parsed data
             return self.telnet_api_parser.parse_firmware_version(payload)
 
-    @property
-    def sensor_id(self):
-        """Device sensor ID data."""
+# TODO. Potential unused/not required property/method
 
-        # TODO. What should we do here?
-        _data = self.telnet_api.get_sensor_id_new()
-        return _data
+#    @property
+#    def sensor_id(self):
+#        """Device sensor ID data."""
+#
+#        # TODO. What should we do here?
+#        _data = self.telnet_api.get_sensor_id_new()
+#        return _data
 
     @property
     def mulch_offset(self):
@@ -4737,6 +4736,7 @@ class EcowittDevice:
     def pm25_offset(self):
         """Device PM2.5 offset data."""
 
+        # obtain the data payload
         payload = self.telnet_api.get_pm25_offset()
         # return the parsed data
         return self.telnet_api_parser.parse_pm25_offset(payload)
@@ -4745,21 +4745,22 @@ class EcowittDevice:
     def calibration_coefficient(self):
         """Device calibration coefficient data."""
 
+        # obtain the data payload
         payload = self.telnet_api.get_gain()
         # return the parsed data
-        return self.telnet_api_parser.parse_calibration(payload)
+        return self.telnet_api_parser.parse_gain(payload)
 
     @property
     def soil_calibration(self):
         """Device soil calibration data."""
 
+        # obtain the data payload
         payload = self.telnet_api.get_soil_humiad()
         # return the parsed data
         return self.telnet_api_parser.parse_decode_soil_humiad(payload)
 
-    # TODO. Is this method appropriately named?
     @property
-    def calibration(self):
+    def calibration_data(self):
         """Device calibration data.
 
         This is the offset calibration data from the main WSView+ calibration
@@ -4857,14 +4858,10 @@ class EcowittDevice:
         sensors.
         """
 
-        # obtain the calibration data via the API
-        gain_data = self.telnet_api.get_gain()
-        # parse the calibration data
-        parsed_gain = self.telnet_api_parser.parse_gain(gain_data)
-        # obtain the offset calibration data via the API
-        calibration_data = self.telnet_api.get_calibration()
+        # obtain the parsed gain data
+        parsed_gain = self.calibration_coefficient
         # update our parsed gain data with the parsed calibration data
-        parsed_gain.update(self.telnet_api_parser.parse_calibration(calibration_data))
+        parsed_gain.update(self.calibration_data)
         # return the combined parsed data
         return parsed_gain
 
