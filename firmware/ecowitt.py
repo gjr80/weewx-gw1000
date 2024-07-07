@@ -61,6 +61,7 @@ To use:
 
 $ python /path/to/ecowitt.py --help
 """
+# Testing TODOs
 
 # Outstanding TODOs:
 # TODO. Confirm WH26/WH32 sensor ID
@@ -3315,7 +3316,6 @@ class TelnetApi:
         return _response[4:packet_length + 1]
 
     def get_sensor_id_new(self):
-        # TODO. Need to ensure consumer of this method know its now the data payload
         """Get sensor ID data.
 
         Sends the API command to obtain sensor ID data from the device. If the
@@ -4706,16 +4706,6 @@ class EcowittDevice:
             # return the parsed data
             return self.telnet_api_parser.parse_firmware_version(payload)
 
-# TODO. Potential unused/not required property/method
-
-#    @property
-#    def sensor_id(self):
-#        """Device sensor ID data."""
-#
-#        # TODO. What should we do here?
-#        _data = self.telnet_api.get_sensor_id_new()
-#        return _data
-
     @property
     def mulch_offset_data(self):
         """Device multichannel temperature and humidity offset data."""
@@ -5280,7 +5270,7 @@ class EcowittDevice:
     def update_sensor_id_data(self):
         """Update the Sensors object with current sensor ID data."""
 
-        # first get the current sensor ID data
+        # first get the current sensor ID payload data
         sensor_id_data = self.telnet_api.get_sensor_id_new()
         # now use the sensor ID data to re-initialise our sensors object
         self.sensors.set_sensor_id_data(sensor_id_data)
@@ -5296,7 +5286,6 @@ def bytes_to_hex(iterable, separator=' ', caps=True):
     # assume 'iterable' can be iterated by iterbytes and the individual
     # elements can be formatted with {:02X}
     format_str = "{:02X}" if caps else "{:02x}"
-    # TODO. Need to verify use of iterable and str.encode(iterable) do what we want
     try:
         return separator.join(format_str.format(c) for c in iterable)
     except ValueError:
@@ -5714,7 +5703,7 @@ class EcowittDeviceConfigurator:
             # we have ppm, no conversion, if not None return as is otherwise
             # return dashed lines
             if value is not None:
-                return f"{value:.1f}ppm"
+                return f"{value:d}ppm"
             else:
                 return f"---ppm"
         elif unit == 'diff_degree_C':
@@ -5732,6 +5721,15 @@ class EcowittDeviceConfigurator:
                 return f"{value:d}"
             else:
                 return f"---"
+        elif unit == 'byte':
+            # we have a memory value, if not None convert and return in kB and
+            # MB, otherwise display dashed lines in kB and MB
+            if value is not None:
+                mb_str = f" | {value / 1024 ** 2:.3f}MB" if value / 1024 ** 2 >= 0.1 else ""
+                byte_unit = "bytes" if value > 1 else "byte"
+                return f"{value:d}{byte_unit} ({value / 1024:.3f}kB{mb_str})"
+            else:
+                return f"---bytes (---kB)"
         else:
             return ""
 
@@ -5856,16 +5854,6 @@ class EcowittDeviceConfigurator:
         Obtain and display the device rain data from both traditional (if
         paired) and piezo (if paired) rain gauges.
         """
-
-        # TODO. Not sure about these three, maybe just de-cluttering the main code
-        def display_rain(field):
-            pass
-
-        def display_gain(field):
-            pass
-
-        def display_reset(field):
-            pass
 
         traditional = ['ITEM_RAINRATE', 'ITEM_RAINEVENT', 'ITEM_RAINDAY',
                        'ITEM_RAINWEEK', 'ITEM_RAINMONTH', 'ITEM_RAINYEAR']
@@ -6063,12 +6051,7 @@ class EcowittDeviceConfigurator:
                     # we have results, now format and display the data
                     # iterate over each channel for which we have data
                     for channel in mulch_t_offset_data:
-                        # TODO. Is this still required or not
-                        # Print the channel and offset data. The API returns
-                        # channels starting at 0x63, but the WSView Plus app
-                        # displays channels starting at 1, so subtract 0x62
-                        # (or 98) from our channel number
-                        # channel_str = f'{"Channel":>11} {channel - 0x62:d}'
+                        # print the channel and offset data
                         channel_str = f'{"Channel":>11} {channel[-1]}'
                         temp_offset_str = f'{mulch_t_offset_data[channel]:2.1f}'
                         print(f'{channel_str:>13}: Temperature offset: {temp_offset_str:5}')
@@ -6105,8 +6088,9 @@ class EcowittDeviceConfigurator:
                     print("PM2.5 Calibration")
                     # iterate over each channel for which we have data
                     for channel in pm25_offset_data:
-                        # print the channel and offset data
-                        channel_str = f'{"Channel":>11} {channel:d}'
+                        # print the channel and offset data, channel is
+                        # zero-based so add 1
+                        channel_str = f'{"Channel":>11} {channel + 1:d}'
                         unit_str = self.convert(pm25_offset_data[channel], "micro_gram_per_meter_cubed")
                         offset_str = f'{pm25_offset_data[channel]:2.1f}'
                         print(f'{channel_str:>13} PM2.5 offset: {unit_str}')
@@ -8321,7 +8305,7 @@ def write_all_rain_subparser(subparsers):
     description = "Set traditional and/or piezo rain related parameters. If "\
                   "a parameter is omitted the corresponding current device "\
                   "parameter is left unchanged."
-    parser = subparsers.add_parser('rain',
+    parser = subparsers.add_parser('all-rain',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
                                    description=description,
