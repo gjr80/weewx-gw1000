@@ -6,7 +6,7 @@ ecowitt.py
 A utility for reading, displaying and updating devices using the Ecowitt
 LAN/Wi-Fi Gateway API (aka the telnet API).
 
-Based on the WeeWX Ecowitt gateway driver and inspiration from wxforum.net user
+Based on the WeeWX Ecowitt gateway driver and inspiration from WXForum.net user
 jbroome.
 
 As of the time of release this utility supports and has been tested with the
@@ -674,8 +674,8 @@ class TelnetApiParser:
         Returns a nested dict keyed by channel (eg 0, 1, 2 .. 7) with each
         sub-dict keyed as follows:
 
-        'hum'    channel n humidity offset (-10 - 10 %)
-        'temp'   channel n temperature offset (-10.0 - 10.0 °C)
+        'hum'    channel n humidity offset (-10 - 10%)
+        'temp'   channel n temperature offset (-10.0 - 10.0°C)
         """
 
         # initialise a counter
@@ -1715,15 +1715,15 @@ class TelnetApiParser:
         return data_dict
 
     @staticmethod
-    def encode_usr_path(**usr_path):
+    def encode_usr_path(**params):
         """Encode data parameters used for CMD_WRITE_USRPATH.
 
         Assemble a bytestring to be used as the data payload for
         CMD_WRITE_USRPATH. Required payload parameters are contained in the
-        custom dict keyed as follows:
+        params dict keyed as follows:
 
-        ecowitt_path:   the Ecowitt.net path
-        wu_path:        the WeatherUnderground path
+        ecowitt_path:   the custom Ecowitt format upload path
+        wu_path:        the custom WeatherUnderground format upload path
 
         The encoded bytestring format is:
 
@@ -1736,8 +1736,8 @@ class TelnetApiParser:
         Returns a bytestring of length 2+i+p.
         """
 
-        ec_path_b = usr_path['ecowitt_path'].encode()
-        wu_path_b = usr_path['wu_path'].encode()
+        ec_path_b = params['ecowitt_path'].encode()
+        wu_path_b = params['wu_path'].encode()
         return b''.join([struct.pack('B', len(ec_path_b)),
                          ec_path_b,
                          struct.pack('B', len(wu_path_b)),
@@ -4645,7 +4645,7 @@ class EcowittDevice:
         return self.telnet_api_parser.parse_customized(payload)
 
     @property
-    def usr_path(self):
+    def usr_path_params(self):
         """Device user defined custom path parameters.
 
         Supports the following usr path parameters:
@@ -4674,15 +4674,15 @@ class EcowittDevice:
         entire customs server upload parameters.
 
         The individual customized and user path parameters are available via
-        the EcowittDevice.custom_params and EcowittDevice.usr_path properties
-        respectively.
+        the EcowittDevice.custom_params and EcowittDevice.usr_path_params
+        properties respectively.
         """
 
         # obtain the parsed customized parameters
         parsed_custom_data = self.custom_params
         # return the parsed customized parameters updated with the parsed user
         # path parameters
-        parsed_custom_data.update(self.usr_path)
+        parsed_custom_data.update(self.usr_path_params)
         return parsed_custom_data
 
     @property
@@ -4717,7 +4717,7 @@ class EcowittDevice:
 #        return _data
 
     @property
-    def mulch_offset(self):
+    def mulch_offset_data(self):
         """Device multichannel temperature and humidity offset data."""
 
         payload = self.telnet_api.get_mulch_offset()
@@ -4725,7 +4725,7 @@ class EcowittDevice:
         return self.telnet_api_parser.parse_mulch_offset(payload)
 
     @property
-    def mulch_t_offset(self):
+    def mulch_t_offset_data(self):
         """Device multichannel temperature (WN34) offset data."""
 
         payload = self.telnet_api.get_mulch_t_offset()
@@ -4733,7 +4733,7 @@ class EcowittDevice:
         return self.telnet_api_parser.parse_mulch_t_offset(payload)
 
     @property
-    def pm25_offset(self):
+    def pm25_offset_data(self):
         """Device PM2.5 offset data."""
 
         # obtain the data payload
@@ -4742,8 +4742,17 @@ class EcowittDevice:
         return self.telnet_api_parser.parse_pm25_offset(payload)
 
     @property
-    def calibration_coefficient(self):
-        """Device calibration coefficient data."""
+    def gain_calibration_data(self):
+        """Device gain calibration data.
+
+        This is the calibration gain data from the main WSView+ calibration
+        tab. It contains gain data for the major sensors. The
+        EcowittDevice.calibration_data property provides the offset calibration
+        data for the major sensors on the WSView+ calibration tab. The
+        EcowittDevice.offset_and_gain property provides combined offset and
+        gain calibration data for the major sensors on the WSView+ calibration
+        tab.
+        """
 
         # obtain the data payload
         payload = self.telnet_api.get_gain()
@@ -4751,7 +4760,7 @@ class EcowittDevice:
         return self.telnet_api_parser.parse_gain(payload)
 
     @property
-    def soil_calibration(self):
+    def soil_calibration_data(self):
         """Device soil calibration data."""
 
         # obtain the data payload
@@ -4765,10 +4774,11 @@ class EcowittDevice:
 
         This is the offset calibration data from the main WSView+ calibration
         tab. It contains offset data for the major sensors. The
-        EcowittDevice.gain property provides the gain calibration data for the
-        major sensors on the WSView+ calibration tab. The
-        EcowittDevice.offset_and_gain property provides combine offset and gain
+        EcowittDevice.gain_calibration_data property provides the gain
         calibration data for the major sensors on the WSView+ calibration tab.
+        The EcowittDevice.offset_and_gain property provides combine offset and
+        gain calibration data for the major sensors on the WSView+ calibration
+        tab.
         """
 
         payload = self.telnet_api.get_calibration()
@@ -4776,7 +4786,7 @@ class EcowittDevice:
         return self.telnet_api_parser.parse_calibration(payload)
 
     @property
-    def co2_offset(self):
+    def co2_offset_data(self):
         """Device CO2 offset data."""
 
         payload = self.telnet_api.get_co2_offset()
@@ -4859,7 +4869,7 @@ class EcowittDevice:
         """
 
         # obtain the parsed gain data
-        parsed_gain = self.calibration_coefficient
+        parsed_gain = self.gain_calibration_data
         # update our parsed gain data with the parsed calibration data
         parsed_gain.update(self.calibration_data)
         # return the combined parsed data
@@ -4893,7 +4903,7 @@ class EcowittDevice:
         self.telnet_api.reset_device()
 
     def set_ssid(self, **ssid):
-        """Set SSID parameters.
+        """Set device SSID parameters.
 
         Set SSID and SSID password on a device. The parameters are first
         encoded to produce the command data payload. The payload is then passed
@@ -4906,7 +4916,7 @@ class EcowittDevice:
         self.telnet_api.write_ssid(payload)
 
     def set_ecowitt_net(self, **ecowitt):
-        """Set Ecowitt.net upload parameters.
+        """Set device Ecowitt.net upload parameters.
 
         Set Ecowitt.net upload parameters for a device. The only Ecowitt.net
         parameter is the upload interval. The upload parameter is first encoded
@@ -4920,7 +4930,7 @@ class EcowittDevice:
         self.telnet_api.write_ecowitt(payload)
 
     def set_wu(self, **wu):
-        """Set WeatherUnderground upload parameters.
+        """Set device WeatherUnderground upload parameters.
 
         Set WeatherUnderground upload parameters for a device. The
         WeatherUnderground parameters consist of station ID and station key.
@@ -4935,7 +4945,7 @@ class EcowittDevice:
         self.telnet_api.write_wu(payload)
 
     def set_wcloud(self, **wcloud):
-        """Set Weathercloud upload parameters.
+        """Set device Weathercloud upload parameters.
 
         Write Weathercloud upload parameters to a device. The Weathercloud
         parameters consist of station ID and station key. The upload parameters
@@ -4949,7 +4959,7 @@ class EcowittDevice:
         self.telnet_api.write_wcloud(payload)
 
     def set_wow(self, **wow):
-        """Set Weather Observations Website upload parameters.
+        """Set device Weather Observations Website upload parameters.
 
         Write Weather Observations Website upload parameters to a device. The
         Weather Observations Website parameters consist of station ID and
@@ -4964,8 +4974,7 @@ class EcowittDevice:
         self.telnet_api.write_wow(payload)
 
     def set_custom(self, **custom):
-        # TODO. Need comments here to expand on dual-update
-        """Set 'Custom' upload parameters.
+        """Set device 'Custom' upload parameters.
 
         Set 'Custom' upload parameters for a device. The 'Custom' parameters
         consist of:
@@ -4983,6 +4992,11 @@ class EcowittDevice:
         The upload parameters are first encoded to produce the command data
         payload. The payload is then passed to a TelnetApi object for
         uploading to the device.
+
+        Note. This method sets the 'Custom' parameters outlined above, but does
+        not affect the Ecowitt and/or WeatherUnderground format custom upload
+        paths. To set these paths the EcowittDevice.set_user_path() method must
+        be used.
         """
 
         # obtain encoded data payloads for each API command
@@ -4990,62 +5004,55 @@ class EcowittDevice:
         # update the device
         self.telnet_api.write_customized(payload_custom)
 
-    def set_user_path(self, **paths):
-        # TODO. Need comments here to expand on dual-update
-        """Set 'Custom' upload parameters.
+    def set_user_path(self, **params):
+        """Set device Ecowitt and WeatherUnderground format custom upload paths.
 
-        Set 'Custom' upload parameters for a device. The 'Custom' parameters
-        consist of:
+        Set the Ecowitt and/or WeatherUnderground format custom upload path
+        parameters for a device. The Ecowitt and/or WeatherUnderground format
+        custom upload paths parameters consist of:
 
-        active:     whether the custom upload is active, 0 = inactive,
-                    1 = active
-        type:       what protocol (Ecowitt or WeatherUnderground) to use for
-                    upload, 0 = Ecowitt, 1 = WeatherUnderground
-        server:     server IP address or host name, string
-        port:       server port number, integer 0 to 65536
-        interval:   upload interval in seconds
-        id:         WeatherUnderground station ID
-        password:   WeatherUnderground key
+        ecowitt_path:   the custom Ecowitt format upload path
+        wu_path:        the custom WeatherUnderground format upload path
 
         The upload parameters are first encoded to produce the command data
         payload. The payload is then passed to a TelnetApi object for
         uploading to the device.
+
+        Note. This method sets the Ecowitt and/or WeatherUnderground format
+        custom upload paths, but does not set any other 'Custom' parameters
+        (eg: whether the upload is active, upload type, server name/address,
+        port number, upload interval, WeatherUnderground ID and key). To set
+        these 'Custom' parameters the EcowittDevice.set_custom() method must be
+        used.
         """
 
         # obtain encoded data payloads for each API command
-        payload_paths = self.telnet_api_parser.encode_usr_path(**paths)
+        payload_paths = self.telnet_api_parser.encode_usr_path(**params)
         # update the device
         self.telnet_api.write_user_path(payload_paths)
 
-    def set_gain(self, **gain):
-        # TODO. Need to update these comments
-        """Set gain parameters.
+    def set_gain(self, **params):
+        """Set device gain parameters.
 
         Write gain parameters to a device. The gain parameters consist of:
 
-        active:     whether the custom upload is active, 0 = inactive,
-                    1 = active
-        type:       what protocol (Ecowitt or WeatherUnderground) to use for
-                    upload, 0 = Ecowitt, 1 = WeatherUnderground
-        server:     server IP address or host name, string
-        port:       server port number, integer 0 to 65536
-        interval:   upload interval in seconds
-        id:         WeatherUnderground station ID
-        password:   WeatherUnderground key
+        uv:     uv gain, integer 10-500
+        solar:  solar radiation gain, integer 10-500
+        wind:   wind speed gain, integer 10-500
+        rain:   rain gain, integer 10-500
 
         The gain parameters are first encoded to produce the command data
-        payload. The payload is then passed to a TelnetApi object for
-        uploading to the device.
+        payload. The payload is then passed to a TelnetApi object for uploading
+        to the device.
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.telnet_api_parser.encode_gain(**gain)
+        payload = self.telnet_api_parser.encode_gain(**params)
         # update the device
         self.telnet_api.write_gain(payload)
 
-    def set_calibration(self, **calibration):
-        # TODO. Need to update these comments
-        """Set calibration parameters.
+    def set_calibration(self, **params):
+        """Set device calibration parameters.
 
         Write calibration parameters to a device. The calibration parameters
         consist of:
@@ -5064,12 +5071,13 @@ class EcowittDevice:
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.telnet_api_parser.encode_calibration(**calibration)
+        payload = self.telnet_api_parser.encode_calibration(**params)
         # update the device
         self.telnet_api.write_calibration(payload)
 
-    def set_sensor_id(self, **id):
-        """Set sensor ID parameters.
+    def set_sensor_id(self, **params):
+        # TODO. Need to update these comments
+        """Set device sensor ID parameters.
 
         Set sensor ID parameters to a device. The sensor ID parameters consist
         of:
@@ -5088,28 +5096,27 @@ class EcowittDevice:
         """
 
         # obtain encoded data payloads for the API command
-        payload = self.telnet_api_parser.encode_sensor_id(**id)
+        payload = self.telnet_api_parser.encode_sensor_id(**params)
         # update the device
         self.telnet_api.write_sensor_id(payload)
 
     def set_pm25_offsets(self, **offsets):
-        """Set PM2.5 offsets.
-        # TODO. Need to update this
+        """Set device PM2.5 offset parameters.
 
-        Set sensor ID parameters to a device. The sensor ID
-        parameters consist of:
+        Write the PM2.5 offsets for attached WH41/43 sensors to a device. The
+        offset parameters dict is keyed by zero based channel number with each
+        dict entry containing the offset value for the channel concerned as
+        follows:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        offset:  PM2.5 offset, -200 to +200 (-20.0μg/m³ to +20.0μg/m³)
 
-        The sensor ID parameters are first encoded to produce the command
+        The offset parameters are first encoded to produce the command
         data payload. The payload is then passed to a TelnetApi object for
         uploading to the device.
+
+        Note. This method only writes the PM2.5 offset values for attached
+        WH41/43 sensors only. The PM2.5 offset value for an attached WH45
+        sensor is set via the EcowittDevice.set_co2_offsets() method.
         """
 
         # obtain encoded data payloads for the API command
@@ -5118,23 +5125,22 @@ class EcowittDevice:
         self.telnet_api.write_pm25_offsets(payload)
 
     def set_co2_offsets(self, **offsets):
-        """Set CO2 offsets.
-        # TODO. Need to update this
+        """Set device CO2 offset parameters.
 
-        Set sensor ID parameters to a device. The sensor ID
-        parameters consist of:
+        Write the offsets for attached WH45 sensors to a device. The offset
+        parameters dict is keyed as follows:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        co2:  CO2 offset, float -600 - +10 000 (-600ppm to +10 000ppm)
+        pm25: PM2.5 offset, float -200 - +200 (-20.0μg/m³ to +20.0μg/m³)
+        pm10: PM10 offset, float -200 - +200 (-20.0μg/m³ to +20.0μg/m³)
 
-        The sensor ID parameters are first encoded to produce the command
-        data payload. The payload is then passed to a TelnetApi object for
-        uploading to the device.
+        The offset parameters are first encoded to produce the command data
+        payload. The payload is then passed to a TelnetApi object for uploading
+        to the device.
+
+        Note. This method only writes the PM2.5 offset values for an attached
+        WH45 sensor only. PM2.5 offset values for attached WH41/43 sensors are
+        set via the EcowittDevice.set_pm25_offsets() method.
         """
 
         # obtain encoded data payloads for the API command
@@ -5144,7 +5150,7 @@ class EcowittDevice:
 
     def set_rain_params(self, **params):
         """Set traditional and piezo rain parameters.
-        # TODO. Need to update this
+        # TODO. Need to update this when the equivalent encode is updated
 
         Write rain parameters to a device. The rain parameters consist of:
 
@@ -5167,18 +5173,18 @@ class EcowittDevice:
         self.telnet_api.write_rain_params(payload)
 
     def set_system_params(self, **params):
-        """Set system parameters.
-        # TODO. Need to update this
+        """Set device system parameters.
 
         Set system parameters for a device. The system parameters consist of:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        frequency:      operating frequency, integer, 0=433MHz, 1=868MHz,
+                        2=915MHz, 3=920MHz
+        sensor_type:    sensor type, integer, 0=WH24, 1=WH65
+        utc:            system time, integer, (read only)
+        timezone_index: timezone index, integer
+        dst_status:     DST status, integer, 0=disabled, 1=enabled
+        auto_timezone:  auto timezone detection and setting, integer, 0=auto
+                        timezone, 1=manual timezone
 
         The parameters are first encoded to produce the command data payload.
         The payload is then passed to a TelnetApi object for uploading to the
@@ -5192,18 +5198,14 @@ class EcowittDevice:
 
     def set_rain_data(self, **params):
         """Set traditional rain data parameters.
-        # TODO. Need to update this
 
-        Set traditional rain data parameters for a device. The system
-        parameters consist of:
+        Set traditional rain data parameters for a device. The traditional rain
+        data parameters consist of:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        t_day:      traditional day rain, int 0 - 99 999 (0mm to 9999.9mm)
+        t_week      traditional week rain, int 0 - 99 999 (0mm to 9999.9mm)
+        t_month:    traditional month rain, int 0 - 99 999 (0mm to 9999.9mm)
+        t_year      traditional year rain, int 0 - 99 999 (0mm to 9999.9mm)
 
         The parameters are first encoded to produce the command data payload.
         The payload is then passed to a TelnetApi object for uploading to the
@@ -5216,19 +5218,14 @@ class EcowittDevice:
         self.telnet_api.write_rain_data(payload)
 
     def set_mulch_offset(self, **params):
-        """Set multichannel temp/hum offset parameters.
-        # TODO. Need to update this
+        """Set device multichannel temp/hum offset parameters.
 
-        Set multichannel temp/hum offset parameters for a device. The
-        multichannel temp/hum offset parameters consist of:
+        Set multichannel temp/hum offset parameters for a device. The offset
+        parameters dict is keyed by zero based channel number with each dict
+        entry containing the offset value for the channel concerned as follows:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        hum     humidity offset, (-10% to +10%) -
+        temp:   temperature offset * 10, (-10.0 to +10.0°C)
 
         The parameters are first encoded to produce the command data payload.
         The payload is then passed to a TelnetApi object for uploading to the
@@ -5241,14 +5238,15 @@ class EcowittDevice:
         self.telnet_api.write_mulch_offset(payload)
 
     def set_soil_moist(self, **params):
-        """Set soil moisture parameters for a device.
+        """Set device soil moisture parameters.
 
-        The writable soil moisture parameters for each channel consist of:
+        Set soil moisture parameters for a device. The writable soil moisture
+        parameters dict is keyed by zero based channel number with each dict
+        entry containing the offset value for the channel concerned as follows:
 
-        channel             zero based channel number 0 .. 7
-        humidity AD select  channel AD source select, 0=sensor, 1=min/max AD
-        min AD              channel custom 0% AD setting (70 to 200)
-        max AD              channel custom 100% AD setting (80 to 1000)
+        humidity AD select: channel AD source select, 0=sensor, 1=min/max AD
+        min AD:             channel custom 0% AD setting (70 to 200)
+        max AD:             channel custom 100% AD setting (80 to 1000)
 
         The parameters are first encoded to produce the command data payload.
         The payload is then passed to a TelnetApi object for uploading to the
@@ -5263,16 +5261,11 @@ class EcowittDevice:
     def set_mulch_t(self, **params):
         """Set mulch-t offset parameters.
 
-        Set mulch-t offset parameters for a device. The mulch-t offset
-        parameters consist of:
+        Set multichannel temperature offset parameters for a device. The offset
+        parameters dict is keyed by zero based channel number with each dict
+        entry containing the offset value for the channel concerned as follows:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        temperature offset: offset * 10, (-10.0°C to +10.0°C)
 
         The parameters are first encoded to produce the command data payload.
         The payload is then passed to a TelnetApi object for uploading to the
@@ -6019,7 +6012,7 @@ class EcowittDeviceConfigurator:
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the mulch offset data from the API
-            mulch_offset_data = device.mulch_offset
+            mulch_offset_data = device.mulch_offset_data
             # did we get any mulch offset data
             if mulch_offset_data is not None:
                 # now format and display the data
@@ -6060,7 +6053,7 @@ class EcowittDeviceConfigurator:
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the mulch temp offset data via the API
-            mulch_t_offset_data = device.mulch_t_offset
+            mulch_t_offset_data = device.mulch_t_offset_data
             # did we get any mulch temp offset data
             if mulch_t_offset_data is not None:
                 print()
@@ -6102,7 +6095,7 @@ class EcowittDeviceConfigurator:
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the PM2.5 offset data from the API
-            pm25_offset_data = device.pm25_offset
+            pm25_offset_data = device.pm25_offset_data
             # did we get any PM2.5 offset data
             if pm25_offset_data is not None:
                 # do we have any results to display?
@@ -6139,7 +6132,7 @@ class EcowittDeviceConfigurator:
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             # get the offset data from the API
-            co2_offset_data = device.co2_offset
+            co2_offset_data = device.co2_offset_data
             # did we get any offset data
             if co2_offset_data is not None:
                 # now format and display the data
@@ -6210,8 +6203,8 @@ class EcowittDeviceConfigurator:
             print()
             print(f'Interrogating {Bcolors.BOLD}{device.model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
-            # get the device soil_calibration property
-            calibration_data = device.soil_calibration
+            # get the device soil_calibration_data property
+            calibration_data = device.soil_calibration_data
             # did we get any calibration data
             if calibration_data is not None:
                 # now format and display the data
@@ -6692,7 +6685,7 @@ class EcowittDeviceConfigurator:
             # now do the user paths they are an outlier but really part of the
             # custom parameters
             # first get the current user path params
-            params = device.usr_path
+            params = device.usr_path_params
             # make a copy of the current params, this copy will be updated with
             # the subcommand arguments and then used to update the device
             arg_params = dict(params)
@@ -6813,7 +6806,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current pm2.5 sensor offsets from the device
-            offsets = device.pm25_offset
+            offsets = device.pm25_offset_data
             # make a copy of the current offsets, this copy will be updated with
             # the subcommand arguments and then used to update the device
             arg_offsets = dict(offsets)
@@ -6849,7 +6842,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current co2 sensor offsets from the device
-            offsets = device.co2_offset
+            offsets = device.co2_offset_data
             # make a copy of the current sensor offsets, this copy will be updated
             # with the subcommand arguments and then used to update the device
             arg_offsets = dict(offsets)
@@ -7005,7 +6998,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current multichannel temp/hum offset params
-            params = device.mulch_offset
+            params = device.mulch_offset_data
             # make a copy of the current params, this copy will be updated with
             # the subcommand arguments and then used to update the device
             arg_params = dict(params)
@@ -7041,7 +7034,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current soil calibration data from the device
-            cal_data = device.soil_calibration
+            cal_data = device.soil_calibration_data
             # make a copy of the current calibration data, this copy will be
             # updated with the subcommand arguments and then used to update the
             # device
@@ -7096,7 +7089,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # obtain the current mulch temperature offset data from the device
-            offset_data = device.mulch_t_offset
+            offset_data = device.mulch_t_offset_data
             # make a copy of the current mulch temperature offset data, this copy
             # will be updated with the subcommand arguments and then used to update
             # the device
