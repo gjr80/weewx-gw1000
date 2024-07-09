@@ -7322,6 +7322,7 @@ def process_write(namespace):
     if getattr(namespace, 'write_subcommand', False) == 'ssid':
         direct_gw.process_write_ssid()
     if getattr(namespace, 'write_subcommand', False) == 'services':
+        # FIXME. cannot write TZ index to GW1200
         direct_gw.write_services()
     if getattr(namespace, 'write_subcommand', False) == 'calibration':
         direct_gw.process_write_calibration()
@@ -7647,17 +7648,17 @@ def read_subparser(subparsers):
     usage = f"""{Bcolors.BOLD}%(prog)s read --help
        %(prog)s read live-data --help
        %(prog)s read sensors --help
+       %(prog)s read system --help
+       %(prog)s read services --help
        %(prog)s read firmware --help
        %(prog)s read mac-address --help
-       %(prog)s read system --help
        %(prog)s read rain --help
        %(prog)s read all-rain --help
        %(prog)s read calibration --help
-       %(prog)s read th-cal --help
-       %(prog)s read soil-cal --help
        %(prog)s read pm25-cal --help
        %(prog)s read co2-cal --help
-       %(prog)s read services --help
+       %(prog)s read soil-cal --help
+       %(prog)s read th-cal --help
     {Bcolors.ENDC}"""
     description = """Read and display various Ecowitt device configuration parameters."""
     parser = subparsers.add_parser('read',
@@ -7667,7 +7668,11 @@ def read_subparser(subparsers):
                                    help='read and display various Ecowitt device configuration parameters')
     # add a subparser to handle the various subcommands.
     subparsers = parser.add_subparsers(dest='read_subcommand',
-                                       title="Available subcommands")
+                                       title="Available subcommands",
+                                       metavar='{live-data, sensors, system, services, '
+                                               'firmware, mac-address, rain, all-rain, '
+                                               'calibration, pm25-cal, co2-cal, '
+                                               'soil-cal, th-cal, t-cal}')
     # create a dict to hold our parser and subcommand parsers, this makes it
     # easier to provide subcommand specific help output if required later
     read_parsers = {'read': parser}
@@ -7675,17 +7680,17 @@ def read_subparser(subparsers):
     # dict with the results
     read_parsers.update(read_live_data_subparser(subparsers))
     read_parsers.update(read_sensors_subparser(subparsers))
+    read_parsers.update(read_system_subparser(subparsers))
+    read_parsers.update(read_services_subparser(subparsers))
     read_parsers.update(read_firmware_subparser(subparsers))
     read_parsers.update(read_mac_address_subparser(subparsers))
-    read_parsers.update(read_system_subparser(subparsers))
     read_parsers.update(read_rain_subparser(subparsers))
     read_parsers.update(read_all_rain_subparser(subparsers))
     read_parsers.update(read_calibration_subparser(subparsers))
-    read_parsers.update(read_th_cal_subparser(subparsers))
-    read_parsers.update(read_soil_cal_subparser(subparsers))
     read_parsers.update(read_pm25_cal_subparser(subparsers))
     read_parsers.update(read_co2_cal_subparser(subparsers))
-    read_parsers.update(read_services_subparser(subparsers))
+    read_parsers.update(read_soil_cal_subparser(subparsers))
+    read_parsers.update(read_th_cal_subparser(subparsers))
     # return the dict containing our parser and subparsers
     return read_parsers
 
@@ -8464,7 +8469,7 @@ def write_system_subparser(subparsers):
 
     usage = f"""{Bcolors.BOLD}%(prog)s write system --help
        %(prog)s write system --ip-address IP_ADDRESS [--port PORT]
-                               [--sensor-type OFFSET] [--tz INDEX] [--dst enable | disable]
+                               [--sensor-type SENSOR] [--tz INDEX] [--dst enable | disable]
                                [--auto-tz enable | disable] [--debug]
 {Bcolors.ENDC}"""
     description = "Set system parameters. If a parameter is omitted the "\
@@ -8828,9 +8833,9 @@ def write_subparser(subparsers):
     """Define the 'write' subcommand."""
 
     usage = f"""{Bcolors.BOLD}%(prog)s write --help
+       %(prog)s write sensor-id --help
        %(prog)s write system --help
        %(prog)s write services --help
-       %(prog)s write sensor-id --help
        %(prog)s write rain --help
        %(prog)s write all-rain --help
        %(prog)s write calibration --help
@@ -8849,30 +8854,30 @@ def write_subparser(subparsers):
     # Add a subparser to handle the various subcommands. Use 'metavar' so that
     # some commands can be hidden, if additional subcommands are added they
     # need to be added to this metavar or they will be hidden.
-    write_subparsers = parser.add_subparsers(dest='write_subcommand',
-                                             title="Available subcommands",
-                                             metavar='{system, services, sensor-id, rain, '
-                                                     'all-rain, calibration, pm25-cal, '
-                                                     'co2-cal, soil-cal, th-cal, t-cal}')
+    subparsers = parser.add_subparsers(dest='write_subcommand',
+                                       title="Available subcommands",
+                                       metavar='{sensor-id, system, services, rain, '
+                                               'all-rain, calibration, pm25-cal, '
+                                               'co2-cal, soil-cal, th-cal, t-cal}')
     # create a dict to hold our parser and subcommand parsers, this makes it
     # easier to provide subcommand specific help output if required later
     write_parsers = {'write': parser}
     # call each 'write' subparser constructor function and update our parser
     # dict with the results
-    write_parsers.update(write_reboot_subparser(write_subparsers))
-    write_parsers.update(write_reset_subparser(write_subparsers))
-    write_parsers.update(write_ssid_subparser(write_subparsers))
-    write_parsers.update(write_system_subparser(write_subparsers))
-    write_parsers.update(write_services_subparser(write_subparsers))
-    write_parsers.update(write_sensor_id_subparser(write_subparsers))
-    write_parsers.update(write_all_rain_subparser(write_subparsers))
-    write_parsers.update(write_rain_subparser(write_subparsers))
-    write_parsers.update(write_calibration_subparser(write_subparsers))
-    write_parsers.update(write_pm25_cal_subparser(write_subparsers))
-    write_parsers.update(write_co2_cal_subparser(write_subparsers))
-    write_parsers.update(write_soil_cal_subparser(write_subparsers))
-    write_parsers.update(write_th_cal_subparser(write_subparsers))
-    write_parsers.update(write_t_cal_subparser(write_subparsers))
+    write_parsers.update(write_reboot_subparser(subparsers))
+    write_parsers.update(write_reset_subparser(subparsers))
+    write_parsers.update(write_ssid_subparser(subparsers))
+    write_parsers.update(write_system_subparser(subparsers))
+    write_parsers.update(write_services_subparser(subparsers))
+    write_parsers.update(write_sensor_id_subparser(subparsers))
+    write_parsers.update(write_all_rain_subparser(subparsers))
+    write_parsers.update(write_rain_subparser(subparsers))
+    write_parsers.update(write_calibration_subparser(subparsers))
+    write_parsers.update(write_pm25_cal_subparser(subparsers))
+    write_parsers.update(write_co2_cal_subparser(subparsers))
+    write_parsers.update(write_soil_cal_subparser(subparsers))
+    write_parsers.update(write_th_cal_subparser(subparsers))
+    write_parsers.update(write_t_cal_subparser(subparsers))
     # return the dict containing our parser and subparsers
     return write_parsers
 
