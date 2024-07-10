@@ -222,7 +222,7 @@ class InvalidChecksum(Exception):
     checksum."""
 
 
-class GWIOError(Exception):
+class DeviceIOError(Exception):
     """Exception raised when an input/output error with the device is
     encountered."""
 
@@ -3088,7 +3088,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_GW1000_LIVEDATA')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned short in bytes 3 and 4
         packet_length = struct.unpack(">H", _response[3:5])[0]
@@ -3110,7 +3110,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_RAINDATA')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3132,7 +3132,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_SSSS')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3154,7 +3154,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_ECOWITT')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3176,7 +3176,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_WUNDERGROUND')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3198,7 +3198,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_WEATHERCLOUD')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3220,7 +3220,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_WOW')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3242,7 +3242,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_CUSTOMIZED')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3264,7 +3264,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_USR_PATH')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3286,7 +3286,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_STATION_MAC')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3308,7 +3308,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_FIRMWARE_VERSION')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             raise
         # get the packet length, it is an integer in byte 3
         packet_length = _response[3]
@@ -3330,7 +3330,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_SENSOR_ID_NEW')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned short in bytes 3 and 4
         packet_length = struct.unpack(">H", _response[3:5])[0]
@@ -3352,7 +3352,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_GET_MulCH_OFFSET')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned byte in byte 3
         packet_length = _response[3]
@@ -3374,7 +3374,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_GET_MulCH_T_OFFSET')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned short in bytes 3 and 4
         packet_length = struct.unpack(">H", _response[3:5])[0]
@@ -3396,7 +3396,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_GET_PM25_OFFSET')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned byte in byte 3
         packet_length = _response[3]
@@ -3418,7 +3418,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_GAIN')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned byte in byte 3
         packet_length = _response[3]
@@ -3440,7 +3440,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_GET_SOILHUMIAD')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned byte in byte 3
         packet_length = _response[3]
@@ -3462,7 +3462,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_CALIBRATION')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned byte in byte 3
         packet_length = _response[3]
@@ -3484,7 +3484,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_GET_CO2_OFFSET')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned byte in byte 3
         packet_length = _response[3]
@@ -3506,7 +3506,7 @@ class TelnetApi:
         # already been validated
         try:
             _response = self.send_cmd_with_retries('CMD_READ_RAIN')
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             return None
         # get the packet length, it is an unsigned short in bytes 3 and 4
         packet_length = struct.unpack(">H", _response[3:5])[0]
@@ -3517,7 +3517,7 @@ class TelnetApi:
         """Set the SSID parameters.
 
         Sends the API command to write the SSID parameters to the device. If
-        the device cannot be contacted a GWIOError will be raised by
+        the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by write_ssid().
         If the command failed a DeviceWriteFailed exception is raised. Any code
         calling write_ssid() should be prepared to handle these exceptions.
@@ -3533,11 +3533,11 @@ class TelnetApi:
         """Write the Ecowitt.net upload parameters to a device.
 
         Sends the API command to write the Ecowitt.net upload parameters to the
-        device. If the device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
-        set_ecowitt_net(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_ecowitt_net() should be prepared to handle
-        these exceptions.
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        set_ecowitt_net(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling set_ecowitt_net() should be prepared to
+        handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3550,15 +3550,16 @@ class TelnetApi:
         """Write the WeatherUnderground upload parameters to a device.
 
         Sends the API command to write the WeatherUnderground upload parameters
-        to the device. If the device cannot be contacted a GWIOError will be
-        raised by send_cmd_with_retries() which will be passed through by
+        to the device. If the device cannot be contacted a DeviceIOError will
+        be raised by send_cmd_with_retries() which will be passed through by
         write_wu(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling write_wu() should be prepared to handle these
         exceptions.
         """
 
         # send the command and obtain the result
-        result = self.send_cmd_with_retries('CMD_WRITE_WUNDERGROUND', payload)
+        result = self.send_cmd_with_retries('CMD_WRITE_WUNDERGROUND',
+                                            payload)
         # check the result to confirm the command executed successfully, if
         # unsuccessful a DeviceWriteFailed exception will be raised
         self.confirm_write_success(result)
@@ -3567,11 +3568,11 @@ class TelnetApi:
         """Write the Weathercloud upload parameters to a device.
 
         Sends the API command to write the Weathercloud upload parameters to
-        the device. If the device cannot be contacted a GWIOError will be
+        the device. If the device cannot be contacted a DeviceIOError will be
         raised by send_cmd_with_retries() which will be passed through by
         set_wcloud(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_wcloud() should be prepared to handle these
-        exceptions.
+        raised. Any code calling set_wcloud() should be prepared to handle
+        these exceptions.
         """
 
         # send the command and obtain the result
@@ -3584,11 +3585,11 @@ class TelnetApi:
         """Write the Weather Observations Website upload parameters to a device.
 
         Sends the API command to write the Weather Observations Website upload
-        parameters to the device. If the device cannot be contacted a GWIOError
-        will be raised by send_cmd_with_retries() which will be passed through
-        by set_wow(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_wow() should be prepared to handle these
-        exceptions.
+        parameters to the device. If the device cannot be contacted a
+        DeviceIOError will be raised by send_cmd_with_retries() which will be
+        passed through by set_wow(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling set_wow() should be prepared to
+        handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3599,13 +3600,13 @@ class TelnetApi:
 
     def write_customized(self, payload):
         """Write the Weather Observations Website upload parameters to a device.
-
+        # TODO. Update comments
         Sends the API command to write the Weather Observations Website upload
-        parameters to the device. If the device cannot be contacted a GWIOError
-        will be raised by send_cmd_with_retries() which will be passed through
-        by set_wow(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_wow() should be prepared to handle these
-        exceptions.
+        parameters to the device. If the device cannot be contacted a
+        DeviceIOError will be raised by send_cmd_with_retries() which will be
+        passed through by set_wow(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling set_wow() should be prepared to
+        handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3616,13 +3617,13 @@ class TelnetApi:
 
     def write_user_path(self, payload):
         """Write the 'User' upload path parameters to a device.
-
+        # TODO. Update comments
         Sends the API command to write the Weather Observations Website upload
-        parameters to the device. If the device cannot be contacted a GWIOError
-        will be raised by send_cmd_with_retries() which will be passed through
-        by set_wow(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_wow() should be prepared to handle these
-        exceptions.
+        parameters to the device. If the device cannot be contacted a
+        DeviceIOError will be raised by send_cmd_with_retries() which will be
+        passed through by set_wow(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling set_wow() should be prepared to
+        handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3635,7 +3636,7 @@ class TelnetApi:
         """Write the gain parameters to a device.
 
         Sends the API command to write the gain parameters to the device. If
-        the device cannot be contacted a GWIOError will be raised by
+        the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by set_gain(). If
         the command failed a DeviceWriteFailed exception is raised. Any code
         calling set_gain() should be prepared to handle these exceptions.
@@ -3651,8 +3652,8 @@ class TelnetApi:
         """Write the calibration parameters to a device.
 
         Sends the API command to write the calibration parameters to the
-        device. If the device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
         write_calibration(). If the command failed a DeviceWriteFailed
         exception is raised. Any code calling write_calibration() should be
         prepared to handle these exceptions.
@@ -3668,7 +3669,7 @@ class TelnetApi:
         """Write the sensor ID parameters to a device.
 
         Sends the API command to write the sensor ID parameters to the device.
-        If the device cannot be contacted a GWIOError will be raised by
+        If the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by
         set_sensor_id(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling set_sensor_id() should be prepared to handle
@@ -3685,7 +3686,7 @@ class TelnetApi:
         """Write the PM2.5 offsets to a device.
 
         Sends the API command to write the sensor ID parameters to the device.
-        If the device cannot be contacted a GWIOError will be raised by
+        If the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by
         set_sensor_id(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling set_sensor_id() should be prepared to handle
@@ -3702,7 +3703,7 @@ class TelnetApi:
         """Write the CO2 offsets to a device.
 
         Sends the API command to write the sensor ID parameters to the device.
-        If the device cannot be contacted a GWIOError will be raised by
+        If the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by
         set_sensor_id(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling set_sensor_id() should be prepared to handle
@@ -3719,8 +3720,8 @@ class TelnetApi:
         """Write traditional and piezo rain related parameters to a device.
 
         Sends the API command to write the rain related parameters to the
-        device. If the device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
         write_rain_params(). If the command failed a DeviceWriteFailed
         exception is raised. Any code calling write_rain_params() should be
         prepared to handle these exceptions.
@@ -3736,8 +3737,8 @@ class TelnetApi:
         """Write the system related parameters.
 
         Sends the API command to write the system related parameters to the
-        device. If the device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
         write_system_params(). If the command failed a DeviceWriteFailed
         exception is raised. Any code calling write_system_params() should be
         prepared to handle these exceptions.
@@ -3753,7 +3754,7 @@ class TelnetApi:
         """Write traditional rain data parameters to a device.
 
         Sends the API command to write the rain data parameters to the device.
-        If the device cannot be contacted a GWIOError will be raised by
+        If the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by
         write_rain_data(). If the command failed a DeviceWriteFailed exception
         is raised. Any code calling write_rain_data() should be prepared to
@@ -3770,11 +3771,11 @@ class TelnetApi:
         """Write multichannel temp/humid offset parameters.
 
         Sends the API command to write the multichannel temp/humid offset
-        parameters to the device. If the device cannot be contacted a GWIOError
-        will be raised by send_cmd_with_retries() which will be passed through
-        by write_mulch_offset(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling write_mulch_offset() should be
-        prepared to handle these exceptions.
+        parameters to the device. If the device cannot be contacted a
+        DeviceIOError will be raised by send_cmd_with_retries() which will be
+        passed through by write_mulch_offset(). If the command failed a
+        DeviceWriteFailed exception is raised. Any code calling
+        write_mulch_offset() should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3787,8 +3788,8 @@ class TelnetApi:
         """Write soil moisture parameters.
 
         Sends the API command to write the soil moisture parameters to the
-        device. If the device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
         write_soil_moist(). If the command failed a DeviceWriteFailed exception
         is raised. Any code calling write_soil_moist() should be prepared to
         handle these exceptions.
@@ -3804,8 +3805,8 @@ class TelnetApi:
         """Write mulch-t parameters.
 
         Sends the API command to write the mulch-t offset parameters to the
-        device. If the device cannot be contacted a GWIOError will be raised by
-        send_cmd_with_retries() which will be passed through by
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
         write_mulch_t(). If the command failed a DeviceWriteFailed exception is
         raised. Any code calling write_mulch_t() should be prepared to handle
         these exceptions.
@@ -3885,8 +3886,8 @@ class TelnetApi:
                 f"after {self.max_tries:d} attempts")
         if response is not None or self.log_failures:
             print(_msg)
-        # then finally, raise a GWIOError exception
-        raise GWIOError(_msg)
+        # then finally, raise a DeviceIOError exception
+        raise DeviceIOError(_msg)
 
     def build_cmd_packet(self, cmd, payload=b''):
         """Construct an API command packet.
@@ -3945,29 +3946,32 @@ class TelnetApi:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             # set the socket timeout
             s.settimeout(self.socket_timeout)
+            # if required display the packet we are sending
+            if self.debug:
+                _first_row = True
+                for row in gen_pretty_bytes_as_hex(packet, quote=True):
+                    if _first_row:
+                        print(f"sending packet {row['hex']} to {self.ip_address}:{self.port}")
+                        _first_row = False
+                    else:
+                        print(f"               {row['hex']}")
+                    print(f"               {row['printable']}")
+                print()
             # wrap our connect in a try..except, so we can catch any socket
             # related exceptions
             try:
                 # connect to the device
                 s.connect((self.ip_address, self.port))
-                # if required display the packet we are sending
-                if self.debug:
-                    _first_row = True
-                    for row in gen_pretty_bytes_as_hex(packet, quote=True):
-                        if _first_row:
-                            print(f"sending packet {row['hex']} to {self.ip_address}:{self.port}")
-                            _first_row = False
-                        else:
-                            print(f"               {row['hex']}")
-                        print(f"               {row['printable']}")
-                    print()
                 # send the packet
                 s.sendall(packet)
                 # obtain the response, we assume here the response will be less
                 # than 1024 characters
                 response = s.recv(1024)
+            except socket.timeout:
+                # we received a socket timeout error, raise it
+                raise
             except socket.error:
-                # we received a socket error, raise it
+                # we received some other socket error, raise it
                 raise
             # if required display the response packet
             if self.debug:
@@ -4092,10 +4096,10 @@ class TelnetApi:
         """Reboot a device.
 
         Sends the API command to reboot the device. If the device cannot be
-        contacted a GWIOError will be raised by send_cmd_with_retries() which
-        will be passed through by reboot_device(). If the command failed a
-        DeviceWriteFailed exception is raised. Any code calling reboot_device()
-        should be prepared to handle these exceptions.
+        contacted a DeviceIOError will be raised by send_cmd_with_retries()
+        which will be passed through by reboot_device(). If the command failed
+        a DeviceWriteFailed exception is raised. Any code calling
+        reboot_device() should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -4108,7 +4112,7 @@ class TelnetApi:
         """Factory reset a device.
 
         Sends the API command to factory reset the device. If the device cannot
-        be contacted a GWIOError will be raised by send_cmd_with_retries()
+        be contacted a DeviceIOError will be raised by send_cmd_with_retries()
         which will be passed through by reset_device(). If the command failed a
         DeviceWriteFailed exception is raised. Any code calling reset_device()
         should be prepared to handle these exceptions.
@@ -4700,7 +4704,7 @@ class EcowittDevice:
 
         try:
             payload = self.telnet_api.get_firmware_version()
-        except (GWIOError, InvalidChecksum) as e:
+        except (DeviceIOError, InvalidChecksum) as e:
             raise DataUnobtainable("Could not obtain firmware version from device") from e
         else:
             # return the parsed data
@@ -5578,7 +5582,7 @@ class EcowittDeviceConfigurator:
                                                             'discovery_period',
                                                             None),
                                    debug=self.debug)
-        except GWIOError as e:
+        except DeviceIOError as e:
             # we encountered an IO error with the device, advise the user and
             # return None
             print()
@@ -5774,7 +5778,7 @@ class EcowittDeviceConfigurator:
             # try..except just in case we have a device that has old firmware.
             try:
                 _rain_data = device.rain
-            except GWIOError:
+            except DeviceIOError:
                 temperature_comp = None
             else:
                 temperature_comp = _rain_data.get('ITEM_radcompensation')
@@ -6026,7 +6030,7 @@ class EcowittDeviceConfigurator:
                 print()
                 print(f'Device at {self.ip_address} did not respond.')
 
-    def display_mulch_t_offset(self):
+    def process_read_t_cal(self):
         """Display device multichannel temperature (WN34) offset calibration data.
 
         Obtain and display the multichannel temperature (WN34) offset
@@ -6658,6 +6662,10 @@ class EcowittDeviceConfigurator:
                     arg_params[param] = _arg if _arg is not None else value
                 # do we have any changes from our existing settings
                 if arg_params != params:
+                    # TODO. Remove debug code before release
+                    print(params_str)
+                    print(params)
+                    print(arg_params)
                     # something has changed, so write the updated params to the
                     # device
                     try:
@@ -7306,6 +7314,8 @@ def process_read(namespace):
         direct_gw.process_read_co2_cal()
     if getattr(namespace, 'read_subcommand', False) == 'services':
         direct_gw.process_read_services()
+    if getattr(namespace, 'read_subcommand', False) == 't-cal':
+        direct_gw.process_read_t_cal()
 
 
 def process_write(namespace):
@@ -7322,7 +7332,6 @@ def process_write(namespace):
     if getattr(namespace, 'write_subcommand', False) == 'ssid':
         direct_gw.process_write_ssid()
     if getattr(namespace, 'write_subcommand', False) == 'services':
-        # FIXME. cannot write TZ index to GW1200
         direct_gw.write_services()
     if getattr(namespace, 'write_subcommand', False) == 'calibration':
         direct_gw.process_write_calibration()
@@ -7335,6 +7344,7 @@ def process_write(namespace):
     if getattr(namespace, 'write_subcommand', False) == 'all-rain':
         direct_gw.process_write_all_rain()
     if getattr(namespace, 'write_subcommand', False) == 'system':
+        # FIXME. cannot write TZ index to GW1200
         direct_gw.process_write_system()
     if getattr(namespace, 'write_subcommand', False) == 'rain':
         direct_gw.process_write_rain()
@@ -7557,6 +7567,27 @@ def read_th_cal_subparser(subparsers):
     return {'read_th-cal': parser}
 
 
+def read_t_cal_subparser(subparsers):
+    """Define 'read t-cal' sub-subparser."""
+
+    usage = f"""{Bcolors.BOLD}%(prog)s read t-cal --help
+       %(prog)s read t-cal --ip-address IP_ADDRESS [--port PORT]
+                              [--max-tries TRIES] [--retry-wait SECONDS]
+                              [--debug]{Bcolors.ENDC}
+    """
+    description = """Read and display multichannel temperature calibration parameters."""
+    parser = subparsers.add_parser('t-cal',
+                                   usage=usage,
+                                   prog=os.path.basename(sys.argv[0]),
+                                   description=description,
+                                   help="read and display multichannel temperature "
+                                        "calibration parameters")
+    add_common_args(parser)
+    parser.set_defaults(func=process_read)
+    # return a dict containing our parser
+    return {'read_th-cal': parser}
+
+
 def read_soil_cal_subparser(subparsers):
     """Define 'read soil-cal' sub-subparser."""
 
@@ -7659,6 +7690,7 @@ def read_subparser(subparsers):
        %(prog)s read co2-cal --help
        %(prog)s read soil-cal --help
        %(prog)s read th-cal --help
+       %(prog)s read t-cal --help
     {Bcolors.ENDC}"""
     description = """Read and display various Ecowitt device configuration parameters."""
     parser = subparsers.add_parser('read',
@@ -7691,6 +7723,7 @@ def read_subparser(subparsers):
     read_parsers.update(read_co2_cal_subparser(subparsers))
     read_parsers.update(read_soil_cal_subparser(subparsers))
     read_parsers.update(read_th_cal_subparser(subparsers))
+    read_parsers.update(read_t_cal_subparser(subparsers))
     # return the dict containing our parser and subparsers
     return read_parsers
 
