@@ -3535,9 +3535,9 @@ class TelnetApi:
         Sends the API command to write the Ecowitt.net upload parameters to the
         device. If the device cannot be contacted a DeviceIOError will be
         raised by send_cmd_with_retries() which will be passed through by
-        set_ecowitt_net(). If the command failed a DeviceWriteFailed exception
-        is raised. Any code calling set_ecowitt_net() should be prepared to
-        handle these exceptions.
+        write_ecowitt(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling write_ecowitt() should be prepared to handle
+        these exceptions.
         """
 
         # send the command and obtain the result
@@ -3570,8 +3570,8 @@ class TelnetApi:
         Sends the API command to write the Weathercloud upload parameters to
         the device. If the device cannot be contacted a DeviceIOError will be
         raised by send_cmd_with_retries() which will be passed through by
-        set_wcloud(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_wcloud() should be prepared to handle
+        write_wcloud(). If the command failed a DeviceWriteFailed exception is
+        raised. Any code calling write_wcloud() should be prepared to handle
         these exceptions.
         """
 
@@ -3587,9 +3587,9 @@ class TelnetApi:
         Sends the API command to write the Weather Observations Website upload
         parameters to the device. If the device cannot be contacted a
         DeviceIOError will be raised by send_cmd_with_retries() which will be
-        passed through by set_wow(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling set_wow() should be prepared to
-        handle these exceptions.
+        passed through by write_wow(). If the command failed a
+        DeviceWriteFailed exception is raised. Any code calling write_wow()
+        should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3599,13 +3599,13 @@ class TelnetApi:
         self.confirm_write_success(result)
 
     def write_customized(self, payload):
-        """Write the Weather Observations Website upload parameters to a device.
-        # TODO. Update comments
-        Sends the API command to write the Weather Observations Website upload
-        parameters to the device. If the device cannot be contacted a
-        DeviceIOError will be raised by send_cmd_with_retries() which will be
-        passed through by set_wow(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling set_wow() should be prepared to
+        """Write the custom upload parameters to a device.
+
+        Sends the API command to write the custom upload parameters to the
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_customized(). If the command failed a DeviceWriteFailed exception
+        is raised. Any code calling write_customized() should be prepared to
         handle these exceptions.
         """
 
@@ -3617,13 +3617,13 @@ class TelnetApi:
 
     def write_user_path(self, payload):
         """Write the 'User' upload path parameters to a device.
-        # TODO. Update comments
-        Sends the API command to write the Weather Observations Website upload
-        parameters to the device. If the device cannot be contacted a
-        DeviceIOError will be raised by send_cmd_with_retries() which will be
-        passed through by set_wow(). If the command failed a DeviceWriteFailed
-        exception is raised. Any code calling set_wow() should be prepared to
-        handle these exceptions.
+
+        Sends the API command to write the user upload parameters to the
+        device. If the device cannot be contacted a DeviceIOError will be
+        raised by send_cmd_with_retries() which will be passed through by
+        write_user_path(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_user_path() should be
+        prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3637,9 +3637,9 @@ class TelnetApi:
 
         Sends the API command to write the gain parameters to the device. If
         the device cannot be contacted a DeviceIOError will be raised by
-        send_cmd_with_retries() which will be passed through by set_gain(). If
-        the command failed a DeviceWriteFailed exception is raised. Any code
-        calling set_gain() should be prepared to handle these exceptions.
+        send_cmd_with_retries() which will be passed through by write_gain().
+        If the command failed a DeviceWriteFailed exception is raised. Any code
+        calling write_gain() should be prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3688,9 +3688,9 @@ class TelnetApi:
         Sends the API command to write the sensor ID parameters to the device.
         If the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by
-        set_sensor_id(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_sensor_id() should be prepared to handle
-        these exceptions.
+        write_pm25_offsets(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_pm25_offsets() should be
+        prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
@@ -3705,9 +3705,9 @@ class TelnetApi:
         Sends the API command to write the sensor ID parameters to the device.
         If the device cannot be contacted a DeviceIOError will be raised by
         send_cmd_with_retries() which will be passed through by
-        set_sensor_id(). If the command failed a DeviceWriteFailed exception is
-        raised. Any code calling set_sensor_id() should be prepared to handle
-        these exceptions.
+        write_co2_offsets(). If the command failed a DeviceWriteFailed
+        exception is raised. Any code calling write_co2_offsets() should be
+        prepared to handle these exceptions.
         """
 
         # send the command and obtain the result
