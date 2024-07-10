@@ -6524,15 +6524,15 @@ class EcowittDeviceConfigurator:
             # first sort our list by IP address
             sorted_list = sorted(device_list, key=itemgetter('ip_address'))
             # initialise a counter to count the number of valid devices found
-            num_gw_found = 0
+            num_found = 0
             # iterate over the unique devices that were found
             for device in sorted_list:
                 if device['ip_address'] is not None and device['port'] is not None:
                     print("%s discovered at IP address %s on port %d" % (device['model'],
                                                                          device['ip_address'],
                                                                          device['port']))
-                    num_gw_found += 1
-            if num_gw_found == 0:
+                    num_found += 1
+            if num_found == 0:
                 print("No devices were discovered.")
         else:
             # we have no results
@@ -7285,75 +7285,75 @@ def process_read(namespace):
     """Process 'read' subcommand."""
 
     # get a EcowittDeviceConfigurator object
-    direct_gw = EcowittDeviceConfigurator(namespace)
+    configurator = EcowittDeviceConfigurator(namespace)
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
     if getattr(namespace, 'read_subcommand', False) == 'live-data':
-        direct_gw.process_read_live_data()
+        configurator.process_read_live_data()
     if getattr(namespace, 'read_subcommand', False) == 'sensors':
-        direct_gw.process_read_sensors()
+        configurator.process_read_sensors()
     if getattr(namespace, 'read_subcommand', False) == 'firmware':
-        direct_gw.process_read_firmware()
+        configurator.process_read_firmware()
     if getattr(namespace, 'read_subcommand', False) == 'mac-address':
-        direct_gw.process_read_mac_address()
+        configurator.process_read_mac_address()
     if getattr(namespace, 'read_subcommand', False) == 'system':
-        direct_gw.process_read_system()
+        configurator.process_read_system()
     if getattr(namespace, 'read_subcommand', False) == 'rain':
-        direct_gw.process_read_rain()
+        configurator.process_read_rain()
     if getattr(namespace, 'read_subcommand', False) == 'all-rain':
-        direct_gw.process_read_all_rain()
+        configurator.process_read_all_rain()
     if getattr(namespace, 'read_subcommand', False) == 'calibration':
-        direct_gw.process_read_calibration()
+        configurator.process_read_calibration()
     if getattr(namespace, 'read_subcommand', False) == 'th-cal':
-        direct_gw.process_read_th_cal()
+        configurator.process_read_th_cal()
     if getattr(namespace, 'read_subcommand', False) == 'soil-cal':
-        direct_gw.process_read_soil_cal()
+        configurator.process_read_soil_cal()
     if getattr(namespace, 'read_subcommand', False) == 'pm25-cal':
-        direct_gw.process_read_pm25_cal()
+        configurator.process_read_pm25_cal()
     if getattr(namespace, 'read_subcommand', False) == 'co2-cal':
-        direct_gw.process_read_co2_cal()
+        configurator.process_read_co2_cal()
     if getattr(namespace, 'read_subcommand', False) == 'services':
-        direct_gw.process_read_services()
+        configurator.process_read_services()
     if getattr(namespace, 'read_subcommand', False) == 't-cal':
-        direct_gw.process_read_t_cal()
+        configurator.process_read_t_cal()
 
 
 def process_write(namespace):
     """Process 'write' subcommand."""
 
     # get a EcowittDeviceConfigurator object
-    direct_gw = EcowittDeviceConfigurator(namespace)
+    configurator = EcowittDeviceConfigurator(namespace)
     # process the command line arguments to determine what we should do
     # first look for sub-subcommands
     if getattr(namespace, 'write_subcommand', False) == 'reboot':
-        direct_gw.process_write_reboot()
+        configurator.process_write_reboot()
     if getattr(namespace, 'write_subcommand', False) == 'reset':
-        direct_gw.process_write_reset()
+        configurator.process_write_reset()
     if getattr(namespace, 'write_subcommand', False) == 'ssid':
-        direct_gw.process_write_ssid()
+        configurator.process_write_ssid()
     if getattr(namespace, 'write_subcommand', False) == 'services':
-        direct_gw.write_services()
+        configurator.write_services()
     if getattr(namespace, 'write_subcommand', False) == 'calibration':
-        direct_gw.process_write_calibration()
+        configurator.process_write_calibration()
     if getattr(namespace, 'write_subcommand', False) == 'sensor-id':
-        direct_gw.process_write_sensor_id()
+        configurator.process_write_sensor_id()
     if getattr(namespace, 'write_subcommand', False) == 'pm25-cal':
-        direct_gw.process_write_pm25_cal()
+        configurator.process_write_pm25_cal()
     if getattr(namespace, 'write_subcommand', False) == 'co2-cal':
-        direct_gw.process_write_co2_cal()
+        configurator.process_write_co2_cal()
     if getattr(namespace, 'write_subcommand', False) == 'all-rain':
-        direct_gw.process_write_all_rain()
+        configurator.process_write_all_rain()
     if getattr(namespace, 'write_subcommand', False) == 'system':
         # FIXME. cannot write TZ index to GW1200
-        direct_gw.process_write_system()
+        configurator.process_write_system()
     if getattr(namespace, 'write_subcommand', False) == 'rain':
-        direct_gw.process_write_rain()
+        configurator.process_write_rain()
     if getattr(namespace, 'write_subcommand', False) == 'th-cal':
-        direct_gw.process_write_th_cal()
+        configurator.process_write_th_cal()
     if getattr(namespace, 'write_subcommand', False) == 'soil-cal':
-        direct_gw.process_write_soil_cal()
+        configurator.process_write_soil_cal()
     if getattr(namespace, 'write_subcommand', False) == 't-cal':
-        direct_gw.process_write_t_cal()
+        configurator.process_write_t_cal()
 
 
 def add_common_args(parser):
@@ -8998,9 +8998,9 @@ def main():
     if ns.discover:
         # discover supported devices and display the results, first get an
         # EcowittDeviceConfigurator object
-        direct_gw = EcowittDeviceConfigurator(ns)
+        configurator = EcowittDeviceConfigurator(ns)
         # then discover any devices and display the results
-        direct_gw.display_discovered_devices()
+        configurator.display_discovered_devices()
         sys.exit(0)
     # if we made it here we must have a subcommand
     # do we have a subcommand function we can call
