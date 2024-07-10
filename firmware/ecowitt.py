@@ -5070,23 +5070,17 @@ class EcowittDevice:
         self.telnet_api.write_calibration(payload)
 
     def set_sensor_id(self, **params):
-        # TODO. Need to update these comments
         """Set device sensor ID parameters.
 
-        Set sensor ID parameters to a device. The sensor ID parameters consist
-        of:
+        Set sensor ID parameters for a device. The sensor ID parameters consist
+        of the following for each paired sensor:
 
-        wh65: inside temperature offset, float -10.0 - +10.0 °C
-        inhum:  inside humidity offset, integer -10 - +10 %
-        abs:    absolute pressure offset, float -80.0 - +80.0 hPa
-        rel:    relative pressure offset, float -80.0 - +80.0 hPa
-        outemp: outside temperature offset, float -10.0 - +10.0 °C
-        outhum: outside humidity offset, integer -10 - +10 %
-        winddir: wind direction offset, integer -180 - +180 °
+        address: sensor address, unsigned byte, 0x00 - eMAX_SENSOR
+        id:      sensor ID, unsigned long integer
 
-        The sensor ID parameters are first encoded to produce the command
-        data payload. The payload is then passed to a TelnetApi object for
-        uploading to the device.
+        The sensor ID parameters are first encoded to produce the command data
+        payload. The payload is then passed to a TelnetApi object for uploading
+        to the device.
         """
 
         # obtain encoded data payloads for the API command
