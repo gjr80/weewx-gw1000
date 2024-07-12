@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 ecowitt.py
@@ -8997,8 +8997,15 @@ def main():
         configurator.display_discovered_devices()
         sys.exit(0)
     # if we made it here we must have a subcommand
-    # do we have a subcommand function we can call
-    if hasattr(ns, 'subcommand'):
+    if getattr(ns, 'subcommand') is None:
+        # we do not have an action or sub-subcommand, advise the user,
+        # display our help and exit
+        print()
+        print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no action or subcommand specified")
+        print()
+        parser.print_help()
+        sys.exit(1)
+    else:
         # we have a subcommand, subcommands require either an action or a
         # sub-subcommand
         if exists_fns[ns.subcommand](ns):
@@ -9019,21 +9026,6 @@ def main():
                 # now get the correct subparser and display its help
                 parsers['_'.join([ns.subcommand, getattr(ns, _subcommand)])].print_help()
                 sys.exit(1)
-        else:
-            # we do not have an action or sub-subcommand, advise the user,
-            # display our help and exit
-            print()
-            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no action or subcommand specified")
-            print()
-            parsers[ns.subcommand].print_help()
-            sys.exit(1)
-
-    else:
-        # Only non-subcommands do not have a subcommand function, but we have
-        # already processed all non-subcommands. So display our help and exit.
-        print()
-        parser.print_help()
-        sys.exit(0)
 
 
 if __name__ == '__main__':
