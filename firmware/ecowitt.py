@@ -4563,7 +4563,7 @@ class EcowittDevice:
         _parsed_data = self.telnet_api_parser.parse_ecowitt(payload)
         # now obtain the device MAC address and add it to the Ecowitt service
         # parameter dict
-        _parsed_data['mac'] = self.mac_address
+        _parsed_data['mac'] = self.mac
         # return the Ecowitt service data
         return _parsed_data
 
@@ -4690,7 +4690,7 @@ class EcowittDevice:
         return parsed_custom_data
 
     @property
-    def mac_address(self):
+    def mac(self):
         """Device MAC address."""
 
         # obtain the API response data payload
@@ -6347,7 +6347,7 @@ class EcowittDeviceConfigurator:
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def process_read_mac_address(self):
+    def process_read_mac(self):
         """Read and display the device hardware MAC address.
 
         Obtain and display the hardware MAC address of the device.
@@ -6362,7 +6362,7 @@ class EcowittDeviceConfigurator:
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
             # get the device MAC address
-            print("    MAC address: %s" % device.mac_address)
+            print("    MAC address: %s" % device.mac)
 
     def process_read_firmware(self):
         """Read and display device firmware details.
@@ -7288,8 +7288,8 @@ def process_read(namespace):
         configurator.process_read_sensors()
     if getattr(namespace, 'read_subcommand', False) == 'firmware':
         configurator.process_read_firmware()
-    if getattr(namespace, 'read_subcommand', False) == 'mac-address':
-        configurator.process_read_mac_address()
+    if getattr(namespace, 'read_subcommand', False) == 'mac':
+        configurator.process_read_mac()
     if getattr(namespace, 'read_subcommand', False) == 'system':
         configurator.process_read_system()
     if getattr(namespace, 'read_subcommand', False) == 'rain':
@@ -7440,16 +7440,16 @@ def read_firmware_subparser(subparsers):
     return {'read_firmware': parser}
 
 
-def read_mac_address_subparser(subparsers):
-    """Define 'read mac-address' sub-subparser."""
+def read_mac_subparser(subparsers):
+    """Define 'read mac' sub-subparser."""
 
-    usage = f"""{Bcolors.BOLD}%(prog)s read mac-address --help
-       %(prog)s read mac-address --ip-address IP_ADDRESS [--port PORT]
-                                   [--max-tries TRIES] [--retry-wait SECONDS]
-                                   [--debug]{Bcolors.ENDC}
+    usage = f"""{Bcolors.BOLD}%(prog)s read mac --help
+       %(prog)s read mac --ip-address IP_ADDRESS [--port PORT]
+                           [--max-tries TRIES] [--retry-wait SECONDS]
+                           [--debug]{Bcolors.ENDC}
     """
     description = """Read and display the device MAC address."""
-    parser = subparsers.add_parser('mac-address',
+    parser = subparsers.add_parser('mac',
                                    usage=usage,
                                    prog=os.path.basename(sys.argv[0]),
                                    description=description,
@@ -7457,7 +7457,7 @@ def read_mac_address_subparser(subparsers):
     add_common_args(parser)
     parser.set_defaults(func=process_read)
     # return a dict containing our parser
-    return {'read_mac-address': parser}
+    return {'read_mac': parser}
 
 
 def read_system_subparser(subparsers):
@@ -7676,7 +7676,7 @@ def read_subparser(subparsers):
        %(prog)s read system --help
        %(prog)s read services --help
        %(prog)s read firmware --help
-       %(prog)s read mac-address --help
+       %(prog)s read mac --help
        %(prog)s read rain --help
        %(prog)s read all-rain --help
        %(prog)s read calibration --help
@@ -7696,7 +7696,7 @@ def read_subparser(subparsers):
     subparsers = parser.add_subparsers(dest='read_subcommand',
                                        title="Available subcommands",
                                        metavar='{live-data, sensors, system, services, '
-                                               'firmware, mac-address, rain, all-rain, '
+                                               'firmware, mac, rain, all-rain, '
                                                'calibration, pm25-cal, co2-cal, '
                                                'soil-cal, th-cal, t-cal}')
     # create a dict to hold our parser and subcommand parsers, this makes it
@@ -7709,7 +7709,7 @@ def read_subparser(subparsers):
     read_parsers.update(read_system_subparser(subparsers))
     read_parsers.update(read_services_subparser(subparsers))
     read_parsers.update(read_firmware_subparser(subparsers))
-    read_parsers.update(read_mac_address_subparser(subparsers))
+    read_parsers.update(read_mac_subparser(subparsers))
     read_parsers.update(read_rain_subparser(subparsers))
     read_parsers.update(read_all_rain_subparser(subparsers))
     read_parsers.update(read_calibration_subparser(subparsers))
