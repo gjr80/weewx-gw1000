@@ -2297,7 +2297,7 @@ class Sensors:
         b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
-        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt'}
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt'},
         b'\x31': {'name': 'ws85', 'long_name': 'WS85', 'batt_fn': 'batt_volt'}
     }
     # sensors for which there is no low battery state
