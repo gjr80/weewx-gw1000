@@ -94,7 +94,7 @@ from collections import OrderedDict
 from operator import itemgetter
 
 NAME = 'Ecowitt Utility'
-VERSION = '0.1.0a1'
+VERSION = '0.1.0a2'
 
 # various defaults used throughout
 # default port used by device
