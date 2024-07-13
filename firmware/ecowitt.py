@@ -2242,7 +2242,8 @@ class Sensors:
         'eWH35_SENSORCH7': 46,
         'eWH35_SENSORCH8': 47,
         'eWH90_SENSOR': 48,
-        'eMAX_SENSOR': 49
+        'eWH85_SENSOR': 49,
+        'eMAX_SENSOR': 50
     })
 
     # map of sensor ids to short name, long name and battery byte decode
@@ -2297,13 +2298,16 @@ class Sensors:
         b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
         b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt'}
+        b'\x31': {'name': 'ws85', 'long_name': 'WS85', 'batt_fn': 'batt_volt'}
     }
     # sensors for which there is no low battery state
-    no_low = ['ws80', 'ws90']
+    no_low = ['ws80', 'ws85', 'ws90']
     # Tuple of sensor ID values for sensors that are not registered with
     # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
     # the sensor is registering.
     not_registered = ('fffffffe', 'ffffffff')
+    # tuple of lowercase sensor models that have user updatable firmware
+    sensors_with_firmware = ('WS80', 'WS85', 'WS90')
 
     def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
                  show_battery=False, debug=0, use_wh32=True,
@@ -4870,19 +4874,25 @@ class EcowittDevice:
         return parsed_gain
 
     @property
-    def ws90_firmware_version(self):
-        """Provide the WH90 firmware version.
+    def sensor_firmware_versions(self):
+        """Obtain sensor firmware versions.
 
-        Return the WS90 installed firmware version. If no WS90 is available the
-        value None is returned.
+        Return a dict, keyed by lowercase sensor version, of the installed
+        firmware version for attached sensors that have a user updatable
+        firmware. If the firmware version for an attached sensor with updatable
+        firmware cannot be obtained the string 'not available' is returned for
+        that sensor. If no attached sensors have user updatable firmware an
+        empty dict is returned.
         """
 
         sensors = self.http_api.get_sensors_info()
         if sensors is not None:
+            data = dict()
             for sensor in sensors:
-                if sensor.get('img') == 'wh90':
-                    return sensor.get('version', 'not available')
-        return None
+                if sensor.get('img').upper() in self.sensors.sensors_with_firmware:
+                    data[sensor.get('img').upper()] = sensor.get('version',
+                                                                 'not available')
+        return data
 
     def reboot(self):
         """Reboot a device."""
@@ -6383,11 +6393,16 @@ class EcowittDeviceConfigurator:
             print(f'Interrogating {Bcolors.BOLD}{model}{Bcolors.ENDC} '
                   f'at {Bcolors.BOLD}{device.ip_address}:{int(device.port):d}{Bcolors.ENDC}')
             print()
-            # get the firmware version via the API
-            print("    installed %s firmware version is %s" % (model, device.firmware_version))
-            ws90_fw = device.ws90_firmware_version
-            if ws90_fw is not None:
-                print("    installed WS90 firmware version is %s" % ws90_fw)
+            # obtain and display the device firmware version
+            print(f"    installed {model} firmware version: {device.firmware_version}")
+            # obtain and display firmware versions for any attached sensors
+            # with user updatable firmware
+            sensor_firmware_versions = device.sensor_firmware_versions
+            if len(sensor_firmware_versions) > 0:
+                for sensor in device.sensors.sensors_with_firmware:
+                    if sensor in sensor_firmware_versions.keys():
+                        print(f"    installed {sensor} firmware "
+                              f"version: {sensor_firmware_versions[sensor]}")
             print()
             fw_update_avail = device.firmware_update_avail
             if fw_update_avail:
@@ -6397,8 +6412,8 @@ class EcowittDeviceConfigurator:
                 # firmware change details
                 curr_msg = device.firmware_update_message
                 # now print the firmware update details
-                print("    a firmware update is available for this %s," % model)
-                print("    update at http://%s or via the WSView Plus app" % (self.ip_address,))
+                print(f"    a firmware update is available for this {model}")
+                print(f"    update at http://{self.ip_address} or via the WSView Plus app")
                 # if we have firmware update details print them
                 if curr_msg is not None:
                     print()
@@ -6411,19 +6426,20 @@ class EcowittDeviceConfigurator:
                     if '\r\n' in curr_msg:
                         for line in curr_msg.split('\r\n'):
                             # print each line
-                            print("      %s" % line)
+                            print(f"      {line}")
                     else:
                         # print as a single line
-                        print("      %s" % curr_msg)
+                        print(f"      {curr_msg}")
                 else:
                     # we had no 'curr_msg' for one reason or another
                     print("    no firmware update message found")
             elif fw_update_avail is None:
                 # we don't know if we have an available firmware update
-                print("    could not determine if a firmware update is available for this %s" % model)
+                print(f"    could not determine if a firmware update is "
+                      f"available for this {model}")
             else:
                 # there must be no available firmware update
-                print("    the firmware is up to date for this %s" % model)
+                print(f"    the firmware is up to date for this {model}")
 
     def process_read_sensors(self):
         """Read and display the device sensor ID information.
@@ -6473,7 +6489,7 @@ class EcowittDeviceConfigurator:
                 print(f"Device at {self.ip_address} did not return any sensor data.")
             else:
                 print()
-                print("Device at {self.ip_address} did not respond.")
+                print(f"Device at {self.ip_address} did not respond.")
 
     def process_read_live_data(self):
         """Read and display the device live sensor data.
