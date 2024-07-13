@@ -8947,15 +8947,12 @@ def main():
     """
     # top level description
     description = "Interact with an Ecowitt device that supports the Ecowitt "\
-                  "TCP Data Exchange Protocol (aka the 'telnet API')(*). This "\
+                  "TCP Data Exchange Protocol (aka the 'telnet API'). This "\
                   "utility allows supported devices to be interrogated and "\
                   "current sensor data and device state information to be "\
                   "displayed. The utility also supports setting various "\
                   "device parameters supported by the TCP Data Exchange "\
-                  "Protocol.\n\n *  whilst the TCP Data Exchange Protocol is "\
-                  "used for all functions performed by this utility some "\
-                  "sensor state information is obtained from the device via "\
-                  "the so called 'local HTTP API'."
+                  "Protocol."
     # obtain an ArgumentParser object
     parser = argparse.ArgumentParser(usage=usage,
                                      prog=os.path.basename(sys.argv[0]),
@@ -9042,6 +9039,16 @@ def main():
                 # now get the correct subparser and display its help
                 parsers['_'.join([ns.subcommand, getattr(ns, _subcommand)])].print_help()
                 sys.exit(1)
+        else:
+            # we have a subcommand but no other arguments, display the relevant
+            # subcommand help and exit
+            # we do not have an action or sub-subcommand, advise the user,
+            # display our help and exit
+            print()
+            print(f"{Bcolors.BOLD}Error{Bcolors.ENDC}: no {Bcolors.BOLD}{ns.subcommand}{Bcolors.ENDC} action specified")
+            print()
+            parsers[ns.subcommand].print_help()
+            sys.exit(1)
 
 
 if __name__ == '__main__':
