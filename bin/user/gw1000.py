@@ -40,7 +40,7 @@ Version: 0.6.3b1                                   Date: xx July 2024
 
 Revision History
     xx July 2024            v0.6.3
-        -   added support for WS-85 sensor array
+        -   added support for WS85 sensor array
         -   added support for WH46 air quality sensor
         -   gateway device discovery is now based on monitoring port 59387 on
             the local network segment rather than the previously used
@@ -834,12 +834,14 @@ class Gateway(object):
         'leafWet6': 'leafwet6',
         'leafWet7': 'leafwet7',
         'leafWet8': 'leafwet8',
+        'pm1_0': 'pm1',
         'pm2_5': 'pm251',
         'pm2_52': 'pm252',
         'pm2_53': 'pm253',
         'pm2_54': 'pm254',
         'pm2_55': 'pm255',
-        'pm10': 'pm10',
+        'pm4_0': 'pm4',
+        'pm10_0': 'pm10',
         'co2': 'co2',
         'soilTemp1': 'soiltemp1',
         'soilMoist1': 'soilmoist1',
@@ -873,12 +875,14 @@ class Gateway(object):
         'soilMoist15': 'soilmoist15',
         'soilTemp16': 'soiltemp16',
         'soilMoist16': 'soilmoist16',
+        'pm1_0_24h_avg': 'pm1_24h_avg',
         'pm2_51_24h_avg': 'pm251_24h_avg',
         'pm2_52_24h_avg': 'pm252_24h_avg',
         'pm2_53_24h_avg': 'pm253_24h_avg',
         'pm2_54_24h_avg': 'pm254_24h_avg',
         'pm2_55_24h_avg': 'pm255_24h_avg',
-        'pm10_24h_avg': 'pm10_24h_avg',
+        'pm4_0_24h_avg': 'pm4_24h_avg',
+        'pm10_0_24h_avg': 'pm10_24h_avg',
         'co2_24h_avg': 'co2_24h_avg',
         'leak1': 'leak1',
         'leak2': 'leak2',
@@ -2023,6 +2027,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[p_yearRain]]
             extractor = last
+        [[pm1_0_24h_avg]]
+            extractor = last
         [[pm2_51_24h_avg]]
             extractor = last
         [[pm2_52_24h_avg]]
@@ -2033,7 +2039,9 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[pm2_55_24h_avg]]
             extractor = last
-        [[pm10_24h_avg]]
+        [[pm4_0_24h_avg]]
+            extractor = last
+        [[pm10_0_24h_avg]]
             extractor = last
         [[co2_24h_avg]]
             extractor = last
@@ -7006,11 +7014,13 @@ class DirectGateway(object):
         'humid7': 'group_percent',
         'humid8': 'group_percent',
         'humid17': 'group_percent',
+        'pm1': 'group_concentration',
         'pm251': 'group_concentration',
         'pm252': 'group_concentration',
         'pm253': 'group_concentration',
         'pm254': 'group_concentration',
         'pm255': 'group_concentration',
+        'pm4': 'group_concentration',
         'pm10': 'group_concentration',
         'co2': 'group_fraction',
         'soiltemp1': 'group_temperature',
@@ -7045,11 +7055,13 @@ class DirectGateway(object):
         'soilmoist15': 'group_percent',
         'soiltemp16': 'group_temperature',
         'soilmoist16': 'group_percent',
+        'pm1_24h_avg': 'group_concentration',
         'pm251_24h_avg': 'group_concentration',
         'pm252_24h_avg': 'group_concentration',
         'pm253_24h_avg': 'group_concentration',
         'pm254_24h_avg': 'group_concentration',
         'pm255_24h_avg': 'group_concentration',
+        'pm4_24h_avg': 'group_concentration',
         'pm10_24h_avg': 'group_concentration',
         'co2_24h_avg': 'group_fraction',
         'leak1': 'group_count',
