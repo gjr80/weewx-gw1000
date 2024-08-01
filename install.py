@@ -10,9 +10,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 
                       Installer for Ecowitt Gateway Driver
 
-Version: 0.6.1                                         Date: 21 February 2024
+Version: 0.6.3                                         Date: 2 August 2024
 
 Revision History
+    2 August 2024       v0.6.3
+        -   added WH46 and WS85 battery and signal extractors config
+    23 February 2024    v0.6.2
+        -   no change, version increment only
     21 February 2024    v0.6.1
         -   no change, version increment only
     7 February 2024     v0.6.0
@@ -59,7 +63,7 @@ import weewx
 
 
 REQUIRED_WEEWX_VERSION = "3.7.0"
-GW1000_VERSION = "0.6.1"
+GW1000_VERSION = "0.6.3"
 # define our config as a multiline string so we can preserve comments
 gw1000_config = """
 [GW1000]
@@ -206,6 +210,8 @@ gw1000_config = """
         extractor = last
     [[wh45_batt]]
         extractor = last
+    [[wh46_batt]]
+        extractor = last
     [[wh51_ch1_batt]]
         extractor = last
     [[wh51_ch2_batt]]
@@ -251,6 +257,8 @@ gw1000_config = """
     [[wh68_batt]]
         extractor = last
     [[ws80_batt]]
+        extractor = last
+    [[ws85_batt]]
         extractor = last
     [[ws90_batt]]
         extractor = last
@@ -322,6 +330,8 @@ gw1000_config = """
         extractor = last
     [[wh45_sig]]
         extractor = last
+    [[wh46_sig]]
+        extractor = last
     [[wh51_ch1_sig]]
         extractor = last
     [[wh51_ch2_sig]]
@@ -367,6 +377,8 @@ gw1000_config = """
     [[wh68_sig]]
         extractor = last
     [[ws80_sig]]
+        extractor = last
+    [[ws85_sig]]
         extractor = last
     [[ws90_sig]]
         extractor = last
