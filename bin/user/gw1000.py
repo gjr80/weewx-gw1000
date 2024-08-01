@@ -36,10 +36,10 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.3b2                                   Date: xx July 2024
+Version: 0.6.3                                     Date: 2 August 2024
 
 Revision History
-    xx July 2024            v0.6.3
+    2 August 2024          `v0.6.3
         -   added support for WS85 sensor array
         -   added support for WH46 air quality sensor
         -   gateway device discovery is now based on monitoring port 59387 on
@@ -442,7 +442,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.3b2'
+DRIVER_VERSION = '0.6.3'
 
 # various defaults used throughout
 # default port used by device
