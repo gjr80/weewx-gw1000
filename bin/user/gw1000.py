@@ -51,6 +51,9 @@ Revision History
         -   replace calls to deprecated threading.Thread.setDaemon() and
             threading.Thread.setName() methods with threading.Thread.daemon
             and threading.Thread.name properties respectively
+        -   changed default field map to emit current PM1 and PM10 obs as
+            fields 'pm1_0' and 'pm10_0' respectively, corresponding 24 hour
+            average fields utilise 'pm1_0' and 'pm10_0' prefixes as appropriate
     23 February 2024        v0.6.2 (not released as an extension package)
         -   fixed bug that caused the driver to crash if IP address discovery
             is used
