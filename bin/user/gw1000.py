@@ -36,7 +36,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.3b1                                   Date: xx July 2024
+Version: 0.6.3b2                                   Date: xx July 2024
 
 Revision History
     xx July 2024            v0.6.3
@@ -442,7 +442,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.3b1'
+DRIVER_VERSION = '0.6.3b2'
 
 # various defaults used throughout
 # default port used by device
@@ -505,7 +505,7 @@ default_groups = {
     'pm2_53': 'group_concentration',
     'pm2_54': 'group_concentration',
     'pm2_55': 'group_concentration',
-    'pm10': 'group_concentration',
+    'pm4_0': 'group_concentration',
     'soilTemp5': 'group_temperature',
     'soilMoist5': 'group_percent',
     'soilTemp6': 'group_temperature',
@@ -530,11 +530,13 @@ default_groups = {
     'soilMoist15': 'group_percent',
     'soilTemp16': 'group_temperature',
     'soilMoist16': 'group_percent',
+    'pm1_0_24h_avg': 'group_concentration',
     'pm2_51_24h_avg': 'group_concentration',
     'pm2_52_24h_avg': 'group_concentration',
     'pm2_53_24h_avg': 'group_concentration',
     'pm2_54_24h_avg': 'group_concentration',
     'pm2_55_24h_avg': 'group_concentration',
+    'pm4_0_24h_avg': 'group_concentration',
     'pm10_24h_avg': 'group_concentration',
     'co2_24h_avg': 'group_fraction',
     'leak1': 'group_count',
