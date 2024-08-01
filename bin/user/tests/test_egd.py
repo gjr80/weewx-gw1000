@@ -443,6 +443,10 @@ class ParseTestCase(unittest.TestCase):
         b'\x68': ('decode_wn34', 3, 'temp14'),
         b'\x69': ('decode_wn34', 3, 'temp15'),
         b'\x6A': ('decode_wn34', 3, 'temp16'),
+        b'\x6B': ('decode_wh46', 24, ('temp17', 'humid17', 'pm10',
+                                      'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
+                                      'co2', 'co2_24h_avg', 'pm1',
+                                      'pm1_24h_avg', 'pm4', 'pm4_24h_avg')),
         b'\x6C': ('decode_memory', 4, 'heap_free'),
         b'\x70': ('decode_wh45', 16, ('temp17', 'humid17', 'pm10',
                                       'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
@@ -527,6 +531,10 @@ class ParseTestCase(unittest.TestCase):
     leak_data = {'data': '3A', 'value': 58}
     pm10_data = {'data': '1C 9D', 'value': 732.5,
                  'long': '05 1C 9D', 'long_value': 732.5}
+    pm1_data = {'data': '19 48', 'value': 647.2,
+                'long': '05 19 48', 'long_value': 647.2}
+    pm4_data = {'data': '0D C7', 'value': 352.7,
+                'long': '05 0D C7', 'long_value': 352.7}
     co2_data = {'data': '24 73', 'value': 9331}
     wet_data = {'data': '53', 'value': 83}
     rain_reset_data = {'data': '09 01 06',
@@ -560,6 +568,14 @@ class ParseTestCase(unittest.TestCase):
                  'field': ('t', 'h', 'p10', 'p10_24', 'p25', 'p25_24', 'c', 'c_24'),
                  'value': {'t': 23.4, 'h': 77, 'p10': 1367.7, 'p10_24': 1036.0,
                            'p25': 1337.3, 'p25_24': 2521.4, 'c': 36138, 'c_24': 14751}
+                 }
+    wh46_data = {'data': '00 DC 31 00 27 00 19 00 18 00 10 02 55 02 65 00 '
+                         '0A 00 08 00 22 00 16 06',
+                 'field': ('t', 'h', 'p10', 'p10_24', 'p25', 'p25_24', 'c', 'c_24',
+                           'p1', 'p1_24', 'p4', 'p4_24'),
+                 'value': {'t': 22.0, 'h': 49, 'p10': 3.9, 'p10_24': 2.5,
+                           'p25': 2.4, 'p25_24': 1.6, 'c': 597, 'c_24': 613,
+                           'p1': 1.0, 'p1_24': 0.8, 'p4': 3.4, 'p4_24': 2.2}
                  }
     # CMD_READ_RAIN test response and decoded data - piezo gauge only
     read_rain_piezo = {'response': 'FF FF 57 00 37 80 00 06 83 00 00 00 4B 84 00 00 '
@@ -834,6 +850,8 @@ class ParseTestCase(unittest.TestCase):
     def test_decode(self):
         """Test methods used to decode observation byte data"""
 
+        print()
+        print('   testing ApiParser.decode_temp()...')
         # test temperature decode (method decode_temp())
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['data'])),
                          self.temp_data['value'])
@@ -844,6 +862,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(3))), None)
 
+        print('   testing ApiParser.decode_humid()...')
         # test humidity decode (method decode_humid())
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(self.humid_data['data'])),
                          self.humid_data['value'])
@@ -854,6 +873,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
 
+        print('   testing ApiParser.decode_press()...')
         # test pressure decode (method decode_press())
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['data'])),
                          self.press_data['value'])
@@ -865,6 +885,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['long'])),
                          self.press_data['long_value'])
 
+        print('   testing ApiParser.decode_dir()...')
         # test direction decode (method decode_dir())
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data['data'])),
                          self.dir_data['value'])
@@ -878,6 +899,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(3))), None)
 
+        print('   testing ApiParser.decode_big_rain()...')
         # test big rain decode (method decode_big_rain())
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(self.big_rain_data['data'])),
                          self.big_rain_data['value'])
@@ -888,6 +910,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(5))), None)
 
+        print('   testing ApiParser.decode_datetime()...')
         # test datetime decode (method decode_datetime())
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(self.datetime_data['data'])),
                          self.datetime_data['value'])
@@ -898,6 +921,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(7))), None)
 
+        print('   testing ApiParser.decode_distance()...')
         # test distance decode (method decode_distance())
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(self.distance_data['data'])),
                          self.distance_data['value'])
@@ -908,6 +932,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
 
+        print('   testing ApiParser.decode_humid()...')
         # test utc decode (method decode_utc())
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(self.utc_data['data'])),
                          self.utc_data['value'])
@@ -918,6 +943,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(5))), None)
 
+        print('   testing ApiParser.decode_count()...')
         # test count decode (method decode_count())
         self.assertEqual(self.parser.decode_count(hex_to_bytes(self.count_data['data'])),
                          self.count_data['value'])
@@ -928,6 +954,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(5))), None)
 
+        print('   testing ApiParser.decode_gain_100()...')
         # test sensor gain decode (method decode_gain_100())
         self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(self.gain_100_data['data'])),
                          self.gain_100_data['value'])
@@ -938,6 +965,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(xbytes(5))), None)
 
+        print('   testing ApiParser.decode_speed()...')
         # test speed decode (method decode_speed())
         self.assertEqual(self.parser.decode_speed(hex_to_bytes(self.speed_data['data'])),
                          self.speed_data['value'])
@@ -949,6 +977,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.speed_data['long'])),
                          self.speed_data['long_value'])
 
+        print('   testing ApiParser.decode_rain()...')
         # test rain decode (method decode_rain())
         self.assertEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['data'])),
                          self.rain_data['value'])
@@ -960,6 +989,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rain_data['long'])),
                          self.rain_data['long_value'])
 
+        print('   testing ApiParser.decode_rainrate()...')
         # test rain rate decode (method decode_rainrate())
         self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['data'])),
                          self.rainrate_data['value'])
@@ -971,6 +1001,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rainrate_data['long'])),
                          self.rainrate_data['long_value'])
 
+        print('   testing ApiParser.decode_light()...')
         # test light decode (method decode_light())
         self.assertEqual(self.parser.decode_light(hex_to_bytes(self.light_data['data'])),
                          self.light_data['value'])
@@ -981,6 +1012,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(5))), None)
 
+        print('   testing ApiParser.decode_uv()...')
         # test uv decode (method decode_uv())
         self.assertEqual(self.parser.decode_uv(hex_to_bytes(self.uv_data['data'])),
                          self.uv_data['value'])
@@ -992,6 +1024,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.uv_data['long'])),
                          self.uv_data['long_value'])
 
+        print('   testing ApiParser.decode_uvi()...')
         # test uvi decode (method decode_uvi())
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['data'])),
                          self.uvi_data['value'])
@@ -1002,6 +1035,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
 
+        print('   testing ApiParser.decode_moist()...')
         # test moisture decode (method decode_moist())
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['data'])),
                          self.moist_data['value'])
@@ -1012,6 +1046,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
 
+        print('   testing ApiParser.decode_pm25()...')
         # test pm25 decode (method decode_pm25())
         self.assertEqual(self.parser.decode_pm25(hex_to_bytes(self.pm25_data['data'])),
                          self.pm25_data['value'])
@@ -1023,6 +1058,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.pm25_data['long'])),
                          self.pm25_data['long_value'])
 
+        print('   testing ApiParser.decode_leak()...')
         # test leak decode (method decode_leak())
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['data'])),
                          self.leak_data['value'])
@@ -1033,6 +1069,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
 
+        print('   testing ApiParser.decode_pm10()...')
         # test pm10 decode (method decode_pm10())
         self.assertEqual(self.parser.decode_pm10(hex_to_bytes(self.pm10_data['data'])),
                          self.pm10_data['value'])
@@ -1044,6 +1081,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_pm10(hex_to_bytes(self.pm10_data['long'])),
                          self.pm10_data['long_value'])
 
+        print('   testing ApiParser.decode_co2()...')
         # test co2 decode (method decode_co2())
         self.assertEqual(self.parser.decode_co2(hex_to_bytes(self.co2_data['data'])),
                          self.co2_data['value'])
@@ -1054,6 +1092,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_co2(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_co2(hex_to_bytes(xbytes(3))), None)
 
+        print('   testing ApiParser.decode_wet()...')
         # test wetness decode (method decode_wet())
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['data'])),
                          self.wet_data['value'])
@@ -1061,6 +1100,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(2))), None)
 
+        print('   testing ApiParser.decode_wn34()...')
         # test wn34 decode (method decode_wn34())
         self.assertEqual(self.parser.decode_wn34(hex_to_bytes(self.wn34_data['data']), field=self.wn34_data['field']),
                          self.wn34_data['value'])
@@ -1068,6 +1108,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(1)), field=self.wn34_data['field']), {})
         self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(4)), field=self.wn34_data['field']), {})
 
+        print('   testing ApiParser.decode_wh45()...')
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['data']), fields=self.wh45_data['field']),
                          self.wh45_data['value'])
@@ -1077,6 +1118,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']),
                          {})
 
+        print('   testing ApiParser.decode_rain_gain()...')
         # test rain gain decode (method decode_rain_gain())
         self.assertDictEqual(self.parser.decode_rain_gain(hex_to_bytes(self.rain_gain_data['data'])),
                              self.rain_gain_data['value'])
@@ -1084,6 +1126,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_rain_reset(hex_to_bytes(xbytes(0))), {})
         self.assertDictEqual(self.parser.decode_rain_gain(hex_to_bytes(xbytes(2))), {})
 
+        print('   testing ApiParser.decode_rain_reset()...')
         # test rain reset decode (method decode_rain_reset())
         self.assertDictEqual(self.parser.decode_rain_reset(hex_to_bytes(self.rain_reset_data['data'])),
                              self.rain_reset_data['value'])
@@ -1095,6 +1138,40 @@ class ParseTestCase(unittest.TestCase):
         # decode_batt() is obfuscated and should always return None
         # irrespective of how it is called
         self.assertIsNone(self.parser.decode_batt(''))
+
+        print('   testing ApiParser.decode_pm1()...')
+        # test pm1 decode (method decode_pm1())
+        self.assertEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['data'])),
+                         self.pm1_data['value'])
+        # test decode with field != None
+        self.assertDictEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['data']), field='test'),
+                             {'test': self.pm1_data['value']})
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_pm1(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['long'])),
+                         self.pm1_data['long_value'])
+
+        print('   testing ApiParser.decode_pm4()...')
+        # test pm4 decode (method decode_pm4())
+        self.assertEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['data'])),
+                         self.pm4_data['value'])
+        # test decode with field != None
+        self.assertDictEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['data']), field='test'),
+                             {'test': self.pm4_data['value']})
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_pm4(hex_to_bytes(xbytes(0))), None)
+        self.assertEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['long'])),
+                         self.pm4_data['long_value'])
+
+        print('   testing ApiParser.decode_wh46()...')
+        # test wh46 decode (method decode_wh46())
+        self.assertEqual(self.parser.decode_wh46(hex_to_bytes(self.wh46_data['data']), fields=self.wh46_data['field']),
+                         self.wh46_data['value'])
+        # test correct handling of too few and too many bytes
+        self.assertEqual(self.parser.decode_wh46(hex_to_bytes(xbytes(1)), fields=self.wh46_data['field']),
+                         {})
+        self.assertEqual(self.parser.decode_wh46(hex_to_bytes(xbytes(17)), fields=self.wh46_data['field']),
+                         {})
 
 
 class UtilitiesTestCase(unittest.TestCase):

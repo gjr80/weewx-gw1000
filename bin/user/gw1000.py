@@ -3,7 +3,7 @@
 """
 gw1000.py
 
-A WeeWX driver for devices using Ecowitt LAN/Wi-Fi Gateway API.
+A WeeWX driver for devices using the Ecowitt LAN/Wi-Fi Gateway API.
 
 The WeeWX Ecowitt Gateway driver (known historically as the 'WeeWX GW1000
 driver') utilises the Ecowitt LAN/Wi-Fi Gateway API and device HTTP requests to
@@ -13,8 +13,11 @@ WeatherUnderground format uploads emitted by the device. The pull approach has
 the advantage of giving the user more control over when the data is obtained
 from the device plus also giving access to a greater range of metrics.
 
-As of the time of release this driver supports the GW1000, GW1100 and GW2000
-gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather stations.
+As of the time of release this driver supports the GW1000, GW1100, GW1200 and
+GW2000 gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather
+stations. WS3800/3900/3910 weather station consoles are also supported;
+however, the inbuilt WS3910 CO2 sensor is not currently supported.
+
 The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where
 it is the source of loop data or it can be operated as a WeeWX service where it
 is used to augment loop data produced by another driver.
@@ -33,10 +36,22 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.2                                     Date: 23 February 2024
+Version: 0.6.3                                     Date: 2 August 2024
 
 Revision History
-    23 February 2024        v0.6.2
+    2 August 2024          `v0.6.3
+        -   added support for WS85 sensor array
+        -   added support for WH46 air quality sensor
+        -   gateway device discovery is now based on monitoring port 59387 on
+            the local network segment rather than the previously used
+            CMD_BROADCAST API command
+        -   added GW1200, WS3800, WS3900 and WS3910 to list of known models
+        -   unknown gateway device models are now reported as 'unknown model'
+            instead of None
+        -   replace calls to deprecated threading.Thread.setDaemon() and
+            threading.Thread.setName() methods with threading.Thread.daemon
+            and threading.Thread.name properties respectively
+    23 February 2024        v0.6.2 (not released as an extension package)
         -   fixed bug that caused the driver to crash if IP address discovery
             is used
     21 February 2024        v0.6.1
@@ -427,7 +442,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.2'
+DRIVER_VERSION = '0.6.3'
 
 # various defaults used throughout
 # default port used by device
@@ -441,6 +456,12 @@ default_broadcast_port = 46000
 default_socket_timeout = 2
 # default broadcast timeout
 default_broadcast_timeout = 5
+# default discovery method, may be 'api' or 'broadcast'
+default_discovery_method = 'broadcast'
+# default port to use for discovery of devices by broadcast monitoring
+default_discovery_port = 59387
+# default period in seconds to use for discovery of devices by broadcast monitoring
+default_discovery_period = 5
 # default retry/wait time
 default_retry_wait = 10
 # default max tries when polling the API
@@ -484,7 +505,7 @@ default_groups = {
     'pm2_53': 'group_concentration',
     'pm2_54': 'group_concentration',
     'pm2_55': 'group_concentration',
-    'pm10': 'group_concentration',
+    'pm4_0': 'group_concentration',
     'soilTemp5': 'group_temperature',
     'soilMoist5': 'group_percent',
     'soilTemp6': 'group_temperature',
@@ -509,11 +530,13 @@ default_groups = {
     'soilMoist15': 'group_percent',
     'soilTemp16': 'group_temperature',
     'soilMoist16': 'group_percent',
+    'pm1_0_24h_avg': 'group_concentration',
     'pm2_51_24h_avg': 'group_concentration',
     'pm2_52_24h_avg': 'group_concentration',
     'pm2_53_24h_avg': 'group_concentration',
     'pm2_54_24h_avg': 'group_concentration',
     'pm2_55_24h_avg': 'group_concentration',
+    'pm4_0_24h_avg': 'group_concentration',
     'pm10_24h_avg': 'group_concentration',
     'co2_24h_avg': 'group_fraction',
     'leak1': 'group_count',
@@ -575,6 +598,7 @@ default_groups = {
     'wh41_ch3_batt': 'group_count',
     'wh41_ch4_batt': 'group_count',
     'wh45_batt': 'group_count',
+    'wh46_batt': 'group_count',
     'wh51_ch1_batt': 'group_volt',
     'wh51_ch2_batt': 'group_volt',
     'wh51_ch3_batt': 'group_volt',
@@ -598,6 +622,7 @@ default_groups = {
     'wh57_batt': 'group_count',
     'wh68_batt': 'group_volt',
     'ws80_batt': 'group_volt',
+    'ws85_batt': 'group_volt',
     'ws90_batt': 'group_volt',
     'wh40_sig': 'group_count',
     'wh26_sig': 'group_count',
@@ -634,6 +659,7 @@ default_groups = {
     'wh41_ch3_sig': 'group_count',
     'wh41_ch4_sig': 'group_count',
     'wh45_sig': 'group_count',
+    'wh46_sig': 'group_count',
     'wh51_ch1_sig': 'group_count',
     'wh51_ch2_sig': 'group_count',
     'wh51_ch3_sig': 'group_count',
@@ -657,6 +683,7 @@ default_groups = {
     'wh57_sig': 'group_count',
     'wh68_sig': 'group_count',
     'ws80_sig': 'group_count',
+    'ws85_sig': 'group_count',
     'ws90_sig': 'group_count'
 }
 
@@ -809,12 +836,14 @@ class Gateway(object):
         'leafWet6': 'leafwet6',
         'leafWet7': 'leafwet7',
         'leafWet8': 'leafwet8',
+        'pm1_0': 'pm1',
         'pm2_5': 'pm251',
         'pm2_52': 'pm252',
         'pm2_53': 'pm253',
         'pm2_54': 'pm254',
         'pm2_55': 'pm255',
-        'pm10': 'pm10',
+        'pm4_0': 'pm4',
+        'pm10_0': 'pm10',
         'co2': 'co2',
         'soilTemp1': 'soiltemp1',
         'soilMoist1': 'soilmoist1',
@@ -848,12 +877,14 @@ class Gateway(object):
         'soilMoist15': 'soilmoist15',
         'soilTemp16': 'soiltemp16',
         'soilMoist16': 'soilmoist16',
+        'pm1_0_24h_avg': 'pm1_24h_avg',
         'pm2_51_24h_avg': 'pm251_24h_avg',
         'pm2_52_24h_avg': 'pm252_24h_avg',
         'pm2_53_24h_avg': 'pm253_24h_avg',
         'pm2_54_24h_avg': 'pm254_24h_avg',
         'pm2_55_24h_avg': 'pm255_24h_avg',
-        'pm10_24h_avg': 'pm10_24h_avg',
+        'pm4_0_24h_avg': 'pm4_24h_avg',
+        'pm10_0_24h_avg': 'pm10_24h_avg',
         'co2_24h_avg': 'co2_24h_avg',
         'leak1': 'leak1',
         'leak2': 'leak2',
@@ -939,6 +970,7 @@ class Gateway(object):
         'wh41_ch3_batt': 'wh41_ch3_batt',
         'wh41_ch4_batt': 'wh41_ch4_batt',
         'wh45_batt': 'wh45_batt',
+        'wh46_batt': 'wh46_batt',
         'wh51_ch1_batt': 'wh51_ch1_batt',
         'wh51_ch2_batt': 'wh51_ch2_batt',
         'wh51_ch3_batt': 'wh51_ch3_batt',
@@ -962,6 +994,7 @@ class Gateway(object):
         'wh57_batt': 'wh57_batt',
         'wh68_batt': 'wh68_batt',
         'ws80_batt': 'ws80_batt',
+        'ws85_batt': 'ws85_batt',
         'ws90_batt': 'ws90_batt'
     }
     # sensor signal level default field map, merged into default_field_map to
@@ -1002,6 +1035,7 @@ class Gateway(object):
         'wh41_ch3_sig': 'wh41_ch3_sig',
         'wh41_ch4_sig': 'wh41_ch4_sig',
         'wh45_sig': 'wh45_sig',
+        'wh46_sig': 'wh46_sig',
         'wh51_ch1_sig': 'wh51_ch1_sig',
         'wh51_ch2_sig': 'wh51_ch2_sig',
         'wh51_ch3_sig': 'wh51_ch3_sig',
@@ -1025,6 +1059,7 @@ class Gateway(object):
         'wh57_sig': 'wh57_sig',
         'wh68_sig': 'wh68_sig',
         'ws80_sig': 'ws80_sig',
+        'ws85_sig': 'ws85_sig',
         'ws90_sig': 'ws90_sig'
     }
 
@@ -1042,6 +1077,7 @@ class Gateway(object):
                                                                    default_socket_timeout))
         self.broadcast_timeout = weeutil.weeutil.to_int(gw_config.get('broadcast_timeout',
                                                                       default_broadcast_timeout))
+
         # obtain the device IP address
         _ip_address = gw_config.get('ip_address')
         # if the user has specified some variation of 'auto' then we are to
@@ -1056,14 +1092,14 @@ class Gateway(object):
         # for port number we have a default value we can use, so if port is not
         # specified use the default
         _port = gw_config.get('port', default_port)
-        # if a port number was specified it needs to be an integer not a string
-        # so try to do the conversion
+        # if a port number was specified it needs to be an integer or some
+        # capitalised version of 'auto'
         try:
-            _port = int(_port)
+            port = int(_port)
         except TypeError:
             # most likely port somehow ended up being None, in any case force
             # auto-detection by setting port to None
-            _port = None
+            port = None
         except ValueError:
             # We couldn't convert the port number to an integer. Maybe it was
             # because it was 'auto' (or some variation) or perhaps it was
@@ -1073,9 +1109,9 @@ class Gateway(object):
             if _port.lower() != 'auto':
                 loginf("Invalid device port '%s' specified, "
                        "port will be auto detected" % (_port,))
-            _port = None
+            port = None
         # set the port property
-        self.port = _port
+        self.port = port
         # how many times to poll the API before giving up, default is
         # default_max_tries
         self.max_tries = int(gw_config.get('max_tries', default_max_tries))
@@ -1104,6 +1140,21 @@ class Gateway(object):
         # debug level, this will log them at the info level
         log_unknown_fields = weeutil.weeutil.tobool(gw_config.get('log_unknown_fields',
                                                                   False))
+        # obtain the discovery method to be used, may be 'api' to use the
+        # CMD_BROADCAST gateway API command or 'broadcast' to monitor the local
+        # network segment for gateway devices broadcasting their presence
+        try:
+            _discovery_method = gw_config.get('discovery_method',
+                                              default_discovery_method).lower()
+        except AttributeError:
+            _discovery_method = default_discovery_method
+        self.discovery_method = _discovery_method
+        # device discovery port
+        self.discovery_port = weeutil.weeutil.to_int(gw_config.get('discovery_port',
+                                                                   default_discovery_port))
+        # device discovery port
+        self.discovery_period = weeutil.weeutil.to_int(gw_config.get('discovery_period',
+                                                                     default_discovery_period))
         # define unit labels, formats and assign unit groups
         define_units()
         # how to handle firmware update checks
@@ -1137,6 +1188,9 @@ class Gateway(object):
                                                                                          self.broadcast_port,
                                                                                          self.broadcast_timeout))
             loginf('     socket timeout is %d seconds' % self.socket_timeout)
+            loginf("     device discovery method is '%s'" % self.discovery_method)
+            loginf("     discovery port is %d, discovery period is %d" % (self.discovery_port,
+                                                                          self.discovery_period))
             # The field map. Field map dict output will be in unsorted key order.
             # It is easier to read if sorted alphanumerically, but we have keys
             # such as xxxxx16 that do not sort well. Use a custom natural sort of
@@ -1168,6 +1222,9 @@ class Gateway(object):
                                           use_wh32=use_wh32,
                                           ignore_wh40_batt=ignore_wh40_batt,
                                           show_battery=show_battery,
+                                          discovery_method=self.discovery_method,
+                                          discovery_port=self.discovery_port,
+                                          discovery_period=self.discovery_period,
                                           log_unknown_fields=log_unknown_fields,
                                           fw_update_check_interval=fw_update_check_interval,
                                           log_fw_update_avail=log_fw_update_avail,
@@ -1339,8 +1396,8 @@ class Gateway(object):
         only need be done once.
 
         This is further complicated by the introduction of 'piezo' rain with
-        the WS90. Do a second round of checks on the piezo rain equivalents and
-        create piezo equivalent properties.
+        the WS85/WS90. Do a second round of checks on the piezo rain
+        equivalents and create piezo equivalent properties.
 
         data: dic of parsed device API data
         """
@@ -1406,7 +1463,7 @@ class Gateway(object):
         field to be used has been selected and the designated field exists.
 
         This is further complicated by the introduction of 'piezo' rain with
-        the WS90. Do a second round of calculations on the piezo rain
+        the WS85/WS90. Do a second round of calculations on the piezo rain
         equivalents and calculate the piezo rain field.
 
         data: dict of parsed device API data
@@ -1972,6 +2029,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[p_yearRain]]
             extractor = last
+        [[pm1_0_24h_avg]]
+            extractor = last
         [[pm2_51_24h_avg]]
             extractor = last
         [[pm2_52_24h_avg]]
@@ -1982,7 +2041,9 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
             extractor = last
         [[pm2_55_24h_avg]]
             extractor = last
-        [[pm10_24h_avg]]
+        [[pm4_0_24h_avg]]
+            extractor = last
+        [[pm10_0_24h_avg]]
             extractor = last
         [[co2_24h_avg]]
             extractor = last
@@ -2055,6 +2116,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[wh41_ch4_batt]]
             extractor = last
         [[wh45_batt]]
+            extractor = last
+        [[wh46_batt]]
             extractor = last
         [[wh51_ch1_batt]]
             extractor = last
@@ -2169,6 +2232,8 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         [[wh41_ch4_sig]]
             extractor = last
         [[wh45_sig]]
+            extractor = last
+        [[wh46_sig]]
             extractor = last
         [[wh51_ch1_sig]]
             extractor = last
@@ -2773,6 +2838,9 @@ class GatewayCollector(Collector):
                  poll_interval=default_poll_interval,
                  max_tries=default_max_tries, retry_wait=default_retry_wait,
                  use_wh32=True, ignore_wh40_batt=True, show_battery=False,
+                 discovery_method=default_discovery_method,
+                 discovery_port=default_discovery_port,
+                 discovery_period=default_discovery_period,
                  log_unknown_fields=False, fw_update_check_interval=86400,
                  log_fw_update_avail=False, debug=DebugOptions({})):
         """Initialise our class."""
@@ -2826,6 +2894,9 @@ class GatewayCollector(Collector):
                                     max_tries=max_tries, retry_wait=retry_wait,
                                     use_wh32=use_wh32, ignore_wh40_batt=ignore_wh40_batt,
                                     show_battery=show_battery,
+                                    discovery_method=discovery_method,
+                                    discovery_port=discovery_port,
+                                    discovery_period=discovery_period,
                                     log_unknown_fields=log_unknown_fields, debug=debug)
 
         # start off logging failures
@@ -2966,8 +3037,8 @@ class GatewayCollector(Collector):
         try:
             self.thread = GatewayCollector.CollectorThread(self)
             self.collect_data = True
-            self.thread.setDaemon(True)
-            self.thread.setName('GatewayCollectorThread')
+            self.thread.daemon = True
+            self.thread.name = 'GatewayCollectorThread'
             self.thread.start()
         except threading.ThreadError:
             logerr("Unable to launch GatewayCollector thread")
@@ -3139,6 +3210,12 @@ class ApiParser(object):
         b'\x68': ('decode_wn34', 3, 'temp14'),
         b'\x69': ('decode_wn34', 3, 'temp15'),
         b'\x6A': ('decode_wn34', 3, 'temp16'),
+        # WH46 battery data is not obtained from live data rather it is
+        # obtained from sensor ID data
+        b'\x6B': ('decode_wh46', 24, ('temp17', 'humid17', 'pm10',
+                                      'pm10_24h_avg', 'pm255', 'pm255_24h_avg',
+                                      'co2', 'co2_24h_avg', 'pm1',
+                                      'pm1_24h_avg', 'pm4', 'pm4_24h_avg')),
         b'\x6C': ('decode_memory', 4, 'heap_free'),
         # WH45 battery data is not obtained from live data rather it is
         # obtained from sensor ID data
@@ -4263,6 +4340,8 @@ class ApiParser(object):
     decode_wet = decode_humid
     decode_int = decode_humid
     decode_memory = decode_count
+    decode_pm1 = decode_press
+    decode_pm4 = decode_press
 
     def decode_wn34(self, data, field=None):
         """Decode WN34 sensor data.
@@ -4328,6 +4407,55 @@ class ApiParser(object):
             results[fields[6]] = self.decode_co2(data[11:13])
             results[fields[7]] = self.decode_co2(data[13:15])
             # we could decode the battery state but we will be obtaining
+            # battery state data from the sensor IDs in a later step so
+            # we can skip it here
+            return results
+        return {}
+
+    def decode_wh46(self, data, fields=None):
+        """Decode WH46 sensor data.
+
+        WH46 sensor data includes TH sensor values, CO2/PM1/PM4/PM2.5/PM10
+        sensor values and 24 hour aggregates and battery state data in
+        24 bytes.
+
+        The 24 bytes of WH46 sensor data is allocated as follows:
+        Byte(s) #      Data               Format          Comments
+        bytes   1-2    temperature        short           C x10
+                3      humidity           unsigned byte   percent
+                4-5    PM10               unsigned short  ug/m3 x10
+                6-7    PM10 24-hour avg   unsigned short  ug/m3 x10
+                8-9    PM2.5              unsigned short  ug/m3 x10
+                10-11  PM2.5 24-hour avg  unsigned short  ug/m3 x10
+                12-13  CO2                unsigned short  ppm
+                14-15  CO2 24-hour avg    unsigned short  ppm
+                16-17  PM1                unsigned short  ug/m3 x10
+                18-19  PM1 24-hour avg    unsigned short  ug/m3 x10
+                20-21  PM4                unsigned short  ug/m3 x10
+                22-23  PM4 24-hour avg    unsigned short  ug/m3 x10
+                24     battery state      unsigned byte   0-5 <=1 is low
+
+        WH46 battery state data is included in the WH46 sensor data (along
+        with temperature) as well as in the complete sensor ID data. In
+        keeping with other sensors we do not use the sensor data battery
+        state, rather we obtain it from the sensor ID data.
+        """
+
+        if len(data) == 24 and fields is not None:
+            results = dict()
+            results[fields[0]] = self.decode_temp(data[0:2])
+            results[fields[1]] = self.decode_humid(data[2:3])
+            results[fields[2]] = self.decode_pm10(data[3:5])
+            results[fields[3]] = self.decode_pm10(data[5:7])
+            results[fields[4]] = self.decode_pm25(data[7:9])
+            results[fields[5]] = self.decode_pm25(data[9:11])
+            results[fields[6]] = self.decode_co2(data[11:13])
+            results[fields[7]] = self.decode_co2(data[13:15])
+            results[fields[8]] = self.decode_pm1(data[15:17])
+            results[fields[9]] = self.decode_pm1(data[17:19])
+            results[fields[10]] = self.decode_pm4(data[19:21])
+            results[fields[11]] = self.decode_pm4(data[21:23])
+            # we could decode the battery state, but we will be obtaining
             # battery state data from the sensor IDs in a later step so
             # we can skip it here
             return results
@@ -4480,10 +4608,11 @@ class Sensors(object):
         b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
         b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
         b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
-        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3}
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3},
+        b'\x31': {'name': 'ws85', 'long_name': 'WS85', 'batt_fn': 'batt_volt'}
     }
     # sensors for which there is no low battery state
-    no_low = ['ws80', 'ws90']
+    no_low = ['ws80', 'ws85', 'ws90']
     # Tuple of sensor ID values for sensors that are not registered with
     # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
     # the sensor is registering.
@@ -4491,7 +4620,7 @@ class Sensors(object):
 
     def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
                  show_battery=False, debug=DebugOptions({}), use_wh32=True,
-                 is_wh24=False):
+                 is_wh24=False, is_wh46=False):
         """Initialise myself"""
 
         # are we using a WH32 sensor, if so tell our sensor id decoding we have
@@ -4506,6 +4635,12 @@ class Sensors(object):
             # set the WH24 sensor id decode dict entry
             self.sensor_ids[b'\x00']['name'] = 'wh24'
             self.sensor_ids[b'\x00']['long_name'] = 'WH24'
+        # Tell our sensor id decoding whether we have a WH45 or a WH46. By
+        # default, we are coded to use a WH45. Is there a WH46 connected?
+        if is_wh46:
+            # set the WH sensor id decode dict entry
+            self.sensor_ids[b'\x27']['name'] = 'wh46'
+            self.sensor_ids[b'\x27']['long_name'] = 'WH46'
 
         # do we ignore battery state data from legacy WH40 sensors that do
         # not provide valid battery state data
@@ -4895,8 +5030,8 @@ class GatewayApi(object):
     # header used in each API command and response packet
     header = b'\xff\xff'
     # known device models
-    known_models = ('GW1000', 'GW1100', 'GW2000',
-                    'WH2650', 'WH2680', 'WN1900')
+    known_models = ('GW1000', 'GW1100', 'GW1200', 'GW2000', 'WH2650',
+                    'WH2680', 'WN1900', 'WS3800', 'WS3900', 'WS3910')
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
@@ -4904,6 +5039,9 @@ class GatewayApi(object):
                  max_tries=default_max_tries,
                  retry_wait=default_retry_wait, mac=None,
                  use_wh32=True, ignore_wh40_batt=True, show_battery=False,
+                 discovery_method=default_discovery_method,
+                 discovery_port=default_discovery_port,
+                 discovery_period=default_discovery_period,
                  log_unknown_fields=False, debug=DebugOptions({})):
 
         # get a parser object to parse any API data
@@ -4916,6 +5054,9 @@ class GatewayApi(object):
         self.socket_timeout = socket_timeout if socket_timeout is not None else default_socket_timeout
         self.broadcast_timeout = broadcast_timeout if broadcast_timeout is not None else default_broadcast_timeout
 
+        self.discovery_method = discovery_method if discovery_method is not None else default_discovery_method
+        self.discovery_port = discovery_port if discovery_port is not None else default_discovery_port
+        self.discovery_period = discovery_period if discovery_period is not None else default_discovery_period
         # initialise flags to indicate if IP address or port were discovered
         self.ip_discovered = ip_address is None
         self.port_discovered = port is None
@@ -4991,16 +5132,141 @@ class GatewayApi(object):
         _sys_params = self.get_system_params()
         # WH24 is indicated by the sensor_type field being 0
         is_wh24 = _sys_params.get('sensor_type', 0) == 0
-
+        # Do we have a WH46 connected? We can tell by checking the device
+        # current live data and looking for PM1 data.
+        live_data = self.get_livedata()
+        is_wh46 = 'pm1' in live_data.keys()
         # get a Sensors object to parse any API sensor state data
         self.sensors = Sensors(use_wh32=use_wh32, ignore_wh40_batt=ignore_wh40_batt,
-                               show_battery=show_battery, is_wh24=is_wh24,
+                               show_battery=show_battery, is_wh24=is_wh24, is_wh46=is_wh46,
                                debug=debug)
+        # log our WH45/WH46 sensor ID decoding state
+        if is_wh46:
+            logdbg("     sensor ID decoding will use 'WH46' in lieu of 'WH45'")
+        else:
+            logdbg("     sensor ID decoding will use 'WH45'")
         # update the sensors object
         self.update_sensor_id_data()
 
     def discover(self):
-        """Discover any devices on the local network.
+        """Discover gateway devices on the local network segment.
+
+        There are two methods of discovering gateway devices on the local
+        network segment. The first utilises the CMD_BROADCAST gateway API
+        command which utilises port 46000 to issue a request for gateway
+        devices to respond with relevant device details. The second approach
+        relies on the regular, routine broadcast made by active gateway devices
+        on port 59387. By monitoring port 59387 over a period of time details
+        of the gateway devices active on the local network segment may be
+        obtained.
+
+        In practise the use of the CMD_BROADCAST API command has shown itself
+        to be unreliable with only devices responding. In some cases certain
+        devices have been found to effectively ignore receipt of the
+        CMD_BROADCAST API command. On the other hand the monitoring of
+        port 59387 has proven to be effective and for this reason it is the
+        default and preferred aproach to be used when discovering gateway
+        devices.
+
+        Notwithstanding, the recommended approach for specifying a
+        gateway device when running the gateway driver as a WeeWX driver or
+        service is to specify as fixed IP address and port in the WeeWX
+        configuration file. Device discovery remains a useful tool when running
+        the gateway driver from the command line to determine details of active
+        gateway devices on the local network segment.
+        """
+
+        # we have been asked to discover gateway devices, but which method are we to use
+        if self.discovery_method == 'api':
+            # use the CMD_BROADCAST API command approach
+            return self.api_discover()
+        else:
+            # use the default approach of monitoring port 59387
+            return self.broadcast_discover()
+
+    def broadcast_discover(self):
+        """Discover devices on the local network by monitoring port 59387.
+
+        To discover Ecowitt gateway devices monitor UDP port 59387 for a set
+        period of time and capture all port 59387 UDP broadcasts received.
+        Decode each reply to obtain details of any devices on the local
+        network. Create a dict of details for each device including a derived
+        model name. Construct a list of dicts with details of each unique
+        (ie each unique MAC address) device that responded. When complete
+        return the list of devices found.
+        """
+
+        # create a socket object so we can receive IPv4 UDP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # set timeout
+        s.settimeout(self.broadcast_timeout)
+        # bind our socket to the port we are using
+        s.bind(("", self.discovery_port))
+        # initialise a list for the results as multiple devices may respond
+        result_list = []
+        # get the current time
+        start_ts = time.time()
+        # start receiving continuously, we will stop once our discovery period
+        # has elapsed
+        while True:
+            # wrap in try .. except to capture any errors
+            try:
+                # receive a response
+                response = s.recv(1024)
+                # log the response if debug is high enough
+                if weewx.debug >= 3:
+                    logdbg("Received discovery response '%s'" % (bytes_to_hex(response),))
+            except socket.timeout:
+                # if we time out then we are done with this attempt
+                break
+            except socket.error:
+                # raise any other socket error
+                raise
+            # check the response is valid, as it happens the format is the same
+            # as used when responding to CMD_BROADCAST API commands
+            try:
+                self.check_response(response, self.api_commands['CMD_BROADCAST'])
+            except InvalidChecksum as e:
+                # the response was not valid, log it and attempt again
+                # if we haven't had too many attempts already
+                logdbg("Invalid discovery response received: %s" % e)
+            except UnknownApiCommand:
+                # most likely we have encountered a device that does
+                # not understand the command, possibly due to an old or
+                # outdated firmware version, raise the exception for
+                # our caller to deal with
+                raise
+            except Exception as e:
+                # Some other error occurred in check_response(),
+                # perhaps the response was malformed. Log the stack
+                # trace but continue.
+                logerr("Unexpected exception occurred while checking "
+                       "discovery response: %s" % e)
+                log_traceback_error('    ****  ')
+            else:
+                # we have a valid response so decode the response
+                # and obtain a dict of device data
+                device = self.decode_broadcast_response(response)
+                # if we haven't seen this MAC before attempt to obtain
+                # and save the device model then add the device to our
+                # results list
+                if not any((d['mac'] == device['mac']) for d in result_list):
+                    # determine the device model based on the device
+                    # SSID and add the model to the device dict
+                    device['model'] = self.get_model_from_ssid(device.get('ssid'))
+                    # append the device to our list
+                    result_list.append(device)
+            # has our discovery period elapsed, if it has break out of the
+            # loop
+            if time.time() - start_ts > self.discovery_period:
+                break
+        # we are done, close our socket
+        s.close()
+        # now return our results
+        return result_list
+
+    def api_discover(self):
+        """Use the gateway API to discover any devices on the local network.
 
         Send a UDP broadcast and check for replies. Decode each reply to
         obtain details of any devices on the local network. Create a dict
@@ -5236,7 +5502,7 @@ class GatewayApi(object):
                 if model in t.upper():
                     return model
             # we don't have a known model so return None
-            return None
+            return "'unknown model'"
         else:
             # we have no string so return None
             return None
@@ -6229,6 +6495,8 @@ class GatewayDevice(object):
                  'long_name': 'Customized'
                  }
                 ]
+    # sensors that have user updatable firmware
+    sensors_with_fware = {'wh80': 'WS80', 'wh85': 'WS85', 'wh90': 'WS90'}
 
     def __init__(self, ip_address=None, port=None,
                  broadcast_address=None, broadcast_port=None,
@@ -6236,6 +6504,9 @@ class GatewayDevice(object):
                  max_tries=default_max_tries,
                  retry_wait=default_retry_wait, use_wh32=True,
                  ignore_wh40_batt=True, show_battery=False,
+                 discovery_method=default_discovery_method,
+                 discovery_port=default_discovery_port,
+                 discovery_period=default_discovery_period,
                  log_unknown_fields=False, debug=DebugOptions({})):
         """Initialise a GatewayDevice object."""
 
@@ -6251,6 +6522,9 @@ class GatewayDevice(object):
                               use_wh32=use_wh32,
                               ignore_wh40_batt=ignore_wh40_batt,
                               show_battery=show_battery,
+                              discovery_method=discovery_method,
+                              discovery_port=discovery_port,
+                              discovery_period=discovery_period,
                               log_unknown_fields=log_unknown_fields,
                               debug=debug)
 
@@ -6468,19 +6742,41 @@ class GatewayDevice(object):
         return parsed_cal_coeff
 
     @property
-    def ws90_firmware_version(self):
-        """Provide the WH90 firmware version.
+    def sensor_firmware_versions(self):
+        """Firmware versions for attached sensors with user updatable formware.
 
-        Return the WS90 installed firmware version. If no WS90 is available the
-        value None is returned.
+        Some sensors have user updatable firmware, at time of release the only
+        sensors/sensor platforms that have user updatable firmware are:
+
+        WS80
+        WS85
+        WS90
+
+        The sensor firmware version can be obtained via the HTTP API. Obtain
+        the sensor information via the HTTP API and extract the firmware
+        version info for known user updatable sensors.
+
+        Returns a dict keyed by sensor/sensor platform model containing the
+        applicable firmware versions. If no sensors/sensor platforms were found
+        with user updatable firmware return and empty dict.
         """
 
+        # obtain the sensor info via the HTTP API
         sensors = self.http.get_sensors_info()
+        # initialise a dict to hold our results
+        fware_dict = dict()
+        # do we have any sensor information
         if sensors is not None:
+            # we have sensor information so iterate over each sensor
             for sensor in sensors:
-                if sensor.get('img') == 'wh90':
-                    return sensor.get('version', 'not available')
-        return None
+                # if we have a sensor with user updatable firmware obtain the
+                # firmware version and save it to our result dict, but only if
+                # the device exists, ie 'batt' != '9'
+                if sensor.get('img') in self.sensors_with_fware and sensor.get('batt') != '9':
+                    fware_dict[self.sensors_with_fware[sensor.get('img')]] = sensor.get('version',
+                                                                                        'not available')
+        # return the result dict
+        return fware_dict
 
 
 # ============================================================================
@@ -6720,11 +7016,13 @@ class DirectGateway(object):
         'humid7': 'group_percent',
         'humid8': 'group_percent',
         'humid17': 'group_percent',
+        'pm1': 'group_concentration',
         'pm251': 'group_concentration',
         'pm252': 'group_concentration',
         'pm253': 'group_concentration',
         'pm254': 'group_concentration',
         'pm255': 'group_concentration',
+        'pm4': 'group_concentration',
         'pm10': 'group_concentration',
         'co2': 'group_fraction',
         'soiltemp1': 'group_temperature',
@@ -6759,11 +7057,13 @@ class DirectGateway(object):
         'soilmoist15': 'group_percent',
         'soiltemp16': 'group_temperature',
         'soilmoist16': 'group_percent',
+        'pm1_24h_avg': 'group_concentration',
         'pm251_24h_avg': 'group_concentration',
         'pm252_24h_avg': 'group_concentration',
         'pm253_24h_avg': 'group_concentration',
         'pm254_24h_avg': 'group_concentration',
         'pm255_24h_avg': 'group_concentration',
+        'pm4_24h_avg': 'group_concentration',
         'pm10_24h_avg': 'group_concentration',
         'co2_24h_avg': 'group_fraction',
         'leak1': 'group_count',
@@ -6837,6 +7137,7 @@ class DirectGateway(object):
         'wh41_ch3_batt': 'group_count',
         'wh41_ch4_batt': 'group_count',
         'wh45_batt': 'group_count',
+        'wh46_batt': 'group_count',
         'wh51_ch1_batt': 'group_volt',
         'wh51_ch2_batt': 'group_volt',
         'wh51_ch3_batt': 'group_volt',
@@ -6860,6 +7161,7 @@ class DirectGateway(object):
         'wh57_batt': 'group_count',
         'wh68_batt': 'group_volt',
         'ws80_batt': 'group_volt',
+        'ws85_batt': 'group_volt',
         'ws90_batt': 'group_volt',
         'wh40_sig': 'group_count',
         'wh26_sig': 'group_count',
@@ -6896,6 +7198,7 @@ class DirectGateway(object):
         'wh41_ch3_sig': 'group_count',
         'wh41_ch4_sig': 'group_count',
         'wh45_sig': 'group_count',
+        'wh46_sig': 'group_count',
         'wh51_ch1_sig': 'group_count',
         'wh51_ch2_sig': 'group_count',
         'wh51_ch3_sig': 'group_count',
@@ -6919,6 +7222,7 @@ class DirectGateway(object):
         'wh57_sig': 'group_count',
         'wh68_sig': 'group_count',
         'ws80_sig': 'group_count',
+        'ws85_sig': 'group_count',
         'ws90_sig': 'group_count'
     }
     # list of sensors to be displayed in the sensor ID output
@@ -7890,10 +8194,12 @@ class DirectGateway(object):
                                                  device.port))
             print()
             # get the firmware version via the API
-            print("    installed %s firmware version is %s" % (model, device.firmware_version))
-            ws90_fw = device.ws90_firmware_version
-            if ws90_fw is not None:
-                print("    installed WS90 firmware version is %s" % ws90_fw)
+            print("    installed %s firmware version is %s" % (model,
+                                                               device.firmware_version))
+            fware_dict = device.sensor_firmware_versions
+            for sensor_model, sensor_fware_version in fware_dict.items():
+                print("    installed %s firmware version is %s" % (sensor_model,
+                                                                   sensor_fware_version))
             print()
             fw_update_avail = device.firmware_update_avail
             if fw_update_avail:
@@ -8443,7 +8749,7 @@ class DirectGateway(object):
 
 
 # To use this driver in standalone mode for testing or development, use one of
-# the following api_commands (depending on your WeeWX install). For setup.py
+# the following commands (depending on your WeeWX install). For setup.py
 # installs use:
 #
 #   $ PYTHONPATH=/home/weewx/bin python -m user.gw1000

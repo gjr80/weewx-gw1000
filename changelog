@@ -1,3 +1,17 @@
+v0.6.3
+-   added support for WS85 sensor array
+-   added support for WH46 air quality sensor
+-   improved gateway device discovery based on monitoring port 59387 on the
+    local network segment rather than the previously used CMD_BROADCAST API
+    command
+-   added GW1200, WS3800, WS3900 and WS3910 to list of known models
+-   unknown gateway device models are now reported as 'unknown model' instead
+    of None
+-   replaced calls to deprecated threading.Thread.setDaemon() and
+    threading.Thread.setName() methods with threading.Thread.daemon and
+    threading.Thread.name properties respectively
+v0.6.2 (not released as an extension package)
+-   fixed bug that caused the driver to crash if device discovery is used
 v0.6.1
 -   fix bug in construct_field_map() signature that resulted in field map and
     field map extensions being ignored
