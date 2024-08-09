@@ -1,3 +1,5 @@
+v0.7.0
+-   added ability to catchup on startup from ecowitt.net history records
 v0.6.3
 -   added support for WS85 sensor array
 -   added support for WH46 air quality sensor
