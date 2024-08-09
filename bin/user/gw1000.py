@@ -728,7 +728,7 @@ class ApiResponseError(Exception):
 class DebugOptions(object):
     """Class to simplify use and handling of device debug options."""
 
-    debug_groups = ('rain', 'wind', 'loop', 'sensors', 'backfill')
+    debug_groups = ('rain', 'wind', 'loop', 'sensors', 'catchup')
 
     def __init__(self, gw_config_dict):
         # get any specific debug settings
@@ -744,8 +744,8 @@ class DebugOptions(object):
         # sensors
         self.debug_sensors = weeutil.weeutil.tobool(gw_config_dict.get('debug_sensors',
                                                                        False))
-        # backfill
-        self.debug_backfill = weeutil.weeutil.tobool(gw_config_dict.get('debug_backfill',
+        # catchup
+        self.debug_catchup = weeutil.weeutil.tobool(gw_config_dict.get('debug_catchup',
                                                                         False))
 
     @property
@@ -773,10 +773,10 @@ class DebugOptions(object):
         return self.debug_sensors
 
     @property
-    def backfill(self):
-        """Are we debugging sensor processing."""
+    def catchup(self):
+        """Are we debugging catchup processing."""
 
-        return self.debug_backfill
+        return self.debug_catchup
 
     @property
     def any(self):
@@ -2578,11 +2578,11 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
 
 # ============================================================================
-#                           EcowittBackfill class
+#                          EcowittNetCatchup class
 # ============================================================================
 
-class EcowittBackfill:
-    """Class to handle backfill via Ecowitt.net API.
+class EcowittNetCatchup:
+    """Class to handle catchup via Ecowitt.net API.
 
     Ecowitt gateway devices do not include a hardware logger; however, they
     do have the ability to independently upload observation data to
@@ -2591,7 +2591,7 @@ class EcowittBackfill:
     Ecowitt.net. The Ecowitt.net history data provides a means for
     obtaining historical archive data, the data will likely differ slightly
     in values and times to the gateway generated archive data, but it may
-    provide an effective 'virtual' logger capability to support backfill on
+    provide an effective 'virtual' logger capability to support catchup on
     startup.
 
     """
@@ -2875,7 +2875,7 @@ class EcowittBackfill:
     }
 
     def __init__(self, api_key, app_key, mac):
-        """Initialise an EcowittBackfill object."""
+        """Initialise an EcowittNetCatchup object."""
 
         # save the user Ecowitt.net API key
         self.api_key = api_key
@@ -2889,7 +2889,7 @@ class EcowittBackfill:
 
         Generator function that uses the Ecowitt.net API to obtain history data
         from Ecowitt.net and generate archive-like records suitable for
-        backfill by the WeeWX Ecowitt gateway driver. Generated records are
+        catchup by the WeeWX Ecowitt gateway driver. Generated records are
         timestamped from start_ts to stop_ts inclusive. If stop_ts is not
         specified records are generated up to an including the current system
         time.
@@ -2903,8 +2903,8 @@ class EcowittBackfill:
         Keyword Arguments. Supported keyword arguments include:
         call_back: Tuple containing the Ecowitt.net history data set names to
                    be sought in the API request. If not specified the default
-                   call back data sets (EcowittBackfill.default_call_back) are
-                   used. Optional, tuple of strings.
+                   call back data sets (EcowittNetCatchup.default_call_back)
+                   are used. Optional, tuple of strings.
         """
 
         # use the current system time if stop_ts was not specified
@@ -2988,11 +2988,11 @@ class EcowittBackfill:
         # check if we have a command that we know about
         data_dict = {} if data is None else data
         headers_dict = {} if headers is None else headers
-        if command_str in EcowittBackfill.commands:
+        if command_str in EcowittNetCatchup.commands:
             # first convert any data to a percent-encoded ASCII text string
             data_enc = urllib.parse.urlencode(data_dict)
             # construct the endpoint and 'path' of the URL
-            endpoint_path = '/'.join([EcowittBackfill.endpoint, command_str])
+            endpoint_path = '/'.join([EcowittNetCatchup.endpoint, command_str])
             # Finally add the encoded data. We need to add the data in this manner
             # rather than using the Request object's 'data' parameter so that the
             # request is sent as a GET request rather than a POST request.
@@ -3262,11 +3262,11 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         self.debug = DebugOptions(stn_dict)
         # now initialize my superclasses
         super(GatewayDriver, self).__init__(**stn_dict)
-        # Ecowitt.net API and applications keys for backfill on startup from
+        # Ecowitt.net API and applications keys for catchup on startup from
         # Ecowitt.net
-        backfill_config = stn_dict.get('backfill', {})
-        self.api_key = backfill_config.get('api_key', None)
-        self.app_key = backfill_config.get('app_key', None)
+        catchup_config = stn_dict.get('catchup', {})
+        self.api_key = catchup_config.get('api_key', None)
+        self.app_key = catchup_config.get('app_key', None)
         # start the Gw1000Collector in its own thread
         self.collector.startup()
 
@@ -3432,7 +3432,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         """Generator function that returns archive records on startup.
 
         GatewayDriver.genStartupRecords() is called on WeeWX startup to allow
-        backfill of any missing records since WeeWX last stopped/restarted.
+        catchup of any missing records since WeeWX last stopped/restarted.
         last_ts is the timestamp of the last good archive record at time of
         startup/restart. The default genStartupRecords() action is to call
         GatewayDriver.genArchiveRecords(). In this case genStartupRecords()
@@ -3447,9 +3447,9 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         Application key: Application key required to access Ecowitt.net
         """
 
-        if self.debug.backfill:
-            log.info("backfill: API key: %s Application key: %s" % (obfuscate(self.api_key),
-                                                                    obfuscate(self.app_key)))
+        if self.debug.catchup:
+            log.info("catchup: API key: %s Application key: %s" % (obfuscate(self.api_key),
+                                                                   obfuscate(self.app_key)))
         # are all of our pre-requisites non-None
         if None not in {self.api_key, self.app_key}:
             # we have all pre-requisites so call the generator
@@ -3489,25 +3489,25 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         # device API calls
         mac = self.mac_address
         # if necessary log the MAC address being used
-        if self.debug.backfill:
-            log.info("backfill: Using MAC address: %s" % mac)
+        if self.debug.catchup:
+            log.info("catchup: Using MAC address: %s" % mac)
         # do we have a MAC address
         if mac is not None:
             # we have a MAC address
-            # obtain an EcowittBackfill object to obtain archive records from
+            # obtain an EcowittNetCatchup object to obtain archive records from
             # Ecowitt.net
-            backfill = EcowittBackfill(api_key=self.api_key,
-                                       app_key=self.app_key,
-                                       mac=mac)
+            catchup = EcowittNetCatchup(api_key=self.api_key,
+                                        app_key=self.app_key,
+                                        mac=mac)
             # iterate over the history records obtained from WEcowitt.net, our
             # start ts needs to be after the timestamp of the last known good
             # archive record
-            for rec in backfill.gen_history_records(start_ts=lastgood_ts + 1):
+            for rec in catchup.gen_history_records(start_ts=lastgood_ts + 1):
                 # initialise a dict to hold our archive like record, its
                 # timestamp will be the record timestamp from Ecowitt.net
                 # Note that a 'usUnits' field/unit conversion is not required
                 # at this time as:
-                # 1. this backfill is all internal to the driver and it is not
+                # 1. this catchup is all internal to the driver and it is not
                 #    until the driver emits an archive record that we need a
                 #    'usUnits' field
                 # 2. history records are provided using METRICWX units and the
