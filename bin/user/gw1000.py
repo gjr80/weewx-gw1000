@@ -3513,7 +3513,8 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 # 2. history records are provided using METRICWX units and the
                 #    Gateway driver operates internally with the same METRICWX
                 #    units
-                record = {'dateTime': rec['datetime']}
+                record = {'dateTime': rec['datetime'],
+                          'interval': 5}
                 # do we have a suitable mapping for calculating per-record
                 # rainfall, if not obtain a suitable field
                 if not self.rain_mapping_confirmed or not self.piezo_rain_mapping_confirmed:
