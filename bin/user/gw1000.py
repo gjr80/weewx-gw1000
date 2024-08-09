@@ -445,7 +445,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.6.3'
+DRIVER_VERSION = '0.7.0a1'
 
 # various defaults used throughout
 # default port used by device
@@ -714,10 +714,20 @@ class GWIOError(Exception):
     encountered."""
 
 
+class InvalidApiResponseError(Exception):
+    """Exception raised when an API request response is invalid."""
+
+
+class ApiResponseError(Exception):
+    """Exception raised when a valid API response is received but the response
+    contains a non-zero error code."""
+
+
+
 class DebugOptions(object):
     """Class to simplify use and handling of device debug options."""
 
-    debug_groups = ('rain', 'wind', 'loop', 'sensors')
+    debug_groups = ('rain', 'wind', 'loop', 'sensors', 'backfill')
 
     def __init__(self, gw_config_dict):
         # get any specific debug settings
@@ -733,6 +743,9 @@ class DebugOptions(object):
         # sensors
         self.debug_sensors = weeutil.weeutil.tobool(gw_config_dict.get('debug_sensors',
                                                                        False))
+        # backfill
+        self.debug_backfill = weeutil.weeutil.tobool(gw_config_dict.get('debug_backfill',
+                                                                        False))
 
     @property
     def rain(self):
@@ -757,6 +770,12 @@ class DebugOptions(object):
         """Are we debugging sensor processing."""
 
         return self.debug_sensors
+
+    @property
+    def backfill(self):
+        """Are we debugging sensor processing."""
+
+        return self.debug_backfill
 
     @property
     def any(self):
@@ -1318,8 +1337,8 @@ class Gateway(object):
         _result = {'usUnits': weewx.METRICWX}
         # iterate over each of the key, value pairs in the field map
         for weewx_field, data_field in six.iteritems(self.field_map):
-            # if the field to be mapped exists in the data obtain it's
-            # value and map it to the packet
+            # if the field to be mapped exists in the data obtain its value
+            # and map it to the packet
             if data_field in data:
                 _result[weewx_field] = data.get(data_field)
         return _result
@@ -2558,6 +2577,656 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
 
 # ============================================================================
+#                           EcowittBackfill class
+# ============================================================================
+
+class EcowittBackfill:
+    """Class to handle backfill via Ecowitt.net API.
+
+    Ecowitt gateway devices do not include a hardware logger; however, they
+    do have the ability to independently upload observation data to
+    Ecowitt.net at various integer minute intervals from one to five
+    minutes. Ecowitt provides an API to access this history data at
+    Ecowitt.net. The Ecowitt.net history data provides a means for
+    obtaining historical archive data, the data will likely differ slightly
+    in values and times to the gateway generated archive data, but it may
+    provide an effective 'virtual' logger capability to support backfill on
+    startup.
+
+    """
+
+    # Ecowitt.net API endpoint
+    endpoint = 'https://api.ecowitt.net/api/v3/device'
+    # available Ecowitt.net API commands
+    commands = ('real_time', 'history', 'list', 'info')
+    # Ecowitt.net API result codes
+    api_result_codes = {
+        -1: 'System is busy',
+        0: 'success result',
+        40000: 'Illegal parameter',
+        40010: 'Illegal Application_Key Parameter',
+        40011: 'Illegal Api_Key Parameter',
+        40012: 'Illegal MAC/IMEI Parameter',
+        40013: 'Illegal start_date Parameter',
+        40014: 'Illegal end_date Parameter',
+        40015: 'Illegal cycle_type Parameter',
+        40016: 'Illegal call_back Parameter',
+        40017: 'Missing Application_Key Parameter',
+        40018: 'Missing Api_Key Parameter',
+        40019: 'Missing MAC Parameter',
+        40020: 'Missing start_date Parameter',
+        40021: 'Missing end_date Parameter',
+        40022: 'Illegal Voucher type',
+        43001: 'Needs other service support',
+        44001: 'Media file or data packet is null',
+        45001: 'Over the limit or other error',
+        46001: 'No existing request',
+        47001: 'Parse JSON/XML contents error',
+        48001: 'Privilege Problem'
+    }
+    # default history call back
+    default_call_back = ('outdoor', 'indoor', 'solar_and_uvi', 'rainfall',
+                         'rainfall_piezo', 'wind', 'pressure', 'lightning',
+                         'indoor_co2', 'pm25_ch1', 'pm25_ch2', 'pm25_ch3',
+                         'pm25_ch4', 'co2_aqi_combo', 'pm25_aqi_combo',
+                         'pm10_aqi_combo', 'pm1_aqi_combo', 't_rh_aqi_combo',
+                         'temp_and_humidity_ch1', 'temp_and_humidity_ch2',
+                         'temp_and_humidity_ch3', 'temp_and_humidity_ch4',
+                         'temp_and_humidity_ch5', 'temp_and_humidity_ch6',
+                         'temp_and_humidity_ch7', 'temp_and_humidity_ch8',
+                         'soil_ch1', 'soil_ch2', 'soil_ch3', 'soil_ch4',
+                         'soil_ch5', 'soil_ch6', 'soil_ch7', 'soil_ch8',
+                         'temp_ch1', 'temp_ch2', 'temp_ch3', 'temp_ch4',
+                         'temp_ch5', 'temp_ch6', 'temp_ch7', 'temp_ch8',
+                         'leaf_ch1', 'leaf_ch2', 'leaf_ch3', 'leaf_ch4',
+                         'leaf_ch5', 'leaf_ch6', 'leaf_ch7', 'leaf_ch8',
+                         'battery')
+    # Map from Ecowitt.net history fields to internal driver fields. Map is
+    # keyed by Ecowitt.net history 'data set'. Individual key: value pairs are
+    # Ecowitt.net field:driver field.
+    net_to_driver_map = {
+        'outdoor': {
+            'temperature': 'outtemp',
+            'humidity': 'outhumid'
+        },
+        'indoor': {
+            'temperature': 'intemp',
+            'humidity': 'inhumid'
+        },
+        'solar_and_uvi': {
+            'solar': 'radiation',
+            'uvi': 'uvi'
+        },
+        'rainfall': {
+            'rain_rate': 't_rainrate',
+            'event': 't_rainevent',
+            'hourly': 't_rainday',
+            'daily': 't_rainhour',
+            'weekly': 't_rainweek',
+            'monthly': 't_rainmonth',
+            'yearly': 't_rainyear',
+        },
+        'rainfall_piezo': {
+            'rain_rate': 'p_rainrate',
+            'event': 'p_rainevent',
+            'hourly': 'p_rainday',
+            'daily': 'p_rainhour',
+            'weekly': 'p_rainweek',
+            'monthly': 'p_rainmonth',
+            'yearly': 'p_rainyear',
+        },
+        'wind': {
+            'wind_speed': 'windspeed',
+            'wind_gust': 'gustspeed',
+            'wind_direction': 'winddir'
+        },
+        'pressure': {
+            'absolute': 'absbarometer',
+            'relative': 'relbarometer'
+        },
+        'lightning': {
+            'distance': 'lightningdist',
+            'count': 'lightningcount'
+        },
+        # 'indoor_co2': {
+        #     'co2': '',
+        #     '24_hours_average': ''
+        # },
+        'pm25_ch1': {
+            'pm25': 'pm251'
+        },
+        'pm25_ch2': {
+            'pm25': 'pm252'
+        },
+        'pm25_ch3': {
+            'pm25': 'pm253'
+        },
+        'pm25_ch4': {
+            'pm25': 'pm254'
+        },
+        'co2_aqi_combo': {
+            'co2': '',
+            '24_hours_average': ''
+        },
+        'pm25_aqi_combo': {
+            'pm25': 'pm255',
+            'real_time_aqi': '',
+            '24_hours_aqi': ''
+        },
+        'pm10_aqi_combo': {
+            'pm10': 'pm10',
+            'real_time_aqi': '',
+            '24_hours_aqi': ''
+        },
+        'pm1_aqi_combo': {
+            'pm1': 'pm1',
+            'real_time_aqi': '',
+            '24_hours_aqi': ''
+        },
+        'pm4_aqi_combo': {
+            'pm4': 'pm4',
+            'real_time_aqi': '',
+            '24_hours_aqi': ''
+        },
+        't_rh_aqi_combo': {
+            'temperature': '',
+            'humidity': ''
+        },
+        'temp_and_humidity_ch1': {
+            'temperature': 'temp1',
+            'humidity': 'humid1'
+        },
+        'temp_and_humidity_ch2': {
+            'temperature': 'temp2',
+            'humidity': 'humid2'
+        },
+        'temp_and_humidity_ch3': {
+            'temperature': 'temp3',
+            'humidity': 'humid3'
+        },
+        'temp_and_humidity_ch4': {
+            'temperature': 'temp4',
+            'humidity': 'humid4'
+        },
+        'temp_and_humidity_ch5': {
+            'temperature': 'temp5',
+            'humidity': 'humid5'
+        },
+        'temp_and_humidity_ch6': {
+            'temperature': 'temp6',
+            'humidity': 'humid6'
+        },
+        'temp_and_humidity_ch7': {
+            'temperature': 'temp7',
+            'humidity': 'humid7'
+        },
+        'temp_and_humidity_ch8': {
+            'temperature': 'temp8',
+            'humidity': 'humid8'
+        },
+        'soil_ch1': {
+            'soilmoisture': 'soilmoist1'
+        },
+        'soil_ch2': {
+            'soilmoisture': 'soilmoist2'
+        },
+        'soil_ch3': {
+            'soilmoisture': 'soilmoist3'
+        },
+        'soil_ch4': {
+            'soilmoisture': 'soilmoist4'
+        },
+        'soil_ch5': {
+            'soilmoisture': 'soilmoist5'
+        },
+        'soil_ch6': {
+            'soilmoisture': 'soilmoist6'
+        },
+        'soil_ch7': {
+            'soilmoisture': 'soilmoist7'
+        },
+        'soil_ch8': {
+            'soilmoisture': 'soilmoist8'
+        },
+        'temp_ch1': {
+            'temperature': 'temp9'
+        },
+        'temp_ch2': {
+            'temperature': 'temp10'
+        },
+        'temp_ch3': {
+            'temperature': 'temp11'
+        },
+        'temp_ch4': {
+            'temperature': 'temp12'
+        },
+        'temp_ch5': {
+            'temperature': 'temp13'
+        },
+        'temp_ch6': {
+            'temperature': 'temp14'
+        },
+        'temp_ch7': {
+            'temperature': 'temp15'
+        },
+        'temp_ch8': {
+            'temperature': 'temp16'
+        },
+        'leaf_ch1': {
+            'leaf_wetness': 'leafwet1'
+        },
+        'leaf_ch2': {
+            'leaf_wetness': 'leafwet2'
+        },
+        'leaf_ch3': {
+            'leaf_wetness': 'leafwet3'
+        },
+        'leaf_ch4': {
+            'leaf_wetness': 'leafwet4'
+        },
+        'leaf_ch5': {
+            'leaf_wetness': 'leafwet5'
+        },
+        'leaf_ch6': {
+            'leaf_wetness': 'leafwet6'
+        },
+        'leaf_ch7': {
+            'leaf_wetness': 'leafwet7'
+        },
+        'leaf_ch8': {
+            'leaf_wetness': 'leafwet8'
+        },
+        'battery': {
+            # 'ws1900_console': '',
+            # 'ws1800_console': '',
+            # 'ws6006_console': '',
+            # 'console': '',
+            # 'wind_sensor': '',
+            # 'haptic_array_battery': '',
+            # 'haptic_array_capacitor': '',
+            # 'sonic_array': '',
+            # 'rainfall_sensor': '',
+            'soilmoisture_sensor_ch1': 'wh51_ch1_batt',
+            'soilmoisture_sensor_ch2': 'wh51_ch2_batt',
+            'soilmoisture_sensor_ch3': 'wh51_ch3_batt',
+            'soilmoisture_sensor_ch4': 'wh51_ch4_batt',
+            'soilmoisture_sensor_ch5': 'wh51_ch5_batt',
+            'soilmoisture_sensor_ch6': 'wh51_ch6_batt',
+            'soilmoisture_sensor_ch7': 'wh51_ch7_batt',
+            'soilmoisture_sensor_ch8': 'wh51_ch8_batt',
+            'temperature_sensor_ch1': 'wn34_ch1_batt',
+            'temperature_sensor_ch2': 'wn34_ch2_batt',
+            'temperature_sensor_ch3': 'wn34_ch3_batt',
+            'temperature_sensor_ch4': 'wn34_ch4_batt',
+            'temperature_sensor_ch5': 'wn34_ch5_batt',
+            'temperature_sensor_ch6': 'wn34_ch6_batt',
+            'temperature_sensor_ch7': 'wn34_ch7_batt',
+            'temperature_sensor_ch8': 'wn34_ch8_batt',
+            'leaf_wetness_sensor_ch1': 'wn35_ch1_batt',
+            'leaf_wetness_sensor_ch2': 'wn35_ch2_batt',
+            'leaf_wetness_sensor_ch3': 'wn35_ch3_batt',
+            'leaf_wetness_sensor_ch4': 'wn35_ch4_batt',
+            'leaf_wetness_sensor_ch5': 'wn35_ch5_batt',
+            'leaf_wetness_sensor_ch6': 'wn35_ch6_batt',
+            'leaf_wetness_sensor_ch7': 'wn35_ch7_batt',
+            'leaf_wetness_sensor_ch8': 'wn35_ch8_batt'
+        }
+    }
+
+    def __init__(self, api_key, app_key, mac):
+        """Initialise an EcowittBackfill object."""
+
+        # save the user Ecowitt.net API key
+        self.api_key = api_key
+        # save the user Ecowitt.net application key
+        self.app_key = app_key
+        # save the device MAC address
+        self.mac = mac
+
+    def gen_history_records(self, start_ts, stop_ts=None, **kwargs):
+        """Generate archive-like records from Ecowitt.net API history data.
+
+        Generator function that uses the Ecowitt.net API to obtain history data
+        from Ecowitt.net and generate archive-like records suitable for
+        backfill by the WeeWX Ecowitt gateway driver. Generated records are
+        timestamped from start_ts to stop_ts inclusive. If stop_ts is not
+        specified records are generated up to an including the current system
+        time.
+
+        start_ts: Earliest timestamp for which archive-like records are to be
+                  emitted. Mandatory, integer.
+        stop_ts:  Latest timestamp for which archive-like records are to be
+                  emitted. If not specified or specified as None the current
+                  system time is used instead. Optional, integer or None.
+
+        Keyword Arguments. Supported keyword arguments include:
+        call_back: Tuple containing the Ecowitt.net history data set names to
+                   be sought in the API request. If not specified the default
+                   call back data sets (EcowittBackfill.default_call_back) are
+                   used. Optional, tuple of strings.
+        """
+
+        # use the current system time if stop_ts was not specified
+        adj_stop_ts = int(time.time()) if stop_ts is None else stop_ts
+        # construct the call_back, this specifies the data sets to be included
+        # in the API history request
+        # first check if we were given a call_back to use, if not use the
+        # default
+        _call_back = kwargs.get('call_back') if 'call_back' in kwargs else self.default_call_back
+        # construct the call_back string; the call_back is specified in a tuple
+        # but the API requires a comma separated string
+        call_back = ','.join(_call_back)
+        # we can only obtain a max of one days data at a time from Ecowitt.net
+        # so split our interval into a series of 'day' spans
+        for t_span in weeutil.weeutil.genDaySpans(start_ts, adj_stop_ts):
+            # construct a dict containing the data elements to be included in
+            # the API request
+            data = {
+                'application_key': self.app_key,
+                'api_key': self.api_key,
+                'mac': self.mac,
+                'start_date': datetime.fromtimestamp(t_span.start).strftime('%Y-%m-%d %H:%M:%S'),
+                'end_date': datetime.fromtimestamp(t_span.stop).strftime('%Y-%m-%d %H:%M:%S'),
+                'call_back': call_back,
+                'cycle_type': '5min',
+                'temp_unitid': 1,
+                'pressure_unitid': 3,
+                'wind_speed_unitid': 6,
+                'rainfall_unitid': 12,
+                'solar_irradiance_unitid': 16
+            }
+            # Obtain a day of history data via the Ecowitt.net API. We will
+            # either receive data or encounter an exception if the request
+            # failed or the data invalid. So wrap in a try .. except to catch
+            # and handle any exceptions.
+            try:
+                day_data = self.request(command_str='history', data=data, headers=None)
+            except (socket.timeout, urllib.error.URLError,
+                    InvalidApiResponseError, ApiResponseError) as e:
+                # A technical comms error was encountered or the response
+                # received contains invalid data, either way we cannot
+                # continue. Either way any logging has already occurred so just
+                # raise the exception
+                raise
+            else:
+                # parse the raw day data, this will give us an iterable we can
+                # traverse to construct archive-like records for the day
+                parsed_day_data = self.parse_history(day_data.get('data', dict()))
+                # traverse the timestamped data for the day and construct and
+                # yield records, we need the timestamps in ascending order
+                for ts in sorted(parsed_day_data.keys()):
+                    # ensure we are only yielding timestamps within our span of
+                    # interest
+                    if start_ts <= ts <= adj_stop_ts:
+                        # construct an outline record, the timestamp is the
+                        # current timestamp in our parsed data
+                        rec = {'datetime': ts}
+                        # add the rest of the parsed day dat for this timestamp
+                        rec.update(parsed_day_data[ts])
+                        # yield the archive-like record
+                        yield rec
+
+    def request(self, command_str, data=None, headers=None):
+        """Send a HTTP request to the Ecowitt.net API and return the response.
+
+        Create a HTTP request with optional data and headers. Send the HTTP
+        request to the device as a GET request and obtain the response. The
+        JSON deserialized response is returned. If the response cannot be
+        deserialized the value None is returned. URL or timeout errors are
+        logged and raised.
+
+        command_str: a string containing the command to be sent,
+                     eg: 'get_livedata_info'
+        data: a dict containing key:value pairs representing the data to be
+              sent
+        headers: a dict containing headers to be included in the HTTP request
+
+        Returns a deserialized JSON object or None
+        """
+
+        # check if we have a command that we know about
+        data_dict = {} if data is None else data
+        headers_dict = {} if headers is None else headers
+        if command_str in EcowittBackfill.commands:
+            # first convert any data to a percent-encoded ASCII text string
+            data_enc = urllib.parse.urlencode(data_dict)
+            # construct the endpoint and 'path' of the URL
+            endpoint_path = '/'.join([EcowittBackfill.endpoint, command_str])
+            # Finally add the encoded data. We need to add the data in this manner
+            # rather than using the Request object's 'data' parameter so that the
+            # request is sent as a GET request rather than a POST request.
+            url = '?'.join([endpoint_path, data_enc])
+            # create a Request object
+            req = urllib.request.Request(url=url, headers=headers_dict)
+            try:
+                # submit the request and obtain the raw response
+                with urllib.request.urlopen(req) as w:
+                    # get charset used so we can decode the stream correctly
+                    char_set = w.headers.get_content_charset()
+                    # Now get the response and decode it using the headers
+                    # character set. Be prepared for charset==None.
+                    if char_set is not None:
+                        response = w.read().decode(char_set)
+                    else:
+                        response = w.read().decode()
+            except (socket.timeout, urllib.error.URLError) as e:
+                # log the error and raise it
+                log.error("Failed to obtain data from Ecowitt.net")
+                log.error("   **** %s" % e)
+                raise
+            # we have a response, but first check it for validity
+            try:
+                return self.check_response(response)
+            except (InvalidApiResponseError, ApiResponseError) as e:
+                # the response was not valid, log it and attempt again
+                # if we haven't had too many attempts already
+#                if self.debug:
+                log.error(f"Invalid Ecowitt.net API response: {e}")
+            except Exception as e:
+                # Some other error occurred in check_response(),
+                # perhaps the response was malformed. Log the stack
+                # trace but continue.
+                raise
+
+    def check_response(self, response):
+        """Check the validity of an API response.
+
+        Checks the validity of an API response. Three checks are performed:
+
+        1.  the response has a length > 0
+        2.  the response is valid JSON
+        3.  the response contains a field 'code' with the value 0
+
+        If any check fails an appropriate exception is raised, if all checks
+        pass the decoded JSON response is returned.
+
+        response: Raw, character set decoded response from a HTTP request the
+        Ecowitt.net API.
+
+        Returns a deserialized JSON object or raises an exception.
+        """
+
+        # do we have a response
+        if response is not None and len(response) > 0:
+            # we have some sort of response, but is it JSON and is the response
+            # code 0
+            try:
+                # attempt to decode the response as JSON
+                json_resp = json.loads(response)
+            except json.JSONDecodeError as e:
+                # the response could not be decoded as JSON, raise an
+                # InvalidApiResponseError exception
+                raise InvalidApiResponseError(e)
+            # we have JSON format response, but does the response contain
+            # 'code' == 0
+            if json_resp.get('code') == 0:
+                # we have valid JSO0 and a (sic) 'success result', return the
+                # JSON format response
+                return json_resp
+            else:
+                # we have a non-zero 'code', raise an ApiResponseError
+                # exception with a suitable error message
+                code = json_resp.get('code', 'no code')
+                raise ApiResponseError(f"Received API response error code "
+                                       f"'{code}': {self.api_result_codes.get(code)}")
+        else:
+            # response is None or zero length, raise an InvalidApiResponseError
+            # exception
+            raise InvalidApiResponseError(f"Invalid API response received")
+
+    def parse_history(self, history_data):
+        """Parse Ecowitt.net history data"""
+
+#        history_data = json.loads(self.d).get('data', dict())
+        # initialise a dict to hold the parsed data
+        result = dict()
+        # iterate over each set of data in history_data
+        for set_name, set_data in history_data.items():
+            # obtain the parsed set data
+            parsed_set_data = self.parse_data_set(set_name, set_data)
+            # the parsed set data is a dict of data keyed by timestamp, iterate
+            # over each timestamp: data pair and add the data to the
+            # corresponding timestamp in the parsed data accumulated so far
+            for ts, ts_data in parsed_set_data.items():
+                # if we have not previously seen this timestamp add an entry to
+                # the parsed data results
+                if ts not in result:
+                    result[ts] = dict()
+                # update the accumulated parsed data with the current parsed
+                # data
+                result[ts].update(ts_data)
+        # return the accumulated parsed data
+        return result
+
+    def parse_data_set(self, set_name, data):
+        """Parse a data set containing one or more observation types."""
+
+        # initialise a dict to hold our accumulated results
+        result = dict()
+        # iterate over each observation type and its data in the data set
+        for obs, obs_data in data.items():
+            # obtain the field name to use, this is an internal
+            field_name = self.get_field_name(set_name, obs)
+            # if the field name is not None then add the current obs type data
+            # to our results, if the field name is None then skip this obs type
+            if field_name is not None:
+                # obtain the parsed obs type data
+                parsed_data = self.parse_float(obs_data)
+                # iterate over the timestamp: data pairs and add them to our
+                # accumulated results
+                for ts, value in parsed_data.items():
+                    # if we have not previously seen this timestamp add an
+                    # entry to the parsed data results
+                    if ts not in result:
+                        result[ts] = dict()
+                    # update the accumulated parsed data with the current
+                    # parsed data
+                    result[ts][field_name] = value
+        # return the accumulated results
+        return result
+
+    @staticmethod
+    def parse_float(data):
+        """Parse an observation type consisting of floating point data.
+
+        Each data set (eg 'outdoor', 'indoor', 'pressure' etc) equates to a
+        JSON object (eg "outdoor", "indoor", "pressure" etc) and consists of
+        one or more observation types (eg 'temperature', 'feels_like' etc)
+        which also equate to JSON objects (eg "temperature", "feels_like" etc)
+        containing timestamped observation values. Currently, this timestamped
+        data exists in the JSON object "list" as a sequence of timestamp:value
+        pairs where timestamp is a unix epoch timestamp enclosed in quotes and
+        value is a numeric observation value again enclosed in quotes.
+
+        The JSON "list" object is processed with each timestamp converted to an
+        integer and the corresponding value converted to a floating point
+        number. A dict of converted numeric timestamp:value pair is returned.
+        The return dict may be in ascending timestamp order, but this is not
+        guaranteed. If a timestamp string cannot be converted to an integer the
+        timestamp:value pair is ignored. If a value cannot be converted to a
+        floating point number the value is set to None.
+
+        Example JSON data extract showing the 'outdoor' data set including the
+        'temperature' and 'feels_like' observation types:
+
+        ....
+        "data": {
+            "outdoor": {
+                "temperature": {
+                    "unit": "℃",
+                    "list": {
+                        "1722764400": "16.8",
+                        "1722764700": "16.8",
+                        "1722765000": "16.7",
+                        "1722765300": "16.7"
+                    }
+                },
+                "feels_like": {
+                    "unit": "℃",
+                    "list": {
+                        "1722764400": "16.8",
+                        "1722764700": "16.8",
+                        "1722765000": "16.7",
+                        "1722765300": "16.7"
+                    }
+                },
+                ....
+            },
+            ....
+        },
+        ....
+        """
+
+        # initialise a dict to hold the result
+        result = dict()
+        # iterate over each ts, value pair in the 'list' entry in the source
+        # data
+        for ts_string, value_str in data['list'].items():
+            # the ts is a string, try to convert to an int, if we cannot
+            # skip the ts
+            try:
+                ts = int(ts_string)
+            except ValueError:
+                continue
+            # Convert the value to a float and save to our result dict, if we
+            # cannot convert to a float then save the value None
+            try:
+                result[ts] = float(value_str)
+            except ValueError:
+                result[ts] = None
+        # return the result
+        return result
+
+    def get_field_name(self, set_name, obs):
+        """Determine the destination field name to be used.
+
+        The field names used in an Ecowitt.net API history response are
+        different to those field names used internally within the Ecowitt
+        gateway driver. To allow Ecowitt.net API history obs data to be used by
+        the Ecowitt gateway driver each Ecowitt.net API obs data field must be
+        mapped to an Ecowitt gateway driver internal field.
+
+        Some Ecowitt.net API history fields are not used by the Ecowitt gateway
+        driver and can be ignored. In these cases the value None is returned.
+
+        Given an Ecowitt.net history set name and obs type a lookup table can
+        be used to determine the applicable Ecowitt gateway driver internal
+        field.
+        """
+
+        # wrap in a try .. except so we can catch those API fields we will
+        # ignore (ie not in the lookup table)
+        try:
+            # Obtain the driver field name from the lookup table. If the
+            # Ecowitt.net history field is to be ignored there will be no
+            # lookup table entry resulting in a KeyError.
+            return self.net_to_driver_map[set_name][obs]
+        except KeyError:
+            # we can ignore this API field so return None
+            return None
+
+
+# ============================================================================
 #                            GatewayDriver class
 # ============================================================================
 
@@ -2592,6 +3261,11 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         self.debug = DebugOptions(stn_dict)
         # now initialize my superclasses
         super(GatewayDriver, self).__init__(**stn_dict)
+        # Ecowitt.net API and applications keys for backfill on startup from
+        # Ecowitt.net
+        backfill_config = stn_dict.get('backfill', {})
+        self.api_key = backfill_config.get('api_key', None)
+        self.app_key = backfill_config.get('app_key', None)
         # start the Gw1000Collector in its own thread
         self.collector.startup()
 
@@ -2656,7 +3330,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                         # we don't have a timestamp so create one
                         packet = {'dateTime': int(time.time() + 0.5)}
                     # if not already determined, determine which cumulative rain
-                    # field will be used to determine the per period rain field
+                    # field will be used to determine the per-period rain field
                     if not self.rain_mapping_confirmed or not self.piezo_rain_mapping_confirmed:
                         self.get_cumulative_rain_field(queue_data)
                     # get the rainfall this period from total
@@ -2753,6 +3427,112 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 else:
                     pass
 
+    def genStartupRecords(self, last_ts):
+        """Generator function that returns archive records on startup.
+
+        GatewayDriver.genStartupRecords() is called on WeeWX startup to allow
+        backfill of any missing records since WeeWX last stopped/restarted.
+        last_ts is the timestamp of the last good archive record at time of
+        startup/restart. The default genStartupRecords() action is to call
+        GatewayDriver.genArchiveRecords(). In this case genStartupRecords()
+        is overridden so that a check can be done for essential pre-requisites
+        for downloading archive records from Ecowitt.net. This allows
+        informative error messages to be logged if an essential pre-requisite
+        is missing.
+
+        Essential pre-requisites consist of:
+
+        API key: API key used to access Ecowitt.net
+        Application key: Application key required to access Ecowitt.net
+        """
+
+        if self.debug.backfill:
+            log.info("backfill: API key: %s Application key: %s" % (obfuscate(self.api_key),
+                                                                    obfuscate(self.app_key)))
+        # are all of our pre-requisites non-None
+        if None not in {self.api_key, self.app_key}:
+            # we have all pre-requisites so call the generator
+            return self.genArchiveRecords(last_ts)
+        else:
+            # one or more pre-requisites were None/missing, construct a
+            # suitable error message
+            # first, initialise a list to hold some strings we will join later
+            error_list = []
+            # if the API key is None add 'API key' to the error list
+            if self.api_key is None:
+                error_list.append("API key")
+            # if the Application key is None add 'Application key' to the error
+            # list
+            if self.app_key is None:
+                error_list.append("Application key")
+            # construction the missing config items error message
+            e_msg = ' and '.join(error_list)
+            e_msg = '%s not specified.' % e_msg
+        # it seems odd, but raise a HardwareError exception with the
+        # constructed error message
+        raise weewx.HardwareError(e_msg)
+
+    def genArchiveRecords(self, lastgood_ts):
+        """Generator function to return archive records since a given time.
+
+        Obtain archive like history data from Ecowitt.net since a given
+        timestamp and emit the data as a WeeWX archive record.
+
+        lastgood_ts:    the timestamp after which historical archive records
+                        are to be generated
+
+        Yields historical archive records.
+        """
+
+        # save our MAC address, we will need this more than once this saves some
+        # device API calls
+        mac = self.mac_address
+        # if necessary log the MAC address being used
+        if self.debug.backfill:
+            log.info("backfill: Using MAC address: %s" % mac)
+        # do we have a MAC address
+        if mac is not None:
+            # we have a MAC address
+            # obtain an EcowittBackfill object to obtain archive records from
+            # Ecowitt.net
+            backfill = EcowittBackfill(api_key=self.api_key,
+                                       app_key=self.app_key,
+                                       mac=mac)
+            # iterate over the history records obtained from WEcowitt.net, our
+            # start ts needs to be after the timestamp of the last known good
+            # archive record
+            for rec in backfill.gen_history_records(start_ts=lastgood_ts + 1):
+                # initialise a dict to hold our archive like record, its
+                # timestamp will be the record timestamp from Ecowitt.net
+                # Note that a 'usUnits' field/unit conversion is not required
+                # at this time as:
+                # 1. this backfill is all internal to the driver and it is not
+                #    until the driver emits an archive record that we need a
+                #    'usUnits' field
+                # 2. history records are provided using METRICWX units and the
+                #    Gateway driver operates internally with the same METRICWX
+                #    units
+                record = {'dateTime': rec['datetime']}
+                # do we have a suitable mapping for calculating per-record
+                # rainfall, if not obtain a suitable field
+                if not self.rain_mapping_confirmed or not self.piezo_rain_mapping_confirmed:
+                    self.get_cumulative_rain_field(rec)
+                # get the rainfall for this period from the chosen cumulative
+                # field
+                self.calculate_rain(rec)
+                # get the lightning strike count for this period from the total
+                self.calculate_lightning_count(rec)
+                # map the raw history data to WeeWX loop packet fields
+                mapped_data = self.map_data(rec)
+                # add the mapped data to the empty record
+                record.update(mapped_data)
+                # yield the record
+                yield record
+        else:
+            # we have no MAC address, either it could not be obtained from the
+            # device or something else is seriously amiss
+            raise weewx.HardwareError('genArchiveRecords: device MAC address '
+                                      'could not be obtained or is otherwise invalid')
     @property
     def hardware_name(self):
         """Return the hardware name.
@@ -2962,7 +3742,7 @@ class GatewayCollector(Collector):
                 # do a firmware update check if required
                 if now - last_fw_check > self.fw_update_check_interval and self.log_fw_update_avail:
                     if self.device.firmware_update_avail:
-                        _msg = "A firmware is available, "\
+                        _msg = "A firmware update is available, "\
                                "current %s firmware version is %s" % (self.device.model,
                                                                       self.device.firmware_version)
                         loginf(_msg)
