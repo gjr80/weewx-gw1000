@@ -361,6 +361,7 @@ from __future__ import print_function
 
 import calendar
 import configobj
+import datetime
 import json
 import re
 import socket
@@ -2925,8 +2926,8 @@ class EcowittBackfill:
                 'application_key': self.app_key,
                 'api_key': self.api_key,
                 'mac': self.mac,
-                'start_date': datetime.fromtimestamp(t_span.start).strftime('%Y-%m-%d %H:%M:%S'),
-                'end_date': datetime.fromtimestamp(t_span.stop).strftime('%Y-%m-%d %H:%M:%S'),
+                'start_date': datetime.datetime.fromtimestamp(t_span.start).strftime('%Y-%m-%d %H:%M:%S'),
+                'end_date': datetime.datetime.fromtimestamp(t_span.stop).strftime('%Y-%m-%d %H:%M:%S'),
                 'call_back': call_back,
                 'cycle_type': '5min',
                 'temp_unitid': 1,
