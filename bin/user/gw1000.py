@@ -36,9 +36,11 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.6.3                                     Date: 2 August 2024
+Version: 0.7.0a2                                   Date: xx August 2024
 
 Revision History
+    xx August 2024          v0.7.0
+        -   implement optional catchup on startup from Ecowitt.net
     2 August 2024          `v0.6.3
         -   added support for WS85 sensor array
         -   added support for WH46 air quality sensor
@@ -446,7 +448,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.7.0a1'
+DRIVER_VERSION = '0.7.0a2'
 
 # various defaults used throughout
 # default port used by device
@@ -2884,7 +2886,7 @@ class EcowittNetCatchup:
         # save the device MAC address
         self.mac = mac
 
-    def gen_history_records(self, start_ts, stop_ts=None, **kwargs):
+    def gen_history_records(self, start_ts=None, stop_ts=None, **kwargs):
         """Generate archive-like records from Ecowitt.net API history data.
 
         Generator function that uses the Ecowitt.net API to obtain history data
@@ -2895,7 +2897,10 @@ class EcowittNetCatchup:
         time.
 
         start_ts: Earliest timestamp for which archive-like records are to be
-                  emitted. Mandatory, integer.
+                  emitted. If earlier than midnight 90 days ago midnight 90
+                  days ago is used. If not specified or specified as None
+                  midnight at the start of the day 90 days earlier than the
+                  system time is used. Optional, integer or None.
         stop_ts:  Latest timestamp for which archive-like records are to be
                   emitted. If not specified or specified as None the current
                   system time is used instead. Optional, integer or None.
@@ -2907,6 +2912,18 @@ class EcowittNetCatchup:
                    are used. Optional, tuple of strings.
         """
 
+        # get the timestamp for midnight at the start of the day 90 days ago,
+        # this is the earliest date-time for which Ecowitt.net can provide five
+        # minute interval records
+        start_90_dt = datetime.datetime.now() - datetime.timedelta(days=90)
+        start_90_dt = start_90_dt.replace(minute=0, hour=0, second=0, microsecond=0)
+        start_90_ts = time.mktime(start_90_dt.timetuple())
+        # Check if we have a start timestamp and if so is it is earlier than
+        # the timestamp for midnight at the start of the day 90 days ago.If we
+        # do set the start timestamp to the timestamp for midnight at the start
+        # of the day 90 days ago
+        if start_ts is None or start_ts < start_90_ts:
+            start_ts = start_90_ts
         # use the current system time if stop_ts was not specified
         adj_stop_ts = int(time.time()) if stop_ts is None else stop_ts
         # construct the call_back, this specifies the data sets to be included
@@ -2926,7 +2943,16 @@ class EcowittNetCatchup:
                 'application_key': self.app_key,
                 'api_key': self.api_key,
                 'mac': self.mac,
-                'start_date': datetime.datetime.fromtimestamp(t_span.start).strftime('%Y-%m-%d %H:%M:%S'),
+                # weeutil.weeutil.genDaySpans returns a 'midnight to midnight'
+                # timespan. If we use the generated day span start and stop
+                # timestamps when querying the Ecowitt.net API, the first
+                # record in each query will actually belong to the previous
+                # day. Plus we will have the last midnight record of a given
+                # day appearing as the first record in the next days API query
+                # causing a unique constraint warnings when saving archive
+                # records to database. To avoid this add one second to the day
+                # span start timestamp.
+                'start_date': datetime.datetime.fromtimestamp(t_span.start + 1).strftime('%Y-%m-%d %H:%M:%S'),
                 'end_date': datetime.datetime.fromtimestamp(t_span.stop).strftime('%Y-%m-%d %H:%M:%S'),
                 'call_back': call_back,
                 'cycle_type': '5min',
@@ -3502,7 +3528,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
             # iterate over the history records obtained from WEcowitt.net, our
             # start ts needs to be after the timestamp of the last known good
             # archive record
-            for rec in catchup.gen_history_records(start_ts=lastgood_ts + 1):
+            for rec in catchup.gen_history_records(start_ts=lastgood_ts):
                 # initialise a dict to hold our archive like record, its
                 # timestamp will be the record timestamp from Ecowitt.net
                 # Note that a 'usUnits' field/unit conversion is not required
