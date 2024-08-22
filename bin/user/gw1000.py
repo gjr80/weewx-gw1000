@@ -2985,8 +2985,9 @@ class EcowittNetCatchup:
                     # ensure we are only yielding timestamps within our span of
                     # interest
                     if start_ts <= ts <= adj_stop_ts:
-                        # construct an outline record, the timestamp is the
-                        # current timestamp in our parsed data
+                        # Construct an outline record, the timestamp is the
+                        # current timestamp in our parsed data. We don't (yet)
+                        # need a usUnits field nor an interval field
                         rec = {'datetime': ts}
                         # add the rest of the parsed day dat for this timestamp
                         rec.update(parsed_day_data[ts])
@@ -3329,8 +3330,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     if self.debug.loop:
                         if 'datetime' in queue_data:
                             loginf('GatewayDriver: Received %s data: %s %s' % (self.collector.device.model,
-                                                                               timestamp_to_string(
-                                                                                   queue_data['datetime']),
+                                                                               timestamp_to_string(queue_data['datetime']),
                                                                                natural_sort_dict(queue_data)))
                         else:
                             loginf('GatewayDriver: Received %s data: %s' % (self.collector.device.model,
@@ -3370,8 +3370,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     if self.debug.loop:
                         if 'datetime' in mapped_data:
                             loginf('GatewayDriver: Mapped %s data: %s %s' % (self.collector.device.model,
-                                                                             timestamp_to_string(
-                                                                                 mapped_data['datetime']),
+                                                                             timestamp_to_string(mapped_data['datetime']),
                                                                              natural_sort_dict(mapped_data)))
                         else:
                             loginf('GatewayDriver: Mapped %s data: %s' % (self.collector.device.model,
@@ -3460,7 +3459,10 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         GatewayDriver.genStartupRecords() is called on WeeWX startup to allow
         catchup of any missing records since WeeWX last stopped/restarted.
         last_ts is the timestamp of the last good archive record at time of
-        startup/restart. The default genStartupRecords() action is to call
+        startup/restart; it could be None if the archive is empty. At this time
+        the Ecowitt.net catchup limits itself to the last 90 days of available
+        records to ensure a five-minute catchup record interval. The default
+        genStartupRecords() action is to call
         GatewayDriver.genArchiveRecords(). In this case genStartupRecords()
         is overridden so that a check can be done for essential pre-requisites
         for downloading archive records from Ecowitt.net. This allows
@@ -3473,9 +3475,11 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         Application key: Application key required to access Ecowitt.net
         """
 
+        # if catchup debug is enabled log our obfuscated keys
         if self.debug.catchup:
-            log.info("catchup: API key: %s Application key: %s" % (obfuscate(self.api_key),
-                                                                   obfuscate(self.app_key)))
+            log.info("genStartupRecords: API key: %s "
+                     "Application key: %s" % (obfuscate(self.api_key),
+                                              obfuscate(self.app_key)))
         # are all of our pre-requisites non-None
         if None not in {self.api_key, self.app_key}:
             # we have all pre-requisites so call the generator
@@ -3511,12 +3515,12 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         Yields historical archive records.
         """
 
-        # save our MAC address, we will need this more than once this saves some
-        # device API calls
+        # save our MAC address, we will need this more than once and doing this
+        # up front saves some device API calls
         mac = self.mac_address
         # if necessary log the MAC address being used
         if self.debug.catchup:
-            log.info("catchup: Using MAC address: %s" % mac)
+            log.info("genArchiveRecords: Using MAC address: %s" % mac)
         # do we have a MAC address
         if mac is not None:
             # we have a MAC address
@@ -3525,21 +3529,14 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
             catchup = EcowittNetCatchup(api_key=self.api_key,
                                         app_key=self.app_key,
                                         mac=mac)
-            # iterate over the history records obtained from WEcowitt.net, our
-            # start ts needs to be after the timestamp of the last known good
-            # archive record
+            # iterate over the history records obtained from Ecowitt.net, the
+            # start timestamp is the timestamp of our last known good record
             for rec in catchup.gen_history_records(start_ts=lastgood_ts):
-                # initialise a dict to hold our archive like record, its
-                # timestamp will be the record timestamp from Ecowitt.net
-                # Note that a 'usUnits' field/unit conversion is not required
-                # at this time as:
-                # 1. this catchup is all internal to the driver and it is not
-                #    until the driver emits an archive record that we need a
-                #    'usUnits' field
-                # 2. history records are provided using METRICWX units and the
-                #    Gateway driver operates internally with the same METRICWX
-                #    units
+                # initialise a dict to hold our archive record, its timestamp
+                # will be the record timestamp from Ecowitt.net, the usUnits
+                # field is METRICWX and the interval is 5
                 record = {'dateTime': rec['datetime'],
+                          'usUnits': weewx.METRICWX,
                           'interval': 5}
                 # do we have a suitable mapping for calculating per-record
                 # rainfall, if not obtain a suitable field
@@ -3554,12 +3551,16 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 mapped_data = self.map_data(rec)
                 # add the mapped data to the empty record
                 record.update(mapped_data)
+                # if necessary log the timestamp of the record being yielded
+                if self.debug.catchup:
+                    log.info("genArchiveRecords: Yielding archive "
+                             "record %s" % timestamp_to_string(record['dateTime']))
                 # yield the record
                 yield record
         else:
             # we have no MAC address, either it could not be obtained from the
             # device or something else is seriously amiss
-            raise weewx.HardwareError('genArchiveRecords: device MAC address '
+            raise weewx.HardwareError('genArchiveRecords: Device MAC address '
                                       'could not be obtained or is otherwise invalid')
     @property
     def hardware_name(self):
@@ -9225,7 +9226,7 @@ class DirectGateway(object):
             print("Displaying data using the WeeWX %s unit group." % weewx.units.unit_nicknames.get(_unit_system))
             print()
             print("%s live sensor data (%s): %s" % (collector.device.model,
-                                                    weeutil.weeutil.timestamp_to_string(datetime),
+                                                    timestamp_to_string(datetime),
                                                     weeutil.weeutil.to_sorted_string(result)))
 
     @staticmethod
@@ -9451,7 +9452,7 @@ class DirectGateway(object):
             print()
             # continuously get loop packets and print them to screen
             for pkt in driver.genLoopPackets():
-                print(": ".join([weeutil.weeutil.timestamp_to_string(pkt['dateTime']),
+                print(": ".join([timestamp_to_string(pkt['dateTime']),
                                  weeutil.weeutil.to_sorted_string(pkt)]))
         except GWIOError as e:
             print()
