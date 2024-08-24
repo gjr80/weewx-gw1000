@@ -1945,8 +1945,8 @@ class GatewayServiceTestCase(unittest.TestCase):
         _result = dict(self.default_field_map)
         # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
         # each fields entry from the result field map
-        _dummy = _result.pop('inTemp', None)
-        _dummy = _result.pop('pm10', None)
+        _dummy = _result.pop('inTemp')
+        _dummy = _result.pop('pm10_0')
         # update the field map with the field map extensions
         _result.update(GatewayServiceTestCase.user_field_extensions)
         # check the GatewayService field map consists of the default field map
