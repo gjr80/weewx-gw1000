@@ -540,7 +540,7 @@ default_groups = {
     'pm2_54_24h_avg': 'group_concentration',
     'pm2_55_24h_avg': 'group_concentration',
     'pm4_0_24h_avg': 'group_concentration',
-    'pm10_24h_avg': 'group_concentration',
+    'pm10_0_24h_avg': 'group_concentration',
     'co2_24h_avg': 'group_fraction',
     'leak1': 'group_count',
     'leak2': 'group_count',
