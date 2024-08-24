@@ -8,9 +8,11 @@ The test suite tests correct operation of:
 
 -
 
-Version: 0.6.1                                  Date: 21 February 2024
+Version: 0.7.0                                  Date: xx August 2024
 
 Revision History
+    xx Augusat 2024     v0.7.0
+        - updated for Ecowitt gateway device driver release 0.7.0
     21 February 2024    v0.6.1
         - updated for Ecowitt gateway device driver release 0.6.1
     7 February 2024     v0.6.0
@@ -32,7 +34,16 @@ To run the test suite:
 
 -   run the test suite using:
 
-    $ PYTHONPATH=$BIN python3 -m user.tests.test_egd [-v]
+    WeeWX v5 package install:
+    $ PYTHONPATH=/usr/share/weewx python3 -m user.tests.test_egd --help
+
+    WeeWX v5 pip install:
+    $ source ~/weewx-venv/bin/activate
+    $ python3 -m user.tests.test_egd --help
+
+    WeeWX v5 git install:
+    $ source ~/weewx-venv/bin/activate
+    $ PYTHONPATH=/home/username/weewx/src:/home/username/weewx-data/bin python3 -m user.tests.test_egd --help
 """
 # python imports
 import socket
@@ -65,7 +76,7 @@ import user.gw1000
 # TODO. Add decode firmware check refer issue #31
 
 TEST_SUITE_NAME = "Gateway driver"
-TEST_SUITE_VERSION = "0.6.0b7"
+TEST_SUITE_VERSION = "0.7.0a3"
 
 
 class DebugOptionsTestCase(unittest.TestCase):
@@ -2307,21 +2318,23 @@ def main():
                   GatewayServiceTestCase)
 
     usage = """python3 -m user.tests.test_egd --help
-           python3 -m user.tests.test_egd --version
-           python3 -m user.tests.test_egd [-v|--verbose=VERBOSITY] [--ip-address=IP_ADDRESS] [--port=PORT]
+       python3 -m user.tests.test_egd --version
+       python3 -m user.tests.test_egd [--verbose VERBOSITY] [--ip-address IP_ADDRESS] [--port PORT]"""
 
-        Arguments:
-
-           VERBOSITY: Path and file name of the WeeWX configuration file to be used.
-                      Default is weewx.conf.
-           IP_ADDRESS: IP address to use to contact the gateway device. If omitted 
-                       discovery is used.
-           PORT: Port to use to contact the gateway device. If omitted discovery is 
-                 used."""
     description = 'Test the Ecowitt gateway driver code.'
-    epilog = """You must ensure the WeeWX modules are in your PYTHONPATH. For example:
+    epilog = """If necessary you must activate the Python virtual environment and ensure the WeeWX modules are in 
+your PYTHONPATH. For example:
 
-    PYTHONPATH=/home/weewx/bin python3 -m user.tests.test_egd --help
+    WeeWX v5 package install:
+    PYTHONPATH=/usr/share/weewx python3 -m user.tests.test_egd --help
+    
+    WeeWX v5 pip install:
+    source ~/weewx-venv/bin/activate
+    python3 -m user.tests.test_egd --help
+    
+    WeeWX v5 git install:
+    source ~/weewx-venv/bin/activate
+    PYTHONPATH=/home/username/weewx/src:/home/username/weewx-data/bin python3 -m user.tests.test_egd --help
     """
 
     parser = argparse.ArgumentParser(usage=usage,
@@ -2329,16 +2342,14 @@ def main():
                                      epilog=epilog,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', dest='version', action='store_true',
-                        help='display Ecowitt gateway driver test suite version number')
-    parser.add_argument('--verbose', dest='verbosity', type=int, metavar="VERBOSITY",
+                        help='display the Ecowitt gateway driver test suite version number')
+    parser.add_argument('--verbosity', dest='verbosity', type=int, metavar="VERBOSITY",
                         default=2,
-                        help='How much status to display, 0-2')
+                        help='how much information to display, 0-2, default is 2')
     parser.add_argument('--ip-address', dest='ip_address', metavar="IP_ADDRESS",
-                        help='Gateway device IP address to use')
+                        help='gateway device IP address to use')
     parser.add_argument('--port', dest='port', type=int, metavar="PORT",
-                        help='Gateway device port to use')
-    parser.add_argument('--no-device', dest='no_device', action='store_true',
-                        help='skip tests that require a physical gateway device')
+                        help='gateway device port to use')
     # parse the arguments
     args = parser.parse_args()
 
@@ -2352,7 +2363,6 @@ def main():
     # GatewayServiceTestCase
     StationTestCase.ip_address = args.ip_address
     StationTestCase.port = args.port
-    StationTestCase.no_device = args.no_device
     GatewayServiceTestCase.ip_address = args.ip_address
     GatewayServiceTestCase.port = args.port
     # get a test runner with appropriate verbosity
