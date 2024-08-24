@@ -1432,12 +1432,13 @@ class StationTestCase(unittest.TestCase):
         # set the port number we will use
         cls.test_port = cls.port if cls.port is not None else StationTestCase.fake_port
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_cmd_vocab(self, mock_get_mac, mock_get_firmware,
-                       mock_get_sys, mock_get_sensor_id):
+                       mock_get_sys, mock_get_sensor_id, mock_get_livedata):
         """Test command dictionaries for completeness.
 
         Tests:
@@ -1455,6 +1456,8 @@ class StationTestCase(unittest.TestCase):
         mock_get_sys.return_value = StationTestCase.mock_system_params
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = None
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                                port=self.test_port)
@@ -1485,12 +1488,14 @@ class StationTestCase(unittest.TestCase):
                           self.commands.keys(),
                           msg="Command '%s' is in Station.api_commands but it is not being tested" % cmd)
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_calc_checksum(self, mock_get_mac, mock_get_firmware,
-                           mock_get_system_params, mock_get_sensor_id):
+                           mock_get_system_params, mock_get_sensor_id,
+                           mock_get_livedata):
         """Test checksum calculation.
 
         Tests:
@@ -1506,18 +1511,22 @@ class StationTestCase(unittest.TestCase):
         mock_get_system_params.return_value = StationTestCase.mock_system_params
         # get_sensor_id - sensor ID data
         mock_get_sensor_id.return_value = None
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                                port=self.test_port)
         # test checksum calculation
         self.assertEqual(gw_device_api.calc_checksum(b'00112233bbccddee'), 168)
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_build_cmd_packet(self, mock_get_mac, mock_get_firmware,
-                              mock_get_system_params, mock_get_sensor_id):
+                              mock_get_system_params, mock_get_sensor_id,
+                              mock_get_livedata):
         """Test construction of an API command packet
 
         Tests:
@@ -1535,6 +1544,8 @@ class StationTestCase(unittest.TestCase):
         mock_get_system_params.return_value = StationTestCase.mock_system_params
         # get_sensor_id - sensor ID data
         mock_get_sensor_id.return_value = None
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                                port=self.test_port)
@@ -1549,12 +1560,14 @@ class StationTestCase(unittest.TestCase):
                           gw_device_api.build_cmd_packet,
                           cmd='UNKNOWN_COMMAND')
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_decode_broadcast_response(self, mock_get_mac, mock_get_firmware,
-                                       mock_get_system_params, mock_get_sensor_id):
+                                       mock_get_system_params, mock_get_sensor_id,
+                                       mock_get_livedata):
         """Test decoding of a broadcast response
 
         Tests:
@@ -1570,6 +1583,8 @@ class StationTestCase(unittest.TestCase):
         mock_get_system_params.return_value = StationTestCase.mock_system_params
         # get_sensor_id - sensor ID data
         mock_get_sensor_id.return_value = None
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
 
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
@@ -1579,12 +1594,13 @@ class StationTestCase(unittest.TestCase):
         # test broadcast response decode
         self.assertEqual(gw_device_api.decode_broadcast_response(data), self.decoded_broadcast_response)
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_api_response_validity_check(self, mock_get_mac, mock_get_firmware,
-                                         mock_get_sys, mock_get_sensor_id):
+                                         mock_get_sys, mock_get_sensor_id, mock_get_livedata):
         """Test validity checking of an API response
 
         Tests:
@@ -1605,6 +1621,8 @@ class StationTestCase(unittest.TestCase):
         mock_get_sys.return_value = StationTestCase.mock_system_params
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = None
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
 
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
@@ -1630,12 +1648,14 @@ class StationTestCase(unittest.TestCase):
                           cmd_code=self.cmd_read_fware_ver)
 
     @patch.object(user.gw1000.GatewayApi, 'discover')
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_discovery(self, mock_get_mac, mock_get_firmware,
-                       mock_get_sys, mock_get_sensor_id, mock_discover):
+                       mock_get_sys, mock_get_sensor_id, mock_get_livedata,
+                       mock_discover):
         """Test discovery related methods.
 
         Tests:
@@ -1651,6 +1671,8 @@ class StationTestCase(unittest.TestCase):
         mock_get_sys.return_value = StationTestCase.mock_system_params
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = None
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # discover() - list of discovered devices (list of dicts)
         mock_discover.return_value = StationTestCase.discover_multi_resp
 
@@ -1842,11 +1864,14 @@ class GatewayServiceTestCase(unittest.TestCase):
         field_map.update(user.gw1000.Gateway.sensor_signal_field_map)
         cls.default_field_map = field_map
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
-    def test_map_construction(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+    def test_map_construction(self, mock_get_mac, mock_get_firmware,
+                              mock_get_sys, mock_get_sensor_id,
+                              mock_get_livedata):
         """Test construction of the gateway device to WeeWX mapping
 
         Tests:
@@ -1868,6 +1893,8 @@ class GatewayServiceTestCase(unittest.TestCase):
         mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
 
         # we will be manipulating the gateway service config so make a copy
         # that we can alter without affecting other test methods
@@ -1918,19 +1945,21 @@ class GatewayServiceTestCase(unittest.TestCase):
         _result = dict(self.default_field_map)
         # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
         # each fields entry from the result field map
-        _dummy = _result.pop('inTemp')
-        _dummy = _result.pop('pm10')
+        _dummy = _result.pop('inTemp', None)
+        _dummy = _result.pop('pm10', None)
         # update the field map with the field map extensions
         _result.update(GatewayServiceTestCase.user_field_extensions)
         # check the GatewayService field map consists of the default field map
         # modified by the user specified field map extensions
         self.assertDictEqual(gw_service.field_map, _result)
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
-    def test_map_operation(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+    def test_map_operation(self, mock_get_mac, mock_get_firmware, mock_get_sys,
+                           mock_get_sensor_id, mock_get_livedata):
         """Test operation of the gateway device to WeeWX mapping
 
         Tests:
@@ -1948,6 +1977,8 @@ class GatewayServiceTestCase(unittest.TestCase):
         mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # obtain a GatewayService object
         gw_service = self.get_gateway_service(config=self.gw1000_svc_config,
                                               caller='test_map')
@@ -1960,11 +1991,13 @@ class GatewayServiceTestCase(unittest.TestCase):
         # check that the usUnits field is set to weewx.METRICWX
         self.assertEqual(weewx.METRICWX, mapped_gw_data.get('usUnits'))
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
-    def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+    def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys,
+                  mock_get_sensor_id, mock_get_livedata):
         """Test GW1000Service correctly calculates WeeWX field rain
 
         Tests:
@@ -1982,6 +2015,8 @@ class GatewayServiceTestCase(unittest.TestCase):
         mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # obtain a GW1000 service
         gw1000_svc = self.get_gateway_service(config=self.gw1000_svc_config,
                                               caller='test_map')
@@ -2015,11 +2050,13 @@ class GatewayServiceTestCase(unittest.TestCase):
                                6.4,
                                places=3)
 
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
     @patch.object(user.gw1000.GatewayApi, 'get_system_params')
     @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
-    def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys, mock_get_sensor_id):
+    def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys,
+                       mock_get_sensor_id, mock_get_livedata):
         """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
 
         Tests:
@@ -2039,6 +2076,8 @@ class GatewayServiceTestCase(unittest.TestCase):
         mock_get_sys.return_value = GatewayServiceTestCase.mock_sys_params_resp
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayServiceTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
         # obtain a GW1000 service
         gw1000_svc = self.get_gateway_service(config=self.gw1000_svc_config,
                                               caller='test_map')
