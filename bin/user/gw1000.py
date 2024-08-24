@@ -36,7 +36,7 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.7.0a2                                   Date: xx August 2024
+Version: 0.7.0a3                                   Date: xx August 2024
 
 Revision History
     xx August 2024          v0.7.0
@@ -448,7 +448,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.7.0a2'
+DRIVER_VERSION = '0.7.0a3'
 
 # various defaults used throughout
 # default port used by device
@@ -795,7 +795,7 @@ class DebugOptions(object):
 #                               class Gateway
 # ============================================================================
 
-class Gateway(object):
+class Gateway:
     """Base class for interacting with an Ecowitt Gateway device.
 
     There are a number of common properties and methods (eg IP address, field
@@ -1088,8 +1088,10 @@ class Gateway(object):
         'ws90_sig': 'ws90_sig'
     }
 
-    def __init__(self, **gw_config):
+    def __init__(self, engine, config_dict, **gw_config):
         """Initialise a Gateway object."""
+
+        super(Gateway, self).__init__(engine, config_dict)
 
         # obtain the field map to be used
         self.field_map = self.construct_field_map(gw_config)
@@ -1621,7 +1623,7 @@ class Gateway(object):
 #                            GW1000 Service class
 # ============================================================================
 
-class GatewayService(weewx.engine.StdService, Gateway):
+class GatewayService(Gateway, weewx.engine.StdService):
     """Gateway device service class.
 
     A WeeWX service to augment loop packets with observational data obtained
@@ -1676,8 +1678,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
             loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
 
         # initialize my superclasses
-        super(GatewayService, self).__init__(engine, config_dict)
-        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
+        super(GatewayService, self).__init__(engine, config_dict, **gw_config_dict)
+#        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
 
         # set failure logging on
         self.log_failures = True
@@ -3258,7 +3260,7 @@ class EcowittNetCatchup:
 #                            GatewayDriver class
 # ============================================================================
 
-class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
+class GatewayDriver(Gateway, weewx.drivers.AbstractDevice):
     """Ecowitt gateway device driver class.
 
     A WeeWX driver to emit loop packets based on observational data obtained
@@ -3471,8 +3473,10 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
 
         Essential pre-requisites consist of:
 
-        API key: API key used to access Ecowitt.net
-        Application key: Application key required to access Ecowitt.net
+        - API key: API key used to access Ecowitt.net
+        - Application key: Application key required to access Ecowitt.net
+
+        Returns a generator function yielding archive records after last_ts.
         """
 
         # if catchup debug is enabled log our obfuscated keys
@@ -3562,6 +3566,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
             # device or something else is seriously amiss
             raise weewx.HardwareError('genArchiveRecords: Device MAC address '
                                       'could not be obtained or is otherwise invalid')
+
     @property
     def hardware_name(self):
         """Return the hardware name.
