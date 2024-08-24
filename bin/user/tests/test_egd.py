@@ -2356,7 +2356,6 @@ your PYTHONPATH. For example:
     # display version number
     if args.version:
         print("%s test suite version: %s" % (TEST_SUITE_NAME, TEST_SUITE_VERSION))
-        print("args=%s" % (args,))
         exit(0)
     # run the tests
     # first set the IP address and port to use in StationTestCase and
