@@ -11,7 +11,7 @@ The test suite tests correct operation of:
 Version: 0.7.0                                  Date: xx August 2024
 
 Revision History
-    xx Augusat 2024     v0.7.0
+    xx August 2024      v0.7.0
         - updated for Ecowitt gateway device driver release 0.7.0
     21 February 2024    v0.6.1
         - updated for Ecowitt gateway device driver release 0.6.1
@@ -60,6 +60,7 @@ import weewx
 import weewx.units
 import user.gw1000
 
+# TODO. Need consistent output from print() when verbosity != 2
 # TODO. Check speed_data data and result are correct
 # TODO. Check rain_data data and result are correct
 # TODO. Check rainrate_data data and result are correct
@@ -1479,7 +1480,7 @@ class StationTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Setup the StationTestCase to perform its tests.
+        """Set up the StationTestCase to perform its tests.
 
         Determines the IP address and port to use for the Station tests. A
         GatewayCollector.Station object is required to perform some
@@ -1497,7 +1498,7 @@ class StationTestCase(unittest.TestCase):
           then port 45000 is used
         - if --port is specified on the command line but --ip-address was not
           then a fake IP address is used
-        - if neither --ip-address or --port number is specified on the command
+        - if neither --ip-address nor --port number is specified on the command
           line then a fake IP address and port number are used
         """
 
@@ -1908,7 +1909,7 @@ class GatewayServiceTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Setup the GatewayServiceTestCase to perform its tests."""
+        """Set up the GatewayServiceTestCase to perform its tests."""
 
         # Create a dummy config so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Only include the
