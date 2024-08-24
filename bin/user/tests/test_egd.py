@@ -84,8 +84,10 @@ class DebugOptionsTestCase(unittest.TestCase):
         self.debug_dict = debug_dict
 
     def test_properties(self):
-        """Test the setting of object properties on initialisation."""
+        """Test DebugOptions properties on initialisation."""
 
+        print()
+        print('   testing default properties ...')
         # check the default
         debug_options = user.gw1000.DebugOptions({})
         for group in self.debug_groups:
@@ -93,6 +95,7 @@ class DebugOptionsTestCase(unittest.TestCase):
         # check 'any' property
         self.assertFalse(debug_options.any)
 
+        print('   testing when all properties set to True ...')
         # check all True
         debug_options = user.gw1000.DebugOptions(self.debug_dict)
         for group in self.debug_groups:
@@ -100,6 +103,7 @@ class DebugOptionsTestCase(unittest.TestCase):
         # check 'any' property
         self.assertTrue(debug_options.any)
 
+        print('   testing when one property is set to True ...')
         # check when just one debug option is True
         # iterate over each of our debug groups, this is the group that will be
         # set True for the test
@@ -181,23 +185,29 @@ class SensorsTestCase(unittest.TestCase):
         self.sensors = user.gw1000.Sensors()
 
     def test_set_sensor_id_data(self):
-        """Test the set_sensor_id_data() method."""
+        """Test Sensors.set_sensor_id_data() method"""
 
+        print()
+        print('   testing with an empty dictionary of sensor data ...')
         # test when passed an empty dict
         self.sensors.set_sensor_id_data(None)
         self.assertDictEqual(self.sensors.sensor_data, {})
 
+        print('   testing with a zero length bytestring of sensor data ...')
         # test when passed a zero length data bytestring
         self.sensors.set_sensor_id_data(b'')
         self.assertDictEqual(self.sensors.sensor_data, {})
 
+        print('   testing with a valid bytestring of sensor data ...')
         # test when passed a valid bytestring
         self.sensors.set_sensor_id_data(hex_to_bytes(self.sensor_id_data))
         self.assertDictEqual(self.sensors.sensor_data, self.sensor_data)
 
     def test_properties(self):
-        """Test class Sensors.sensor_data related property methods."""
+        """Test class Sensors property methods"""
 
+        print()
+        print('   testing with an empty dictionary of sensor data ...')
         # test when passed an empty dict
         self.sensors.set_sensor_id_data(None)
         # addresses property
@@ -209,6 +219,7 @@ class SensorsTestCase(unittest.TestCase):
         # battery_and_signal_data property
         self.assertDictEqual(self.sensors.battery_and_signal_data, {})
 
+        print('   testing with a zero length bytestring of sensor data ...')
         # test when passed a zero length data bytestring
         self.sensors.set_sensor_id_data(b'')
         # addresses property
@@ -220,6 +231,7 @@ class SensorsTestCase(unittest.TestCase):
         # battery_and_signal_data property
         self.assertDictEqual(self.sensors.battery_and_signal_data, {})
 
+        print('   testing with a valid bytestring of sensor data ...')
         # test when passed a valid bytestring
         self.sensors.set_sensor_id_data(hex_to_bytes(self.sensor_id_data))
         # addresses property
@@ -234,8 +246,10 @@ class SensorsTestCase(unittest.TestCase):
         self.assertDictEqual(self.sensors.battery_and_signal_data, self.batt_sig_data)
 
     def test_sensor_data_methods(self):
-        """Test Sensors.sensor_data related methods."""
+        """Test class Sensors non-property methods"""
 
+        print()
+        print('   testing with an empty dictionary of sensor data ...')
         # test when passed an empty dict
         self.sensors.set_sensor_id_data(None)
         # id method
@@ -245,6 +259,7 @@ class SensorsTestCase(unittest.TestCase):
         # signal_level method
         self.assertRaises(KeyError, self.sensors.signal_level, b'\x00')
 
+        print('   testing with a zero length bytestring of sensor data ...')
         # test when passed a zero length data bytestring
         self.sensors.set_sensor_id_data(b'')
         # id method
@@ -254,6 +269,7 @@ class SensorsTestCase(unittest.TestCase):
         # signal_level method
         self.assertRaises(KeyError, self.sensors.signal_level, b'\x00')
 
+        print('   testing with a valid bytestring of sensor data ...')
         # test when passed a valid bytestring
         self.sensors.set_sensor_id_data(hex_to_bytes(self.sensor_id_data))
         # id method
@@ -278,20 +294,25 @@ class SensorsTestCase(unittest.TestCase):
     def test_battery_methods(self):
         """Test battery state methods"""
 
+        print()
+        print('   testing Sensors.batt_binary() ...')
         # binary battery states (method batt_binary())
         self.assertEqual(self.sensors.batt_binary(255), 1)
         self.assertEqual(self.sensors.batt_binary(4), 0)
 
+        print('   testing Sensors.batt_int() ...')
         # integer battery states (method batt_int())
         for int_batt in range(7):
             self.assertEqual(self.sensors.batt_int(int_batt), int_batt)
 
+        print('   testing Sensors.batt_volt() ...')
         # voltage battery states (method batt_volt())
         self.assertEqual(self.sensors.batt_volt(0), 0.00)
         self.assertEqual(self.sensors.batt_volt(100), 2.00)
         self.assertEqual(self.sensors.batt_volt(101), 2.02)
         self.assertEqual(self.sensors.batt_volt(255), 5.1)
 
+        print('   testing Sensors.wh40_batt_volt() ...')
         # voltage battery states (method wh40_batt_volt())
         # first check operation if ignore_legacy_wh40_battery is True
         self.sensors.ignore_wh40_batt = True
@@ -314,18 +335,21 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.wh40_batt_volt(150), 1.50)
         self.assertEqual(self.sensors.wh40_batt_volt(255), 2.55)
 
+        print('   testing Sensors.batt_volt_tenth() ...')
         # voltage battery states (method batt_volt_tenth())
         self.assertEqual(self.sensors.batt_volt_tenth(0), 0.00)
         self.assertEqual(self.sensors.batt_volt_tenth(15), 1.5)
         self.assertEqual(self.sensors.batt_volt_tenth(17), 1.7)
         self.assertEqual(self.sensors.batt_volt_tenth(255), 25.5)
 
+        print('   testing Sensors.batt_state_desc() binary description ...')
         # binary description
         self.assertEqual(self.sensors.batt_state_desc(b'\x00', 0), 'OK')
         self.assertEqual(self.sensors.batt_state_desc(b'\x00', 1), 'low')
         self.assertEqual(self.sensors.batt_state_desc(b'\x00', 2), 'Unknown')
         self.assertEqual(self.sensors.batt_state_desc(b'\x00', None), 'Unknown')
 
+        print('   testing Sensors.batt_state_desc() integer description ...')
         # int description
         self.assertEqual(self.sensors.batt_state_desc(b'\x16', 0), 'low')
         self.assertEqual(self.sensors.batt_state_desc(b'\x16', 1), 'low')
@@ -334,6 +358,7 @@ class SensorsTestCase(unittest.TestCase):
         self.assertEqual(self.sensors.batt_state_desc(b'\x16', 7), 'Unknown')
         self.assertEqual(self.sensors.batt_state_desc(b'\x16', None), 'Unknown')
 
+        print('   testing Sensors.batt_state_desc() voltage description ...')
         # voltage description
         self.assertEqual(self.sensors.batt_state_desc(b'\x20', 0), 'low')
         self.assertEqual(self.sensors.batt_state_desc(b'\x20', 1.2), 'low')
@@ -756,93 +781,118 @@ class ParseTestCase(unittest.TestCase):
     def test_constants(self):
         """Test constants"""
 
+        print()
+        print('   testing ApiParser.live_data_struct constant ...')
         # test live_data_struct
         self.assertEqual(self.parser.live_data_struct, self.live_data_struct)
 
+        print('   testing ApiParser.rain_data_struct constant ...')
         # test rain_data_struct
         self.assertEqual(self.parser.rain_data_struct, self.rain_data_struct)
 
+        print('   testing ApiParser.rain_field_codes constant ...')
         # test rain_field_codes
         self.assertEqual(self.parser.rain_field_codes, self.rain_field_codes)
 
+        print('   testing ApiParser.wind_field_codes constant ...')
         # wind_field_codes
         self.assertEqual(self.parser.wind_field_codes, self.wind_field_codes)
 
     def test_parse(self):
-        """Test methods used to parse API response data."""
+        """Test methods used to parse API response data"""
 
+        print()
+        print('   testing ApiParser.parse_livedata() ...')
         # test parse_livedata()
         self.assertDictEqual(self.parser.parse_livedata(response=hex_to_bytes(self.response_data)),
                              self.parsed_response)
 
+        print('   testing ApiParser.parse_read_rain() ...')
         # test parse_read_rain() with piezo gauge only
         self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain_piezo['response'])),
                              self.read_rain_piezo['data'])
 
+        print('   testing ApiParser.parse_read_rain() ...')
         # test parse_read_rain() with both traditional and piezo gauges
         self.assertDictEqual(self.parser.parse_read_rain(response=hex_to_bytes(self.read_rain_both['response'])),
                              self.read_rain_both['data'])
 
+        print('   testing ApiParser.parse_read_raindata() ...')
         # test parse_read_raindata()
         self.assertDictEqual(self.parser.parse_read_raindata(response=hex_to_bytes(self.read_raindata['response'])),
                              self.read_raindata['data'])
 
+        print('   testing ApiParser.parse_get_mulch_offset() ...')
         # test parse_get_mulch_offset()
         self.assertDictEqual(self.parser.parse_get_mulch_offset(response=hex_to_bytes(self.get_mulch_offset['response'])),
                              self.get_mulch_offset['data'])
 
+        print('   testing ApiParser.parse_get_pm25_offset() ...')
         # test parse_get_pm25_offset()
         self.assertDictEqual(self.parser.parse_get_pm25_offset(response=hex_to_bytes(self.get_pm25_offset['response'])),
                              self.get_pm25_offset['data'])
 
+        print('   testing ApiParser.parse_get_co2_offset() ...')
         # test parse_get_co2_offset()
         self.assertDictEqual(self.parser.parse_get_co2_offset(response=hex_to_bytes(self.get_co2_offset['response'])),
                              self.get_co2_offset['data'])
 
+        print('   testing ApiParser.parse_read_gain() ...')
         # test parse_read_gain()
         self.assertDictEqual(self.parser.parse_read_gain(response=hex_to_bytes(self.read_gain['response'])),
                              self.read_gain['data'])
 
+        print('   testing ApiParser.parse_read_calibration() ...')
         # test parse_read_calibration()
         self.assertDictEqual(self.parser.parse_read_calibration(response=hex_to_bytes(self.read_calibration['response'])),
                              self.read_calibration['data'])
 
+        print('   testing ApiParser.parse_get_soilhumiad() ...')
         # test parse_get_soilhumiad()
         self.assertDictEqual(self.parser.parse_get_soilhumiad(response=hex_to_bytes(self.get_soilhumiad['response'])),
                              self.get_soilhumiad['data'])
 
+        print('   testing ApiParser.read_ssss() ...')
         # test read_ssss()
         self.assertDictEqual(self.parser.parse_read_ssss(response=hex_to_bytes(self.read_ssss['response'])),
                              self.read_ssss['data'])
 
+        print('   testing ApiParser.parse_read_ecowitt() ...')
         # test parse_read_ecowitt()
         self.assertDictEqual(self.parser.parse_read_ecowitt(response=hex_to_bytes(self.read_ecowitt['response'])),
                              self.read_ecowitt['data'])
 
+        print('   testing ApiParser.parse_read_wunderground() ...')
         # test parse_read_wunderground()
         self.assertDictEqual(self.parser.parse_read_wunderground(response=hex_to_bytes(self.read_wunderground['response'])),
                              self.read_wunderground['data'])
 
+        print('   testing ApiParser.parse_read_wow() ...')
         # test parse_read_wow()
         self.assertDictEqual(self.parser.parse_read_wow(response=hex_to_bytes(self.read_wow['response'])),
                              self.read_wow['data'])
 
+        print('   testing ApiParser.parse_read_weathercloud() ...')
         # test parse_read_weathercloud()
         self.assertDictEqual(self.parser.parse_read_weathercloud(response=hex_to_bytes(self.read_weathercloud['response'])),
                              self.read_weathercloud['data'])
 
+        print('   testing ApiParser.parse_read_customized() ...')
         # test parse_read_customized()
         self.assertDictEqual(self.parser.parse_read_customized(response=hex_to_bytes(self.read_customized['response'])),
                              self.read_customized['data'])
 
+        print('   testing ApiParser.parse_read_usr_path() ...')
         # test parse_read_usr_path()
         self.assertDictEqual(self.parser.parse_read_usr_path(response=hex_to_bytes(self.read_usr_path['response'])),
                              self.read_usr_path['data'])
 
+        print('   testing ApiParser.parse_read_station_mac() ...')
         # test parse_read_station_mac()
         self.assertEqual(self.parser.parse_read_station_mac(response=hex_to_bytes(self.read_station_mac['response'])),
                          self.read_station_mac['data'])
 
+        print('   testing ApiParser.parse_read_firmware_version() ...')
         # test parse_read_firmware_version()
         self.assertEqual(self.parser.parse_read_firmware_version(response=hex_to_bytes(self.read_firmware_version['response'])),
                          self.read_firmware_version['data'])
@@ -851,7 +901,7 @@ class ParseTestCase(unittest.TestCase):
         """Test methods used to decode observation byte data"""
 
         print()
-        print('   testing ApiParser.decode_temp()...')
+        print('   testing ApiParser.decode_temp() ...')
         # test temperature decode (method decode_temp())
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['data'])),
                          self.temp_data['value'])
@@ -862,7 +912,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(3))), None)
 
-        print('   testing ApiParser.decode_humid()...')
+        print('   testing ApiParser.decode_humid() ...')
         # test humidity decode (method decode_humid())
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(self.humid_data['data'])),
                          self.humid_data['value'])
@@ -873,7 +923,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
 
-        print('   testing ApiParser.decode_press()...')
+        print('   testing ApiParser.decode_press() ...')
         # test pressure decode (method decode_press())
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['data'])),
                          self.press_data['value'])
@@ -885,7 +935,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['long'])),
                          self.press_data['long_value'])
 
-        print('   testing ApiParser.decode_dir()...')
+        print('   testing ApiParser.decode_dir() ...')
         # test direction decode (method decode_dir())
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data['data'])),
                          self.dir_data['value'])
@@ -899,7 +949,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(3))), None)
 
-        print('   testing ApiParser.decode_big_rain()...')
+        print('   testing ApiParser.decode_big_rain() ...')
         # test big rain decode (method decode_big_rain())
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(self.big_rain_data['data'])),
                          self.big_rain_data['value'])
@@ -910,7 +960,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(5))), None)
 
-        print('   testing ApiParser.decode_datetime()...')
+        print('   testing ApiParser.decode_datetime() ...')
         # test datetime decode (method decode_datetime())
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(self.datetime_data['data'])),
                          self.datetime_data['value'])
@@ -921,7 +971,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(7))), None)
 
-        print('   testing ApiParser.decode_distance()...')
+        print('   testing ApiParser.decode_distance() ...')
         # test distance decode (method decode_distance())
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(self.distance_data['data'])),
                          self.distance_data['value'])
@@ -932,7 +982,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
 
-        print('   testing ApiParser.decode_humid()...')
+        print('   testing ApiParser.decode_humid() ...')
         # test utc decode (method decode_utc())
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(self.utc_data['data'])),
                          self.utc_data['value'])
@@ -943,7 +993,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(5))), None)
 
-        print('   testing ApiParser.decode_count()...')
+        print('   testing ApiParser.decode_count() ...')
         # test count decode (method decode_count())
         self.assertEqual(self.parser.decode_count(hex_to_bytes(self.count_data['data'])),
                          self.count_data['value'])
@@ -954,7 +1004,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(5))), None)
 
-        print('   testing ApiParser.decode_gain_100()...')
+        print('   testing ApiParser.decode_gain_100() ...')
         # test sensor gain decode (method decode_gain_100())
         self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(self.gain_100_data['data'])),
                          self.gain_100_data['value'])
@@ -965,7 +1015,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(xbytes(5))), None)
 
-        print('   testing ApiParser.decode_speed()...')
+        print('   testing ApiParser.decode_speed() ...')
         # test speed decode (method decode_speed())
         self.assertEqual(self.parser.decode_speed(hex_to_bytes(self.speed_data['data'])),
                          self.speed_data['value'])
@@ -977,7 +1027,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.speed_data['long'])),
                          self.speed_data['long_value'])
 
-        print('   testing ApiParser.decode_rain()...')
+        print('   testing ApiParser.decode_rain() ...')
         # test rain decode (method decode_rain())
         self.assertEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['data'])),
                          self.rain_data['value'])
@@ -989,7 +1039,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rain_data['long'])),
                          self.rain_data['long_value'])
 
-        print('   testing ApiParser.decode_rainrate()...')
+        print('   testing ApiParser.decode_rainrate() ...')
         # test rain rate decode (method decode_rainrate())
         self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['data'])),
                          self.rainrate_data['value'])
@@ -1001,7 +1051,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rainrate_data['long'])),
                          self.rainrate_data['long_value'])
 
-        print('   testing ApiParser.decode_light()...')
+        print('   testing ApiParser.decode_light() ...')
         # test light decode (method decode_light())
         self.assertEqual(self.parser.decode_light(hex_to_bytes(self.light_data['data'])),
                          self.light_data['value'])
@@ -1012,7 +1062,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(1))), None)
         self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(5))), None)
 
-        print('   testing ApiParser.decode_uv()...')
+        print('   testing ApiParser.decode_uv() ...')
         # test uv decode (method decode_uv())
         self.assertEqual(self.parser.decode_uv(hex_to_bytes(self.uv_data['data'])),
                          self.uv_data['value'])
@@ -1024,7 +1074,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.uv_data['long'])),
                          self.uv_data['long_value'])
 
-        print('   testing ApiParser.decode_uvi()...')
+        print('   testing ApiParser.decode_uvi() ...')
         # test uvi decode (method decode_uvi())
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['data'])),
                          self.uvi_data['value'])
@@ -1035,7 +1085,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
 
-        print('   testing ApiParser.decode_moist()...')
+        print('   testing ApiParser.decode_moist() ...')
         # test moisture decode (method decode_moist())
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['data'])),
                          self.moist_data['value'])
@@ -1046,7 +1096,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
 
-        print('   testing ApiParser.decode_pm25()...')
+        print('   testing ApiParser.decode_pm25() ...')
         # test pm25 decode (method decode_pm25())
         self.assertEqual(self.parser.decode_pm25(hex_to_bytes(self.pm25_data['data'])),
                          self.pm25_data['value'])
@@ -1058,7 +1108,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.pm25_data['long'])),
                          self.pm25_data['long_value'])
 
-        print('   testing ApiParser.decode_leak()...')
+        print('   testing ApiParser.decode_leak() ...')
         # test leak decode (method decode_leak())
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['data'])),
                          self.leak_data['value'])
@@ -1069,7 +1119,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
 
-        print('   testing ApiParser.decode_pm10()...')
+        print('   testing ApiParser.decode_pm10() ...')
         # test pm10 decode (method decode_pm10())
         self.assertEqual(self.parser.decode_pm10(hex_to_bytes(self.pm10_data['data'])),
                          self.pm10_data['value'])
@@ -1081,7 +1131,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_pm10(hex_to_bytes(self.pm10_data['long'])),
                          self.pm10_data['long_value'])
 
-        print('   testing ApiParser.decode_co2()...')
+        print('   testing ApiParser.decode_co2() ...')
         # test co2 decode (method decode_co2())
         self.assertEqual(self.parser.decode_co2(hex_to_bytes(self.co2_data['data'])),
                          self.co2_data['value'])
@@ -1092,7 +1142,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_co2(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_co2(hex_to_bytes(xbytes(3))), None)
 
-        print('   testing ApiParser.decode_wet()...')
+        print('   testing ApiParser.decode_wet() ...')
         # test wetness decode (method decode_wet())
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['data'])),
                          self.wet_data['value'])
@@ -1100,7 +1150,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(0))), None)
         self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(2))), None)
 
-        print('   testing ApiParser.decode_wn34()...')
+        print('   testing ApiParser.decode_wn34() ...')
         # test wn34 decode (method decode_wn34())
         self.assertEqual(self.parser.decode_wn34(hex_to_bytes(self.wn34_data['data']), field=self.wn34_data['field']),
                          self.wn34_data['value'])
@@ -1108,7 +1158,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(1)), field=self.wn34_data['field']), {})
         self.assertEqual(self.parser.decode_wn34(hex_to_bytes(xbytes(4)), field=self.wn34_data['field']), {})
 
-        print('   testing ApiParser.decode_wh45()...')
+        print('   testing ApiParser.decode_wh45() ...')
         # test wh45 decode (method decode_wh45())
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(self.wh45_data['data']), fields=self.wh45_data['field']),
                          self.wh45_data['value'])
@@ -1118,7 +1168,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_wh45(hex_to_bytes(xbytes(17)), fields=self.wh45_data['field']),
                          {})
 
-        print('   testing ApiParser.decode_rain_gain()...')
+        print('   testing ApiParser.decode_rain_gain() ...')
         # test rain gain decode (method decode_rain_gain())
         self.assertDictEqual(self.parser.decode_rain_gain(hex_to_bytes(self.rain_gain_data['data'])),
                              self.rain_gain_data['value'])
@@ -1126,7 +1176,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_rain_reset(hex_to_bytes(xbytes(0))), {})
         self.assertDictEqual(self.parser.decode_rain_gain(hex_to_bytes(xbytes(2))), {})
 
-        print('   testing ApiParser.decode_rain_reset()...')
+        print('   testing ApiParser.decode_rain_reset() ...')
         # test rain reset decode (method decode_rain_reset())
         self.assertDictEqual(self.parser.decode_rain_reset(hex_to_bytes(self.rain_reset_data['data'])),
                              self.rain_reset_data['value'])
@@ -1139,7 +1189,7 @@ class ParseTestCase(unittest.TestCase):
         # irrespective of how it is called
         self.assertIsNone(self.parser.decode_batt(''))
 
-        print('   testing ApiParser.decode_pm1()...')
+        print('   testing ApiParser.decode_pm1() ...')
         # test pm1 decode (method decode_pm1())
         self.assertEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['data'])),
                          self.pm1_data['value'])
@@ -1151,7 +1201,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['long'])),
                          self.pm1_data['long_value'])
 
-        print('   testing ApiParser.decode_pm4()...')
+        print('   testing ApiParser.decode_pm4() ...')
         # test pm4 decode (method decode_pm4())
         self.assertEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['data'])),
                          self.pm4_data['value'])
@@ -1163,7 +1213,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['long'])),
                          self.pm4_data['long_value'])
 
-        print('   testing ApiParser.decode_wh46()...')
+        print('   testing ApiParser.decode_wh46() ...')
         # test wh46 decode (method decode_wh46())
         self.assertEqual(self.parser.decode_wh46(hex_to_bytes(self.wh46_data['data']), fields=self.wh46_data['field']),
                          self.wh46_data['value'])
@@ -1202,14 +1252,18 @@ class UtilitiesTestCase(unittest.TestCase):
         3. bytes_to_hex()
         """
 
+        print()
+        print('   testing natural_sort_keys() ...')
         # test natural_sort_keys()
         self.assertEqual(user.gw1000.natural_sort_keys(self.unsorted_dict),
                          self.sorted_keys)
 
+        print('   testing natural_sort_dict() ...')
         # test natural_sort_dict()
         self.assertEqual(user.gw1000.natural_sort_dict(self.unsorted_dict),
                          self.sorted_dict_str)
 
+        print('   testing bytes_to_hex() ...')
         # test bytes_to_hex()
         # with defaults
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2')),
@@ -1230,6 +1284,7 @@ class UtilitiesTestCase(unittest.TestCase):
         self.assertEqual(user.gw1000.bytes_to_hex(hex_to_bytes('ff 00 66 b2'), separator=None),
                          self.bytes_to_hex_fail_str % hex_to_bytes('ff 00 66 b2'))
 
+        print('   testing obfuscate() ...')
         # test obfuscate()
         # > 8 character string, should see trailing 4 characters
         self.assertEqual(user.gw1000.obfuscate('1234567890'), '******7890')
@@ -1259,6 +1314,9 @@ class ListsAndDictsTestCase(unittest.TestCase):
     def test_dicts(self):
         """Test dicts for consistency"""
 
+        print()
+        print('   testing driver default field map fields are assigned a '
+              'unit group ...')
         # test that each WeeWX field in the driver default field map is
         # assigned a unit group, either in the gw1000.default_groups or
         # weewx.units.obs_group_dict observation group dictionaries
@@ -1267,8 +1325,11 @@ class ListsAndDictsTestCase(unittest.TestCase):
                 self.assertIn(w_field,
                               user.gw1000.default_groups.keys(),
                               msg="A field from the driver default field map is "
-                                  "missing from the default_groups observation group dictionary")
+                                  "missing from the default_groups observation "
+                                  "group dictionary")
 
+        print('   testing class DirectGateway default field map fields are '
+              'assigned a unit group ...')
         # test that each gateway device field in the driver default field map
         # appears in the DirectGateway observation group dictionary
         for g_field in self.default_field_map.values():
@@ -1277,6 +1338,8 @@ class ListsAndDictsTestCase(unittest.TestCase):
                           msg="A field from the driver default field map is "
                               "missing from the observation group dictionary")
 
+        print('   testing direct gateway observation group field '
+              'inclusion in the driver default field map ...')
         # test that each gateway device field entry in the observation group
         # dictionary is included in the driver default field map
         for g_field in user.gw1000.DirectGateway.gw_direct_obs_group_dict.keys():
@@ -1439,7 +1502,7 @@ class StationTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_cmd_vocab(self, mock_get_mac, mock_get_firmware,
                        mock_get_sys, mock_get_sensor_id, mock_get_livedata):
-        """Test command dictionaries for completeness.
+        """Test command dictionaries for completeness
 
         Tests:
         1. Station.api_commands contains all api_commands
@@ -1447,6 +1510,8 @@ class StationTestCase(unittest.TestCase):
         3. all Station.api_commands entries are in the test suite
         """
 
+        print()
+        print('   testing class Station API command list for completeness ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (string)
         mock_get_mac.return_value = StationTestCase.mock_mac
@@ -1478,6 +1543,7 @@ class StationTestCase(unittest.TestCase):
                                                                         bytes_to_hex(gw_device_api.api_commands[cmd]),
                                                                         bytes_to_hex(hex_to_bytes(response)[2:3])))
 
+        print('   testing class Station API command test coverage ...')
         # Check that we are testing everything in class Station command list.
         # This is a simple check that only needs to check for inclusion of the
         # command, the validity of the command code is checked in the earlier
@@ -1502,6 +1568,8 @@ class StationTestCase(unittest.TestCase):
         1. calculating the checksum of a bytestring
         """
 
+        print()
+        print('   testing API command checksum calculation ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
@@ -1535,6 +1603,8 @@ class StationTestCase(unittest.TestCase):
         3. building a command packet for an unknown command
         """
 
+        print()
+        print('   testing API command packet construction ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (string)
         mock_get_mac.return_value = StationTestCase.mock_mac
@@ -1574,6 +1644,8 @@ class StationTestCase(unittest.TestCase):
         1. decode a broadcast response
         """
 
+        print()
+        print('   testing broadcast response decoding ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
@@ -1612,6 +1684,8 @@ class StationTestCase(unittest.TestCase):
            command code
         """
 
+        print()
+        print('   testing validity checking of API responses ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = StationTestCase.mock_mac
