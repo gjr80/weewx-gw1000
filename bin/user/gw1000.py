@@ -4181,6 +4181,8 @@ class ApiParser(object):
         last byte   checksum        byte            LSB of the sum of the
                                                     command, size and data
                                                     bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # obtain the payload size, it's a big endian short (two byte) integer
@@ -4217,6 +4219,8 @@ class ApiParser(object):
         last byte   checksum        byte            LSB of the sum of the
                                                     command, size and data
                                                     bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # obtain the payload size, it's a big endian short (two byte) integer
@@ -4248,6 +4252,8 @@ class ApiParser(object):
         25      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the rain data
@@ -4288,6 +4294,8 @@ class ApiParser(object):
         29      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the mulch offset data
@@ -4338,6 +4346,8 @@ class ApiParser(object):
         last byte   checksum        byte            LSB of the sum of the
                                                     command, size and data
                                                     bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # obtain the payload size, it's a big endian short (two byte) integer
@@ -4381,6 +4391,8 @@ class ApiParser(object):
         17      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the PM2.5 offset data
@@ -4418,6 +4430,8 @@ class ApiParser(object):
         17      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the WH45 offset data
@@ -4457,6 +4471,8 @@ class ApiParser(object):
         17      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the calibration data
@@ -4498,6 +4514,8 @@ class ApiParser(object):
         21      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the calibration data
@@ -4546,6 +4564,8 @@ class ApiParser(object):
         21      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the calibration data
@@ -4601,6 +4621,8 @@ class ApiParser(object):
         13      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the system parameters data
@@ -4630,6 +4652,8 @@ class ApiParser(object):
         6       checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the system parameters data
@@ -4665,6 +4689,8 @@ class ApiParser(object):
         10+i+p  checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the system parameters data
@@ -4708,6 +4734,8 @@ class ApiParser(object):
         12+i+p+s checksum       byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the system parameters data
@@ -4749,6 +4777,8 @@ class ApiParser(object):
         10+i+k  checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the system parameters data
@@ -4796,6 +4826,8 @@ class ApiParser(object):
         14+i+p+s  checksum        byte            LSB of the sum of the
                                                   command, size and data
                                                   bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the system parameters data
@@ -4849,6 +4881,8 @@ class ApiParser(object):
         7+e+w       checksum        byte            LSB of the sum of the
                                                     command, size and data
                                                     bytes
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # determine the size of the user path data
@@ -4881,10 +4915,14 @@ class ApiParser(object):
         13      checksum        byte            LSB of the sum of the
                                                 command, size and data
                                                 bytes
+
+        Returns a unicode string.
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # return the parsed response, in this case we simply return the
-        # bytes as a semicolon separated hex string
+        # bytes as a colon separated hex string
         return bytes_to_hex(response[4:10], separator=":")
 
     @staticmethod
@@ -4906,7 +4944,9 @@ class ApiParser(object):
                                                 command, size and data
                                                 bytes
 
-        Returns a unicode string
+        Returns a unicode string.
+
+        Tested by ParseTestCase.test_parse()
         """
 
         # create a format string so the firmware string can be unpacked into
@@ -4929,6 +4969,8 @@ class ApiParser(object):
         Occasionally some fields are marked as 'reserved' in the API
         documentation. In such cases the decode routine should return the
         value None which will cause the data to be ignored.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         return None
@@ -4941,6 +4983,8 @@ class ApiParser(object):
         represents tenths of a degree. If field is not None return the
         result as a dict in the format {field: decoded value} otherwise
         return just the decoded value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 2:
@@ -4960,6 +5004,8 @@ class ApiParser(object):
         units. If field is not None return the result as a dict in the
         format {field: decoded value} otherwise return just the decoded
         value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 1:
@@ -4982,6 +5028,8 @@ class ApiParser(object):
         value.
 
         Also used to decode other two byte big endian integer fields.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 2:
@@ -5003,6 +5051,8 @@ class ApiParser(object):
         whole degrees. If field is not None return the result as a dict in
         the format {field: decoded value} otherwise return just the decoded
         value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 2:
@@ -5022,6 +5072,8 @@ class ApiParser(object):
         tenths of a unit. If field is not None return the result as a dict
         in the format {field: decoded value} otherwise return just the
         decoded value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 4:
@@ -5040,6 +5092,8 @@ class ApiParser(object):
         Unknown format but length is six bytes. If field is not None return
         the result as a dict in the format {field: decoded value} otherwise
         return just the decoded value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 6:
@@ -5059,6 +5113,8 @@ class ApiParser(object):
         from 0 to 40km. If field is not None return the result as a dict in
         the format {field: decoded value} otherwise return just the decoded
         value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 1:
@@ -5091,6 +5147,8 @@ class ApiParser(object):
 
         If field is not None return the result as a dict in the format
         {field: decoded value} otherwise return just the decoded value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 4:
@@ -5114,6 +5172,8 @@ class ApiParser(object):
         Count is an integer stored in a four byte big endian integer. If
         field is not None return the result as a dict in the format
         {field: decoded value} otherwise return just the decoded value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 4:
@@ -5131,6 +5191,8 @@ class ApiParser(object):
 
         Gain is stored in a four byte big endian integer and represents
         hundredths of a unit.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 2:
@@ -5143,22 +5205,22 @@ class ApiParser(object):
             return value
 
     # alias' for other decodes
-    decode_speed = decode_press
-    decode_rain = decode_press
-    decode_rainrate = decode_press
-    decode_light = decode_big_rain
-    decode_uv = decode_press
-    decode_uvi = decode_humid
-    decode_moist = decode_humid
-    decode_pm25 = decode_press
-    decode_leak = decode_humid
-    decode_pm10 = decode_press
-    decode_co2 = decode_dir
-    decode_wet = decode_humid
-    decode_int = decode_humid
-    decode_memory = decode_count
-    decode_pm1 = decode_press
-    decode_pm4 = decode_press
+    decode_speed = decode_press     # tested by ParseTestCase.test_decode()
+    decode_rain = decode_press      # tested by ParseTestCase.test_decode()
+    decode_rainrate = decode_press  # tested by ParseTestCase.test_decode()
+    decode_light = decode_big_rain  # tested by ParseTestCase.test_decode()
+    decode_uv = decode_press        # tested by ParseTestCase.test_decode()
+    decode_uvi = decode_humid       # tested by ParseTestCase.test_decode()
+    decode_moist = decode_humid     # tested by ParseTestCase.test_decode()
+    decode_pm25 = decode_press      # tested by ParseTestCase.test_decode()
+    decode_leak = decode_humid      # tested by ParseTestCase.test_decode()
+    decode_pm10 = decode_press      # tested by ParseTestCase.test_decode()
+    decode_co2 = decode_dir         # tested by ParseTestCase.test_decode()
+    decode_wet = decode_humid       # tested by ParseTestCase.test_decode()
+    decode_int = decode_humid       # tested by ParseTestCase.test_decode()
+    decode_memory = decode_count    # tested by ParseTestCase.test_decode()
+    decode_pm1 = decode_press       # tested by ParseTestCase.test_decode()
+    decode_pm4 = decode_press       # tested by ParseTestCase.test_decode()
 
     def decode_wn34(self, data, field=None):
         """Decode WN34 sensor data.
@@ -5178,6 +5240,8 @@ class ApiParser(object):
 
         If field is not None return the result as a dict in the format
         {field: decoded value} otherwise return just the decoded value.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 3 and field is not None:
@@ -5211,6 +5275,8 @@ class ApiParser(object):
         with temperature) as well as in the complete sensor ID data. In
         keeping with other sensors we do not use the sensor data battery
         state, rather we obtain it from the sensor ID data.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 16 and fields is not None:
@@ -5256,6 +5322,8 @@ class ApiParser(object):
         with temperature) as well as in the complete sensor ID data. In
         keeping with other sensors we do not use the sensor data battery
         state, rather we obtain it from the sensor ID data.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 24 and fields is not None:
@@ -5300,6 +5368,8 @@ class ApiParser(object):
 
         As of device firmware v2.1.3 gain6-gain10 inclusive are unused and
         reserved for future use.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 20:
@@ -5324,6 +5394,8 @@ class ApiParser(object):
                                                    allowed values are 0 or 1. 0=Sunday, 1=Monday
               3  annual reset time  unsigned byte  month of year to reset annual
                                                    rain, allowed values are 0-11, eg 2 = March
+
+        Tested by ParseTestCase.test_decode()
         """
 
         if len(data) == 3:
@@ -5355,6 +5427,8 @@ class ApiParser(object):
         CMD_READ_SENSOR_ID_NEW or CMD_READ_SENSOR_ID only the decode_batt()
         method now returns None so that firmware versions before 1.6.5
         continue to be supported.
+
+        Tested by ParseTestCase.test_decode()
         """
 
         return None
