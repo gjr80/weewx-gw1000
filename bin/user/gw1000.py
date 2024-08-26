@@ -3916,6 +3916,8 @@ class ApiParser(object):
     the decode methods of class Parser are also used individually
     elsewhere in the driver to decode simple responses received from the
     device, eg when reading device configuration settings.
+
+    Complete test suite coverage as of v0.7.0a3
     """
 
     # Dictionary of 'address' based data. Dictionary is keyed by device
@@ -3927,6 +3929,8 @@ class ApiParser(object):
     #   size:       the size of field data in bytes
     #   field name: the name of the device field to be used for the decoded
     #               data
+    #
+    # live_data_struct tested by ParseTestCase.test_constants
     live_data_struct = {
         b'\x01': ('decode_temp', 2, 'intemp'),
         b'\x02': ('decode_temp', 2, 'outtemp'),
@@ -4050,6 +4054,8 @@ class ApiParser(object):
         b'\x78': ('decode_wet', 1, 'leafwet7'),
         b'\x79': ('decode_wet', 1, 'leafwet8')
     }
+    #
+    # rain_data_struct tested by ParseTestCase.test_constants
     rain_data_struct = {
         b'\x0D': ('decode_rain', 2, 't_rainevent'),
         b'\x0E': ('decode_rainrate', 2, 't_rainrate'),
@@ -4075,12 +4081,16 @@ class ApiParser(object):
     }
     # tuple of field codes for device rain related fields in the live data
     # so we can isolate these fields
+    #
+    # rain_field_codes tested by ParseTestCase.test_constants
     rain_field_codes = (b'\x0D', b'\x0E', b'\x0F', b'\x10',
                         b'\x11', b'\x12', b'\x13', b'\x14',
                         b'\x80', b'\x81', b'\x83', b'\x84',
                         b'\x85', b'\x86')
     # tuple of field codes for wind related fields in the device live data
     # so we can isolate these fields
+    #
+    # wind_field_codes tested by ParseTestCase.test_constants
     wind_field_codes = (b'\x0A', b'\x0B', b'\x0C', b'\x19')
 
     def __init__(self, log_unknown_fields=True):
