@@ -730,7 +730,7 @@ class ApiResponseError(Exception):
 class DebugOptions(object):
     """Class to simplify use and handling of device debug options."""
 
-    debug_groups = ('rain', 'wind', 'loop', 'sensors', 'catchup')
+    debug_groups = ('rain', 'wind', 'loop', 'sensors', 'catchup', 'comms')
 
     def __init__(self, gw_config_dict):
         # get any specific debug settings
@@ -749,6 +749,10 @@ class DebugOptions(object):
         # catchup
         self.debug_catchup = weeutil.weeutil.tobool(gw_config_dict.get('debug_catchup',
                                                                         False))
+        # communications
+        self.debug_comms = weeutil.weeutil.tobool(gw_config_dict.get('debug_comms',
+                                                                     False))
+
 
     @property
     def rain(self):
@@ -781,6 +785,12 @@ class DebugOptions(object):
         return self.debug_catchup
 
     @property
+    def comms(self):
+        """Are we debugging device communications."""
+
+        return self.debug_comms
+
+    @property
     def any(self):
         """Are we performing any debugging."""
 
@@ -789,6 +799,16 @@ class DebugOptions(object):
                 return True
         else:
             return False
+
+    @property
+    def active_string(self):
+        """Generate a string showing all active (True) debug options."""
+
+        debug_list = []
+        for debug_group in self.debug_groups:
+            if getattr(self, debug_group):
+                debug_list.append("debug_%s is True" % debug_group)
+        return ' '.join(debug_list)
 
 
 # ============================================================================
@@ -2539,7 +2559,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
         parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
                           help="use configuration file CONFIG_FILE.")
         parser.add_option('--debug', dest='debug', type=int,
-                          help='how much status to display, 0-3')
+                          help='how much status to display or log, 0-3')
         parser.add_option('--yes', '-y', dest="noprompt", action="store_true",
                           help="answer yes to every prompt")
 
@@ -2548,29 +2568,10 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
         # get station config dict to use
         stn_dict = config_dict.get('GW1000', {})
-
-        # set weewx.debug as necessary
-        if options.debug is not None:
-            _debug = weeutil.weeutil.to_int(options.debug)
-        else:
-            _debug = weeutil.weeutil.to_int(config_dict.get('debug', 0))
-        weewx.debug = _debug
-        # inform the user if the debug level is 'higher' than 0
-        if _debug > 0:
-            print("debug level is '%d'" % _debug)
-
-        # Now we can set up the user customized logging, but we need to handle both
-        # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
-        # set up syslog and raise our log level based on weewx.debug
-        try:
-            # assume v 4 logging
-            weeutil.logger.setup('weewx', config_dict)
-        except AttributeError:
-            # must be v3 logging, so first set the defaults for the system logger
-            syslog.openlog('weewx', syslog.LOG_PID | syslog.LOG_CONS)
-            # now raise the log level if required
-            if weewx.debug > 0:
-                syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
+        # inform the user if the debug level is 1 or greater
+        if weewx.debug >= 1:
+            print("Debug is '%d'" % weewx.debug)
+            log.info("Debug is '%d'" % weewx.debug)
 
         # define custom unit settings used by the gateway driver
         define_units()
@@ -5882,6 +5883,7 @@ class GatewayApi(object):
     """
 
     # Ecowitt LAN/Wi-Fi Gateway API api_commands
+    # tested by GatewayApiTestCase.test_cmd_vocab()
     api_commands = {
         'CMD_WRITE_SSID': b'\x11',
         'CMD_BROADCAST': b'\x12',
@@ -7767,7 +7769,10 @@ def define_units():
 
 
 def natural_sort_keys(source_dict):
-    """Return a naturally sorted list of keys for a dict."""
+    """Return a naturally sorted list of keys for a dict.
+
+    Tested by UtilitiesTestCase.test_utilities()
+    """
 
     def atoi(text):
         return int(text) if text.isdigit() else text
@@ -7802,6 +7807,8 @@ def natural_sort_dict(source_dict):
     Displaying dicts of key:value pairs in logs or on the console in
     alphabetical order by key assists in the analysis of the dict data.
     Where keys are strings with leading digits a natural sort is useful.
+
+    Tested by UtilitiesTestCase.test_utilities()
     """
 
     # first obtain a list of key:value pairs as string sorted naturally by key
@@ -7811,7 +7818,10 @@ def natural_sort_dict(source_dict):
 
 
 def bytes_to_hex(iterable, separator=' ', caps=True):
-    """Produce a hex string representation of a sequence of bytes."""
+    """Produce a hex string representation of a sequence of bytes.
+
+    Tested by UtilitiesTestCase.test_utilities()
+    """
 
     # assume 'iterable' can be iterated by iterbytes and the individual
     # elements can be formatted with {:02X}
@@ -7835,6 +7845,8 @@ def obfuscate(plain, obf_char='*'):
     Obfuscate all but (at most) the last four characters of a string. Always
     reveal no more than 50% of the characters. The obfuscation character
     defaults to '*' but can be set when the function is called.
+
+    Tested by UtilitiesTestCase.test_utilities()
     """
 
     if plain is not None and len(plain) > 0:
@@ -8226,9 +8238,9 @@ class DirectGateway(object):
     def show_battery_from_config_opts(self):
         """Determine whether to filter nonsense battery state data.
 
-        Determine the whether to filter nonsense battery state data given a
-        station config dict and command line options. The decision to filter is
-        made as follows:
+        Determine whether to filter nonsense battery state data given a station
+        config dict and command line options. The decision to filter is made as
+        follows:
         - if specified use the show_battery option from the command line
         - if show_battery was not specified on the command line obtain the
           show_battery option from the station config dict
@@ -9733,9 +9745,9 @@ def main():
     parser.add_option('--units', dest='units', metavar='UNITS', default='metric',
                       help='unit system to use when displaying live data')
     parser.add_option('--config', dest='config_path', metavar='CONFIG_FILE',
-                      help="Use configuration file CONFIG_FILE.")
+                      help="use configuration file CONFIG_FILE.")
     parser.add_option('--debug', dest='debug', type=int,
-                      help='How much status to display, 0-3')
+                      help='how much status to display or log, 0-3')
     (opts, args) = parser.parse_args()
 
     # display driver version number
@@ -9748,15 +9760,17 @@ def main():
     print("Using configuration file %s" % config_path)
     stn_dict = config_dict.get('GW1000', {})
 
-    # set weewx.debug as necessary
+    # set WeeWX debug level as necessary
+    # first, was a debug option specified on the command line, if so we will
+    # use that in place of the debug setting in the config file
     if opts.debug is not None:
-        _debug = weeutil.weeutil.to_int(opts.debug)
-    else:
-        _debug = weeutil.weeutil.to_int(config_dict.get('debug', 0))
-    weewx.debug = _debug
-    # inform the user if the debug level is 'higher' than 0
-    if _debug > 0:
-        print("debug level is '%d'" % _debug)
+        # a debug option was specified on the command line, get it as an
+        # integer
+        config_dict['debug'] = weeutil.weeutil.to_int(opts.debug)
+    # inform the user if the debug level is 1 or greater
+    if int(config_dict['debug']) >= 1:
+        print("Debug is '%s'" % config_dict['debug'])
+        log.info("Debug is '%s'" % config_dict['debug'])
 
     # Now we can set up the user customized logging, but we need to handle both
     # v3 and v4 logging. V4 logging is very easy but v3 logging requires us to
