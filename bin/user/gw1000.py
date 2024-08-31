@@ -4969,7 +4969,7 @@ class ApiParser(object):
         # get the length of the firmware string, it is in byte 4
         str_length = firmware_t[4]
         # the firmware string starts at byte 5 and is str_length bytes long,
-        # convert the sequence of bytes to unicode characters and assemble as a
+        # convert the sequence of bytes to Unicode characters and assemble as a
         # string and return the result
         return ''.join([chr(x) for x in firmware_t[5:5 + str_length]])
 
@@ -9410,6 +9410,7 @@ class DirectGateway(object):
         # this may take a moment to set up so inform the user
         print()
         print("This may take a moment...")
+        driver = None
         # place an entry in the log so that if we encounter errors that are
         # logged we can tell they were not caused by a live WeeWX instance
         loginf("Obtaining a gateway driver...")
@@ -9455,6 +9456,7 @@ class DirectGateway(object):
         # this may take a moment to set up so inform the user
         print()
         print("This may take a moment...")
+        engine = None
         # place an entry in the log so that if we encounter errors that are
         # logged we can tell they were not caused by a live WeeWX instance
         loginf("Obtaining a gateway service...")
@@ -9532,6 +9534,7 @@ class DirectGateway(object):
         """
 
         loginf("Testing gateway driver...")
+        driver = None
         # set the IP address and port in the station config dict
         self.stn_dict['ip_address'] = self.ip_address
         self.stn_dict['port'] = self.port
@@ -9562,7 +9565,8 @@ class DirectGateway(object):
             self.device_connection_help()
         except KeyboardInterrupt:
             # we have a keyboard interrupt so shut down
-            driver.closePort()
+            if driver:
+                driver.closePort()
         loginf("Gateway driver testing complete")
 
     def test_service(self):
@@ -9574,6 +9578,7 @@ class DirectGateway(object):
         """
 
         loginf("Testing gateway service...")
+        engine = None
         # Create a dummy config, so we can stand up a dummy engine with a dummy
         # simulator emitting arbitrary loop packets. Include the gateway
         # service and StdPrint. StdPrint will take care of printing our loop
@@ -9649,7 +9654,8 @@ class DirectGateway(object):
             print()
             self.device_connection_help()
         except KeyboardInterrupt:
-            engine.shutDown()
+            if engine:
+                engine.shutDown()
         loginf("Gateway service testing complete")
 
     @staticmethod
