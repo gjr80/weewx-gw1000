@@ -1315,6 +1315,7 @@ class UtilitiesTestCase(unittest.TestCase):
         1. natural_sort_keys()
         2. natural_sort_dict()
         3. bytes_to_hex()
+        4. obfuscate()
         """
 
         print()
@@ -1369,12 +1370,359 @@ class UtilitiesTestCase(unittest.TestCase):
 class ListsAndDictsTestCase(unittest.TestCase):
     """Test case to test list and dict consistency."""
 
+    api_header = b'\xff\xff'
+    api_known_models = ('GW1000', 'GW1100', 'GW1200', 'GW2000', 'WH2650',
+                        'WH2680', 'WN1900', 'WS3800', 'WS3900', 'WS3910')
+    sensor_ids = {
+        b'\x00': {'name': 'wh65', 'long_name': 'WH65', 'batt_fn': 'batt_binary'},
+        b'\x01': {'name': 'wh68', 'long_name': 'WH68', 'batt_fn': 'batt_volt'},
+        b'\x02': {'name': 'ws80', 'long_name': 'WS80', 'batt_fn': 'batt_volt'},
+        b'\x03': {'name': 'wh40', 'long_name': 'WH40', 'batt_fn': 'wh40_batt_volt'},
+        b'\x04': {'name': 'wh25', 'long_name': 'WH25', 'batt_fn': 'batt_binary'},
+        b'\x05': {'name': 'wh26', 'long_name': 'WH26', 'batt_fn': 'batt_binary'},
+        b'\x06': {'name': 'wh31_ch1', 'long_name': 'WH31 ch1', 'batt_fn': 'batt_binary'},
+        b'\x07': {'name': 'wh31_ch2', 'long_name': 'WH31 ch2', 'batt_fn': 'batt_binary'},
+        b'\x08': {'name': 'wh31_ch3', 'long_name': 'WH31 ch3', 'batt_fn': 'batt_binary'},
+        b'\x09': {'name': 'wh31_ch4', 'long_name': 'WH31 ch4', 'batt_fn': 'batt_binary'},
+        b'\x0a': {'name': 'wh31_ch5', 'long_name': 'WH31 ch5', 'batt_fn': 'batt_binary'},
+        b'\x0b': {'name': 'wh31_ch6', 'long_name': 'WH31 ch6', 'batt_fn': 'batt_binary'},
+        b'\x0c': {'name': 'wh31_ch7', 'long_name': 'WH31 ch7', 'batt_fn': 'batt_binary'},
+        b'\x0d': {'name': 'wh31_ch8', 'long_name': 'WH31 ch8', 'batt_fn': 'batt_binary'},
+        b'\x0e': {'name': 'wh51_ch1', 'long_name': 'WH51 ch1', 'batt_fn': 'batt_volt_tenth'},
+        b'\x0f': {'name': 'wh51_ch2', 'long_name': 'WH51 ch2', 'batt_fn': 'batt_volt_tenth'},
+        b'\x10': {'name': 'wh51_ch3', 'long_name': 'WH51 ch3', 'batt_fn': 'batt_volt_tenth'},
+        b'\x11': {'name': 'wh51_ch4', 'long_name': 'WH51 ch4', 'batt_fn': 'batt_volt_tenth'},
+        b'\x12': {'name': 'wh51_ch5', 'long_name': 'WH51 ch5', 'batt_fn': 'batt_volt_tenth'},
+        b'\x13': {'name': 'wh51_ch6', 'long_name': 'WH51 ch6', 'batt_fn': 'batt_volt_tenth'},
+        b'\x14': {'name': 'wh51_ch7', 'long_name': 'WH51 ch7', 'batt_fn': 'batt_volt_tenth'},
+        b'\x15': {'name': 'wh51_ch8', 'long_name': 'WH51 ch8', 'batt_fn': 'batt_volt_tenth'},
+        b'\x16': {'name': 'wh41_ch1', 'long_name': 'WH41 ch1', 'batt_fn': 'batt_int'},
+        b'\x17': {'name': 'wh41_ch2', 'long_name': 'WH41 ch2', 'batt_fn': 'batt_int'},
+        b'\x18': {'name': 'wh41_ch3', 'long_name': 'WH41 ch3', 'batt_fn': 'batt_int'},
+        b'\x19': {'name': 'wh41_ch4', 'long_name': 'WH41 ch4', 'batt_fn': 'batt_int'},
+        b'\x1a': {'name': 'wh57', 'long_name': 'WH57', 'batt_fn': 'batt_int'},
+        b'\x1b': {'name': 'wh55_ch1', 'long_name': 'WH55 ch1', 'batt_fn': 'batt_int'},
+        b'\x1c': {'name': 'wh55_ch2', 'long_name': 'WH55 ch2', 'batt_fn': 'batt_int'},
+        b'\x1d': {'name': 'wh55_ch3', 'long_name': 'WH55 ch3', 'batt_fn': 'batt_int'},
+        b'\x1e': {'name': 'wh55_ch4', 'long_name': 'WH55 ch4', 'batt_fn': 'batt_int'},
+        b'\x1f': {'name': 'wn34_ch1', 'long_name': 'WN34 ch1', 'batt_fn': 'batt_volt'},
+        b'\x20': {'name': 'wn34_ch2', 'long_name': 'WN34 ch2', 'batt_fn': 'batt_volt'},
+        b'\x21': {'name': 'wn34_ch3', 'long_name': 'WN34 ch3', 'batt_fn': 'batt_volt'},
+        b'\x22': {'name': 'wn34_ch4', 'long_name': 'WN34 ch4', 'batt_fn': 'batt_volt'},
+        b'\x23': {'name': 'wn34_ch5', 'long_name': 'WN34 ch5', 'batt_fn': 'batt_volt'},
+        b'\x24': {'name': 'wn34_ch6', 'long_name': 'WN34 ch6', 'batt_fn': 'batt_volt'},
+        b'\x25': {'name': 'wn34_ch7', 'long_name': 'WN34 ch7', 'batt_fn': 'batt_volt'},
+        b'\x26': {'name': 'wn34_ch8', 'long_name': 'WN34 ch8', 'batt_fn': 'batt_volt'},
+        b'\x27': {'name': 'wh45', 'long_name': 'WH45', 'batt_fn': 'batt_int'},
+        b'\x28': {'name': 'wn35_ch1', 'long_name': 'WN35 ch1', 'batt_fn': 'batt_volt'},
+        b'\x29': {'name': 'wn35_ch2', 'long_name': 'WN35 ch2', 'batt_fn': 'batt_volt'},
+        b'\x2a': {'name': 'wn35_ch3', 'long_name': 'WN35 ch3', 'batt_fn': 'batt_volt'},
+        b'\x2b': {'name': 'wn35_ch4', 'long_name': 'WN35 ch4', 'batt_fn': 'batt_volt'},
+        b'\x2c': {'name': 'wn35_ch5', 'long_name': 'WN35 ch5', 'batt_fn': 'batt_volt'},
+        b'\x2d': {'name': 'wn35_ch6', 'long_name': 'WN35 ch6', 'batt_fn': 'batt_volt'},
+        b'\x2e': {'name': 'wn35_ch7', 'long_name': 'WN35 ch7', 'batt_fn': 'batt_volt'},
+        b'\x2f': {'name': 'wn35_ch8', 'long_name': 'WN35 ch8', 'batt_fn': 'batt_volt'},
+        b'\x30': {'name': 'ws90', 'long_name': 'WS90', 'batt_fn': 'batt_volt', 'low_batt': 3},
+        b'\x31': {'name': 'ws85', 'long_name': 'WS85', 'batt_fn': 'batt_volt'}
+    }
+    # sensors for which there is no low battery state
+    no_low = ['ws80', 'ws85', 'ws90']
+    # Tuple of sensor ID values for sensors that are not registered with
+    # the device. 'fffffffe' means the sensor is disabled, 'ffffffff' means
+    # the sensor is registering.
+    not_registered = ('fffffffe', 'ffffffff')
+    # HTTP request commands
+    commands = ['get_version', 'get_livedata_info', 'get_ws_settings',
+                'get_calibration_data', 'get_rain_totals', 'get_device_info',
+                'get_sensors_info', 'get_network_info', 'get_units_info',
+                'get_cli_soilad', 'get_cli_multiCh', 'get_cli_pm25',
+                'get_cli_co2', 'get_piezo_rain']
+    # list of dicts of weather services that I know about
+    services = [{'name': 'ecowitt_net_params',
+                 'long_name': 'Ecowitt.net'
+                 },
+                {'name': 'wunderground_params',
+                 'long_name': 'Wunderground'
+                 },
+                {'name': 'weathercloud_params',
+                 'long_name': 'Weathercloud'
+                 },
+                {'name': 'wow_params',
+                 'long_name': 'Weather Observations Website'
+                 },
+                {'name': 'custom_params',
+                 'long_name': 'Customized'
+                 }
+                ]
+    # sensors that have user updatable firmware
+    sensors_with_fware = {'wh80': 'WS80', 'wh85': 'WS85', 'wh90': 'WS90'}
+    # gateway direct observation group dict, this maps all device 'fields' to a
+    # WeeWX unit group
+    gw_direct_obs_group_dict = {
+        'intemp': 'group_temperature',
+        'outtemp': 'group_temperature',
+        'dewpoint': 'group_temperature',
+        'windchill': 'group_temperature',
+        'heatindex': 'group_temperature',
+        'inhumid': 'group_percent',
+        'outhumid': 'group_percent',
+        'absbarometer': 'group_pressure',
+        'relbarometer': 'group_pressure',
+        'light': 'group_illuminance',
+        'uv': 'group_radiation',
+        'uvi': 'group_uv',
+        'datetime': 'group_time',
+        'temp1': 'group_temperature',
+        'temp2': 'group_temperature',
+        'temp3': 'group_temperature',
+        'temp4': 'group_temperature',
+        'temp5': 'group_temperature',
+        'temp6': 'group_temperature',
+        'temp7': 'group_temperature',
+        'temp8': 'group_temperature',
+        'temp9': 'group_temperature',
+        'temp10': 'group_temperature',
+        'temp11': 'group_temperature',
+        'temp12': 'group_temperature',
+        'temp13': 'group_temperature',
+        'temp14': 'group_temperature',
+        'temp15': 'group_temperature',
+        'temp16': 'group_temperature',
+        'temp17': 'group_temperature',
+        'humid1': 'group_percent',
+        'humid2': 'group_percent',
+        'humid3': 'group_percent',
+        'humid4': 'group_percent',
+        'humid5': 'group_percent',
+        'humid6': 'group_percent',
+        'humid7': 'group_percent',
+        'humid8': 'group_percent',
+        'humid17': 'group_percent',
+        'pm1': 'group_concentration',
+        'pm251': 'group_concentration',
+        'pm252': 'group_concentration',
+        'pm253': 'group_concentration',
+        'pm254': 'group_concentration',
+        'pm255': 'group_concentration',
+        'pm4': 'group_concentration',
+        'pm10': 'group_concentration',
+        'co2': 'group_fraction',
+        'soiltemp1': 'group_temperature',
+        'soilmoist1': 'group_percent',
+        'soiltemp2': 'group_temperature',
+        'soilmoist2': 'group_percent',
+        'soiltemp3': 'group_temperature',
+        'soilmoist3': 'group_percent',
+        'soiltemp4': 'group_temperature',
+        'soilmoist4': 'group_percent',
+        'soiltemp5': 'group_temperature',
+        'soilmoist5': 'group_percent',
+        'soiltemp6': 'group_temperature',
+        'soilmoist6': 'group_percent',
+        'soiltemp7': 'group_temperature',
+        'soilmoist7': 'group_percent',
+        'soiltemp8': 'group_temperature',
+        'soilmoist8': 'group_percent',
+        'soiltemp9': 'group_temperature',
+        'soilmoist9': 'group_percent',
+        'soiltemp10': 'group_temperature',
+        'soilmoist10': 'group_percent',
+        'soiltemp11': 'group_temperature',
+        'soilmoist11': 'group_percent',
+        'soiltemp12': 'group_temperature',
+        'soilmoist12': 'group_percent',
+        'soiltemp13': 'group_temperature',
+        'soilmoist13': 'group_percent',
+        'soiltemp14': 'group_temperature',
+        'soilmoist14': 'group_percent',
+        'soiltemp15': 'group_temperature',
+        'soilmoist15': 'group_percent',
+        'soiltemp16': 'group_temperature',
+        'soilmoist16': 'group_percent',
+        'pm1_24h_avg': 'group_concentration',
+        'pm251_24h_avg': 'group_concentration',
+        'pm252_24h_avg': 'group_concentration',
+        'pm253_24h_avg': 'group_concentration',
+        'pm254_24h_avg': 'group_concentration',
+        'pm255_24h_avg': 'group_concentration',
+        'pm4_24h_avg': 'group_concentration',
+        'pm10_24h_avg': 'group_concentration',
+        'co2_24h_avg': 'group_fraction',
+        'leak1': 'group_count',
+        'leak2': 'group_count',
+        'leak3': 'group_count',
+        'leak4': 'group_count',
+        'lightningdist': 'group_distance',
+        'lightningdettime': 'group_time',
+        'lightning_strike_count': 'group_count',
+        'lightningcount': 'group_count',
+        't_rain': 'group_rain',
+        't_rainevent': 'group_rain',
+        't_rainrate': 'group_rainrate',
+        't_rainday': 'group_rain',
+        't_rainweek': 'group_rain',
+        't_rainmonth': 'group_rain',
+        't_rainyear': 'group_rain',
+        't_raintotals': 'group_rain',
+        'p_rain': 'group_rain',
+        'p_rainevent': 'group_rain',
+        'p_rainrate': 'group_rainrate',
+        'p_rainday': 'group_rain',
+        'p_rainweek': 'group_rain',
+        'p_rainmonth': 'group_rain',
+        'p_rainyear': 'group_rain',
+        'winddir': 'group_direction',
+        'windspeed': 'group_speed',
+        'gustspeed': 'group_speed',
+        'daymaxwind': 'group_speed',
+        'leafwet1': 'group_percent',
+        'leafwet2': 'group_percent',
+        'leafwet3': 'group_percent',
+        'leafwet4': 'group_percent',
+        'leafwet5': 'group_percent',
+        'leafwet6': 'group_percent',
+        'leafwet7': 'group_percent',
+        'leafwet8': 'group_percent',
+        'heap_free': 'group_data',
+        'wh40_batt': 'group_volt',
+        'wh26_batt': 'group_count',
+        'wh25_batt': 'group_count',
+        'wh24_batt': 'group_count',
+        'wh65_batt': 'group_count',
+        'wh32_batt': 'group_count',
+        'wh31_ch1_batt': 'group_count',
+        'wh31_ch2_batt': 'group_count',
+        'wh31_ch3_batt': 'group_count',
+        'wh31_ch4_batt': 'group_count',
+        'wh31_ch5_batt': 'group_count',
+        'wh31_ch6_batt': 'group_count',
+        'wh31_ch7_batt': 'group_count',
+        'wh31_ch8_batt': 'group_count',
+        'wn34_ch1_batt': 'group_volt',
+        'wn34_ch2_batt': 'group_volt',
+        'wn34_ch3_batt': 'group_volt',
+        'wn34_ch4_batt': 'group_volt',
+        'wn34_ch5_batt': 'group_volt',
+        'wn34_ch6_batt': 'group_volt',
+        'wn34_ch7_batt': 'group_volt',
+        'wn34_ch8_batt': 'group_volt',
+        'wn35_ch1_batt': 'group_volt',
+        'wn35_ch2_batt': 'group_volt',
+        'wn35_ch3_batt': 'group_volt',
+        'wn35_ch4_batt': 'group_volt',
+        'wn35_ch5_batt': 'group_volt',
+        'wn35_ch6_batt': 'group_volt',
+        'wn35_ch7_batt': 'group_volt',
+        'wn35_ch8_batt': 'group_volt',
+        'wh41_ch1_batt': 'group_count',
+        'wh41_ch2_batt': 'group_count',
+        'wh41_ch3_batt': 'group_count',
+        'wh41_ch4_batt': 'group_count',
+        'wh45_batt': 'group_count',
+        'wh46_batt': 'group_count',
+        'wh51_ch1_batt': 'group_volt',
+        'wh51_ch2_batt': 'group_volt',
+        'wh51_ch3_batt': 'group_volt',
+        'wh51_ch4_batt': 'group_volt',
+        'wh51_ch5_batt': 'group_volt',
+        'wh51_ch6_batt': 'group_volt',
+        'wh51_ch7_batt': 'group_volt',
+        'wh51_ch8_batt': 'group_volt',
+        'wh51_ch9_batt': 'group_volt',
+        'wh51_ch10_batt': 'group_volt',
+        'wh51_ch11_batt': 'group_volt',
+        'wh51_ch12_batt': 'group_volt',
+        'wh51_ch13_batt': 'group_volt',
+        'wh51_ch14_batt': 'group_volt',
+        'wh51_ch15_batt': 'group_volt',
+        'wh51_ch16_batt': 'group_volt',
+        'wh55_ch1_batt': 'group_count',
+        'wh55_ch2_batt': 'group_count',
+        'wh55_ch3_batt': 'group_count',
+        'wh55_ch4_batt': 'group_count',
+        'wh57_batt': 'group_count',
+        'wh68_batt': 'group_volt',
+        'ws80_batt': 'group_volt',
+        'ws85_batt': 'group_volt',
+        'ws90_batt': 'group_volt',
+        'wh40_sig': 'group_count',
+        'wh26_sig': 'group_count',
+        'wh25_sig': 'group_count',
+        'wh24_sig': 'group_count',
+        'wh65_sig': 'group_count',
+        'wh32_sig': 'group_count',
+        'wh31_ch1_sig': 'group_count',
+        'wh31_ch2_sig': 'group_count',
+        'wh31_ch3_sig': 'group_count',
+        'wh31_ch4_sig': 'group_count',
+        'wh31_ch5_sig': 'group_count',
+        'wh31_ch6_sig': 'group_count',
+        'wh31_ch7_sig': 'group_count',
+        'wh31_ch8_sig': 'group_count',
+        'wn34_ch1_sig': 'group_count',
+        'wn34_ch2_sig': 'group_count',
+        'wn34_ch3_sig': 'group_count',
+        'wn34_ch4_sig': 'group_count',
+        'wn34_ch5_sig': 'group_count',
+        'wn34_ch6_sig': 'group_count',
+        'wn34_ch7_sig': 'group_count',
+        'wn34_ch8_sig': 'group_count',
+        'wn35_ch1_sig': 'group_count',
+        'wn35_ch2_sig': 'group_count',
+        'wn35_ch3_sig': 'group_count',
+        'wn35_ch4_sig': 'group_count',
+        'wn35_ch5_sig': 'group_count',
+        'wn35_ch6_sig': 'group_count',
+        'wn35_ch7_sig': 'group_count',
+        'wn35_ch8_sig': 'group_count',
+        'wh41_ch1_sig': 'group_count',
+        'wh41_ch2_sig': 'group_count',
+        'wh41_ch3_sig': 'group_count',
+        'wh41_ch4_sig': 'group_count',
+        'wh45_sig': 'group_count',
+        'wh46_sig': 'group_count',
+        'wh51_ch1_sig': 'group_count',
+        'wh51_ch2_sig': 'group_count',
+        'wh51_ch3_sig': 'group_count',
+        'wh51_ch4_sig': 'group_count',
+        'wh51_ch5_sig': 'group_count',
+        'wh51_ch6_sig': 'group_count',
+        'wh51_ch7_sig': 'group_count',
+        'wh51_ch8_sig': 'group_count',
+        'wh51_ch9_sig': 'group_count',
+        'wh51_ch10_sig': 'group_count',
+        'wh51_ch11_sig': 'group_count',
+        'wh51_ch12_sig': 'group_count',
+        'wh51_ch13_sig': 'group_count',
+        'wh51_ch14_sig': 'group_count',
+        'wh51_ch15_sig': 'group_count',
+        'wh51_ch16_sig': 'group_count',
+        'wh55_ch1_sig': 'group_count',
+        'wh55_ch2_sig': 'group_count',
+        'wh55_ch3_sig': 'group_count',
+        'wh55_ch4_sig': 'group_count',
+        'wh57_sig': 'group_count',
+        'wh68_sig': 'group_count',
+        'ws80_sig': 'group_count',
+        'ws85_sig': 'group_count',
+        'ws90_sig': 'group_count'
+    }
+
     def setUp(self):
 
         # construct the default field map and save for later, note we construct
         # the default field map by passing gw1000.Gateway.construct_field_map
         # an empty config dict
         self.default_field_map = user.gw1000.Gateway.construct_field_map({})
+
+    def test_class_properties(self):
+        """Test class properties for consistency"""
+
+        print()
+        print('   testing GatewayApi constants, lists and static dicts...')
+        # command header
+        self.assertEqual(user.gw1000.GatewayApi.header, self.api_header)
+        self.assertTupleEqual(user.gw1000.GatewayApi.known_models, self.api_known_models)
 
     def test_dicts(self):
         """Test dicts for consistency"""
@@ -1414,7 +1762,8 @@ class ListsAndDictsTestCase(unittest.TestCase):
                               "missing from the driver default field map")
 
 
-class StationTestCase(unittest.TestCase):
+class GatewayApiTestCase(unittest.TestCase):
+    """Test the GatewayApi class."""
 
     fake_ip = '192.168.99.99'
     fake_port = 44444
@@ -1533,16 +1882,16 @@ class StationTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Set up the StationTestCase to perform its tests.
+        """Set up the GatewayApiTestCase to perform its tests.
 
         Determines the IP address and port to use for the Station tests. A
         GatewayCollector.Station object is required to perform some
-        StationTestCase tests. If either or both of IP address and port are not
-        specified when instantiating a Station object device discovery will be
-        initiated which may result in delays or failure of the test case if no
-        device is found. To avoid such situations an IP address and port number
-        is always used when instantiating a Station object as part of this test
-        case.
+        GatewayApiTestCase tests. If either or both of IP address and port are
+        not specified when instantiating a Station object device discovery will
+        be initiated which may result in delays or failure of the test case if
+        no device is found. To avoid such situations an IP address and port
+        number is always used when instantiating a Station object as part of
+        this test case.
 
         The IP address and port number are determined as follows:
         - if --ip-address and --port were specified on the command line then
@@ -1556,9 +1905,9 @@ class StationTestCase(unittest.TestCase):
         """
 
         # set the IP address we will use
-        cls.test_ip = cls.ip_address if cls.ip_address is not None else StationTestCase.fake_ip
+        cls.test_ip = cls.ip_address if cls.ip_address is not None else GatewayApiTestCase.fake_ip
         # set the port number we will use
-        cls.test_port = cls.port if cls.port is not None else StationTestCase.fake_port
+        cls.test_port = cls.port if cls.port is not None else GatewayApiTestCase.fake_port
 
     @patch.object(user.gw1000.GatewayApi, 'get_livedata')
     @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
@@ -1579,11 +1928,11 @@ class StationTestCase(unittest.TestCase):
         print('   testing class Station API command list for completeness ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (string)
-        mock_get_mac.return_value = StationTestCase.mock_mac
+        mock_get_mac.return_value = GatewayApiTestCase.mock_mac
         # get_firmware_version - firmware version (string)
-        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        mock_get_firmware.return_value = GatewayApiTestCase.mock_firmware
         # get_system_params - system parameters (dict)
-        mock_get_sys.return_value = StationTestCase.mock_system_params
+        mock_get_sys.return_value = GatewayApiTestCase.mock_system_params
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = None
         # get_livedata - get live data (bytestring)
@@ -1591,14 +1940,14 @@ class StationTestCase(unittest.TestCase):
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
                                                port=self.test_port)
-        # Check that the class Station command list is complete. This is a
+        # Check that the class GatewayApi command list is complete. This is a
         # simple check for (1) inclusion of the command and (2) the command
         # code (byte) is correct.
         for cmd, response in self.commands.items():
             # check for inclusion of the command
             self.assertIn(cmd,
                           gw_device_api.api_commands.keys(),
-                          msg="Command '%s' not found in Station.api_commands" % cmd)
+                          msg="Command '%s' not found in GatewayApi.api_commands" % cmd)
             # check the command code byte is correct
             self.assertEqual(hex_to_bytes(response)[2:3],
                              gw_device_api.api_commands[cmd],
@@ -1637,11 +1986,11 @@ class StationTestCase(unittest.TestCase):
         print('   testing API command checksum calculation ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.mock_mac
+        mock_get_mac.return_value = GatewayApiTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        mock_get_firmware.return_value = GatewayApiTestCase.mock_firmware
         # get_system_params - system parameters (dict)
-        mock_get_system_params.return_value = StationTestCase.mock_system_params
+        mock_get_system_params.return_value = GatewayApiTestCase.mock_system_params
         # get_sensor_id - sensor ID data
         mock_get_sensor_id.return_value = None
         # get_livedata - get live data (bytestring)
@@ -1672,11 +2021,11 @@ class StationTestCase(unittest.TestCase):
         print('   testing API command packet construction ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (string)
-        mock_get_mac.return_value = StationTestCase.mock_mac
+        mock_get_mac.return_value = GatewayApiTestCase.mock_mac
         # get_firmware_version - firmware version (string)
-        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        mock_get_firmware.return_value = GatewayApiTestCase.mock_firmware
         # get_system_params - system parameters (dict)
-        mock_get_system_params.return_value = StationTestCase.mock_system_params
+        mock_get_system_params.return_value = GatewayApiTestCase.mock_system_params
         # get_sensor_id - sensor ID data
         mock_get_sensor_id.return_value = None
         # get_livedata - get live data (bytestring)
@@ -1713,11 +2062,11 @@ class StationTestCase(unittest.TestCase):
         print('   testing broadcast response decoding ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.mock_mac
+        mock_get_mac.return_value = GatewayApiTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        mock_get_firmware.return_value = GatewayApiTestCase.mock_firmware
         # get_system_params - system parameters (dict)
-        mock_get_system_params.return_value = StationTestCase.mock_system_params
+        mock_get_system_params.return_value = GatewayApiTestCase.mock_system_params
         # get_sensor_id - sensor ID data
         mock_get_sensor_id.return_value = None
         # get_livedata - get live data (bytestring)
@@ -1753,11 +2102,11 @@ class StationTestCase(unittest.TestCase):
         print('   testing validity checking of API responses ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.mock_mac
+        mock_get_mac.return_value = GatewayApiTestCase.mock_mac
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        mock_get_firmware.return_value = GatewayApiTestCase.mock_firmware
         # get_system_params() - system parameters (bytestring)
-        mock_get_sys.return_value = StationTestCase.mock_system_params
+        mock_get_sys.return_value = GatewayApiTestCase.mock_system_params
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = None
         # get_livedata - get live data (bytestring)
@@ -1803,17 +2152,17 @@ class StationTestCase(unittest.TestCase):
 
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
-        mock_get_mac.return_value = StationTestCase.discover_multi_resp[2]['mac']
+        mock_get_mac.return_value = GatewayApiTestCase.discover_multi_resp[2]['mac']
         # get_firmware_version - firmware version (bytestring)
-        mock_get_firmware.return_value = StationTestCase.mock_firmware
+        mock_get_firmware.return_value = GatewayApiTestCase.mock_firmware
         # get_system_params() - system parameters (bytestring)
-        mock_get_sys.return_value = StationTestCase.mock_system_params
+        mock_get_sys.return_value = GatewayApiTestCase.mock_system_params
         # get_sensor_id - get sensor IDs (bytestring)
         mock_get_sensor_id.return_value = None
         # get_livedata - get live data (bytestring)
         mock_get_livedata.return_value = dict()
         # discover() - list of discovered devices (list of dicts)
-        mock_discover.return_value = StationTestCase.discover_multi_resp
+        mock_discover.return_value = GatewayApiTestCase.discover_multi_resp
 
         # get our mocked gateway device API object
         gw_device_api = user.gw1000.GatewayApi(ip_address=self.test_ip,
@@ -1829,24 +2178,24 @@ class StationTestCase(unittest.TestCase):
         # force rediscovery
         gw_device_api.rediscover()
         # test that we retained the original MAC address after rediscovery
-        self.assertEqual(gw_device_api.mac, StationTestCase.discover_multi_resp[2]['mac'])
+        self.assertEqual(gw_device_api.mac, GatewayApiTestCase.discover_multi_resp[2]['mac'])
         # test that the new IP address was detected
         self.assertEqual(gw_device_api.ip_address.decode(),
-                         StationTestCase.discover_multi_resp[2]['ip_address'])
+                         GatewayApiTestCase.discover_multi_resp[2]['ip_address'])
         # test that the new port number was detected
         self.assertEqual(gw_device_api.port,
-                         StationTestCase.discover_multi_resp[2]['port'])
+                         GatewayApiTestCase.discover_multi_resp[2]['port'])
 
         # test Station.rediscover() when devices are found but not the original
         # device
-        mock_discover.return_value = StationTestCase.discover_multi_diff_resp
+        mock_discover.return_value = GatewayApiTestCase.discover_multi_diff_resp
         # reset our Station object IP address and port
         gw_device_api.ip_address = self.test_ip.encode()
         gw_device_api.port = self.test_port
         # force rediscovery
         gw_device_api.rediscover()
         # test that we retained the original MAC address after rediscovery
-        self.assertEqual(gw_device_api.mac, StationTestCase.discover_multi_resp[2]['mac'])
+        self.assertEqual(gw_device_api.mac, GatewayApiTestCase.discover_multi_resp[2]['mac'])
         # test that the new IP address was detected
         self.assertEqual(gw_device_api.ip_address.decode(), self.test_ip)
         # test that the new port number was detected
@@ -1860,7 +2209,7 @@ class StationTestCase(unittest.TestCase):
         # force rediscovery
         gw_device_api.rediscover()
         # test that we retained the original MAC address after rediscovery
-        self.assertEqual(gw_device_api.mac, StationTestCase.discover_multi_resp[2]['mac'])
+        self.assertEqual(gw_device_api.mac, GatewayApiTestCase.discover_multi_resp[2]['mac'])
         # test that the new IP address was detected
         self.assertEqual(gw_device_api.ip_address.decode(), self.test_ip)
         # test that the new port number was detected
@@ -1875,7 +2224,7 @@ class StationTestCase(unittest.TestCase):
         # force rediscovery
         gw_device_api.rediscover()
         # test that we retained the original MAC address after rediscovery
-        self.assertEqual(gw_device_api.mac, StationTestCase.discover_multi_resp[2]['mac'])
+        self.assertEqual(gw_device_api.mac, GatewayApiTestCase.discover_multi_resp[2]['mac'])
         # test that the new IP address was detected
         self.assertEqual(gw_device_api.ip_address.decode(), self.test_ip)
         # test that the new port number was detected
@@ -2368,7 +2717,7 @@ def main():
 
     # test cases that are production ready
     test_cases = (DebugOptionsTestCase, SensorsTestCase, ParseTestCase,
-                  UtilitiesTestCase, ListsAndDictsTestCase, StationTestCase,
+                  UtilitiesTestCase, ListsAndDictsTestCase, GatewayApiTestCase,
                   GatewayServiceTestCase)
 
     usage = """python3 -m user.tests.test_egd --help
@@ -2412,10 +2761,10 @@ your PYTHONPATH. For example:
         print("%s test suite version: %s" % (TEST_SUITE_NAME, TEST_SUITE_VERSION))
         exit(0)
     # run the tests
-    # first set the IP address and port to use in StationTestCase and
+    # first set the IP address and port to use in GatewayApiTestCase and
     # GatewayServiceTestCase
-    StationTestCase.ip_address = args.ip_address
-    StationTestCase.port = args.port
+    GatewayApiTestCase.ip_address = args.ip_address
+    GatewayApiTestCase.port = args.port
     GatewayServiceTestCase.ip_address = args.ip_address
     GatewayServiceTestCase.port = args.port
     # get a test runner with appropriate verbosity
