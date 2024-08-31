@@ -9662,22 +9662,31 @@ class DirectGateway(object):
 
 
 # To use this driver in standalone mode for testing or development, use one of
-# the following commands (depending on your WeeWX install). For setup.py
-# installs use:
+# the following commands (depending on your WeeWX version and install type).
 #
-#   $ PYTHONPATH=/home/weewx/bin python -m user.gw1000
+# WeeWX v5 and later:
+#   for pip installs use:
+#       $ source ~/weewx-venv/bin/activate
+#       $ python3 -m user.gw1000
+#   for git installs use:
+#       $ source ~/weewx-venv/bin/activate
+#       $ PYTHONPATH=~/weewx/src:~/weewx-data/bin python3 -m user.gw1000
+#   for package installs use:
+#       $ python3 -m user.gw1000
 #
-# or for package installs use:
+# WeeWX v4 and earlier:
+#   for setup.py installs use:
+#       $ PYTHONPATH=/home/weewx/bin python -m user.gw1000
+#   for package installs use:
+#       $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
 #
-#   $ PYTHONPATH=/usr/share/weewx python -m user.gw1000
-#
-# The above api_commands will display details of available command line options.
+# The above commands will run the driver directly and display details of
+# available command line options.
 #
 # Note. Whilst the driver may be run independently of WeeWX the driver still
-# requires WeeWX and it's dependencies be installed. Consequently, if
-# WeeWX 4.0.0 or later is installed the driver must be run under the same
-# Python version as WeeWX uses. This means that on some systems 'python' in the
-# above api_commands may need to be changed to 'python2' or 'python3'.
+# requires WeeWX and it's dependencies be installed. Consequently, the driver
+# must be run under the same Python version (or Python virtual environment) as
+# WeeWX uses.
 
 def main():
     import optparse
