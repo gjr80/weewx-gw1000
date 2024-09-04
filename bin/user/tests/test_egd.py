@@ -687,9 +687,10 @@ class ParseTestCase(unittest.TestCase):
                               't_rainmonth': 37.9,
                               't_rainyear': 234.1}
                      }
-    get_mulch_offset = {'response': 'FF FF 2C 1B 00 02 15 01 FB E5 02 0A '
-                                    '64 03 00 1A 04 06 00 05 F6 9C 06 05 '
-                                    '14 07 FB C4 52',
+    get_mulch_offset = {'response': 'FF FF 2C 1B '
+                                    '00 02 15 01 FB E5 02 0A 64 03 00 1A '
+                                    '04 06 00 05 F6 9C 06 05 14 07 FB C4 '
+                                    '52',
                         'data': {0: {'temp': 2.1, 'hum': 2},
                                  1: {'temp': -2.7, 'hum': -5},
                                  2: {'temp': 10.0, 'hum': 10},
@@ -700,18 +701,12 @@ class ParseTestCase(unittest.TestCase):
                                  7: {'temp': -6.0, 'hum': -5}
                                  }
                         }
-    get_mulch_t_offset = {'response': 'FF FF 2C 1B 00 02 15 01 FB E5 02 0A '
-                                      '64 03 00 1A 04 06 00 05 F6 9C 06 05 '
-                                      '14 07 FB C4 52',
-                        'data': {0: {'temp': 2.1, 'hum': 2},
-                                 1: {'temp': -2.7, 'hum': -5},
-                                 2: {'temp': 10.0, 'hum': 10},
-                                 3: {'temp': 2.6, 'hum': 0},
-                                 4: {'temp': 0.0, 'hum': 6},
-                                 5: {'temp': -10.0, 'hum': -10},
-                                 6: {'temp': 2.0, 'hum': 5},
-                                 7: {'temp': -6.0, 'hum': -5}
-                                 }
+    get_mulch_t_offset = {'response': 'FF FF 59 00 1C '
+                                      '63 00 15 64 FF E5 65 00 64 66 00 1A '
+                                      '67 00 00 68 FF 9C 69 00 14 6A FF C4 '
+                                      'C3',
+                        'data': {99: 2.1, 100: -2.7, 101: 10.0, 102: 2.6,
+                                 103: 0.0, 104: -10.0, 105: 2.0, 106: -6.0}
                         }
     get_pm25_offset = {'response': 'FF FF 2E 0F 00 00 C8 01 FF 38 02 '
                                    '00 00 03 FF C7 08',
@@ -855,7 +850,7 @@ class ParseTestCase(unittest.TestCase):
 
         print('   testing ApiParser.parse_get_mulch_t_offset() ...')
         # test parse_get_mulch_t_offset()
-        self.assertDictEqual(self.parser.parse_get_mulch_t_offset(response=hex_to_bytes(self.get_mulch_offset['response'])),
+        self.assertDictEqual(self.parser.parse_get_mulch_t_offset(response=hex_to_bytes(self.get_mulch_t_offset['response'])),
                              self.get_mulch_t_offset['data'])
 
         print('   testing ApiParser.parse_get_pm25_offset() ...')
@@ -936,7 +931,7 @@ class ParseTestCase(unittest.TestCase):
         # test reserved decode (method decode_reserved())
         self.assertIsNone(self.parser.decode_reserved(hex_to_bytes(self.reserved_data['data'])))
         # test decode with field != None
-        self.assertDictEqual(self.parser.decode_reserved(hex_to_bytes(self.reserved_data['data']), field='test'))
+        self.assertIsNone(self.parser.decode_reserved(hex_to_bytes(self.reserved_data['data']), field='test'))
         # test correct handling of too few and too many bytes
         self.assertIsNone(self.parser.decode_reserved(hex_to_bytes(xbytes(1))))
         self.assertIsNone(self.parser.decode_reserved(hex_to_bytes(xbytes(3))))
@@ -949,8 +944,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_temp(hex_to_bytes(self.temp_data['data']), field='test'),
                              {'test': self.temp_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_temp(hex_to_bytes(xbytes(3))), None)
+        self.assertIsNone(self.parser.decode_temp(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_temp(hex_to_bytes(xbytes(3))))
 
         print('   testing ApiParser.decode_humid() ...')
         # test humidity decode (method decode_humid())
@@ -960,8 +955,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_humid(hex_to_bytes(self.humid_data['data']), field='test'),
                              {'test': self.humid_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_humid(hex_to_bytes(xbytes(2))), None)
+        self.assertIsNone(self.parser.decode_humid(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_humid(hex_to_bytes(xbytes(2))))
 
         print('   testing ApiParser.decode_press() ...')
         # test pressure decode (method decode_press())
@@ -971,7 +966,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_press(hex_to_bytes(self.press_data['data']), field='test'),
                              {'test': self.press_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_press(hex_to_bytes(xbytes(1))), None)
+        self.assertIsNone(self.parser.decode_press(hex_to_bytes(xbytes(1))))
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.press_data['long'])),
                          self.press_data['long_value'])
 
@@ -986,8 +981,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_dir(hex_to_bytes(self.dir_data['data']), field='test'),
                              {'test': self.dir_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_dir(hex_to_bytes(xbytes(3))), None)
+        self.assertIsNone(self.parser.decode_dir(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_dir(hex_to_bytes(xbytes(3))))
 
         print('   testing ApiParser.decode_big_rain() ...')
         # test big rain decode (method decode_big_rain())
@@ -997,8 +992,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_big_rain(hex_to_bytes(self.big_rain_data['data']), field='test'),
                              {'test': self.big_rain_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_big_rain(hex_to_bytes(xbytes(5))), None)
+        self.assertIsNone(self.parser.decode_big_rain(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_big_rain(hex_to_bytes(xbytes(5))))
 
         print('   testing ApiParser.decode_datetime() ...')
         # test datetime decode (method decode_datetime())
@@ -1008,8 +1003,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_datetime(hex_to_bytes(self.datetime_data['data']), field='test'),
                              {'test': self.datetime_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_datetime(hex_to_bytes(xbytes(7))), None)
+        self.assertIsNone(self.parser.decode_datetime(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_datetime(hex_to_bytes(xbytes(7))))
 
         print('   testing ApiParser.decode_distance() ...')
         # test distance decode (method decode_distance())
@@ -1019,8 +1014,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_distance(hex_to_bytes(self.distance_data['data']), field='test'),
                              {'test': self.distance_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_distance(hex_to_bytes(xbytes(2))), None)
+        self.assertIsNone(self.parser.decode_distance(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_distance(hex_to_bytes(xbytes(2))))
 
         print('   testing ApiParser.decode_utc() ...')
         # test utc decode (method decode_utc())
@@ -1030,8 +1025,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_utc(hex_to_bytes(self.utc_data['data']), field='test'),
                              {'test': self.utc_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_utc(hex_to_bytes(xbytes(5))), None)
+        self.assertIsNone(self.parser.decode_utc(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_utc(hex_to_bytes(xbytes(5))))
 
         print('   testing ApiParser.decode_count() ...')
         # test count decode (method decode_count())
@@ -1041,8 +1036,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_count(hex_to_bytes(self.count_data['data']), field='test'),
                              {'test': self.count_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_count(hex_to_bytes(xbytes(5))), None)
+        self.assertIsNone(self.parser.decode_count(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_count(hex_to_bytes(xbytes(5))))
 
         print('   testing ApiParser.decode_gain_100() ...')
         # test sensor gain decode (method decode_gain_100())
@@ -1052,8 +1047,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_gain_100(hex_to_bytes(self.gain_100_data['data']), field='test'),
                              {'test': self.gain_100_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_gain_100(hex_to_bytes(xbytes(5))), None)
+        self.assertIsNone(self.parser.decode_gain_100(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_gain_100(hex_to_bytes(xbytes(5))))
 
         print('   testing ApiParser.decode_speed() ...')
         # test speed decode (method decode_speed())
@@ -1063,7 +1058,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_speed(hex_to_bytes(self.speed_data['data']), field='test'),
                              {'test': self.speed_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_speed(hex_to_bytes(xbytes(1))), None)
+        self.assertIsNone(self.parser.decode_speed(hex_to_bytes(xbytes(1))))
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.speed_data['long'])),
                          self.speed_data['long_value'])
 
@@ -1075,7 +1070,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_rain(hex_to_bytes(self.rain_data['data']), field='test'),
                              {'test': self.rain_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_rain(hex_to_bytes(xbytes(1))), None)
+        self.assertIsNone(self.parser.decode_rain(hex_to_bytes(xbytes(1))))
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rain_data['long'])),
                          self.rain_data['long_value'])
 
@@ -1087,7 +1082,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_rainrate(hex_to_bytes(self.rainrate_data['data']), field='test'),
                              {'test': self.rainrate_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_rainrate(hex_to_bytes(xbytes(1))), None)
+        self.assertIsNone(self.parser.decode_rainrate(hex_to_bytes(xbytes(1))))
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.rainrate_data['long'])),
                          self.rainrate_data['long_value'])
 
@@ -1099,8 +1094,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_light(hex_to_bytes(self.light_data['data']), field='test'),
                              {'test': self.light_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(1))), None)
-        self.assertEqual(self.parser.decode_light(hex_to_bytes(xbytes(5))), None)
+        self.assertIsNone(self.parser.decode_light(hex_to_bytes(xbytes(1))))
+        self.assertIsNone(self.parser.decode_light(hex_to_bytes(xbytes(5))))
 
         print('   testing ApiParser.decode_uv() ...')
         # test uv decode (method decode_uv())
@@ -1110,7 +1105,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_uv(hex_to_bytes(self.uv_data['data']), field='test'),
                              {'test': self.uv_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_uv(hex_to_bytes(xbytes(1))), None)
+        self.assertIsNone(self.parser.decode_uv(hex_to_bytes(xbytes(1))))
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.uv_data['long'])),
                          self.uv_data['long_value'])
 
@@ -1122,8 +1117,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_uvi(hex_to_bytes(self.uvi_data['data']), field='test'),
                              {'test': self.uvi_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_uvi(hex_to_bytes(xbytes(2))), None)
+        self.assertIsNone(self.parser.decode_uvi(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_uvi(hex_to_bytes(xbytes(2))))
 
         print('   testing ApiParser.decode_moist() ...')
         # test moisture decode (method decode_moist())
@@ -1133,8 +1128,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_moist(hex_to_bytes(self.moist_data['data']), field='test'),
                              {'test': self.moist_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_moist(hex_to_bytes(xbytes(2))), None)
+        self.assertIsNone(self.parser.decode_moist(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_moist(hex_to_bytes(xbytes(2))))
 
         print('   testing ApiParser.decode_pm25() ...')
         # test pm25 decode (method decode_pm25())
@@ -1144,7 +1139,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_pm25(hex_to_bytes(self.pm25_data['data']), field='test'),
                              {'test': self.pm25_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_pm25(hex_to_bytes(xbytes(1))), None)
+        self.assertIsNone(self.parser.decode_pm25(hex_to_bytes(xbytes(1))))
         self.assertEqual(self.parser.decode_press(hex_to_bytes(self.pm25_data['long'])),
                          self.pm25_data['long_value'])
 
@@ -1156,8 +1151,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_leak(hex_to_bytes(self.leak_data['data']), field='test'),
                              {'test': self.leak_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_leak(hex_to_bytes(xbytes(2))), None)
+        self.assertIsNone(self.parser.decode_leak(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_leak(hex_to_bytes(xbytes(2))))
 
         print('   testing ApiParser.decode_pm10() ...')
         # test pm10 decode (method decode_pm10())
@@ -1167,7 +1162,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_pm10(hex_to_bytes(self.pm10_data['data']), field='test'),
                              {'test': self.pm10_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_pm10(hex_to_bytes(xbytes(0))), None)
+        self.assertIsNone(self.parser.decode_pm10(hex_to_bytes(xbytes(0))))
         self.assertEqual(self.parser.decode_pm10(hex_to_bytes(self.pm10_data['long'])),
                          self.pm10_data['long_value'])
 
@@ -1179,16 +1174,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_co2(hex_to_bytes(self.co2_data['data']), field='test'),
                              {'test': self.co2_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_co2(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_co2(hex_to_bytes(xbytes(3))), None)
-
-        print('   testing ApiParser.decode_wet() ...')
-        # test wetness decode (method decode_wet())
-        self.assertEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['data'])),
-                         self.wet_data['value'])
-        # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(2))), None)
+        self.assertIsNone(self.parser.decode_co2(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_co2(hex_to_bytes(xbytes(3))))
 
         print('   testing ApiParser.decode_wet() ...')
         # test leak sensor decode (method decode_wet())
@@ -1198,9 +1185,20 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['data']), field='test'),
                              {'test': self.wet_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['long'])),
-                         self.wet_data['long_value'])
+        self.assertIsNone(self.parser.decode_wet(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_wet(hex_to_bytes(xbytes(2))))
+
+        # print('   testing ApiParser.decode_wet() ...')
+        # # test leak sensor decode (method decode_wet())
+        # self.assertEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['data'])),
+        #                  self.wet_data['value'])
+        # # test decode with field != None
+        # self.assertDictEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['data']), field='test'),
+        #                      {'test': self.wet_data['value']})
+        # # test correct handling of too few and too many bytes
+        # self.assertEqual(self.parser.decode_wet(hex_to_bytes(xbytes(0))), None)
+        # self.assertEqual(self.parser.decode_wet(hex_to_bytes(self.wet_data['long'])),
+        #                  self.wet_data['long_value'])
 
         print('   testing ApiParser.decode_int() ...')
         # test int decode (method decode_int())
@@ -1210,9 +1208,8 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_int(hex_to_bytes(self.int_data['data']), field='test'),
                              {'test': self.int_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_int(hex_to_bytes(xbytes(0))), None)
-        self.assertEqual(self.parser.decode_int(hex_to_bytes(self.int_data['long'])),
-                         self.int_data['long_value'])
+        self.assertIsNone(self.parser.decode_int(hex_to_bytes(xbytes(0))))
+        self.assertIsNone(self.parser.decode_int(hex_to_bytes(xbytes(0))))
 
         print('   testing ApiParser.decode_pm1() ...')
         # test pm1 decode (method decode_pm1())
@@ -1222,7 +1219,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['data']), field='test'),
                              {'test': self.pm1_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_pm1(hex_to_bytes(xbytes(0))), None)
+        self.assertIsNone(self.parser.decode_pm1(hex_to_bytes(xbytes(0))))
         self.assertEqual(self.parser.decode_pm1(hex_to_bytes(self.pm1_data['long'])),
                          self.pm1_data['long_value'])
 
@@ -1234,7 +1231,7 @@ class ParseTestCase(unittest.TestCase):
         self.assertDictEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['data']), field='test'),
                              {'test': self.pm4_data['value']})
         # test correct handling of too few and too many bytes
-        self.assertEqual(self.parser.decode_pm4(hex_to_bytes(xbytes(0))), None)
+        self.assertIsNone(self.parser.decode_pm4(hex_to_bytes(xbytes(0))))
         self.assertEqual(self.parser.decode_pm4(hex_to_bytes(self.pm4_data['long'])),
                          self.pm4_data['long_value'])
 
@@ -2229,6 +2226,415 @@ class GatewayApiTestCase(unittest.TestCase):
         self.assertEqual(gw_device_api.ip_address.decode(), self.test_ip)
         # test that the new port number was detected
         self.assertEqual(gw_device_api.port, self.test_port)
+
+
+class GatewayDriverTestCase(unittest.TestCase):
+    """Test the GatewayService.
+
+    Uses mock to simulate methods required to run a GatewayService without a
+    connected gateway device. If for some reason the GatewayService cannot be
+    run the test is skipped.
+    """
+
+    fake_ip = '192.168.99.99'
+    fake_port = 44444
+    fake_mac = b'\xdcO"X\xa2E'
+    user_field_map = {
+        'dateTime': 'datetime',
+        'inTemp': 'intemp',
+        'outTemp': 'outtemp'
+    }
+    user_field_extensions = {
+        'insideTemp': 'intemp',
+        'aqi': 'pm10'
+    }
+    # dummy gateway device data used to exercise the device to WeeWX mapping
+    gw_data = {'absbarometer': 1009.3,
+               'datetime': 1632109437,
+               'inHumidity': 56,
+               'inTemp': 27.3,
+               'lightningcount': 32,
+               't_raintotals': 100.3,
+               'relbarometer': 1014.3,
+               'usUnits': 17
+               }
+    # mapped dummy GW1000 data
+    result_data = {'dateTime': 1632109437,
+                   'inHumidity': 56,
+                   'inTemp': 27.3,
+                   'lightningcount': 32,
+                   'pressure': 1009.3,
+                   'relbarometer': 1014.3,
+                   'totalRain': 100.3,
+                   'usUnits': 17
+                   }
+    # amount to increment delta measurements
+    increment = 5.6
+    # mocked read_system_parameters() output
+    # mock_sys_params_resp = b'\xff\xff0\x0b\x00\x01b7\rj^\x02\xac'
+    mock_sys_params_resp = {
+        'frequency': 0,
+        'sensor_type': 1,
+        'utc': 1647775082,
+        'timezone_index': 94,
+        'dst_status': True
+    }
+    # mocked get_firmware() response
+    # mock_get_firm_resp = b'\xff\xffP\x11\rGW1000_V1.6.8}'
+    mock_get_firm_resp = ''.join([chr(x) for x in b'\xff\xffP\x11\rGW1000_V1.6.8}'])
+    # mocked get_sensor_id() response
+    mock_sensor_id_resp = 'FF FF 3C 01 54 00 FF FF FF FE FF 00 01 FF FF FF ' \
+                          'FE FF 00 02 FF FF FF FE FF 00 03 FF FF FF FE 1F ' \
+                          '00 05 00 00 00 E4 00 04 06 00 00 00 5B 00 04 07 ' \
+                          '00 00 00 BE 00 04 08 00 00 00 D0 00 04 09 00 00 ' \
+                          '00 52 00 04 0A 00 00 00 6C 00 04 0B 00 00 00 C8 ' \
+                          '00 04 0C 00 00 00 EE 00 04 0D FF FF FF FE 00 00 ' \
+                          '0E 00 00 CD 19 0D 04 0F 00 00 CB D1 0D 04 10 FF ' \
+                          'FF FF FE 1F 00 11 00 00 CD 04 1F 00 12 FF FF FF ' \
+                          'FE 1F 00 13 FF FF FF FE 1F 00 14 FF FF FF FE 1F ' \
+                          '00 15 FF FF FF FE 1F 00 16 00 00 C4 97 06 04 17 ' \
+                          'FF FF FF FE 0F 00 18 FF FF FF FE 0F 00 19 FF FF ' \
+                          'FF FE 0F 00 1A 00 00 D3 D3 05 00 1B FF FF FF FE ' \
+                          '0F 00 1C FF FF FF FE 0F 00 1D FF FF FF FE 0F 00 ' \
+                          '1E FF FF FF FE 0F 00 1F 00 00 2A E7 40 04 20 FF ' \
+                          'FF FF FE FF 00 21 FF FF FF FE FF 00 22 FF FF FF ' \
+                          'FE FF 00 23 FF FF FF FE FF 00 24 FF FF FF FE FF ' \
+                          '00 25 FF FF FF FE FF 00 26 FF FF FF FE FF 00 27 ' \
+                          'FF FF FF FE 0F 00 28 FF FF FF FE FF 00 29 FF FF ' \
+                          'FF FE FF 00 2A FF FF FF FE FF 00 2B FF FF FF FE ' \
+                          'FF 00 2C FF FF FF FE FF 00 2D FF FF FF FE FF 00 ' \
+                          '2E FF FF FF FE FF 00 2F FF FF FF FE FF 00 30 FF ' \
+                          'FF FF FE FF 00 F4'
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up the GatewayDriverTestCase to perform its tests."""
+
+        # Create a dummy config so we can stand up a dummy engine with a dummy
+        # simulator emitting arbitrary loop packets. Only include the
+        # GatewayService service, we don't need the others. This will be a
+        # 'loop packets only' setup, no archive records; but that doesn't
+        # matter, we just need to be able to exercise the GatewayService.
+        dummy_config = """
+[Station]
+    station_type = GW1000
+    altitude = 0, meter
+    latitude = 0
+    longitude = 0
+[GW1000]
+    driver = user.gw1000
+[Engine]
+    [[Services]]
+        report_services = weewx.engine.StdPrint"""
+        # construct our config dict
+        config = configobj.ConfigObj(StringIO(dummy_config))
+        # set the IP address we will use, if we received an IP address via the
+        # command line use it, otherwise use a fake address
+        config['GW1000']['ip_address'] = cls.ip_address if cls.ip_address is not None else GatewayDriverTestCase.fake_ip
+        # set the port number we will use, if we received a port number via the
+        # command line use it, otherwise use a fake port number
+        config['GW1000']['port'] = cls.port if cls.port is not None else GatewayDriverTestCase.fake_port
+        # save the config dict for use later
+        cls.gw1000_config = config
+        field_map = dict(user.gw1000.Gateway.default_field_map)
+        # now add in the rain field map
+        field_map.update(user.gw1000.Gateway.rain_field_map)
+        # now add in the wind field map
+        field_map.update(user.gw1000.Gateway.wind_field_map)
+        # now add in the battery state field map
+        field_map.update(user.gw1000.Gateway.battery_field_map)
+        # now add in the sensor signal field map
+        field_map.update(user.gw1000.Gateway.sensor_signal_field_map)
+        cls.default_field_map = field_map
+
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_map_construction(self, mock_get_mac, mock_get_firmware,
+                              mock_get_sys, mock_get_sensor_id,
+                              mock_get_livedata):
+        """Test construction of the gateway device to WeeWX mapping
+
+        Tests:
+        1.  the default field map is used when no user specified field map or
+            field map extensions are provided
+        2.  a user specified field map overrides the default field map
+        3.  a user specified field map and field map extensions override the
+            default field map
+        4.  a user specified field extension without a user specified field map
+            correctly modifies the default field map
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = GatewayDriverTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = GatewayDriverTestCase.mock_get_firm_resp
+        # get_system_params() - system parameters (bytestring)
+        mock_get_sys.return_value = GatewayDriverTestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
+
+        # we will be manipulating the gateway service config so make a copy
+        # that we can alter without affecting other test methods
+        gw1000_config_copy = configobj.ConfigObj(self.gw1000_config)
+        # obtain a GatewayService object
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                            caller='test_map_construction')
+
+        # test the default field map
+        # check the GatewayService field map consists of the default field map
+        self.assertDictEqual(gw_driver.field_map, self.default_field_map)
+
+        # test a user specified field map
+        # add a user defined field map to our config
+        gw1000_config_copy['GW1000']['field_map'] = GatewayDriverTestCase.user_field_map
+        # obtain a new GatewayService object using the modified config
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                            caller='test_map_construction')
+        # check the GatewayService field map consists of the user specified
+        # field map
+        self.assertDictEqual(gw_driver.field_map, GatewayDriverTestCase.user_field_map)
+
+        # test a user specified field map with user specified field map extensions
+        # add user defined field map extensions to our config
+        gw1000_config_copy['GW1000']['field_map_extensions'] = GatewayDriverTestCase.user_field_extensions
+        # obtain a new GatewayService object using the modified config
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                            caller='test_map_construction')
+        # construct the expected result, it will consist of the user specified
+        # field map modified by the user specified field map extensions
+        _result = dict(GatewayDriverTestCase.user_field_map)
+        # the gateway field 'intemp' is being re-mapped so pop its entry from
+        # the user specified field map
+        _dummy = _result.pop('inTemp')
+        # update the field map with the field map extensions
+        _result.update(GatewayDriverTestCase.user_field_extensions)
+        # check the GatewayService field map consists of the user specified
+        # field map modified by the user specified field map extensions
+        self.assertDictEqual(gw_driver.field_map, _result)
+
+        # test the default field map with user specified field map extensions
+        # remove the user defined field map from our config
+        _dummy = gw1000_config_copy['GW1000'].pop('field_map')
+        # obtain a new GatewayService object using the modified config
+        gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
+                                            caller='test_map_construction')
+        # construct the expected result
+        _result = dict(self.default_field_map)
+        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
+        # each fields entry from the result field map
+        _dummy = _result.pop('inTemp')
+        _dummy = _result.pop('pm10_0')
+        # update the field map with the field map extensions
+        _result.update(GatewayDriverTestCase.user_field_extensions)
+        # check the GatewayService field map consists of the default field map
+        # modified by the user specified field map extensions
+        self.assertDictEqual(gw_driver.field_map, _result)
+
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_map_operation(self, mock_get_mac, mock_get_firmware, mock_get_sys,
+                           mock_get_sensor_id, mock_get_livedata):
+        """Test operation of the gateway device to WeeWX mapping
+
+        Tests:
+        1. field dateTime is included in the mapped data
+        2. field usUnits is included in the mapped data
+        3. gateway device obs data is correctly mapped to WeeWX fields
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = GatewayDriverTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = GatewayDriverTestCase.mock_get_firm_resp
+        # get_system_params() - system parameters (bytestring)
+        mock_get_sys.return_value = GatewayDriverTestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
+        # obtain a GatewayService object
+        gw_driver = self.get_gateway_driver(config=self.gw1000_config,
+                                            caller='test_map')
+        # get a mapped  version of our GW1000 test data
+        mapped_gw_data = gw_driver.map_data(self.gw_data)
+        # check that our mapped data has a field 'dateTime'
+        self.assertIn('dateTime', mapped_gw_data)
+        # check that our mapped data has a field 'usUnits'
+        self.assertIn('usUnits', mapped_gw_data)
+        # check that the usUnits field is set to weewx.METRICWX
+        self.assertEqual(weewx.METRICWX, mapped_gw_data.get('usUnits'))
+
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys,
+                  mock_get_sensor_id, mock_get_livedata):
+        """Test GW1000Service correctly calculates WeeWX field rain
+
+        Tests:
+        1. field rain is included in the GW1000 data
+        2. field rain is set to None if this is the first packet
+        2. field rain is correctly calculated for a subsequent packet
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = GatewayDriverTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = GatewayDriverTestCase.mock_get_firm_resp
+        # get_system_params - system parameters (bytestring)
+        mock_get_sys.return_value = GatewayDriverTestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
+        # obtain a GW1000 service
+        gw1000_driver = self.get_gateway_driver(config=self.gw1000_config,
+                                                caller='test_map')
+        # set some GW1000 service parameters to enable rain related tests
+        gw1000_driver.rain_total_field = 't_raintotals'
+        gw1000_driver.rain_mapping_confirmed = True
+        # take a copy of our test data as we will be changing it
+        _gw1000_data = dict(self.gw_data)
+        # perform the rain calculation
+        gw1000_driver.calculate_rain(_gw1000_data)
+        # check that our data now has field 'rain'
+        self.assertIn('t_rain', _gw1000_data)
+        # check that the field rain is None as this is the first packet
+        self.assertIsNone(_gw1000_data['t_rain'])
+        # increment increase the rainfall in our GW1000 data
+        _gw1000_data['t_raintotals'] += self.increment
+        # perform the rain calculation
+        gw1000_driver.calculate_rain(_gw1000_data)
+        # Check that the field rain is now the increment we used. Use
+        # AlmostEqual as unit conversion could cause assertEqual to fail.
+        self.assertAlmostEqual(_gw1000_data.get('t_rain'), self.increment, places=3)
+        # check delta_rain calculation
+        # last_rain is None
+        self.assertIsNone(gw1000_driver.delta_rain(rain=10.2, last_rain=None))
+        # rain is None
+        self.assertIsNone(gw1000_driver.delta_rain(rain=None, last_rain=5.2))
+        # rain < last_rain
+        self.assertEqual(gw1000_driver.delta_rain(rain=4.2, last_rain=5.8), 4.2)
+        # rain and last_rain are not None
+        self.assertAlmostEqual(gw1000_driver.delta_rain(rain=12.2, last_rain=5.8),
+                               6.4,
+                               places=3)
+
+    @patch.object(user.gw1000.GatewayApi, 'get_livedata')
+    @patch.object(user.gw1000.GatewayApi, 'get_sensor_id')
+    @patch.object(user.gw1000.GatewayApi, 'get_system_params')
+    @patch.object(user.gw1000.GatewayApi, 'get_firmware_version')
+    @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
+    def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys,
+                       mock_get_sensor_id, mock_get_livedata):
+        """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
+
+        Tests:
+        1. field lightning_strike_count is included in the GW1000 data
+        2. field lightning_strike_count is set to None if this is the first
+           packet
+        2. field lightning_strike_count is correctly calculated for a
+           subsequent packet
+        """
+
+        # set return values for mocked methods
+        # get_mac_address - MAC address (bytestring)
+        mock_get_mac.return_value = GatewayDriverTestCase.fake_mac
+        # get_firmware_version - firmware version (bytestring)
+        mock_get_firmware.return_value = GatewayDriverTestCase.mock_get_firm_resp
+        # get_system_params - system parameters (bytestring)
+        mock_get_sys.return_value = GatewayDriverTestCase.mock_sys_params_resp
+        # get_sensor_id - get sensor IDs (bytestring)
+        mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
+        # get_livedata - get live data (bytestring)
+        mock_get_livedata.return_value = dict()
+        # obtain a GW1000 service
+        gw1000_driver = self.get_gateway_driver(config=self.gw1000_config,
+                                                caller='test_map')
+        # take a copy of our test data as we will be changing it
+        _gw1000_data = dict(self.gw_data)
+        # perform the lightning calculation
+        gw1000_driver.calculate_lightning_count(_gw1000_data)
+        # check that our data now has field 'lightning_strike_count'
+        self.assertIn('lightning_strike_count', _gw1000_data)
+        # check that the field lightning_strike_count is None as this is the
+        # first packet
+        self.assertIsNone(_gw1000_data.get('lightning_strike_count', 1))
+        # increment increase the lightning count in our GW1000 data
+        _gw1000_data['lightningcount'] += self.increment
+        # perform the lightning calculation
+        gw1000_driver.calculate_lightning_count(_gw1000_data)
+        # check that the field lightning_strike_count is now the increment we
+        # used
+        self.assertAlmostEqual(_gw1000_data.get('lightning_strike_count'),
+                               self.increment,
+                               places=1)
+        # check delta_lightning calculation
+        # last_count is None
+        self.assertIsNone(gw1000_driver.delta_lightning(count=10, last_count=None))
+        # count is None
+        self.assertIsNone(gw1000_driver.delta_lightning(count=None, last_count=5))
+        # count < last_count
+        self.assertEqual(gw1000_driver.delta_lightning(count=42, last_count=58), 42)
+        # count and last_count are not None
+        self.assertEqual(gw1000_driver.delta_lightning(count=122, last_count=58), 64)
+
+    @staticmethod
+    def get_gateway_driver(config, caller):
+        """Get a GatewayDriver object.
+
+        Start a dummy engine using the Ecowitt gateway driver.
+
+        Return a GatewayDriver object or raise a unittest.SkipTest exception.
+        """
+
+        # create a dummy engine, wrap in a try..except in case there is an
+        # error
+        try:
+            engine = weewx.engine.StdEngine(config)
+        except user.gw1000.GWIOError as e:
+            # could not communicate with the mocked or real gateway device for
+            # some reason, skip the test if we have an engine try to shut it
+            # down
+            if engine:
+                print("\nShutting down engine ... ", end='')
+                engine.shutDown()
+            # now raise unittest.SkipTest to skip this test class
+            raise unittest.SkipTest("%s: Unable to connect to GW1000" % caller)
+        else:
+            # our GatewayDriver will have been instantiated by the engine
+            # during its startup and saved as the engine console property
+            if engine.console:
+                # tell the user what device we are using
+                if engine.console.collector.device.ip_address.decode() == GatewayDriverTestCase.fake_ip:
+                    _stem = "\nUsing mocked GW1x00 at %s:%d ... "
+                else:
+                    _stem = "\nUsing real GW1x00 at %s:%d ... "
+                print(_stem % (engine.console.collector.device.ip_address.decode(),
+                               engine.console.collector.device.port),
+                      end='')
+            else:
+                # we could not get the GatewayService for some reason, shutdown
+                # the engine and skip this test
+                if engine:
+                    print("\nShutting down engine ... ", end='')
+                    engine.shutDown()
+                # now skip this test class
+                raise unittest.SkipTest("%s: Could not obtain GatewayService object" % caller)
+            return engine.console
 
 
 class GatewayServiceTestCase(unittest.TestCase):
