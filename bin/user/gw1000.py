@@ -36,11 +36,13 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.7.0a3                                   Date: xx August 2024
+Version: 0.7.0a4                                   Date: xx August 2024
 
 Revision History
     xx August 2024          v0.7.0
         -   implement optional catchup on startup from Ecowitt.net
+        -   revised class GatewayDriver() and class GatewayService()
+            inheritance
     2 August 2024          `v0.6.3
         -   added support for WS85 sensor array
         -   added support for WH46 air quality sensor
@@ -448,7 +450,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.7.0a3'
+DRIVER_VERSION = '0.7.0a4'
 
 # various defaults used throughout
 # default port used by device
@@ -1643,7 +1645,7 @@ class Gateway:
 #                            GW1000 Service class
 # ============================================================================
 
-class GatewayService(Gateway, weewx.engine.StdService):
+class GatewayService(weewx.engine.StdService, Gateway):
     """Gateway device service class.
 
     A WeeWX service to augment loop packets with observational data obtained
@@ -1698,8 +1700,10 @@ class GatewayService(Gateway, weewx.engine.StdService):
             loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
 
         # initialize my superclasses
-        super(GatewayService, self).__init__(engine, config_dict, **gw_config_dict)
-#        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
+        super().__init__(engine, config_dict)
+        super(weewx.engine.StdService, self).__init__(**gw_config_dict)
+#        super(GatewayService, self).__init__(engine, config_dict, **gw_config_dict)
+#        super(weewx.engine.StdService, self).__init__(engine, config_dict)
 
         # set failure logging on
         self.log_failures = True
@@ -3261,7 +3265,7 @@ class EcowittNetCatchup:
 #                            GatewayDriver class
 # ============================================================================
 
-class GatewayDriver(Gateway, weewx.drivers.AbstractDevice):
+class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
     """Ecowitt gateway device driver class.
 
     A WeeWX driver to emit loop packets based on observational data obtained
@@ -3920,7 +3924,7 @@ class ApiParser(object):
     elsewhere in the driver to decode simple responses received from the
     device, eg when reading device configuration settings.
 
-    Complete test suite coverage as of v0.7.0a3
+    Complete test suite coverage as of v0.7.0a4
     """
 
     # Dictionary of 'address' based data. Dictionary is keyed by device
