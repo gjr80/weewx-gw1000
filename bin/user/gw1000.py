@@ -1108,10 +1108,10 @@ class Gateway:
         'ws90_sig': 'ws90_sig'
     }
 
-    def __init__(self, engine, config_dict, **gw_config):
+    def __init__(self, **gw_config):
         """Initialise a Gateway object."""
 
-        super(Gateway, self).__init__(engine, config_dict)
+#        super(Gateway, self).__init__(config_dict, engine)
 
         # obtain the field map to be used
         self.field_map = self.construct_field_map(gw_config)
@@ -2011,7 +2011,7 @@ Gw1000Service = GatewayService
 # ============================================================================
 
 def loader(config_dict, engine):
-    return GatewayDriver(**config_dict[DRIVER_NAME])
+    return GatewayDriver(config_dict, engine)
 
 
 def configurator_loader(config_dict):  # @UnusedVariable
@@ -3278,7 +3278,7 @@ class GatewayDriver(Gateway, weewx.drivers.AbstractDevice):
     Station and Parser to interact directly with the API and parse the API
     responses respectively."""
 
-    def __init__(self, **stn_dict):
+    def __init__(self, config_dict, engine):
         """Initialise a gateway device driver object."""
 
         # Log our driver version first. Normally we would call our superclass
@@ -3288,6 +3288,8 @@ class GatewayDriver(Gateway, weewx.drivers.AbstractDevice):
 
         # log our version number
         loginf('GatewayDriver: version is %s' % DRIVER_VERSION)
+        # get the station config dict
+        stn_dict = config_dict.get('GW1000', {})
         # get device specific debug settings
         self.debug = DebugOptions(stn_dict)
         # now initialize my superclasses
