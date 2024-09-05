@@ -705,9 +705,9 @@ class ParseTestCase(unittest.TestCase):
                                       '63 00 15 64 FF E5 65 00 64 66 00 1A '
                                       '67 00 00 68 FF 9C 69 00 14 6A FF C4 '
                                       'C3',
-                        'data': {99: 2.1, 100: -2.7, 101: 10.0, 102: 2.6,
-                                 103: 0.0, 104: -10.0, 105: 2.0, 106: -6.0}
-                        }
+                          'data': {99: 2.1, 100: -2.7, 101: 10.0, 102: 2.6,
+                                   103: 0.0, 104: -10.0, 105: 2.0, 106: -6.0}
+                          }
     get_pm25_offset = {'response': 'FF FF 2E 0F 00 00 C8 01 FF 38 02 '
                                    '00 00 03 FF C7 08',
                        'data': {0: 20, 1: -20, 2: 0, 3: -5.7}
@@ -2229,10 +2229,10 @@ class GatewayApiTestCase(unittest.TestCase):
 
 
 class GatewayDriverTestCase(unittest.TestCase):
-    """Test the GatewayService.
+    """Test the GatewayDriver class.
 
-    Uses mock to simulate methods required to run a GatewayService without a
-    connected gateway device. If for some reason the GatewayService cannot be
+    Uses mock to simulate methods required to run a GatewayDriver without a
+    connected gateway device. If for some reason the GatewayDriver cannot be
     run the test is skipped.
     """
 
@@ -2310,11 +2310,10 @@ class GatewayDriverTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Set up the GatewayDriverTestCase to perform its tests."""
 
-        # Create a dummy config so we can stand up a dummy engine with a dummy
-        # simulator emitting arbitrary loop packets. Only include the
-        # GatewayService service, we don't need the others. This will be a
+        # Create a dummy config so we can stand up a dummy engine with the
+        # GatewayDriver emitting arbitrary loop packets. This will be a
         # 'loop packets only' setup, no archive records; but that doesn't
-        # matter, we just need to be able to exercise the GatewayService.
+        # matter, we just need to be able to exercise the GatewayDriver.
         dummy_config = """
 [Station]
     station_type = GW1000
@@ -2379,60 +2378,60 @@ class GatewayDriverTestCase(unittest.TestCase):
         # get_livedata - get live data (bytestring)
         mock_get_livedata.return_value = dict()
 
-        # we will be manipulating the gateway service config so make a copy
+        # we will be manipulating the gateway driver config so make a copy
         # that we can alter without affecting other test methods
         gw1000_config_copy = configobj.ConfigObj(self.gw1000_config)
-        # obtain a GatewayService object
+        # obtain a GatewayDriver object
         gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
                                             caller='test_map_construction')
 
         # test the default field map
-        # check the GatewayService field map consists of the default field map
+        # check the GatewayDriver field map consists of the default field map
         self.assertDictEqual(gw_driver.field_map, self.default_field_map)
 
         # test a user specified field map
         # add a user defined field map to our config
         gw1000_config_copy['GW1000']['field_map'] = GatewayDriverTestCase.user_field_map
-        # obtain a new GatewayService object using the modified config
+        # obtain a new GatewayDriver object using the modified config
         gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
                                             caller='test_map_construction')
-        # check the GatewayService field map consists of the user specified
+        # check the GatewayDriver field map consists of the user specified
         # field map
         self.assertDictEqual(gw_driver.field_map, GatewayDriverTestCase.user_field_map)
 
         # test a user specified field map with user specified field map extensions
         # add user defined field map extensions to our config
         gw1000_config_copy['GW1000']['field_map_extensions'] = GatewayDriverTestCase.user_field_extensions
-        # obtain a new GatewayService object using the modified config
+        # obtain a new GatewayDriver object using the modified config
         gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
                                             caller='test_map_construction')
         # construct the expected result, it will consist of the user specified
         # field map modified by the user specified field map extensions
         _result = dict(GatewayDriverTestCase.user_field_map)
-        # the gateway field 'intemp' is being re-mapped so pop its entry from
-        # the user specified field map
-        _dummy = _result.pop('inTemp')
+#        # the gateway field 'intemp' is being re-mapped so pop its entry from
+#        # the user specified field map
+#        _dummy = _result.pop('inTemp')
         # update the field map with the field map extensions
         _result.update(GatewayDriverTestCase.user_field_extensions)
-        # check the GatewayService field map consists of the user specified
+        # check the GatewayDriver field map consists of the user specified
         # field map modified by the user specified field map extensions
         self.assertDictEqual(gw_driver.field_map, _result)
 
         # test the default field map with user specified field map extensions
         # remove the user defined field map from our config
         _dummy = gw1000_config_copy['GW1000'].pop('field_map')
-        # obtain a new GatewayService object using the modified config
+        # obtain a new GatewayDriver object using the modified config
         gw_driver = self.get_gateway_driver(config=gw1000_config_copy,
                                             caller='test_map_construction')
         # construct the expected result
         _result = dict(self.default_field_map)
-        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
-        # each fields entry from the result field map
-        _dummy = _result.pop('inTemp')
-        _dummy = _result.pop('pm10_0')
+#        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
+#        # each fields entry from the result field map
+#        _dummy = _result.pop('inTemp')
+#        _dummy = _result.pop('pm10_0')
         # update the field map with the field map extensions
         _result.update(GatewayDriverTestCase.user_field_extensions)
-        # check the GatewayService field map consists of the default field map
+        # check the GatewayDriver field map consists of the default field map
         # modified by the user specified field map extensions
         self.assertDictEqual(gw_driver.field_map, _result)
 
@@ -2462,7 +2461,7 @@ class GatewayDriverTestCase(unittest.TestCase):
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
         # get_livedata - get live data (bytestring)
         mock_get_livedata.return_value = dict()
-        # obtain a GatewayService object
+        # obtain a GatewayDriver object
         gw_driver = self.get_gateway_driver(config=self.gw1000_config,
                                             caller='test_map')
         # get a mapped  version of our GW1000 test data
@@ -2481,7 +2480,7 @@ class GatewayDriverTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_rain(self, mock_get_mac, mock_get_firmware, mock_get_sys,
                   mock_get_sensor_id, mock_get_livedata):
-        """Test GW1000Service correctly calculates WeeWX field rain
+        """Test GatewayDriver correctly calculates WeeWX field rain
 
         Tests:
         1. field rain is included in the GW1000 data
@@ -2500,10 +2499,10 @@ class GatewayDriverTestCase(unittest.TestCase):
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
         # get_livedata - get live data (bytestring)
         mock_get_livedata.return_value = dict()
-        # obtain a GW1000 service
+        # obtain a GatewayDriver object
         gw1000_driver = self.get_gateway_driver(config=self.gw1000_config,
                                                 caller='test_map')
-        # set some GW1000 service parameters to enable rain related tests
+        # set some GatewayDriver parameters to enable rain related tests
         gw1000_driver.rain_total_field = 't_raintotals'
         gw1000_driver.rain_mapping_confirmed = True
         # take a copy of our test data as we will be changing it
@@ -2540,7 +2539,7 @@ class GatewayDriverTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys,
                        mock_get_sensor_id, mock_get_livedata):
-        """Test GW1000Service correctly calculates WeeWX field lightning_strike_count
+        """Test GatewayDriver correctly calculates WeeWX field lightning_strike_count
 
         Tests:
         1. field lightning_strike_count is included in the GW1000 data
@@ -2561,7 +2560,7 @@ class GatewayDriverTestCase(unittest.TestCase):
         mock_get_sensor_id.return_value = hex_to_bytes(GatewayDriverTestCase.mock_sensor_id_resp)
         # get_livedata - get live data (bytestring)
         mock_get_livedata.return_value = dict()
-        # obtain a GW1000 service
+        # obtain a GatewayDriver object
         gw1000_driver = self.get_gateway_driver(config=self.gw1000_config,
                                                 caller='test_map')
         # take a copy of our test data as we will be changing it
@@ -2627,13 +2626,13 @@ class GatewayDriverTestCase(unittest.TestCase):
                                engine.console.collector.device.port),
                       end='')
             else:
-                # we could not get the GatewayService for some reason, shutdown
+                # we could not get the GatewayDriver for some reason, shutdown
                 # the engine and skip this test
                 if engine:
                     print("\nShutting down engine ... ", end='')
                     engine.shutDown()
                 # now skip this test class
-                raise unittest.SkipTest("%s: Could not obtain GatewayService object" % caller)
+                raise unittest.SkipTest("%s: Could not obtain GatewayDriver object" % caller)
             return engine.console
 
 
@@ -3124,7 +3123,7 @@ def main():
     # test cases that are production ready
     test_cases = (DebugOptionsTestCase, SensorsTestCase, ParseTestCase,
                   UtilitiesTestCase, ListsAndDictsTestCase, GatewayApiTestCase,
-                  GatewayServiceTestCase)
+                  GatewayDriverTestCase, GatewayServiceTestCase)
 
     usage = """python3 -m user.tests.test_egd --help
        python3 -m user.tests.test_egd --version
@@ -3173,6 +3172,8 @@ your PYTHONPATH. For example:
     GatewayApiTestCase.port = args.port
     GatewayServiceTestCase.ip_address = args.ip_address
     GatewayServiceTestCase.port = args.port
+    GatewayDriverTestCase.ip_address = args.ip_address
+    GatewayDriverTestCase.port = args.port
     # get a test runner with appropriate verbosity
     runner = unittest.TextTestRunner(verbosity=args.verbosity)
     # create a test suite and run the included tests
