@@ -2408,9 +2408,9 @@ class GatewayDriverTestCase(unittest.TestCase):
         # construct the expected result, it will consist of the user specified
         # field map modified by the user specified field map extensions
         _result = dict(GatewayDriverTestCase.user_field_map)
-#        # the gateway field 'intemp' is being re-mapped so pop its entry from
-#        # the user specified field map
-#        _dummy = _result.pop('inTemp')
+        # the gateway field 'intemp' is being re-mapped so pop its entry from
+        # the user specified field map
+        _dummy = _result.pop('inTemp')
         # update the field map with the field map extensions
         _result.update(GatewayDriverTestCase.user_field_extensions)
         # check the GatewayDriver field map consists of the user specified
@@ -2425,10 +2425,10 @@ class GatewayDriverTestCase(unittest.TestCase):
                                             caller='test_map_construction')
         # construct the expected result
         _result = dict(self.default_field_map)
-#        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
-#        # each fields entry from the result field map
-#        _dummy = _result.pop('inTemp')
-#        _dummy = _result.pop('pm10_0')
+        # the gateway fields 'intemp' and 'pm10' are being re-mapped so pop
+        # each fields entry from the result field map
+        _dummy = _result.pop('inTemp')
+        _dummy = _result.pop('pm10_0')
         # update the field map with the field map extensions
         _result.update(GatewayDriverTestCase.user_field_extensions)
         # check the GatewayDriver field map consists of the default field map
