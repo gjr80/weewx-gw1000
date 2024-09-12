@@ -2141,12 +2141,14 @@ class GatewayApiTestCase(unittest.TestCase):
     def test_discovery(self, mock_get_mac, mock_get_firmware,
                        mock_get_sys, mock_get_sensor_id, mock_get_livedata,
                        mock_discover):
-        """Test discovery related methods.
+        """Test discovery related methods
 
         Tests:
         1.
         """
 
+        print()
+        print('   testing re-discovery of an existing device ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = GatewayApiTestCase.discover_multi_resp[2]['mac']
@@ -2183,6 +2185,7 @@ class GatewayApiTestCase(unittest.TestCase):
         self.assertEqual(gw_device_api.port,
                          GatewayApiTestCase.discover_multi_resp[2]['port'])
 
+        print('   testing discovery when original device is not found ...')
         # test Station.rediscover() when devices are found but not the original
         # device
         mock_discover.return_value = GatewayApiTestCase.discover_multi_diff_resp
@@ -2198,6 +2201,7 @@ class GatewayApiTestCase(unittest.TestCase):
         # test that the new port number was detected
         self.assertEqual(gw_device_api.port, self.test_port)
 
+        print('   testing discovery when no devices are found ...')
         # now test Station.rediscover() when no devices are found
         mock_discover.return_value = []
         # reset our Station object IP address and port
@@ -2212,6 +2216,7 @@ class GatewayApiTestCase(unittest.TestCase):
         # test that the new port number was detected
         self.assertEqual(gw_device_api.port, self.test_port)
 
+        print('   testing exception handling during discovery ...')
         # now test Station.rediscover() when Station.discover() raises an
         # exception
         mock_discover.side_effect = socket.error
@@ -2539,7 +2544,7 @@ class GatewayDriverTestCase(unittest.TestCase):
     @patch.object(user.gw1000.GatewayApi, 'get_mac_address')
     def test_lightning(self, mock_get_mac, mock_get_firmware, mock_get_sys,
                        mock_get_sensor_id, mock_get_livedata):
-        """Test GatewayDriver correctly calculates WeeWX field lightning_strike_count
+        """Test correct calculation of field lightning_strike_count by the driver
 
         Tests:
         1. field lightning_strike_count is included in the GW1000 data
@@ -2549,6 +2554,8 @@ class GatewayDriverTestCase(unittest.TestCase):
            subsequent packet
         """
 
+        print()
+        print('   testing calculation of lightning_strike_count ...')
         # set return values for mocked methods
         # get_mac_address - MAC address (bytestring)
         mock_get_mac.return_value = GatewayDriverTestCase.fake_mac
