@@ -2572,10 +2572,28 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
         # get station config dict to use
         stn_dict = config_dict.get('GW1000', {})
-        # inform the user if the debug level is 1 or greater
-        if weewx.debug >= 1:
-            print("Debug is '%d'" % weewx.debug)
-            log.info("Debug is '%d'" % weewx.debug)
+        # Adjust the log level if required. The AbstractConfigurator will set
+        # weewx.debug if a --debug command line option was provided; however,
+        # the log level is not changed. We need to do this ourselves. Further
+        # complicating this is we could have v3 (syslog) or v4 (logging)
+        # logging.
+        if options.debug is not None:
+            # assume v4 logging, we will get a NameError if we have v3 logging
+            try:
+                # get the log level based on weewx.debug
+                level = logging.DEBUG if weewx.debug else logging.INFO
+                # set the log level
+                log.setLevel(level)
+            except NameError:
+                # we must have v3 (syslog) logging
+                # now raise the log level if required
+                if weewx.debug > 0:
+                    syslog.setlogmask(syslog.LOG_UPTO(syslog.LOG_DEBUG))
+
+            # inform the user if the debug level is 1 or greater
+            if weewx.debug >= 1:
+                print("Debug is '%d'" % weewx.debug)
+                log.info("Debug is '%d'" % weewx.debug)
 
         # define custom unit settings used by the gateway driver
         define_units()
