@@ -1230,7 +1230,7 @@ class Gateway:
         elif self.ip_address is None and self.port is None:
             loginf('     device IP address and port not specified, address and port will be obtained by discovery')
         loginf('     poll interval is %d seconds' % self.poll_interval)
-        if self.debug.any or weewx.debug > 0:
+        if self.debug_options.any or weewx.debug > 0:
             loginf('     max tries is %d, retry wait time is %d seconds' % (self.max_tries,
                                                                             self.retry_wait))
             loginf('     broadcast address is %s:%d, broadcast timeout is %d seconds' % (self.broadcast_address.decode(),
@@ -1248,12 +1248,12 @@ class Gateway:
 
         # Log specific debug output but only if set ie. True
         debug_list = []
-        if self.debug.rain:
-            debug_list.append("debug_rain is %s" % (self.debug.rain,))
-        if self.debug.wind:
-            debug_list.append("debug_wind is %s" % (self.debug.wind,))
-        if self.debug.loop:
-            debug_list.append("debug_loop is %s" % (self.debug.loop,))
+        if self.debug_options.rain:
+            debug_list.append("debug_rain is %s" % (self.debug_options.rain,))
+        if self.debug_options.wind:
+            debug_list.append("debug_wind is %s" % (self.debug_options.wind,))
+        if self.debug_options.loop:
+            debug_list.append("debug_loop is %s" % (self.debug_options.loop,))
         if len(debug_list) > 0:
             loginf(" ".join(debug_list))
 
@@ -1277,7 +1277,7 @@ class Gateway:
                                           log_unknown_fields=log_unknown_fields,
                                           fw_update_check_interval=fw_update_check_interval,
                                           log_fw_update_avail=log_fw_update_avail,
-                                          debug=self.debug)
+                                          debug_options=self.debug_options)
         # initialise last lightning count and last rain properties
         self.last_lightning = None
         self.last_rain = None
@@ -1474,7 +1474,7 @@ class Gateway:
             # if we found a field log what we are using
             if self.rain_mapping_confirmed:
                 loginf("Using '%s' for rain total" % self.rain_total_field)
-            elif self.debug.rain:
+            elif self.debug_options.rain:
                 # if debug_rain is set log that we had nothing
                 loginf("No suitable field found for rain")
 
@@ -1500,7 +1500,7 @@ class Gateway:
             # if we found a field log what we are using
             if self.piezo_rain_mapping_confirmed:
                 loginf("Using '%s' for piezo rain total" % self.piezo_rain_total_field)
-            elif self.debug.rain:
+            elif self.debug_options.rain:
                 # if debug_rain is set log that we had nothing
                 loginf("No suitable field found for piezo rain")
 
@@ -1526,7 +1526,7 @@ class Gateway:
             # old totals
             data['t_rain'] = self.delta_rain(new_total, self.last_rain)
             # if debug_rain is set log some pertinent values
-            if self.debug.rain:
+            if self.debug_options.rain:
                 loginf("calculate_rain: last_rain=%s new_total=%s calculated rain=%s" % (self.last_rain,
                                                                                          new_total,
                                                                                          data['t_rain']))
@@ -1546,7 +1546,7 @@ class Gateway:
                                              self.piezo_last_rain,
                                              descriptor='piezo rain')
             # if debug_rain is set log some pertinent values
-            if self.debug.rain:
+            if self.debug_options.rain:
                 loginf("calculate_rain: piezo_last_rain=%s piezo_new_total=%s "
                        "calculated p_rain=%s" % (self.piezo_last_rain,
                                                  piezo_new_total,
@@ -1693,9 +1693,9 @@ class GatewayService(weewx.engine.StdService, Gateway):
         self.lost_contact_log_period = int(gw_config_dict.get('lost_contact_log_period',
                                                               default_lost_contact_log_period))
         # get device specific debug settings
-        self.debug = DebugOptions(gw_config_dict)
+        self.debug_options = DebugOptions(gw_config_dict)
 
-        if self.debug.any or weewx.debug > 0:
+        if self.debug_options.any or weewx.debug > 0:
             loginf("     max age of API data to be used is %d seconds" % self.max_age)
             loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
 
@@ -1733,7 +1733,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
 
         # log the loop packet received if necessary, there are several debug
         # settings that may require this
-        if self.debug.loop or self.debug.rain or self.debug.wind:
+        if self.debug_options.loop or self.debug_options.rain or self.debug_options.wind:
             loginf('GatewayService: Processing loop packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                                       natural_sort_dict(event.packet)))
         # we are about to process the queue so reset our latest sensor data
@@ -1752,7 +1752,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 # the queue is now empty, but that may be because we have
                 # already processed any queued data, log if necessary and break
                 # out of the while loop
-                if self.latest_sensor_data is None and (self.debug.loop or self.debug.rain or self.debug.wind):
+                if self.latest_sensor_data is None and (self.debug_options.loop or self.debug_options.rain or self.debug_options.wind):
                     loginf('GatewayService: No queued items to process')
                 if self.lost_con_ts is not None and time.time() > self.lost_con_ts + self.lost_contact_log_period:
                     self.lost_con_ts = time.time()
@@ -1777,7 +1777,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                     # debug settings that may require this, start from the
                     # highest (most encompassing) and work to the lowest (least
                     # encompassing)
-                    if self.debug.loop:
+                    if self.debug_options.loop:
                         if 'datetime' in queue_data:
                             # if we have a 'datetime' field it is almost
                             # certainly a sensor data packet
@@ -1790,12 +1790,12 @@ class GatewayService(weewx.engine.StdService, Gateway):
                             loginf('GatewayService: Received queued data: %s' % (natural_sort_dict(queue_data),))
                     else:
                         # perhaps we have individual debugs such as rain or wind
-                        if self.debug.rain:
+                        if self.debug_options.rain:
                             # debug_rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
                             self.log_rain_data(queue_data,
                                                'GatewayService: Received %s data' % self.collector.device.model)
-                        if self.debug.wind:
+                        if self.debug_options.wind:
                             # debug_wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
                             self.log_wind_data(queue_data,
@@ -1818,7 +1818,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 # if it's None then it's a signal the Collector needs to shut down
                 elif queue_data is None:
                     # if debug_loop log what we received
-                    if self.debug.loop:
+                    if self.debug_options.loop:
                         loginf('GatewayService: Received collector shutdown signal')
                     # we received the signal that the GatewayCollector needs to
                     # shut down, that means we cannot continue so call our shutdown
@@ -1850,17 +1850,17 @@ class GatewayService(weewx.engine.StdService, Gateway):
             # map the raw data to WeeWX loop packet fields
             mapped_data = self.map_data(self.latest_sensor_data)
             # log the mapped data if necessary
-            if self.debug.loop:
+            if self.debug_options.loop:
                 loginf('GatewayService: Mapped %s data: %s' % (self.collector.device.model,
                                                                natural_sort_dict(mapped_data)))
             else:
                 # perhaps we have individual debugs such as rain or wind
-                if self.debug.rain:
+                if self.debug_options.rain:
                     # debug_rain is set so log the 'rain' field in the
                     # mapped data, if it does not exist say so
                     self.log_rain_data(mapped_data,
                                        'GatewayService: Mapped %s data' % self.collector.device.model)
-                if self.debug.wind:
+                if self.debug_options.wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # mapped data, if they do not exist say so
                     self.log_wind_data(mapped_data,
@@ -1870,17 +1870,17 @@ class GatewayService(weewx.engine.StdService, Gateway):
             # log the augmented packet if necessary, there are several debug
             # settings that may require this, start from the highest (most
             # encompassing) and work to the lowest (least encompassing)
-            if self.debug.loop or weewx.debug >= 2:
+            if self.debug_options.loop or weewx.debug >= 2:
                 loginf('GatewayService: Augmented packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                                     natural_sort_dict(event.packet)))
             else:
                 # perhaps we have individual debugs such as rain or wind
-                if self.debug.rain:
+                if self.debug_options.rain:
                     # debug_rain is set so log the 'rain' field in the
                     # augmented loop packet, if it does not exist say
                     # so
                     self.log_rain_data(event.packet, 'GatewayService: Augmented packet')
-                if self.debug.wind:
+                if self.debug_options.wind:
                     # debug_wind is set so log the 'wind' fields in the
                     # loop packet being emitted, if they do not exist
                     # say so
@@ -1910,12 +1910,12 @@ class GatewayService(weewx.engine.StdService, Gateway):
                 if self.latest_sensor_data is None or sensor_data['datetime'] > self.latest_sensor_data['datetime']:
                     # this packet is newer, so keep it
                     self.latest_sensor_data = dict(sensor_data)
-            elif self.debug.loop or weewx.debug >= 2:
+            elif self.debug_options.loop or weewx.debug >= 2:
                 # the sensor data is stale and we have debug settings that
                 # dictate we log the discard
                 loginf('GatewayService: Discarded packet with '
                        'timestamp %s' % timestamp_to_string(sensor_data['datetime']))
-        elif self.debug.loop or weewx.debug >= 2:
+        elif self.debug_options.loop or weewx.debug >= 2:
             # the sensor data is not timestamped so it will be discarded and we
             # have debug settings that dictate we log the discard
             loginf('GatewayService: Discarded non-timestamped packet')
@@ -1957,7 +1957,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         data:   dict containing the data to be used to augment the loop packet
         """
 
-        if self.debug.loop:
+        if self.debug_options.loop:
             _stem = 'GatewayService: Mapped data will be used to augment loop packet(%s)'
             loginf(_stem % timestamp_to_string(packet['dateTime']))
         # But the mapped data must be converted to the same unit system as
@@ -1967,7 +1967,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # be augmented
         converted_data = converter.convertDict(data)
         # if required log the converted data
-        if self.debug.loop:
+        if self.debug_options.loop:
             loginf("GatewayService: Converted %s data: %s" % (self.collector.device.model,
                                                               natural_sort_dict(converted_data)))
         # now we can freely augment the packet with any of our mapped obs
@@ -3073,7 +3073,7 @@ class EcowittNetCatchup:
             except (InvalidApiResponseError, ApiResponseError) as e:
                 # the response was not valid, log it and attempt again
                 # if we haven't had too many attempts already
-#                if self.debug:
+#                if self.debug_options.catchup:
                 log.error(f"Invalid Ecowitt.net API response: {e}")
             except Exception as e:
                 # Some other error occurred in check_response(),
@@ -3313,7 +3313,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         # get the station config dict
         stn_dict = config_dict.get('GW1000', {})
         # get device specific debug settings
-        self.debug = DebugOptions(stn_dict)
+        self.debug_options = DebugOptions(stn_dict)
         # now initialize my superclasses
         super(GatewayDriver, self).__init__(**stn_dict)
         # Ecowitt.net API and applications keys for catchup on startup from
@@ -3354,7 +3354,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 if hasattr(queue_data, 'keys'):
                     # we have a dict so assume it is data
                     # log the received data if necessary
-                    if self.debug.loop:
+                    if self.debug_options.loop:
                         if 'datetime' in queue_data:
                             loginf('GatewayDriver: Received %s data: %s %s' % (self.collector.device.model,
                                                                                timestamp_to_string(queue_data['datetime']),
@@ -3365,12 +3365,12 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     else:
                         # perhaps we have individual debugs such as rain or
                         # wind
-                        if self.debug.rain:
+                        if self.debug_options.rain:
                             # debug.rain is set so log the 'rain' field in the
                             # received data, if it does not exist say so
                             self.log_rain_data(queue_data,
                                                'GatewayDriver: Received %s data' % self.collector.device.model)
-                        if self.debug.wind:
+                        if self.debug_options.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # received data, if they do not exist say so
                             self.log_wind_data(queue_data,
@@ -3394,7 +3394,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # map the raw data to WeeWX loop packet fields
                     mapped_data = self.map_data(queue_data)
                     # log the mapped data if necessary
-                    if self.debug.loop:
+                    if self.debug_options.loop:
                         if 'datetime' in mapped_data:
                             loginf('GatewayDriver: Mapped %s data: %s %s' % (self.collector.device.model,
                                                                              timestamp_to_string(mapped_data['datetime']),
@@ -3404,12 +3404,12 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                                                                           natural_sort_dict(mapped_data)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
-                        if self.debug.rain:
+                        if self.debug_options.rain:
                             # debug.rain is set so log the 'rain' field in the
                             # mapped data, if it does not exist say so
                             self.log_rain_data(mapped_data,
                                                'GatewayDriver: Mapped %s data' % self.collector.device.model)
-                        if self.debug.wind:
+                        if self.debug_options.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # mapped data, if they do not exist say so
                             self.log_wind_data(mapped_data,
@@ -3420,18 +3420,18 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                     # settings that may require this, start from the highest
                     # (most encompassing) and work to the lowest (least
                     # encompassing)
-                    if self.debug.loop or weewx.debug >= 2:
+                    if self.debug_options.loop or weewx.debug >= 2:
                         loginf('GatewayDriver: Packet %s: %s' % (timestamp_to_string(packet['dateTime']),
                                                                  natural_sort_dict(packet)))
                     else:
                         # perhaps we have individual debugs such as rain or wind
-                        if self.debug.rain:
+                        if self.debug_options.rain:
                             # debug.rain is set so log the 'rain' field in the
                             # loop packet being emitted, if it does not exist
                             # say so
                             self.log_rain_data(mapped_data,
                                                'GatewayDriver: Packet %s' % timestamp_to_string(packet['dateTime']))
-                        if self.debug.wind:
+                        if self.debug_options.wind:
                             # debug.wind is set so log the 'wind' fields in the
                             # loop packet being emitted, if they do not exist
                             # say so
@@ -3468,7 +3468,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 # down
                 elif queue_data is None:
                     # if debug.loop log what we received
-                    if self.debug.loop:
+                    if self.debug_options.loop:
                         loginf('GatewayDriver: Received shutdown signal')
                     # we received the signal to shut down, so call closePort()
                     self.closePort()
@@ -3505,7 +3505,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         """
 
         # if catchup debug is enabled log our obfuscated keys
-        if self.debug.catchup:
+        if self.debug_options.catchup:
             log.info("genStartupRecords: API key: %s "
                      "Application key: %s" % (obfuscate(self.api_key),
                                               obfuscate(self.app_key)))
@@ -3548,7 +3548,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
         # up front saves some device API calls
         mac = self.mac_address
         # if necessary log the MAC address being used
-        if self.debug.catchup:
+        if self.debug_options.catchup:
             log.info("genArchiveRecords: Using MAC address: %s" % mac)
         # do we have a MAC address
         if mac is not None:
@@ -3581,7 +3581,7 @@ class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
                 # add the mapped data to the empty record
                 record.update(mapped_data)
                 # if necessary log the timestamp of the record being yielded
-                if self.debug.catchup:
+                if self.debug_options.catchup:
                     log.info("genArchiveRecords: Yielding archive "
                              "record %s" % timestamp_to_string(record['dateTime']))
                 # yield the record
@@ -5545,7 +5545,7 @@ class Sensors(object):
     not_registered = ('fffffffe', 'ffffffff')
 
     def __init__(self, sensor_id_data=None, ignore_wh40_batt=True,
-                 show_battery=False, debug=DebugOptions({}), use_wh32=True,
+                 show_battery=False, debug_options=DebugOptions({}), use_wh32=True,
                  is_wh24=False, is_wh46=False):
         """Initialise myself"""
 
@@ -5581,7 +5581,7 @@ class Sensors(object):
         # sensor data dict
         self.set_sensor_id_data(sensor_id_data)
         # debug sensors
-        self.debug = debug
+        self.debug_options = debug_options
 
     def set_sensor_id_data(self, id_data):
         """Parse the raw sensor ID data and store the results.
@@ -5632,7 +5632,7 @@ class Sensors(object):
                                                  'signal': six.indexbytes(data, index + 6)
                                                  }
                 else:
-                    if self.debug.sensors:
+                    if self.debug_options.sensors:
                         loginf("Unknown sensor ID '%s'" % bytes_to_hex(address))
                 # each sensor entry is seven bytes in length so skip to the
                 # start of the next sensor
@@ -7901,8 +7901,8 @@ class DirectGateway(object):
     """Class to interact with gateway driver when run directly.
 
     Would normally run a driver directly by calling from main() only, but when
-    run directly the gateway driver has many options so pushing the detail into
-    its own class/object makes sense. Also simplifies some test suite
+    run directly the gateway driver has many options, so pushing the detail
+    into its own class/object makes sense. Also simplifies some test suite
     routines/calls.
 
     A DirectGateway object is created with just an optparse options dict and a
@@ -8306,42 +8306,41 @@ class DirectGateway(object):
         elif hasattr(self.opts, 'test_service') and self.opts.test_service:
             self.test_service()
         elif hasattr(self.opts, 'sys_params') and self.opts.sys_params:
-            self.system_params()
+            self.display_system_params()
         elif hasattr(self.opts, 'get_rain') and self.opts.get_rain:
-            self.get_rain_data()
+            self.display_rain_data()
         elif hasattr(self.opts, 'get_all_rain') and self.opts.get_all_rain:
-            self.get_all_rain_data()
+            self.display_all_rain_data()
         elif hasattr(self.opts, 'display_mulch_offset') and self.opts.display_mulch_offset:
-            self.get_mulch_offset()
+            self.display_mulch_offset()
         elif hasattr(self.opts, 'get_temp_calibration') and self.opts.get_temp_calibration:
-            self.get_mulch_t_offset()
+            self.display_mulch_t_offset()
         elif hasattr(self.opts, 'display_pm25_offset') and self.opts.display_pm25_offset:
-            self.get_pm25_offset()
+            self.display_pm25_offset()
         elif hasattr(self.opts, 'display_co2_offset') and self.opts.display_co2_offset:
-            self.get_co2_offset()
+            self.display_co2_offset()
         elif hasattr(self.opts, 'display_calibration') and self.opts.display_calibration:
-            self.get_calibration()
+            self.display_calibration()
         elif hasattr(self.opts, 'display_soil_calibration') and self.opts.display_soil_calibration:
-            self.get_soil_calibration()
+            self.display_soil_calibration()
         elif hasattr(self.opts, 'display_services') and self.opts.display_services:
-            self.get_services()
+            self.display_services()
         elif hasattr(self.opts, 'mac') and self.opts.mac:
-            # TODO. Rename to remove 'station' ?
-            self.station_mac()
+            self.display_mac()
         elif hasattr(self.opts, 'display_firmware') and self.opts.display_firmware:
-            self.firmware()
+            self.display_firmware()
         elif hasattr(self.opts, 'sensors') and self.opts.sensors:
-            self.sensors()
+            self.display_sensors()
         elif hasattr(self.opts, 'live') and self.opts.live:
-            self.live_data()
+            self.display_live_data()
         elif hasattr(self.opts, 'discover') and self.opts.discover:
-            self.discover()
+            self.display_discover()
         elif hasattr(self.opts, 'map') and self.opts.map:
-            self.field_map()
+            self.display_default_field_map()
         elif hasattr(self.opts, 'driver_map') and self.opts.driver_map:
-            self.driver_field_map()
+            self.display_driver_field_map()
         elif hasattr(self.opts, 'sys_service_mapparams') and self.opts.service_map:
-            self.service_field_map()
+            self.display_service_field_map()
         else:
             print()
             print("No option selected, nothing done")
@@ -8349,7 +8348,7 @@ class DirectGateway(object):
             self.parser.print_help()
             return
 
-    def system_params(self):
+    def display_system_params(self):
         """Display system parameters.
 
         Obtain and display the gateway device system parameters. Device IP
@@ -8442,7 +8441,7 @@ class DirectGateway(object):
             print("%26s: %s" % ('timezone index', sys_params_dict['timezone_index']))
             print("%26s: %s" % ('DST status', sys_params_dict['dst_status']))
 
-    def get_rain_data(self):
+    def display_rain_data(self):
         """Display the device rain data.
 
         Obtain and display the device rain data. The device IP address and port
@@ -8481,7 +8480,7 @@ class DirectGateway(object):
             print("%10s: %.1f mm/%.1f in" % ('Month rain', rain_data['t_rainmonth'], rain_data['t_rainmonth'] / 25.4))
             print("%10s: %.1f mm/%.1f in" % ('Year rain', rain_data['t_rainyear'], rain_data['t_rainyear'] / 25.4))
 
-    def get_all_rain_data(self):
+    def display_all_rain_data(self):
         """Display the device rain data including piezo data.
 
         Obtain and display the device rain data including piezo data. The
@@ -8610,7 +8609,7 @@ class DirectGateway(object):
             else:
                 print("    No rainfall reset time data available")
 
-    def get_mulch_offset(self):
+    def display_mulch_offset(self):
         """Display device multichannel temperature and humidity offset data.
 
         Obtain and display the multichannel temperature and humidity offset
@@ -8662,7 +8661,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def get_mulch_t_offset(self):
+    def display_mulch_t_offset(self):
         """Display device multichannel temperature (WN34) offset data.
 
         Obtain and display the multichannel temperature (WN34) offset data from
@@ -8718,7 +8717,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def get_pm25_offset(self):
+    def display_pm25_offset(self):
         """Display the device PM2.5 offset data.
 
         Obtain and display the PM2.5 offset data from the selected device.The
@@ -8763,7 +8762,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def get_co2_offset(self):
+    def display_co2_offset(self):
         """Display the device WH45 CO2, PM10 and PM2.5 offset data.
 
         Obtain and display the WH45 CO2, PM10 and PM2.5 offset data from the
@@ -8808,7 +8807,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def get_calibration(self):
+    def display_calibration(self):
         """Display the device calibration data.
 
         Obtain and display the calibration data from the selected device. The
@@ -8860,7 +8859,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def get_soil_calibration(self):
+    def display_soil_calibration(self):
         """Display the device soil moisture sensor calibration data.
 
         Obtain and display the soil moisture sensor calibration data from the
@@ -8915,7 +8914,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def get_services(self):
+    def display_services(self):
         """Display the device Weather Services settings.
 
         Obtain and display the settings for the various weather services
@@ -9068,7 +9067,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def station_mac(self):
+    def display_mac(self):
         """Display the device hardware MAC address.
 
         Obtain and display the hardware MAC address of the selected device. The
@@ -9101,7 +9100,7 @@ class DirectGateway(object):
             print()
             print("Timeout. Device at %s did not respond." % (self.ip_address,))
 
-    def firmware(self):
+    def display_firmware(self):
         """Display device firmware details.
 
         Obtain and display the firmware version string from the selected
@@ -9184,7 +9183,7 @@ class DirectGateway(object):
             print()
             self.device_connection_help()
 
-    def sensors(self):
+    def display_sensors(self):
         """Display the device sensor ID information.
 
         Obtain and display the sensor ID information from the selected device.
@@ -9256,7 +9255,7 @@ class DirectGateway(object):
                 print()
                 print("Device at %s did not respond." % (self.ip_address,))
 
-    def live_data(self):
+    def display_live_data(self):
         """Display the device live sensor data.
 
         Obtain and display live sensor data from the selected device. Data is
@@ -9355,7 +9354,7 @@ class DirectGateway(object):
                                                     weeutil.weeutil.to_sorted_string(result)))
 
     @staticmethod
-    def discover():
+    def display_discover():
         """Display details of gateway devices on the local network."""
 
         # this could take a few seconds so warn the user
@@ -9397,7 +9396,7 @@ class DirectGateway(object):
             print("No devices were discovered.")
 
     @staticmethod
-    def field_map():
+    def display_default_field_map():
         """Display the default field map."""
 
         # obtain a copy of the default field map, we need a copy so we can
@@ -9422,7 +9421,7 @@ class DirectGateway(object):
         for key in keys_list:
             print("    %23s: %s" % (key, field_map[key]))
 
-    def driver_field_map(self):
+    def display_driver_field_map(self):
         """Display the driver field map that would be used.
 
         By default, the default field map is used by the driver; however, the
@@ -9468,7 +9467,7 @@ class DirectGateway(object):
                 driver.closePort()
         loginf("Finished using gateway driver")
 
-    def service_field_map(self):
+    def display_service_field_map(self):
         """Display the service field map that would be used.
 
         By default, the default field map is used by the service; however, the
