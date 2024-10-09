@@ -2522,26 +2522,26 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
         parser.add_option('--get-all-rain-data', dest='get_all_rain', action='store_true',
                           help='display device traditional, piezo and rain reset '
                                'time data')
-        parser.add_option('--get-calibration', dest='get_calibration',
+        parser.add_option('--get-calibration', dest='display_calibration',
                           action='store_true',
                           help='display device calibration data')
-        parser.add_option('--get-mulch-th-cal', dest='get_mulch_offset',
+        parser.add_option('--get-mulch-th-cal', dest='display_mulch_offset',
                           action='store_true',
                           help='display device multi-channel temperature and '
                                'humidity calibration data')
-        parser.add_option('--get-mulch-soil-cal', dest='get_soil_calibration',
+        parser.add_option('--get-mulch-soil-cal', dest='display_soil_calibration',
                           action='store_true',
                           help='display device soil moisture calibration data')
         parser.add_option('--get-mulch-t-cal', dest='get_temp_calibration',
                           action='store_true',
                           help='display device temperature (WN34) calibration data')
-        parser.add_option('--get-pm25-cal', dest='get_pm25_offset',
+        parser.add_option('--get-pm25-cal', dest='display_pm25_offset',
                           action='store_true',
                           help='display device PM2.5 calibration data')
-        parser.add_option('--get-co2-cal', dest='get_co2_offset',
+        parser.add_option('--get-co2-cal', dest='display_co2_offset',
                           action='store_true',
                           help='display device CO2 (WH45) calibration data')
-        parser.add_option('--get-services', dest='get_services',
+        parser.add_option('--get-services', dest='display_services',
                           action='store_true',
                           help='display device weather services configuration data')
         parser.add_option('--ip-address', dest='ip_address',
@@ -8311,24 +8311,24 @@ class DirectGateway(object):
             self.get_rain_data()
         elif hasattr(self.opts, 'get_all_rain') and self.opts.get_all_rain:
             self.get_all_rain_data()
-        elif hasattr(self.opts, 'get_mulch_offset') and self.opts.get_mulch_offset:
+        elif hasattr(self.opts, 'display_mulch_offset') and self.opts.display_mulch_offset:
             self.get_mulch_offset()
         elif hasattr(self.opts, 'get_temp_calibration') and self.opts.get_temp_calibration:
             self.get_mulch_t_offset()
-        elif hasattr(self.opts, 'get_pm25_offset') and self.opts.get_pm25_offset:
+        elif hasattr(self.opts, 'display_pm25_offset') and self.opts.display_pm25_offset:
             self.get_pm25_offset()
-        elif hasattr(self.opts, 'get_co2_offset') and self.opts.get_co2_offset:
+        elif hasattr(self.opts, 'display_co2_offset') and self.opts.display_co2_offset:
             self.get_co2_offset()
-        elif hasattr(self.opts, 'get_calibration') and self.opts.get_calibration:
+        elif hasattr(self.opts, 'display_calibration') and self.opts.display_calibration:
             self.get_calibration()
-        elif hasattr(self.opts, 'get_soil_calibration') and self.opts.get_soil_calibration:
+        elif hasattr(self.opts, 'display_soil_calibration') and self.opts.display_soil_calibration:
             self.get_soil_calibration()
-        elif hasattr(self.opts, 'get_services') and self.opts.get_services:
+        elif hasattr(self.opts, 'display_services') and self.opts.display_services:
             self.get_services()
         elif hasattr(self.opts, 'mac') and self.opts.mac:
             # TODO. Rename to remove 'station' ?
             self.station_mac()
-        elif hasattr(self.opts, 'firmware') and self.opts.firmware:
+        elif hasattr(self.opts, 'display_firmware') and self.opts.display_firmware:
             self.firmware()
         elif hasattr(self.opts, 'sensors') and self.opts.sensors:
             self.sensors()
