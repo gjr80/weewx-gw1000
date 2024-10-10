@@ -2609,7 +2609,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 # ============================================================================
 
 class EcowittNetCatchup:
-    """Class to handle catchup via Ecowitt.net API.
+    """Class that implements catchup via Ecowitt.net API.
 
     Ecowitt gateway devices do not include a hardware logger; however, they
     do have the ability to independently upload observation data to
@@ -2621,6 +2621,17 @@ class EcowittNetCatchup:
     provide an effective 'virtual' logger capability to support catchup on
     startup.
 
+    Ecowitt.net uses an age-based approach for aggregating data as follows:
+    - station data from the past 90 is stored using a five minute interval
+    - station data from 90 days but from the past 365 days is stored using a 30 minute interval
+    - station data older than 365 days but from the past 730 days is stored using a four hour interval
+    - station data older than 760 days but from the past 1460 days is stored using a 30 minute interval
+    - station data from the past 365days is stored using a 30 minute interval
+    - station data from the past 365days is stored using a 30 minute interval
+    , each data request time span should not be longer than a complete week；
+240 minutes resolution data within the past 730days, each data request time span should not be longer than a complete month；
+24 hours resolution data within the past 1460days, each data request time span should not be longer than a complete year;
+24 hours resolution data within the past 7days, each data request time span should not be longer than a complete day;
     """
 
     # Ecowitt.net API endpoint
@@ -2917,9 +2928,9 @@ class EcowittNetCatchup:
         Generator function that uses the Ecowitt.net API to obtain history data
         from Ecowitt.net and generate archive-like records suitable for
         catchup by the WeeWX Ecowitt gateway driver. Generated records are
-        timestamped from start_ts to stop_ts inclusive. If stop_ts is not
-        specified records are generated up to an including the current system
-        time.
+        timestamped from start_ts (earliest ts) to stop_ts (most recent ts)
+        inclusive. If stop_ts is not specified records are generated up to and
+        including the current system time.
 
         start_ts: Earliest timestamp for which archive-like records are to be
                   emitted. If earlier than midnight 90 days ago midnight 90
@@ -2993,12 +3004,11 @@ class EcowittNetCatchup:
             # and handle any exceptions.
             try:
                 day_data = self.request(command_str='history', data=data, headers=None)
-            except (socket.timeout, urllib.error.URLError,
-                    InvalidApiResponseError, ApiResponseError) as e:
+            except (socket.timeout, urllib.error.URLError, InvalidApiResponseError) as e:
                 # A technical comms error was encountered or the response
                 # received contains invalid data, either way we cannot
-                # continue. Either way any logging has already occurred so just
-                # raise the exception
+                # continue. Any logging has already occurred so just raise the
+                # exception.
                 raise
             else:
                 # parse the raw day data, this will give us an iterable we can
@@ -3019,27 +3029,31 @@ class EcowittNetCatchup:
                         # yield the archive-like record
                         yield rec
 
-    def request(self, command_str, data=None, headers=None):
+    def request(self, command_str, data=None, headers=None, max_tries=3):
         """Send a HTTP request to the Ecowitt.net API and return the response.
 
         Create a HTTP request with optional data and headers. Send the HTTP
-        request to the device as a GET request and obtain the response. The
-        JSON deserialized response is returned. If the response cannot be
-        deserialized the value None is returned. URL or timeout errors are
-        logged and raised.
+        request to the device as a GET request and obtain the response. If an
+        exception occurs the exception is logged and the request attempted
+        again up to a total of max_tries attempts. The deserialized JSON
+        response is returned. If after max_tries attempts a valid response has
+        been received but cannot be deserialized, or is otherwise invalid, a
+        InvalidApiResponseError exception is raised.
 
         command_str: a string containing the command to be sent,
                      eg: 'get_livedata_info'
         data: a dict containing key:value pairs representing the data to be
               sent
         headers: a dict containing headers to be included in the HTTP request
+        max_tries: the maximum number of attempts to send the request
 
-        Returns a deserialized JSON object or None
+        Returns a deserialized JSON object or raises an exception
         """
 
-        # check if we have a command that we know about
+        # ensure we have dicts for data and headers
         data_dict = {} if data is None else data
         headers_dict = {} if headers is None else headers
+        # check if we have a command that we know about
         if command_str in EcowittNetCatchup.commands:
             # first convert any data to a percent-encoded ASCII text string
             data_enc = urllib.parse.urlencode(data_dict)
@@ -3051,35 +3065,45 @@ class EcowittNetCatchup:
             url = '?'.join([endpoint_path, data_enc])
             # create a Request object
             req = urllib.request.Request(url=url, headers=headers_dict)
-            try:
-                # submit the request and obtain the raw response
-                with urllib.request.urlopen(req) as w:
-                    # get charset used so we can decode the stream correctly
-                    char_set = w.headers.get_content_charset()
-                    # Now get the response and decode it using the headers
-                    # character set. Be prepared for charset==None.
-                    if char_set is not None:
-                        response = w.read().decode(char_set)
+            # attempt to obtain a valid response max_tries times
+            for attempt in range(max_tries):
+                # wrap the request in a try..except in case we encounter and
+                # error
+                try:
+                    # submit the request and obtain the raw response
+                    with urllib.request.urlopen(req) as w:
+                        # get charset used so we can decode the stream correctly
+                        char_set = w.headers.get_content_charset()
+                        # Now get the response and decode it using the headers
+                        # character set. Be prepared for charset==None.
+                        if char_set is not None:
+                            response = w.read().decode(char_set)
+                        else:
+                            response = w.read().decode()
+                except (socket.timeout, urllib.error.URLError) as e:
+                    # Log the error. If this was the last attempt raise the
+                    # exception, otherwise continue with the next attempt.
+                    log.error("Failed to obtain data from Ecowitt.net on attempt %d" % attempt + 1)
+                    log.error("   **** %s" % e)
+                    if attempt < max_tries - 1:
+                        continue
                     else:
-                        response = w.read().decode()
-            except (socket.timeout, urllib.error.URLError) as e:
-                # log the error and raise it
-                log.error("Failed to obtain data from Ecowitt.net")
-                log.error("   **** %s" % e)
-                raise
-            # we have a response, but first check it for validity
-            try:
-                return self.check_response(response)
-            except (InvalidApiResponseError, ApiResponseError) as e:
-                # the response was not valid, log it and attempt again
-                # if we haven't had too many attempts already
-#                if self.debug_options.catchup:
-                log.error(f"Invalid Ecowitt.net API response: {e}")
-            except Exception as e:
-                # Some other error occurred in check_response(),
-                # perhaps the response was malformed. Log the stack
-                # trace but continue.
-                raise
+                        raise
+                # we have a response, but first check it for validity
+                try:
+                    return self.check_response(response)
+                except (InvalidApiResponseError, ApiResponseError) as e:
+                    # The response is invalid or an explicit response error was
+                    # returned or some other unexpected error occurred. Log the
+                    # error. If this was the last attempt raise an
+                    # InvalidApiResponseError exception, otherwise continue with
+                    # the next attempt.
+                    log.error("Invalid Ecowitt.net API response on attempt %d" % attempt + 1)
+                    log.error("   **** %s" % e)
+                    if attempt < max_tries - 1:
+                        continue
+                    else:
+                        raise InvalidApiResponseError(e) from e
 
     def check_response(self, response):
         """Check the validity of an API response.
@@ -3113,7 +3137,7 @@ class EcowittNetCatchup:
             # we have JSON format response, but does the response contain
             # 'code' == 0
             if json_resp.get('code') == 0:
-                # we have valid JSO0 and a (sic) 'success result', return the
+                # we have valid JSON and a (sic) 'success result', return the
                 # JSON format response
                 return json_resp
             else:
@@ -3684,7 +3708,7 @@ class GatewayCollector(Collector):
                  discovery_port=default_discovery_port,
                  discovery_period=default_discovery_period,
                  log_unknown_fields=False, fw_update_check_interval=86400,
-                 log_fw_update_avail=False, debug=DebugOptions({})):
+                 log_fw_update_avail=False, debug_options=DebugOptions({})):
         """Initialise our class."""
 
         # initialize my base class:
@@ -3739,7 +3763,8 @@ class GatewayCollector(Collector):
                                     discovery_method=discovery_method,
                                     discovery_port=discovery_port,
                                     discovery_period=discovery_period,
-                                    log_unknown_fields=log_unknown_fields, debug=debug)
+                                    log_unknown_fields=log_unknown_fields,
+                                    debug_options=debug_options)
 
         # start off logging failures
         self.log_failures = True
@@ -5969,7 +5994,8 @@ class GatewayApi(object):
                  discovery_method=default_discovery_method,
                  discovery_port=default_discovery_port,
                  discovery_period=default_discovery_period,
-                 log_unknown_fields=False, debug=DebugOptions({})):
+                 log_unknown_fields=False,
+                 debug_options=DebugOptions({})):
 
         # get a parser object to parse any API data
         self.parser = ApiParser(log_unknown_fields=log_unknown_fields)
@@ -6066,7 +6092,7 @@ class GatewayApi(object):
         # get a Sensors object to parse any API sensor state data
         self.sensors = Sensors(use_wh32=use_wh32, ignore_wh40_batt=ignore_wh40_batt,
                                show_battery=show_battery, is_wh24=is_wh24, is_wh46=is_wh46,
-                               debug=debug)
+                               debug_options=debug_options)
         # log our WH45/WH46 sensor ID decoding state
         if is_wh46:
             logdbg("     sensor ID decoding will use 'WH46' in lieu of 'WH45'")
@@ -7434,7 +7460,7 @@ class GatewayDevice(object):
                  discovery_method=default_discovery_method,
                  discovery_port=default_discovery_port,
                  discovery_period=default_discovery_period,
-                 log_unknown_fields=False, debug=DebugOptions({})):
+                 log_unknown_fields=False, debug_options=DebugOptions({})):
         """Initialise a GatewayDevice object."""
 
         # get a GatewayApi object to handle the interaction with the API
@@ -7453,7 +7479,7 @@ class GatewayDevice(object):
                               discovery_port=discovery_port,
                               discovery_period=discovery_period,
                               log_unknown_fields=log_unknown_fields,
-                              debug=debug)
+                              debug_options=debug_options)
 
         # get a GatewayHttp object to handle any HTTP requests, we need to use
         # the same IP address as our GatewayApi object
