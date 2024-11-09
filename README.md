@@ -42,6 +42,10 @@ The Ecowitt Gateway driver requires:
 
         sudo apt install python3-six
  
+    **Note:** If the installation fails with an error indicating there is no module named 'six' manually install the Six library using the following command before re-attempting the driver installation:
+
+        sudo apt install python3-six
+ 
     For WeeWX *pip* installs the Python virtual environment must be activated before the extension is installed:
 
         source ~/weewx-venv/bin/activate
