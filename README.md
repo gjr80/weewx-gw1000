@@ -14,7 +14,13 @@ The Ecowitt Gateway driver can be operated as a traditional WeeWX driver where i
 
 ## Pre-Requisites
 
-The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate under Python2 or Python 3.
+The Ecowitt Gateway driver requires:
+
+- WeeWX v3.7.0 or greater
+- Python2 or Python 3
+- the [Six Python 2 and 3 Compatibility Library](https://six.readthedocs.io) if operating under Python 2
+
+**Note:** The Six Python 2 and 3 Compatibility Library (the Six library) is used by the Ecowitt Gateway driver to allow the same codebase to be used for both Python 2 and Python 3. In the past the Six library was installed by default on many distributions; however, now that Python 2 is no longer actively being developed some contemporary distributions no longer include the Six library. If during installation or when using the Ecowitt Gateway driver (with WeeWX or when run directly) errors are encountered indicating there is no module named 'six' the Six library will need to be manually installed. Refer to the installation instructions below for detailed instructions on installing the Six library.  
 
 ## Installation Instructions
 
@@ -32,15 +38,27 @@ The Ecowitt Gateway driver requires WeeWX v3.7.0 or greater and will operate und
 
         weectl extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip 
  
+    **Note:** If the installation fails with an error indicating there is no module named 'six' manually install the Six library using the following command before re-attempting the driver installation:
+
+        sudo apt install python3-six
+ 
     For WeeWX *pip* installs the Python virtual environment must be activated before the extension is installed:
 
         source ~/weewx-venv/bin/activate
         weectl extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
 
+    **Note:** If the installation fails with an error indicating there is no module named 'six' manually install the Six library using the following command before re-attempting the driver installation:
+
+        pip install six
+
     For WeeWX installs from *git* the Python virtual environment must be activated before the extension is installed:
 
         source ~/weewx-venv/bin/activate
         python3 ~/weewx/src/weectl.py extension install https://github.com/gjr80/weewx-gw1000/releases/latest/download/gw1000.zip
+
+    **Note:** If the installation fails with an error indicating there is no module named 'six' manually install the Six library using the following command before re-attempting the driver installation:
+
+        pip install six
 
 3.  Test the Ecowitt Gateway driver by running the driver file directly using the *--test-driver* command line option. 
 
