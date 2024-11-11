@@ -85,8 +85,8 @@ Revision History
         -   gateway device temperature compensation setting can be displayed
             using the --system-params command line option (for firmware
             versions GW2000 all, GW1100 > v2.1.2 and GW1000 > v1.6.9)
-        -   added wee_device/weectl device support
-        -   rationalised driver direct and wee_device/weectl device actions
+        -   added weectl device support
+        -   rationalised driver direct and weectl device actions
         -   the discarding of non-timestamped and stale packets is now logged
             by the GatewayService when debug_loop is set or debug >= 2
         -   unit groups are now assigned to all WeeWX fields in the default
@@ -203,8 +203,8 @@ Revision History
             under GW1000 firmware release v1.6.5 and later
     9 January 2021          v0.2.0
         -   added support for WH45 sensor
-        -   improved comments in installer/wee_config inserted config
-            stanzas/entries
+        -   improved comments in config stanzas/entries insterted by the
+            installer/weectl config
         -   added basic test suite
         -   sensor signal levels added to loop packet
         -   added --get-services command line option to display GW1000
@@ -728,6 +728,9 @@ class ApiResponseError(Exception):
     contains a non-zero error code."""
 
 
+# ============================================================================
+#                             class DebugOptions
+# ============================================================================
 
 class DebugOptions(object):
     """Class to simplify use and handling of device debug options."""
@@ -754,7 +757,6 @@ class DebugOptions(object):
         # communications
         self.debug_comms = weeutil.weeutil.tobool(gw_config_dict.get('debug_comms',
                                                                      False))
-
 
     @property
     def rain(self):
@@ -1113,8 +1115,6 @@ class Gateway:
     def __init__(self, **gw_config):
         """Initialise a Gateway object."""
 
-#        super(Gateway, self).__init__(config_dict, engine)
-
         # obtain the field map to be used
         self.field_map = self.construct_field_map(gw_config)
         # network broadcast address and port
@@ -1257,8 +1257,8 @@ class Gateway:
         if len(debug_list) > 0:
             loginf(" ".join(debug_list))
 
-        # create an GatewayCollector object to interact with the gateway device
-        # API
+        # create an GatewayCollector object to provide gateway device data
+        # obtained via the device APIs
         self.collector = GatewayCollector(ip_address=self.ip_address,
                                           port=self.port,
                                           broadcast_address=self.broadcast_address,
@@ -1355,7 +1355,7 @@ class Gateway:
         """Map parsed device data to a WeeWX loop packet.
 
         Maps parsed device data to WeeWX loop packet fields using the field
-        map. Result includes usUnits field set to METRICWX.
+        map. In the resulting dict the field usUnits is set to METRICWX.
 
         data: Dict of parsed device API data
         """
@@ -1668,20 +1668,18 @@ class GatewayService(weewx.engine.StdService, Gateway):
     def __init__(self, engine, config_dict):
         """Initialise a GatewayService object."""
 
-        # first extract the gateway service config dictionary, try looking for
-        # [Gw1000Service]
+        # first do some basic config processing/logging before we initialise
+        # our super classes, this way we have something to go on in the log
+        # should the initialisation calls fail
+        # extract the gateway service config dictionary, try looking for
+        # [GW1000Service]
         if 'GW1000Service' in config_dict:
             # we have a [GW1000Service] config stanza so use it
             gw_config_dict = config_dict['GW1000Service']
         else:
-            # we don't have a [GW1000Service] stana so use [GW1000] if it
+            # we don't have a [GW1000Service] stanza so use [GW1000] if it
             # exists otherwise use an empty config
             gw_config_dict = config_dict.get('GW1000', {})
-
-        # Log our driver version first. Normally we would call our superclass
-        # initialisation method first; however, that involves establishing a
-        # network connection to the gateway device and it may fail. Doing our
-        # logging first will aid in remote debugging.
 
         # log our version number
         loginf('GatewayService: version is %s' % DRIVER_VERSION)
@@ -1694,16 +1692,14 @@ class GatewayService(weewx.engine.StdService, Gateway):
                                                               default_lost_contact_log_period))
         # get device specific debug settings
         self.debug_options = DebugOptions(gw_config_dict)
-
+        # log max age and lost contact period
         if self.debug_options.any or weewx.debug > 0:
             loginf("     max age of API data to be used is %d seconds" % self.max_age)
             loginf('     lost contact will be logged every %d seconds' % self.lost_contact_log_period)
 
-        # initialize my superclasses
+        # now initialize my superclasses
         super().__init__(engine, config_dict)
         super(weewx.engine.StdService, self).__init__(**gw_config_dict)
-#        super(GatewayService, self).__init__(engine, config_dict, **gw_config_dict)
-#        super(weewx.engine.StdService, self).__init__(engine, config_dict)
 
         # set failure logging on
         self.log_failures = True
@@ -1712,9 +1708,9 @@ class GatewayService(weewx.engine.StdService, Gateway):
         # create a placeholder for our most recent, non-stale queued device
         # sensor data packet
         self.latest_sensor_data = None
-        # start the Gw1000Collector in its own thread
+        # start the GatewayCollector in its own thread
         self.collector.startup()
-        # bind our self to the relevant WeeWX events
+        # bind our self to the WeeWX NEW_LOOP_PACKET event
         self.bind(weewx.NEW_LOOP_PACKET, self.new_loop_packet)
 
     def new_loop_packet(self, event):
@@ -1723,8 +1719,8 @@ class GatewayService(weewx.engine.StdService, Gateway):
         When a new loop packet arrives process the queue looking for any device
         sensor data packets. If there are sensor data packets keep the most
         recent, non-stale packet and use it to augment the loop packet. If
-        there are no sensor data packets, or they are all stale, then the loop
-        packet is not augmented.
+        there are no sensor data packets, or they are all stale the loop packet
+        is not augmented.
 
         The queue may also contain other control data, eg exception reporting
         from the GatewayCollector thread. This control data needs to be
@@ -1732,7 +1728,7 @@ class GatewayService(weewx.engine.StdService, Gateway):
         """
 
         # log the loop packet received if necessary, there are several debug
-        # settings that may require this
+        # settings that may necessitate this
         if self.debug_options.loop or self.debug_options.rain or self.debug_options.wind:
             loginf('GatewayService: Processing loop packet: %s %s' % (timestamp_to_string(event.packet['dateTime']),
                                                                       natural_sort_dict(event.packet)))
@@ -2400,11 +2396,12 @@ class Gw1000ConfEditor(weewx.drivers.AbstractConfEditor):
         # set loop_on_init
         loop_on_init_config = """loop_on_init = %d"""
         dflt = config_dict.get('loop_on_init', '1')
-        label = """The GW1000 driver requires a network connection to the 
-gateway device. Consequently, the absence of a network connection 
-when WeeWX starts will cause WeeWX to exit and such a situation 
-can occur on system startup. The 'loop_on_init' setting can be
-used to mitigate such problems by having WeeWX retry startup 
+        label = """The Ecowitt Gateway Device driver requires a network 
+connection to the gateway device, and consequently the absence 
+of a network connection when WeeWX starts will cause WeeWX to 
+exit. Depending on the system and network such a situation can 
+occur on system startup. The 'loop_on_init' setting can be used
+to mitigate such problems by having WeeWX retry startup 
 indefinitely. Set to '0' to attempt startup once only or '1' to 
 attempt startup indefinitely."""
         print()
@@ -2443,16 +2440,16 @@ attempt startup indefinitely."""
 class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
     """Configures the Ecowitt gateway weather station.
 
-    This class is used by wee_device when interrogating a supported Ecowitt
+    This class is used by weectl device when interrogating a supported Ecowitt
     gateway device.
 
     The Ecowitt gateway device API supports both reading and setting various
     gateway device parameters; however, at this time the Ecowitt gateway
-    device driver only supports the reading these parameters. The Ecowitt
-    gateway device driver does not support setting these parameters, rather
-    this should be done via the Ecowitt WSView Plus app.
+    device driver only supports reading these parameters. The Ecowitt gateway
+    device driver does not support setting these parameters, rather this should
+    be done via the Ecowitt WSView Plus app.
 
-    When used with wee_device this configurator allows station hardware
+    When used with weectl device this configurator allows station hardware
     parameters to be displayed. The Ecowitt gateway device driver may also be
     run directly to test the Ecowitt gateway device driver operation as well as
     display various driver configuration options (as distinct from gateway
@@ -2461,13 +2458,14 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
     @property
     def description(self):
-        """Description displayed as part of wee_device help information."""
+        """Description displayed as part of weectl device information."""
 
         return "Read data and configuration from an Ecowitt gateway weather station."
 
     @property
     def usage(self):
-        """wee_device usage information."""
+        """weectl device usage information."""
+
         return """%prog --help
        %prog --live-data
             [CONFIG_FILE|--config=CONFIG_FILE]
@@ -2498,13 +2496,13 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
     @property
     def epilog(self):
-        """Epilog displayed as part of wee_device help information."""
+        """Epilog displayed as part of weectl device help information."""
 
         return ""
         # return "Mutating actions will request confirmation before proceeding.\n"
 
     def add_options(self, parser):
-        """Define wee_device option parser options."""
+        """Define weectl device option parser options."""
 
         parser.add_option('--live-data', dest='live', action='store_true',
                           help='display device live sensor data')
@@ -2568,7 +2566,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
                           help="answer yes to every prompt")
 
     def do_options(self, options, parser, config_dict, prompt):
-        """Process wee_device option parser options."""
+        """Process weectl device option parser options."""
 
         # get station config dict to use
         stn_dict = config_dict.get('GW1000', {})
@@ -2605,7 +2603,7 @@ class GatewayConfigurator(weewx.drivers.AbstractConfigurator):
 
 
 # ============================================================================
-#                          EcowittNetCatchup class
+#                          class EcowittNetCatchup
 # ============================================================================
 
 class EcowittNetCatchup:
@@ -2613,25 +2611,24 @@ class EcowittNetCatchup:
 
     Ecowitt gateway devices do not include a hardware logger; however, they
     do have the ability to independently upload observation data to
-    Ecowitt.net at various integer minute intervals from one to five
-    minutes. Ecowitt provides an API to access this history data at
-    Ecowitt.net. The Ecowitt.net history data provides a means for
-    obtaining historical archive data, the data will likely differ slightly
-    in values and times to the gateway generated archive data, but it may
-    provide an effective 'virtual' logger capability to support catchup on
-    startup.
+    Ecowitt.net at various integer minute intervals from one to five minutes
+    provided the gateway device has an active internet connection. Ecowitt
+    provides an API to access this history data at Ecowitt.net. The Ecowitt.net
+    history data provides a means for obtaining historical archive data, the
+    data will likely differ slightly in values and times to the gateway
+    generated archive data, but it may provide an effective 'virtual' logger
+    capability to support catchup on startup.
 
+    # TODO. Confirm these ranges/values are correct.
+    # TODO. What about data older than 1460 days?
     Ecowitt.net uses an age-based approach for aggregating data as follows:
-    - station data from the past 90 is stored using a five minute interval
-    - station data from 90 days but from the past 365 days is stored using a 30 minute interval
-    - station data older than 365 days but from the past 730 days is stored using a four hour interval
-    - station data older than 760 days but from the past 1460 days is stored using a 30 minute interval
-    - station data from the past 365days is stored using a 30 minute interval
-    - station data from the past 365days is stored using a 30 minute interval
-    , each data request time span should not be longer than a complete week；
-240 minutes resolution data within the past 730days, each data request time span should not be longer than a complete month；
-24 hours resolution data within the past 1460days, each data request time span should not be longer than a complete year;
-24 hours resolution data within the past 7days, each data request time span should not be longer than a complete day;
+    - station data from the past 90 is stored using a five-minute interval
+    - station data older than 90 days but from the past 365 days is stored
+      using a 30-minute interval
+    - station data older than 365 days but from the past 730 days is stored
+      using a four-hour interval
+    - station data older than 760 days but from the past 1460 days is stored
+      using a 30-minute interval
     """
 
     # Ecowitt.net API endpoint
@@ -3304,7 +3301,7 @@ class EcowittNetCatchup:
 
 
 # ============================================================================
-#                            GatewayDriver class
+#                            class GatewayDriver
 # ============================================================================
 
 class GatewayDriver(weewx.drivers.AbstractDevice, Gateway):
