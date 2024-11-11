@@ -6,12 +6,13 @@ gw1000.py
 A WeeWX driver for devices using the Ecowitt LAN/Wi-Fi Gateway API.
 
 The WeeWX Ecowitt Gateway driver (known historically as the 'WeeWX GW1000
-driver') utilises the Ecowitt LAN/Wi-Fi Gateway API and device HTTP requests to
-pull data from the gateway device. This is in contrast to the push methodology
-used by drivers that obtain data from the gateway device via Ecowitt or
-WeatherUnderground format uploads emitted by the device. The pull approach has
-the advantage of giving the user more control over when the data is obtained
-from the device plus also giving access to a greater range of metrics.
+driver') utilises the Ecowitt LAN/Wi-Fi Gateway API (aka the Telnet API) and
+device HTTP requests to pull data from the gateway device. This is in contrast
+to the push methodology used by drivers that obtain data from the gateway
+device via Ecowitt or WeatherUnderground format uploads emitted by the device.
+The pull approach has the advantage of giving the user more control over when
+the data is obtained from the device plus also giving access to a greater range
+of metrics.
 
 As of the time of release this driver supports the GW1000, GW1100, GW1200 and
 GW2000 gateway devices as well as the WH2650, WH2680 and WN1900 Wi-Fi weather
@@ -36,13 +37,14 @@ PARTICULAR PURPOSE.  See the GNU General Public License for more details.
 You should have received a copy of the GNU General Public License along with
 this program.  If not, see https://www.gnu.org/licenses/.
 
-Version: 0.7.0a4                                   Date: xx August 2024
+Version: 0.7.0a4                                   Date: xx October 2024
 
 Revision History
-    xx August 2024          v0.7.0
+    xx October 2024         v0.7.0
         -   implement optional catchup on startup from Ecowitt.net
         -   revised class GatewayDriver() and class GatewayService()
             inheritance
+        -   revised driver debug options
     2 August 2024          `v0.6.3
         -   added support for WS85 sensor array
         -   added support for WH46 air quality sensor
@@ -450,7 +452,7 @@ except ImportError:
         log_traceback(prefix=prefix, loglevel=syslog.LOG_DEBUG)
 
 DRIVER_NAME = 'GW1000'
-DRIVER_VERSION = '0.7.0a4'
+DRIVER_VERSION = '0.7.0a5'
 
 # various defaults used throughout
 # default port used by device
@@ -733,7 +735,7 @@ class ApiResponseError(Exception):
 # ============================================================================
 
 class DebugOptions(object):
-    """Class to simplify use and handling of device debug options."""
+    """Class to simplify use and handling of driver debug options."""
 
     debug_groups = ('rain', 'wind', 'loop', 'sensors', 'catchup', 'comms')
 
@@ -806,7 +808,13 @@ class DebugOptions(object):
 
     @property
     def active_string(self):
-        """Generate a string showing all active (True) debug options."""
+        """Generate a string showing all active (True) debug options.
+
+        Returns a string of space-delimited sub-strings showing the state of
+        each debug option that is set, eg:
+
+        'debug_comms is True debug_catchup is True debug_loop is True'
+        """
 
         debug_list = []
         for debug_group in self.debug_groups:
@@ -1174,8 +1182,8 @@ class Gateway:
         # Is a WH32 in use. WH32 TH sensor can override/provide outdoor TH data
         # to the gateway device. In terms of TH data the process is transparent
         # and we do not need to know if a WH32 or other sensor is providing
-        # outdoor TH data. But in terms of battery state we need to know so the
-        # battery state data can be reported against the correct sensor.
+        # outdoor TH data. However, in terms of battery state we need to know
+        # so the battery state data can be reported against the correct sensor.
         use_wh32 = weeutil.weeutil.tobool(gw_config.get('wh32', True))
         # do we ignore battery state data from legacy WH40 sensors that do not
         # provide valid battery state data
